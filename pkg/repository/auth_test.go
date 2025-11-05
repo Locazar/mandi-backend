@@ -8,7 +8,11 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+<<<<<<< HEAD
 	"github.com/rohit221990/mandi-backend/pkg/domain"
+=======
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/domain"
+>>>>>>> b9ab446 (Initial commit)
 	"github.com/stretchr/testify/assert"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"

@@ -8,7 +8,11 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+<<<<<<< HEAD
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
+=======
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/api/handler/response"
+>>>>>>> b9ab446 (Initial commit)
 )
 
 func (c *middleware) TrimSpaces() gin.HandlerFunc {

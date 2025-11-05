@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+<<<<<<< HEAD
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
@@ -14,6 +15,16 @@ import (
 
 // StripPaymentCheckout godoc
 //
+=======
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/api/handler/request"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/api/handler/response"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/domain"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/usecase"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/utils"
+)
+
+// StripPaymentCheckout godoc
+>>>>>>> b9ab446 (Initial commit)
 //	@Summary		Stripe checkout (User)
 //	@Security		BearerAuth
 //	@Description	API for user to create stripe payment
@@ -48,7 +59,10 @@ func (c *paymentHandler) StripPaymentCheckout(ctx *gin.Context) {
 }
 
 // StripePaymentVeify godoc
+<<<<<<< HEAD
 //
+=======
+>>>>>>> b9ab446 (Initial commit)
 //	@Summary		Stripe verify (User)
 //	@Security		BearerAuth
 //	@Description	API for user to callback backend after stripe payment for verification

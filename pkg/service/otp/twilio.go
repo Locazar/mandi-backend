@@ -3,7 +3,11 @@ package otp
 import (
 	"fmt"
 
+<<<<<<< HEAD
 	"github.com/rohit221990/mandi-backend/pkg/config"
+=======
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/config"
+>>>>>>> b9ab446 (Initial commit)
 	"github.com/twilio/twilio-go"
 	twilioApi "github.com/twilio/twilio-go/rest/verify/v2"
 )

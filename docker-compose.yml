@@ -14,7 +14,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+<<<<<<< HEAD
     image: rohit221990/mandi-backend
+=======
+    image: nikhil382/ecommerce-gin-clean-arch
+>>>>>>> b9ab446 (Initial commit)
     ports:
       - 3000:3000
     env_file:

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+<<<<<<< HEAD
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"github.com/rohit221990/mandi-backend/pkg/mock/mockrepo"
@@ -15,6 +16,15 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/service/token"
 	service "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
+=======
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/api/handler/request"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/domain"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/mock/mockrepo"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/mock/mockservice"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/service/token"
+	service "github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/usecase/interfaces"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/utils"
+>>>>>>> b9ab446 (Initial commit)
 	"github.com/stretchr/testify/assert"
 )
 

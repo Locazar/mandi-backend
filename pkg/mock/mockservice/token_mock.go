@@ -8,7 +8,11 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+<<<<<<< HEAD
 	token "github.com/rohit221990/mandi-backend/pkg/service/token"
+=======
+	token "github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/service/token"
+>>>>>>> b9ab446 (Initial commit)
 )
 
 // MockTokenService is a mock of TokenService interface.

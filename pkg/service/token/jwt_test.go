@@ -5,7 +5,11 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt"
+<<<<<<< HEAD
 	"github.com/rohit221990/mandi-backend/pkg/config"
+=======
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/config"
+>>>>>>> b9ab446 (Initial commit)
 	"github.com/stretchr/testify/assert"
 )
 

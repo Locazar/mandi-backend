@@ -1,6 +1,10 @@
 package request
 
+<<<<<<< HEAD
 import "github.com/rohit221990/mandi-backend/pkg/domain"
+=======
+import "github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/domain"
+>>>>>>> b9ab446 (Initial commit)
 
 type PaymentMethod struct {
 	PaymentType   string `json:"payment_type" binding:"required,min=2,max=20"`

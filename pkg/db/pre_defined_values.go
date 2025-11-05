@@ -4,8 +4,13 @@ import (
 	"fmt"
 	"time"
 
+<<<<<<< HEAD
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
+=======
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/domain"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/utils"
+>>>>>>> b9ab446 (Initial commit)
 	"gorm.io/gorm"
 )
 

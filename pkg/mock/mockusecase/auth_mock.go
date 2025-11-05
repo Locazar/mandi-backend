@@ -9,10 +9,17 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+<<<<<<< HEAD
 	request "github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	domain "github.com/rohit221990/mandi-backend/pkg/domain"
 	token "github.com/rohit221990/mandi-backend/pkg/service/token"
 	interfaces "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
+=======
+	request "github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/api/handler/request"
+	domain "github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/domain"
+	token "github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/service/token"
+	interfaces "github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/usecase/interfaces"
+>>>>>>> b9ab446 (Initial commit)
 )
 
 // MockAuthUseCase is a mock of AuthUseCase interface.

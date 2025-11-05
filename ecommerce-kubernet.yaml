@@ -16,7 +16,11 @@ spec:
     spec:
       containers:
         - name: ecommerce-app
+<<<<<<< HEAD
           image: rohit221990/mandi-backend
+=======
+          image: nikhil382/ecommerce-gin-clean-arch
+>>>>>>> b9ab446 (Initial commit)
           ports:
             - containerPort: 3000
           env:

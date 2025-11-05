@@ -4,10 +4,17 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+<<<<<<< HEAD
 	_ "github.com/rohit221990/mandi-backend/cmd/api/docs"
 	handlerInterface "github.com/rohit221990/mandi-backend/pkg/api/handler/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/api/middleware"
 	"github.com/rohit221990/mandi-backend/pkg/api/routes"
+=======
+	_ "github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/cmd/api/docs"
+	handlerInterface "github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/api/handler/interfaces"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/api/middleware"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/api/routes"
+>>>>>>> b9ab446 (Initial commit)
 	swaggerfiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
@@ -17,10 +24,17 @@ type ServerHTTP struct {
 }
 
 // @title						E-commerce Application Backend API
+<<<<<<< HEAD
 // @description				Backend API built with Golang using Clean Code architecture. \nGithub: [https://github.com/rohit221990/mandi-backend].
 //
 // @contact.name				For API Support
 // @contact.email				rohit.jangid.social@gmail.com
+=======
+// @description				Backend API built with Golang using Clean Code architecture. \nGithub: [https://github.com/nikhilnarayanan623/ecommerce-gin-clean-arch].
+//
+// @contact.name				For API Support
+// @contact.email				nikhilnarayanan623@gmail.com
+>>>>>>> b9ab446 (Initial commit)
 //
 // @license.name				MIT
 // @license.url				https://opensource.org/licenses/MIT

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+<<<<<<< HEAD
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
@@ -15,6 +16,15 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/service/token"
 	service "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
+=======
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/api/handler/request"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/domain"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/repository/interfaces"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/service/otp"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/service/token"
+	service "github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/usecase/interfaces"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/utils"
+>>>>>>> b9ab446 (Initial commit)
 )
 
 const (

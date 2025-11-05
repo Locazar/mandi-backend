@@ -9,8 +9,13 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+<<<<<<< HEAD
 	response "github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	domain "github.com/rohit221990/mandi-backend/pkg/domain"
+=======
+	response "github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/api/handler/response"
+	domain "github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/domain"
+>>>>>>> b9ab446 (Initial commit)
 )
 
 // MockUserRepository is a mock of UserRepository interface.

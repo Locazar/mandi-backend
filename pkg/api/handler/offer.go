@@ -6,12 +6,21 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/copier"
+<<<<<<< HEAD
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"github.com/rohit221990/mandi-backend/pkg/usecase"
 	usecaseInterface "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
+=======
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/api/handler/interfaces"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/api/handler/request"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/api/handler/response"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/domain"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/usecase"
+	usecaseInterface "github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/usecase/interfaces"
+>>>>>>> b9ab446 (Initial commit)
 )
 
 type offerHandler struct {
@@ -25,7 +34,10 @@ func NewOfferHandler(offerUseCase usecaseInterface.OfferUseCase) interfaces.Offe
 }
 
 // SaveOffer godoc
+<<<<<<< HEAD
 //
+=======
+>>>>>>> b9ab446 (Initial commit)
 //	@Summary		Add offer (Admin)
 //	@Security		BearerAuth
 //	@Description	API for admin to add an offer (Admin)
@@ -65,7 +77,10 @@ func (p *offerHandler) SaveOffer(ctx *gin.Context) {
 }
 
 // GetAllOffers godoc
+<<<<<<< HEAD
 //
+=======
+>>>>>>> b9ab446 (Initial commit)
 //	@Summary		Get all offers (Admin)
 //	@Security		BearerAuth
 //	@Description	API for admin to get all offers
@@ -97,7 +112,10 @@ func (c *offerHandler) GetAllOffers(ctx *gin.Context) {
 }
 
 // RemoveOffer godoc
+<<<<<<< HEAD
 //
+=======
+>>>>>>> b9ab446 (Initial commit)
 //	@summary		Remove offer (Admin)
 //	@Security		BearerAuth
 //	@Description	API admin to remove an offer
@@ -126,6 +144,7 @@ func (c *offerHandler) RemoveOffer(ctx *gin.Context) {
 
 }
 
+<<<<<<< HEAD
 // @Summary		Add category offer (Admin)
 // @Security		BearerAuth
 // @Description	API for admin to add an offer category
@@ -135,6 +154,17 @@ func (c *offerHandler) RemoveOffer(ctx *gin.Context) {
 // @Router			/admin/offers/category [post]
 // @Success		200	{object}	response.Response{}	"successfully offer added for category"
 // @Failure		400	{object}	response.Response{}	"invalid input"
+=======
+//	@Summary		Add category offer (Admin)
+//	@Security		BearerAuth
+//	@Description	API for admin to add an offer category
+//	@Id				SaveCategoryOffer
+//	@Tags			Admin Offers
+//	@Param			input	body	request.OfferCategory{}	true	"input field"
+//	@Router			/admin/offers/category [post]
+//	@Success		200	{object}	response.Response{}	"successfully offer added for category"
+//	@Failure		400	{object}	response.Response{}	"invalid input"
+>>>>>>> b9ab446 (Initial commit)
 func (c *offerHandler) SaveCategoryOffer(ctx *gin.Context) {
 
 	var body request.OfferCategory
@@ -163,7 +193,10 @@ func (c *offerHandler) SaveCategoryOffer(ctx *gin.Context) {
 }
 
 // GetAllCategoryOffers godoc
+<<<<<<< HEAD
 //
+=======
+>>>>>>> b9ab446 (Initial commit)
 //	@Summary		Get all category offers (Admin)
 //	@Security		BearerAuth
 //	@Description	API for admin to get all category offers
@@ -194,7 +227,10 @@ func (c *offerHandler) GetAllCategoryOffers(ctx *gin.Context) {
 }
 
 // RemoveCategoryOffer godoc
+<<<<<<< HEAD
 //
+=======
+>>>>>>> b9ab446 (Initial commit)
 //	@Summary		Remove category offer (Admin)
 //	@Security		BearerAuth
 //	@Description	API admin to remove a offer from category
@@ -223,7 +259,10 @@ func (c *offerHandler) RemoveCategoryOffer(ctx *gin.Context) {
 }
 
 // ChangeCategoryOffer godoc
+<<<<<<< HEAD
 //
+=======
+>>>>>>> b9ab446 (Initial commit)
 //	@Summary		Change product offer (Admin)
 //	@Security		BearerAuth
 //	@Description	API admin to change product offer to another offer
@@ -252,7 +291,10 @@ func (c *offerHandler) ChangeCategoryOffer(ctx *gin.Context) {
 }
 
 // SaveProductOffer godoc
+<<<<<<< HEAD
 //
+=======
+>>>>>>> b9ab446 (Initial commit)
 //	@Summary		Add product offer (Admin)
 //	@Security		BearerAuth
 //	@Description	API for admin to add an offer for product
@@ -284,7 +326,10 @@ func (c *offerHandler) SaveProductOffer(ctx *gin.Context) {
 }
 
 // GetAllProductsOffers godoc
+<<<<<<< HEAD
 //
+=======
+>>>>>>> b9ab446 (Initial commit)
 //	@Summary		Get all product offers (Admin)
 //	@Security		BearerAuth
 //	@Description	API for admin to get all product offers
@@ -314,7 +359,10 @@ func (c *offerHandler) GetAllProductsOffers(ctx *gin.Context) {
 }
 
 // RemoveProductOffer godoc
+<<<<<<< HEAD
 //
+=======
+>>>>>>> b9ab446 (Initial commit)
 //	@Summary		Remove product offer (Admin)
 //	@Security		BearerAuth
 //	@Description	API admin to remove a offer from product
@@ -343,7 +391,10 @@ func (c *offerHandler) RemoveProductOffer(ctx *gin.Context) {
 }
 
 // ChangeProductOffer godoc
+<<<<<<< HEAD
 //
+=======
+>>>>>>> b9ab446 (Initial commit)
 //	@Summary		Change product offer (Admin)
 //	@Security		BearerAuth
 //	@Description	API admin to change product offer to another offer

@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+<<<<<<< HEAD
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
@@ -11,6 +12,14 @@ import (
 
 // GetUserWallet godoc
 //
+=======
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/api/handler/request"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/api/handler/response"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/utils"
+)
+
+// GetUserWallet godoc
+>>>>>>> b9ab446 (Initial commit)
 //	@Summary		Get user wallet  (User)
 //	@Security		BearerAuth
 //	@Description	API for user to get user wallet
@@ -34,7 +43,10 @@ func (c *OrderHandler) GetUserWallet(ctx *gin.Context) {
 }
 
 // GetUserWalletTransactions godoc
+<<<<<<< HEAD
 //
+=======
+>>>>>>> b9ab446 (Initial commit)
 //	@Summary		Get user wallet  (User)
 //	@Security		BearerAuth
 //	@Description	API for user to get user wallet transaction

@@ -4,10 +4,17 @@ import (
 	"context"
 	"log"
 
+<<<<<<< HEAD
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
 	service "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
+=======
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/api/handler/request"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/api/handler/response"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/repository/interfaces"
+	service "github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/usecase/interfaces"
+>>>>>>> b9ab446 (Initial commit)
 )
 
 type stockUseCase struct {

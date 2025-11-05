@@ -11,7 +11,11 @@ const docTemplate = `{
         "title": "{{.Title}}",
         "contact": {
             "name": "For API Support",
+<<<<<<< HEAD
             "email": "rohit.jangid.social@gmail.com"
+=======
+            "email": "nikhilnarayanan623@gmail.com"
+>>>>>>> b9ab446 (Initial commit)
         },
         "license": {
             "name": "MIT",
@@ -4535,7 +4539,11 @@ var SwaggerInfo = &swag.Spec{
 	BasePath:         "/api",
 	Schemes:          []string{},
 	Title:            "E-commerce Application Backend API",
+<<<<<<< HEAD
 	Description:      "Backend API built with Golang using Clean Code architecture. \\nGithub: [https://github.com/rohit221990/mandi-backend].",
+=======
+	Description:      "Backend API built with Golang using Clean Code architecture. \\nGithub: [https://github.com/nikhilnarayanan623/ecommerce-gin-clean-arch].",
+>>>>>>> b9ab446 (Initial commit)
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 module github.com/rohit221990/mandi-backend
+=======
+module github.com/nikhilnarayanan623/ecommerce-gin-clean-arch
+>>>>>>> b9ab446 (Initial commit)
 
 go 1.19
 
@@ -14,7 +18,10 @@ require (
 	github.com/google/wire v0.5.0
 	github.com/jinzhu/copier v0.3.5
 	github.com/markbates/goth v1.77.0
+<<<<<<< HEAD
 	github.com/rohit221990/mandi-backend v0.0.0-20231120081925-7d8e645bf537
+=======
+>>>>>>> b9ab446 (Initial commit)
 	github.com/razorpay/razorpay-go v0.0.0-20230410044935-943abe07d4c1
 	github.com/spf13/viper v1.16.0
 	github.com/stretchr/testify v1.8.4
@@ -35,6 +42,10 @@ require (
 	github.com/bytedance/sonic v1.9.1 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+<<<<<<< HEAD
+=======
+	github.com/frankban/quicktest v1.14.5 // indirect
+>>>>>>> b9ab446 (Initial commit)
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.2 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
@@ -69,6 +80,10 @@ require (
 	github.com/pelletier/go-toml/v2 v2.0.8 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+<<<<<<< HEAD
+=======
+	github.com/rogpeppe/go-internal v1.10.1-0.20230508101108-a4f6fabd84c5 // indirect
+>>>>>>> b9ab446 (Initial commit)
 	github.com/spf13/afero v1.9.5 // indirect
 	github.com/spf13/cast v1.5.1 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect

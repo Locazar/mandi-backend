@@ -5,12 +5,21 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+<<<<<<< HEAD
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/usecase"
 	usecaseInterface "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
+=======
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/api/handler/interfaces"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/api/handler/request"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/api/handler/response"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/usecase"
+	usecaseInterface "github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/usecase/interfaces"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/utils"
+>>>>>>> b9ab446 (Initial commit)
 )
 
 type cartHandler struct {

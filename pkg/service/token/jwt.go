@@ -6,8 +6,13 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
+<<<<<<< HEAD
 	"github.com/rohit221990/mandi-backend/pkg/config"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
+=======
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/config"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/utils"
+>>>>>>> b9ab446 (Initial commit)
 )
 
 type jwtAuth struct {

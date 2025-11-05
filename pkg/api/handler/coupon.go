@@ -5,12 +5,21 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/copier"
+<<<<<<< HEAD
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	usecase "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
+=======
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/api/handler/interfaces"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/api/handler/request"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/api/handler/response"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/domain"
+	usecase "github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/usecase/interfaces"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/utils"
+>>>>>>> b9ab446 (Initial commit)
 )
 
 type CouponHandler struct {
@@ -22,7 +31,10 @@ func NewCouponHandler(couponUseCase usecase.CouponUseCase) interfaces.CouponHand
 }
 
 // SaveCoupon godoc
+<<<<<<< HEAD
 //
+=======
+>>>>>>> b9ab446 (Initial commit)
 //	@Summary		Add coupons (Admin)
 //	@Description	API for admin to add a new coupon
 //	@Security		BearerAuth
@@ -55,7 +67,10 @@ func (c *CouponHandler) SaveCoupon(ctx *gin.Context) {
 }
 
 // GetAllCouponsAdmin godoc
+<<<<<<< HEAD
 //
+=======
+>>>>>>> b9ab446 (Initial commit)
 //	@Summary		Get all coupons (Admin)
 //	@Description	API for admin to get all coupons
 //	@Security		BearerAuth
@@ -85,7 +100,10 @@ func (c *CouponHandler) GetAllCouponsAdmin(ctx *gin.Context) {
 }
 
 // GetAllCouponsForUser godoc
+<<<<<<< HEAD
 //
+=======
+>>>>>>> b9ab446 (Initial commit)
 //	@Summary		Get all user coupons (User)
 //	@Description	API for user to get all coupons
 //	@Security		BearerAuth
@@ -117,7 +135,10 @@ func (c *CouponHandler) GetAllCouponsForUser(ctx *gin.Context) {
 }
 
 // UpdateCoupon godoc
+<<<<<<< HEAD
 //
+=======
+>>>>>>> b9ab446 (Initial commit)
 //	@Summary		Update Coupon (Admin)
 //	@Description	API for admin update coupon details
 //	@Security		BearerAuth
@@ -150,7 +171,10 @@ func (c *CouponHandler) UpdateCoupon(ctx *gin.Context) {
 }
 
 // ApplyCouponToCart godoc
+<<<<<<< HEAD
 //
+=======
+>>>>>>> b9ab446 (Initial commit)
 //	@Summary		Apply coupon
 //	@Description	API for user to apply a coupon on cart
 //	@Security		BearerAuth

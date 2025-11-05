@@ -8,7 +8,11 @@ package middleware
 
 // 	"github.com/gin-gonic/gin"
 // 	"github.com/golang/mock/gomock"
+<<<<<<< HEAD
 // 	"github.com/rohit221990/mandi-backend/pkg/token"
+=======
+// 	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/token"
+>>>>>>> b9ab446 (Initial commit)
 // 	"github.com/stretchr/testify/assert"
 // )
 

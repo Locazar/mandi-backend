@@ -3,9 +3,15 @@ package interfaces
 import (
 	"context"
 
+<<<<<<< HEAD
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
+=======
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/domain"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/api/handler/response"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/api/handler/request"
+>>>>>>> b9ab446 (Initial commit)
 )
 
 type CouponRepository interface {
@@ -25,4 +31,8 @@ type CouponRepository interface {
 
 	// find all coupon for user
 	FindAllCouponForUser(ctx context.Context, userID uint, pagination request.Pagination) (coupons []response.UserCoupon, err error)
+<<<<<<< HEAD
+=======
+
+>>>>>>> b9ab446 (Initial commit)
 }

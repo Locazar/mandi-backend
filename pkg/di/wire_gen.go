@@ -7,6 +7,7 @@
 package di
 
 import (
+<<<<<<< HEAD
 	http "github.com/rohit221990/mandi-backend/pkg/api"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler"
 	"github.com/rohit221990/mandi-backend/pkg/api/middleware"
@@ -17,6 +18,18 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/service/otp"
 	"github.com/rohit221990/mandi-backend/pkg/service/token"
 	"github.com/rohit221990/mandi-backend/pkg/usecase"
+=======
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/api"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/api/handler"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/api/middleware"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/config"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/db"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/repository"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/service/cloud"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/service/otp"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/service/token"
+	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/usecase"
+>>>>>>> b9ab446 (Initial commit)
 )
 
 // Injectors from wire.go:
