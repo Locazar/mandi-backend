@@ -5,12 +5,12 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	interfaces "github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/api/handler/interfaces"
-	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/api/handler/request"
-	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/api/handler/response"
-	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/usecase"
-	usecaseInterface "github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/usecase/interfaces"
-	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/utils"
+	interfaces "github.com/rohit221990/mandi-backend/pkg/api/handler/interfaces"
+	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
+	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
+	"github.com/rohit221990/mandi-backend/pkg/usecase"
+	usecaseInterface "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
+	"github.com/rohit221990/mandi-backend/pkg/utils"
 )
 
 type OrderHandler struct {
@@ -24,6 +24,7 @@ func NewOrderHandler(orderUseCase usecaseInterface.OrderUseCase) interfaces.Orde
 }
 
 // GetAllOrderStatuses godoc
+//
 //	@Summary		Get all order statuses (Admin)
 //	@Security		BearerAuth
 //	@Description	API for admin to get all available order statuses
@@ -51,6 +52,7 @@ func (c *OrderHandler) GetAllOrderStatuses(ctx *gin.Context) {
 }
 
 // SaveOrder godoc
+//
 //	@Summary		Save Order (User)
 //	@Security		BearerAuth
 //	@Description	API for user save an order
@@ -97,6 +99,7 @@ func (c *OrderHandler) SaveOrder(ctx *gin.Context) {
 }
 
 // GetUserOrder godoc
+//
 //	@summary		Get user orders (User)
 //	@Security		BearerAuth
 //	@description	API to get order for user user orders
@@ -129,6 +132,7 @@ func (c *OrderHandler) GetUserOrder(ctx *gin.Context) {
 }
 
 // GetAllShopOrders godoc
+//
 //	@Summary		Get all orders (Admin)
 //	@Security		BearerAuth
 //	@Description	API for admin to get all orders
@@ -159,6 +163,7 @@ func (c *OrderHandler) GetAllShopOrders(ctx *gin.Context) {
 }
 
 // GetAllOrderItemsUser godoc
+//
 //	@Summary		Get all order items (User)
 //	@Security		BearerAuth
 //	@Description	API for user to get all order items of a specific order
@@ -175,6 +180,7 @@ func (c *OrderHandler) GetAllOrderItemsUser() func(ctx *gin.Context) {
 }
 
 // GetAllOrderItemsAdmin godoc
+//
 //	@Summary		Get all order items (Admin)
 //	@Security		BearerAuth
 //	@Description	API for user to get all order items of a specific order
@@ -217,6 +223,7 @@ func (c *OrderHandler) findAllOrderItems() func(ctx *gin.Context) {
 }
 
 // CancelOrder godoc
+//
 //	@Summary		Cancel order (User)
 //	@Security		BearerAuth
 //	@Description	Api for user to cancel a order
@@ -244,6 +251,7 @@ func (c *OrderHandler) CancelOrder(ctx *gin.Context) {
 }
 
 // UpdateOrderStatus godoc
+//
 //	@Summary		Change order status (Admin)
 //	@Security		BearerAuth
 //	@Description	API for admin to change order status
@@ -272,6 +280,7 @@ func (c *OrderHandler) UpdateOrderStatus(ctx *gin.Context) {
 }
 
 // SubmitReturnRequest godoc
+//
 //	@Summary		Return request (User)
 //	@Security		BearerAuth
 //	@Description	API for user to request a return for delivered order
@@ -299,6 +308,7 @@ func (c OrderHandler) SubmitReturnRequest(ctx *gin.Context) {
 }
 
 // GetAllOrderReturns godoc
+//
 //	@Summary		Get all order returns (Admin)
 //	@Security		BearerAuth
 //	@Description	API for admin to get all order returns
@@ -328,6 +338,7 @@ func (c *OrderHandler) GetAllOrderReturns(ctx *gin.Context) {
 }
 
 // GetAllPendingReturns godoc
+//
 //	@Summary		Get all pending returns (Admin)
 //	@Security		BearerAuth
 //	@Description	API for admin to get all pending returns
@@ -357,6 +368,7 @@ func (c *OrderHandler) GetAllPendingReturns(ctx *gin.Context) {
 }
 
 // UpdateReturnRequest godoc
+//
 //	@summary		Change return request status (Admin)
 //	@Security		BearerAuth
 //	@description	API for admin to change status of return requested orders

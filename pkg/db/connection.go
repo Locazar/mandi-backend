@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/config"
-	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/domain"
+	"github.com/rohit221990/mandi-backend/pkg/config"
+	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )

@@ -4,10 +4,10 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/api/handler/interfaces"
-	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/api/handler/request"
-	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/api/handler/response"
-	usecaseInterface "github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/usecase/interfaces"
+	"github.com/rohit221990/mandi-backend/pkg/api/handler/interfaces"
+	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
+	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
+	usecaseInterface "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 )
 
 type stockHandler struct {
@@ -21,6 +21,7 @@ func NewStockHandler(stockUseCase usecaseInterface.StockUseCase) interfaces.Stoc
 }
 
 // GetAllStocks godoc
+//
 //	@Summary		Get all stocks (Admin)
 //	@Security		BearerAuth
 //	@Description	API for admin to get all stocks
@@ -52,6 +53,7 @@ func (c *stockHandler) GetAllStocks(ctx *gin.Context) {
 }
 
 // UpdateStock godoc
+//
 //	@Summary		Update stocks (Admin)
 //	@Security		BearerAuth
 //	@Description	API for admin to update stock details

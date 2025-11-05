@@ -11,13 +11,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang/mock/gomock"
-	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/api/handler/request"
-	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/api/handler/response"
-	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/config"
-	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/domain"
-	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/mock/mockusecase"
-	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/service/token"
-	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/usecase"
+	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
+	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
+	"github.com/rohit221990/mandi-backend/pkg/config"
+	"github.com/rohit221990/mandi-backend/pkg/domain"
+	"github.com/rohit221990/mandi-backend/pkg/mock/mockusecase"
+	"github.com/rohit221990/mandi-backend/pkg/service/token"
+	"github.com/rohit221990/mandi-backend/pkg/usecase"
 	"github.com/stretchr/testify/assert"
 )
 

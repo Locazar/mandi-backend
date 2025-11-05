@@ -1,6 +1,6 @@
 package response
 
-import "github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/domain"
+import "github.com/rohit221990/mandi-backend/pkg/domain"
 
 type OrderPayment struct {
 	PaymentType  domain.PaymentType `json:"payment_type"`

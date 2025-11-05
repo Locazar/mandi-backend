@@ -473,10 +473,10 @@ definitions:
     type: object
 info:
   contact:
-    email: nikhilnarayanan623@gmail.com
+    email: rohit.jangid.social@gmail.com
     name: For API Support
   description: 'Backend API built with Golang using Clean Code architecture. \nGithub:
-    [https://github.com/nikhilnarayanan623/ecommerce-gin-clean-arch].'
+    [https://github.com/rohit221990/mandi-backend].'
   license:
     name: MIT
     url: https://opensource.org/licenses/MIT

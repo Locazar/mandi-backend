@@ -3,8 +3,8 @@ package main
 import (
 	"log"
 
-	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/config"
-	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/di"
+	"github.com/rohit221990/mandi-backend/pkg/config"
+	"github.com/rohit221990/mandi-backend/pkg/di"
 )
 
 func main() {

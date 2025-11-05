@@ -14,7 +14,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: nikhil382/ecommerce-gin-clean-arch
+    image: rohit221990/mandi-backend
     ports:
       - 3000:3000
     env_file:

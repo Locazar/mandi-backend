@@ -4,12 +4,12 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	handlerInterface "github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/api/handler/interfaces"
-	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/api/handler/request"
-	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/api/handler/response"
-	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/domain"
-	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/usecase/interfaces"
-	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/utils"
+	handlerInterface "github.com/rohit221990/mandi-backend/pkg/api/handler/interfaces"
+	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
+	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
+	"github.com/rohit221990/mandi-backend/pkg/domain"
+	"github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
+	"github.com/rohit221990/mandi-backend/pkg/utils"
 )
 
 type paymentHandler struct {
@@ -23,6 +23,7 @@ func NewPaymentHandler(paymentUseCase interfaces.PaymentUseCase) handlerInterfac
 }
 
 // CartOrderPaymentSelectPage godoc
+//
 //	@Summary		Render Payment Page (User)
 //	@Security		BearerAuth
 //	@Description	API for user to render payment select page
@@ -43,6 +44,7 @@ func (c *paymentHandler) CartOrderPaymentSelectPage(ctx *gin.Context) {
 }
 
 // UpdatePaymentMethod godoc
+//
 //	@Summary		Update payment method (Admin)
 //	@Security		BearerAuth
 //	@Description	API for admin to change maximum price or block or unblock the payment method
@@ -72,6 +74,7 @@ func (c *paymentHandler) UpdatePaymentMethod(ctx *gin.Context) {
 }
 
 // GetAllPaymentMethodsAdmin godoc
+//
 //	@summary		Get payment methods (Admin)
 //	@Security		BearerAuth
 //	@Description	API for admin to get all payment methods
@@ -85,6 +88,7 @@ func (c *paymentHandler) GetAllPaymentMethodsAdmin() func(ctx *gin.Context) {
 }
 
 // GetAllPaymentMethodsUser godoc
+//
 //	@summary		Get payment methods (User)
 //	@Security		BearerAuth
 //	@Description	API for user to get all payment methods
@@ -117,6 +121,7 @@ func (c *paymentHandler) findAllPaymentMethods() func(ctx *gin.Context) {
 }
 
 // PaymentCOD godoc
+//
 //	@summary		Place order  for COD (User)
 //	@Security		BearerAuth
 //	@Description	API for user to place order for cash on delivery

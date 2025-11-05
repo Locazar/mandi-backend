@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/api/handler/request"
-	"github.com/nikhilnarayanan623/ecommerce-gin-clean-arch/pkg/domain"
+	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
+	"github.com/rohit221990/mandi-backend/pkg/domain"
 )
 
 func (c *OrderUseCase) FindUserWallet(ctx context.Context, userID uint) (wallet domain.Wallet, err error) {

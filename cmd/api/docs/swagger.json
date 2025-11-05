@@ -1,11 +1,11 @@
 {
     "swagger": "2.0",
     "info": {
-        "description": "Backend API built with Golang using Clean Code architecture. \\nGithub: [https://github.com/nikhilnarayanan623/ecommerce-gin-clean-arch].",
+        "description": "Backend API built with Golang using Clean Code architecture. \\nGithub: [https://github.com/rohit221990/mandi-backend].",
         "title": "E-commerce Application Backend API",
         "contact": {
             "name": "For API Support",
-            "email": "nikhilnarayanan623@gmail.com"
+            "email": "rohit.jangid.social@gmail.com"
         },
         "license": {
             "name": "MIT",

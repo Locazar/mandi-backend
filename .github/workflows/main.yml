@@ -37,8 +37,8 @@ jobs:
         
       - name: Build And Push The Docker Image
         run: |
-          docker build -t nikhil382/ecommerce-gin-clean-arch .
-          docker push nikhil382/ecommerce-gin-clean-arch
+          docker build -t rohit221990/mandi-backend .
+          docker push rohit221990/mandi-backend
       
 
       
