@@ -1,0 +1,2927 @@
+basePath: /api
+definitions:
+  request.Address:
+    properties:
+      area:
+        type: string
+      city:
+        type: string
+      house:
+        type: string
+      is_default:
+        type: boolean
+      land_mark:
+        type: string
+      name:
+        maxLength: 50
+        minLength: 2
+        type: string
+      phone_number:
+        maxLength: 10
+        minLength: 10
+        type: string
+      pincode:
+        type: integer
+    required:
+    - house
+    - land_mark
+    - name
+    - phone_number
+    - pincode
+    type: object
+  request.ApplyCoupon:
+    properties:
+      coupon_code:
+        type: string
+    required:
+    - coupon_code
+    type: object
+  request.BlockUser:
+    properties:
+      block:
+        type: boolean
+      user_id:
+        type: integer
+    required:
+    - user_id
+    type: object
+  request.Brand:
+    properties:
+      category_name:
+        maxLength: 25
+        minLength: 3
+        type: string
+    required:
+    - category_name
+    type: object
+  request.Category:
+    properties:
+      category_name:
+        type: string
+    required:
+    - category_name
+    type: object
+  request.Coupon:
+    properties:
+      block_status:
+        type: boolean
+      coupon_name:
+        maxLength: 25
+        minLength: 3
+        type: string
+      description:
+        maxLength: 150
+        minLength: 6
+        type: string
+      discount_rate:
+        maximum: 100
+        minimum: 1
+        type: integer
+      expire_date:
+        type: string
+      image:
+        type: string
+      minimum_cart_price:
+        minimum: 1
+        type: integer
+    required:
+    - coupon_name
+    - description
+    - discount_rate
+    - expire_date
+    - image
+    - minimum_cart_price
+    type: object
+  request.EditAddress:
+    properties:
+      address_id:
+        type: integer
+      area:
+        type: string
+      city:
+        type: string
+      house:
+        type: string
+      is_default:
+        type: boolean
+      land_mark:
+        type: string
+      name:
+        maxLength: 50
+        minLength: 2
+        type: string
+      phone_number:
+        maxLength: 10
+        minLength: 10
+        type: string
+      pincode:
+        type: integer
+    required:
+    - address_id
+    - house
+    - land_mark
+    - name
+    - phone_number
+    - pincode
+    type: object
+  request.EditCoupon:
+    properties:
+      block_status:
+        type: boolean
+      coupon_id:
+        type: integer
+      coupon_name:
+        maxLength: 25
+        minLength: 3
+        type: string
+      description:
+        maxLength: 150
+        minLength: 6
+        type: string
+      discount_rate:
+        maximum: 100
+        minimum: 1
+        type: integer
+      expire_date:
+        type: string
+      image:
+        type: string
+      minimum_cart_price:
+        minimum: 1
+        type: integer
+    required:
+    - coupon_name
+    - description
+    - discount_rate
+    - expire_date
+    - image
+    - minimum_cart_price
+    type: object
+  request.EditUser:
+    properties:
+      age:
+        type: integer
+      confirm_password:
+        type: string
+      email:
+        type: string
+      first_name:
+        maxLength: 50
+        minLength: 2
+        type: string
+      last_name:
+        maxLength: 50
+        minLength: 1
+        type: string
+      password:
+        type: string
+      phone:
+        maxLength: 10
+        minLength: 10
+        type: string
+      user_name:
+        maxLength: 15
+        minLength: 3
+        type: string
+    required:
+    - age
+    - email
+    - first_name
+    - last_name
+    - phone
+    - user_name
+    type: object
+  request.Login:
+    properties:
+      email:
+        type: string
+      password:
+        maxLength: 30
+        minLength: 5
+        type: string
+      phone:
+        maxLength: 10
+        minLength: 10
+        type: string
+      user_name:
+        maxLength: 15
+        minLength: 3
+        type: string
+    required:
+    - password
+    type: object
+  request.OTPLogin:
+    properties:
+      email:
+        type: string
+      phone:
+        maxLength: 10
+        minLength: 10
+        type: string
+      user_name:
+        maxLength: 16
+        minLength: 3
+        type: string
+    type: object
+  request.OTPVerify:
+    properties:
+      otp:
+        maxLength: 8
+        minLength: 4
+        type: string
+      otp_id:
+        type: string
+    required:
+    - otp
+    type: object
+  request.Offer:
+    properties:
+      description:
+        maxLength: 50
+        minLength: 6
+        type: string
+      discount_rate:
+        maximum: 100
+        minimum: 1
+        type: integer
+      end_date:
+        type: string
+      offer_name:
+        type: string
+      start_date:
+        type: string
+    required:
+    - description
+    - discount_rate
+    - end_date
+    - offer_name
+    - start_date
+    type: object
+  request.OfferCategory:
+    properties:
+      category_id:
+        type: integer
+      offer_id:
+        type: integer
+    required:
+    - category_id
+    - offer_id
+    type: object
+  request.OfferProduct:
+    properties:
+      offer_id:
+        type: integer
+      product_id:
+        type: integer
+    required:
+    - offer_id
+    - product_id
+    type: object
+  request.RefreshToken:
+    properties:
+      refresh_token:
+        minLength: 10
+        type: string
+    type: object
+  request.Return:
+    properties:
+      return_reason:
+        maxLength: 150
+        minLength: 6
+        type: string
+      shop_order_id:
+        type: integer
+    required:
+    - return_reason
+    - shop_order_id
+    type: object
+  request.SubCategory:
+    properties:
+      category_id:
+        type: integer
+      category_name:
+        type: string
+    required:
+    - category_id
+    - category_name
+    type: object
+  request.UpdateCartItem:
+    properties:
+      count:
+        minimum: 1
+        type: integer
+      product_item_id:
+        type: integer
+    required:
+    - product_item_id
+    type: object
+  request.UpdateCategoryOffer:
+    properties:
+      category_offer_id:
+        type: integer
+      offer_id:
+        type: integer
+    required:
+    - category_offer_id
+    - offer_id
+    type: object
+  request.UpdateOrder:
+    properties:
+      order_status_id:
+        type: integer
+      shop_order_id:
+        type: integer
+    required:
+    - shop_order_id
+    type: object
+  request.UpdateOrderReturn:
+    properties:
+      admin_comment:
+        maxLength: 150
+        minLength: 6
+        type: string
+      order_return_id:
+        type: integer
+      order_status_id:
+        type: integer
+      return_date:
+        type: string
+    required:
+    - admin_comment
+    - order_return_id
+    - order_status_id
+    type: object
+  request.UpdateProduct:
+    properties:
+      brand_id:
+        type: integer
+      category_id:
+        type: integer
+      description:
+        maxLength: 100
+        minLength: 10
+        type: string
+      image:
+        type: string
+      price:
+        type: integer
+      product_id:
+        type: integer
+      product_name:
+        maxLength: 50
+        minLength: 3
+        type: string
+    required:
+    - brand_id
+    - category_id
+    - description
+    - price
+    - product_id
+    - product_name
+    type: object
+  request.UpdateProductOffer:
+    properties:
+      offer_id:
+        type: integer
+      product_offer_id:
+        type: integer
+    required:
+    - offer_id
+    - product_offer_id
+    type: object
+  request.UpdateStock:
+    properties:
+      qty_to_add:
+        type: integer
+      sku:
+        type: string
+    type: object
+  request.UserSignUp:
+    properties:
+      age:
+        type: integer
+      confirm_password:
+        type: string
+      email:
+        type: string
+      first_name:
+        maxLength: 50
+        minLength: 2
+        type: string
+      last_name:
+        maxLength: 50
+        minLength: 1
+        type: string
+      password:
+        type: string
+      phone:
+        maxLength: 10
+        minLength: 10
+        type: string
+      user_name:
+        maxLength: 15
+        minLength: 3
+        type: string
+    required:
+    - age
+    - confirm_password
+    - email
+    - first_name
+    - last_name
+    - password
+    - phone
+    - user_name
+    type: object
+  request.Variation:
+    properties:
+      variation_names:
+        items:
+          type: string
+        type: array
+    required:
+    - variation_names
+    type: object
+  request.VariationOption:
+    properties:
+      variation_value:
+        items:
+          type: string
+        type: array
+    required:
+    - variation_value
+    type: object
+  response.OTPResponse:
+    properties:
+      otp_id:
+        type: string
+    type: object
+  response.Response:
+    properties:
+      data: {}
+      error: {}
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  response.TokenResponse:
+    properties:
+      access_token:
+        type: string
+      refresh_token:
+        type: string
+    type: object
+info:
+  contact:
+    email: nikhilnarayanan623@gmail.com
+    name: For API Support
+  description: 'Backend API built with Golang using Clean Code architecture. \nGithub:
+    [https://github.com/nikhilnarayanan623/ecommerce-gin-clean-arch].'
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  title: E-commerce Application Backend API
+paths:
+  /account:
+    get:
+      description: API for user to get all user details
+      operationId: GetProfile
+      responses:
+        "200":
+          description: Successfully retrieved user details
+        "500":
+          description: Failed to retrieve user details
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get User Profile (User)
+      tags:
+      - User Profile
+    put:
+      description: API for user to edit user details
+      operationId: UpdateProfile
+      parameters:
+      - description: User details input
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.EditUser'
+      responses:
+        "200":
+          description: Successfully profile updated
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid inputs
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to update profile
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Edit profile (User)
+      tags:
+      - User Profile
+  /account/address:
+    get:
+      description: API for user to get all user addresses
+      operationId: GetAllAddresses
+      responses:
+        "200":
+          description: successfully retrieved all user addresses
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: failed to show user addresses
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all addresses (User)
+      tags:
+      - User Profile
+    post:
+      description: API for user to add a new address
+      operationId: SaveAddress
+      parameters:
+      - description: Address input
+        in: body
+        name: inputs
+        required: true
+        schema:
+          $ref: '#/definitions/request.Address'
+      responses:
+        "200":
+          description: Successfully address added
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to save address
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Add a new address (User)
+      tags:
+      - User Profile
+    put:
+      description: API for user to update user address
+      operationId: UpdateAddress
+      parameters:
+      - description: Address input
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.EditAddress'
+      responses:
+        "200":
+          description: successfully addresses updated
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: can't update the address
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Update address (User)
+      tags:
+      - User Profile
+  /account/coupons:
+    get:
+      description: API for user to get all coupons
+      operationId: GetAllCouponsForUser
+      parameters:
+      - description: Page Number
+        in: query
+        name: page_number
+        type: integer
+      - description: Count Of Order
+        in: query
+        name: count
+        type: integer
+      responses:
+        "200":
+          description: "Successfully\tfound\tall\tcoupons\tfor\tuser"
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to find all user
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all user coupons (User)
+      tags:
+      - User Profile
+  /account/wallet:
+    get:
+      description: API for user to get user wallet
+      operationId: GetUserWallet
+      responses:
+        "200":
+          description: Successfully retrieve user wallet
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to retrieve user wallet
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get user wallet  (User)
+      tags:
+      - User Profile
+  /account/wallet/transactions:
+    get:
+      description: API for user to get user wallet transaction
+      operationId: GetUserWalletTransactions
+      responses:
+        "200":
+          description: Successfully retrieved user wallet transactions
+          schema:
+            $ref: '#/definitions/response.Response'
+        "204":
+          description: No wallet transaction for user
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to retrieve user wallet transactions
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get user wallet  (User)
+      tags:
+      - User Profile
+  /account/wishlist:
+    get:
+      operationId: GetWishList
+      responses:
+        "200":
+          description: Successfully retrieved all product items in th wish list
+        "500":
+          description: Failed to retrieve product items from the wish list
+      security:
+      - BearerAuth: []
+      summary: Get whish list product items (User)
+      tags:
+      - User Profile
+  /account/wishlist/{product_item_id}:
+    delete:
+      operationId: RemoveFromWishList
+      parameters:
+      - description: Product Item ID
+        in: path
+        name: product_item_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: successfully removed product item from wishlist
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Remove from whish list (User)
+      tags:
+      - User Profile
+    post:
+      operationId: SaveToWishList
+      parameters:
+      - description: Product Item ID
+        in: path
+        name: product_item_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: Successfully product items added to whish list
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "409":
+          description: Product item already exist on wish list
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to add product item to wishlist
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Add to whish list (User)
+      tags:
+      - User Profile
+  /admin/auth/renew-access-token:
+    post:
+      description: API for admin to renew access token using refresh token
+      operationId: AdminRenewAccessToken
+      parameters:
+      - description: Refresh token
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.RefreshToken'
+      responses:
+        "200":
+          description: Successfully generated access token using refresh token
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: Invalid refresh token
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: Refresh token blocked
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: No session found for the given refresh token
+          schema:
+            $ref: '#/definitions/response.Response'
+        "410":
+          description: Refresh token expired
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed generate access token
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: Renew Access Token (Admin)
+      tags:
+      - Admin Authentication
+  /admin/auth/sign-in:
+    post:
+      description: API for admin to login with password
+      operationId: AdminLogin
+      parameters:
+      - description: Login credentials
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.Login'
+      responses:
+        "200":
+          description: Successfully logged in
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.TokenResponse'
+              type: object
+        "400":
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: Wrong password
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Admin not exist with this details
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to login
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Login with password (Admin)
+      tags:
+      - Admin Authentication
+  /admin/brands:
+    get:
+      description: API for admin to find all brands
+      operationId: FindAllBrands
+      parameters:
+      - description: Page number
+        in: query
+        name: page_number
+        type: integer
+      - description: Count
+        in: query
+        name: count
+        type: integer
+      responses:
+        "200":
+          description: successfully found all brands
+          schema:
+            $ref: '#/definitions/response.Response'
+        "204":
+          description: there is no brands to show
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: failed to find brand
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Find All Brand
+      tags:
+      - Admin Brand
+    post:
+      description: API for admin to save new brand
+      operationId: SaveBrand
+      parameters:
+      - description: Input Field
+        in: body
+        name: inputs
+        required: true
+        schema:
+          $ref: '#/definitions/request.Brand'
+      responses:
+        "200":
+          description: successfully brand created
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "409":
+          description: brand name already exist
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: failed to create brand
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Save Brand
+      tags:
+      - Admin Brand
+  /admin/brands/{brand_id}:
+    delete:
+      description: API for admin to delete brand
+      operationId: DeleteBrand
+      parameters:
+      - description: Brand ID
+        in: path
+        name: brand_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: successfully brand deleted
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: failed to delete brand
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Save Brand
+      tags:
+      - Admin Brand
+    get:
+      description: API for admin to find one brand
+      operationId: FindOneBrand
+      parameters:
+      - description: Brand ID
+        in: path
+        name: brand_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: successfully brand found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: failed to find brand
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Find One Brand
+      tags:
+      - Admin Brand
+    put:
+      description: API for admin to update brand
+      operationId: UpdateBrand
+      parameters:
+      - description: Brand ID
+        in: path
+        name: brand_id
+        required: true
+        type: integer
+      - description: Input Field
+        in: body
+        name: inputs
+        required: true
+        schema:
+          $ref: '#/definitions/request.Brand'
+      responses:
+        "200":
+          description: successfully brand updated
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: failed to update brand
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Save Brand
+      tags:
+      - Admin Brand
+  /admin/categories:
+    get:
+      consumes:
+      - application/json
+      description: API for admin to get all categories and their subcategories
+      operationId: GetAllCategories
+      parameters:
+      - description: Page number
+        in: query
+        name: page_number
+        type: integer
+      - description: Count
+        in: query
+        name: count
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved all categories
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to retrieve categories
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all categories (Admin)
+      tags:
+      - Admin Category
+    post:
+      consumes:
+      - application/json
+      description: API for Admin to save new category
+      operationId: SaveCategory
+      parameters:
+      - description: Category details
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.Category'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Successfully added category
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "409":
+          description: Failed to save category
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Add a new category (Admin)
+      tags:
+      - Admin Category
+  /admin/categories/{category_id}/variations:
+    get:
+      consumes:
+      - application/json
+      description: API for admin to get all variation and its values of a category
+      operationId: GetAllVariations
+      parameters:
+      - description: Category ID
+        in: path
+        name: category_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved all variations and its values
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to Get variations and its values
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all variations (Admin)
+      tags:
+      - Admin Category
+    post:
+      consumes:
+      - application/json
+      description: API for admin to add new variations for a category
+      operationId: SaveVariation
+      parameters:
+      - description: Category ID
+        in: path
+        name: category_id
+        required: true
+        type: integer
+      - description: Variation details
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.Variation'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Successfully added variations
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to add variation
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Add new variations (Admin)
+      tags:
+      - Admin Category
+  /admin/categories/{category_id}/variations/{variation_id}/options:
+    post:
+      consumes:
+      - application/json
+      description: API for admin to add variation options for a variation
+      operationId: SaveVariationOption
+      parameters:
+      - description: Category ID
+        in: path
+        name: category_id
+        required: true
+        type: integer
+      - description: Variation ID
+        in: path
+        name: variation_id
+        required: true
+        type: integer
+      - description: Variation option details
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.VariationOption'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Successfully added variation options
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to add variation options
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Add new variation options (Admin)
+      tags:
+      - Admin Category
+  /admin/categories/sub-categories:
+    post:
+      consumes:
+      - application/json
+      description: API for admin to add a new sub category for a existing category
+      operationId: SaveSubCategory
+      parameters:
+      - description: Subcategory details
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.SubCategory'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Successfully added subcategory
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "409":
+          description: Sub category already exist
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to add subcategory
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Add a new subcategory (Admin)
+      tags:
+      - Admin Category
+  /admin/coupons:
+    get:
+      description: API for admin to get all coupons
+      operationId: GetAllCouponsAdmin
+      parameters:
+      - description: Page Number
+        in: query
+        name: page_number
+        type: integer
+      - description: Count
+        in: query
+        name: count
+        type: integer
+      responses:
+        "200":
+          description: successfully go all the coupons
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: failed to get all coupons
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all coupons (Admin)
+      tags:
+      - Admin Coupon
+    post:
+      description: API for admin to add a new coupon
+      operationId: SaveCoupon
+      parameters:
+      - description: Input Fields
+        in: body
+        name: inputs
+        required: true
+        schema:
+          $ref: '#/definitions/request.Coupon'
+      responses:
+        "200":
+          description: successfully coupon added
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Add coupons (Admin)
+      tags:
+      - Admin Coupon
+    put:
+      description: API for admin update coupon details
+      operationId: UpdateCoupon
+      parameters:
+      - description: Input Field
+        in: body
+        name: inputs
+        required: true
+        schema:
+          $ref: '#/definitions/request.EditCoupon'
+      responses:
+        "200":
+          description: Successfully updated the coupon
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Update Coupon (Admin)
+      tags:
+      - Admin Coupon
+  /admin/offers:
+    get:
+      description: API for admin to get all offers
+      operationId: GetAllOffers
+      parameters:
+      - description: Page Number
+        in: query
+        name: page_number
+        type: integer
+      - description: Count
+        in: query
+        name: count
+        type: integer
+      responses:
+        "200":
+          description: "Successfully\tfound\tall\toffers"
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to get all offers
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all offers (Admin)
+      tags:
+      - Admin Offers
+    post:
+      description: API for admin to add an offer (Admin)
+      operationId: SaveOffer
+      parameters:
+      - description: input field
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.Offer'
+      responses:
+        "200":
+          description: Successfully offer added
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid inputs
+          schema:
+            $ref: '#/definitions/response.Response'
+        "409":
+          description: Offer already exist
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Add offer (Admin)
+      tags:
+      - Admin Offers
+  /admin/offers/{offer_id}:
+    delete:
+      description: API admin to remove an offer
+      operationId: RemoveOffer
+      parameters:
+      - description: Offer ID
+        in: path
+        name: offer_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: successfully offer added
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Remove offer (Admin)
+      tags:
+      - Admin Offers
+  /admin/offers/category:
+    get:
+      description: API for admin to get all category offers
+      operationId: GetAllCategoryOffers
+      parameters:
+      - description: Page Number
+        in: query
+        name: page_number
+        type: integer
+      - description: Count
+        in: query
+        name: count
+        type: integer
+      responses:
+        "200":
+          description: successfully got all offer_category
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: failed to get offers_category
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all category offers (Admin)
+      tags:
+      - Admin Offers
+    patch:
+      description: API admin to change product offer to another offer
+      operationId: ChangeCategoryOffer
+      parameters:
+      - description: input field
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateCategoryOffer'
+      responses:
+        "200":
+          description: successfully offer replaced for category
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Change product offer (Admin)
+      tags:
+      - Admin Offers
+    post:
+      description: API for admin to add an offer category
+      operationId: SaveCategoryOffer
+      parameters:
+      - description: input field
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.OfferCategory'
+      responses:
+        "200":
+          description: successfully offer added for category
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Add category offer (Admin)
+      tags:
+      - Admin Offers
+  /admin/offers/category/{offer_category_id}:
+    delete:
+      description: API admin to remove a offer from category
+      operationId: RemoveCategoryOffer
+      parameters:
+      - description: Offer Category ID
+        in: path
+        name: offer_category_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: successfully offer added for category
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Remove category offer (Admin)
+      tags:
+      - Admin Offers
+  /admin/offers/products:
+    get:
+      description: API for admin to get all product offers
+      operationId: GetAllProductsOffers
+      parameters:
+      - description: Page Number
+        in: query
+        name: page_number
+        type: integer
+      - description: Count
+        in: query
+        name: count
+        type: integer
+      responses:
+        "200":
+          description: successfully got all offers_categories
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: failed to get offer_products
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all product offers (Admin)
+      tags:
+      - Admin Offers
+    patch:
+      description: API admin to change product offer to another offer
+      operationId: ChangeProductOffer
+      parameters:
+      - description: input field
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateProductOffer'
+      responses:
+        "200":
+          description: Successfully offer changed for  given product offer
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Change product offer (Admin)
+      tags:
+      - Admin Offers
+    post:
+      description: API for admin to add an offer for product
+      operationId: SaveProductOffer
+      parameters:
+      - description: input field
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.OfferProduct'
+      responses:
+        "200":
+          description: successfully offer added for product
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Add product offer (Admin)
+      tags:
+      - Admin Offers
+  /admin/offers/products/{offer_product_id}:
+    delete:
+      description: API admin to remove a offer from product
+      operationId: RemoveProductOffer
+      parameters:
+      - description: offer_product_id
+        in: path
+        name: offer_product_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: Successfully offer removed from product
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input on params
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Remove product offer (Admin)
+      tags:
+      - Admin Offers
+  /admin/orders/:
+    put:
+      description: API for admin to change order status
+      operationId: UpdateOrderStatus
+      parameters:
+      - description: input field
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateOrder'
+      responses:
+        "200":
+          description: Successfully order status updated
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Change order status (Admin)
+      tags:
+      - Admin Orders
+  /admin/orders/{shop_order_id}/items:
+    get:
+      description: API for user to get all order items of a specific order
+      operationId: GetAllOrderItemsAdmin
+      parameters:
+      - description: Shop Order ID
+        in: path
+        name: shop_order_id
+        required: true
+        type: integer
+      - description: Page Number
+        in: query
+        name: page_number
+        type: integer
+      - description: Count
+        in: query
+        name: count
+        type: integer
+      responses:
+        "200":
+          description: Successfully found order items
+          schema:
+            $ref: '#/definitions/response.Response'
+        "204":
+          description: No order items found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to find order items
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all order items (Admin)
+      tags:
+      - Admin Orders
+  /admin/orders/all:
+    get:
+      description: API for admin to get all orders
+      operationId: GetAllShopOrders
+      parameters:
+      - description: Page Number
+        in: query
+        name: page_number
+        type: integer
+      - description: Count
+        in: query
+        name: count
+        type: integer
+      responses:
+        "200":
+          description: Successfully retrieved all shop orders
+          schema:
+            $ref: '#/definitions/response.Response'
+        "204":
+          description: No shop order found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to find all shop orders
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all orders (Admin)
+      tags:
+      - Admin Orders
+  /admin/orders/returns:
+    get:
+      description: API for admin to get all order returns
+      operationId: GetAllOrderReturns
+      parameters:
+      - description: Page Number
+        in: query
+        name: page_number
+        type: integer
+      - description: Count Of Order
+        in: query
+        name: count
+        type: integer
+      responses:
+        "200":
+          description: Successfully found all order returns
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to find all order returns
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all order returns (Admin)
+      tags:
+      - Admin Orders
+  /admin/orders/returns/pending:
+    get:
+      description: API for admin to get all pending returns
+      operationId: GetAllPendingReturns
+      parameters:
+      - description: Page Number
+        in: query
+        name: page_number
+        type: integer
+      - description: Count Of Order
+        in: query
+        name: count
+        type: integer
+      responses:
+        "200":
+          description: Successfully found all pending orders return requests
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to find all pending order return requests
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all pending returns (Admin)
+      tags:
+      - Admin Orders
+    put:
+      description: API for admin to change status of return requested orders
+      operationId: UpdateReturnRequest
+      parameters:
+      - description: Input Fields
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateOrderReturn'
+      responses:
+        "200":
+          description: successfully order_response updated
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Change return request status (Admin)
+      tags:
+      - Admin Orders
+  /admin/orders/statuses:
+    get:
+      description: API for admin to get all available order statuses
+      operationId: GetAllOrderStatuses
+      responses:
+        "200":
+          description: Successfully retrieved all order statuses
+          schema:
+            $ref: '#/definitions/response.Response'
+        "204":
+          description: No order statuses found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to find all order statuses
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all order statuses (Admin)
+      tags:
+      - Admin Orders
+  /admin/payment-method:
+    put:
+      description: API for admin to change maximum price or block or unblock the payment
+        method
+      operationId: UpdatePaymentMethod
+      responses:
+        "200":
+          description: Successfully payment method updated
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid inputs
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to update payment method
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Update payment method (Admin)
+      tags:
+      - Admin Payment
+  /admin/payment-methods:
+    get:
+      description: API for admin to get all payment methods
+      operationId: GetAllPaymentMethodsAdmin
+      responses:
+        "200":
+          description: Failed to retrieve payment methods
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Successfully retrieved all payment methods
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get payment methods (Admin)
+      tags:
+      - Admin Payment
+  /admin/products:
+    get:
+      description: API for admin to get all products
+      operationId: GetAllProductsAdmin
+      parameters:
+      - description: Page Number
+        in: query
+        name: page_number
+        type: integer
+      - description: Count
+        in: query
+        name: count
+        type: integer
+      responses:
+        "200":
+          description: Successfully found all products
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to Get all products
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all products (Admin)
+      tags:
+      - Admin Products
+    post:
+      description: API for admin to add a new product
+      operationId: SaveProduct
+      parameters:
+      - description: Product Name
+        in: formData
+        name: name
+        required: true
+        type: string
+      - description: Product Description
+        in: formData
+        name: description
+        required: true
+        type: string
+      - description: Category Id
+        in: formData
+        name: category_id
+        required: true
+        type: integer
+      - description: Brand Id
+        in: formData
+        name: brand_id
+        required: true
+        type: integer
+      - description: Product Price
+        in: formData
+        name: price
+        required: true
+        type: integer
+      - description: Product Description
+        in: formData
+        name: image
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: successfully product added
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "409":
+          description: Product name already exist
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Add a new product (Admin)
+      tags:
+      - Admin Products
+    put:
+      consumes:
+      - application/json
+      description: API for admin to update a product
+      operationId: UpdateProduct
+      parameters:
+      - description: Product update input
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateProduct'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: successfully product updated
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "409":
+          description: Failed to update product
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Product name already exist for another product
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Update a product (Admin)
+      tags:
+      - Admin Products
+  /admin/products/{product_id}/items:
+    get:
+      consumes:
+      - application/json
+      description: API for admin to get all product items for a specific product
+      operationId: GetAllProductItemsAdmin
+      parameters:
+      - description: Product ID
+        in: path
+        name: product_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully get all product items
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Failed to get all product items
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all product items (Admin)
+      tags:
+      - Admin Products
+    post:
+      consumes:
+      - application/json
+      description: API for admin to add a product item for a specific product(should
+        select at least one variation option from each variations)
+      operationId: SaveProductItem
+      parameters:
+      - description: Product ID
+        in: path
+        name: product_id
+        required: true
+        type: integer
+      - description: Price
+        in: formData
+        name: price
+        required: true
+        type: integer
+      - description: Quantity In Stock
+        in: formData
+        name: qty_in_stock
+        required: true
+        type: integer
+      - collectionFormat: csv
+        description: Variation Option IDs
+        in: formData
+        items:
+          type: integer
+        name: variation_option_ids
+        required: true
+        type: array
+      - description: Images
+        in: formData
+        name: images
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully product item added
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "409":
+          description: Product have already this configured product items exist
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Add a product item (Admin)
+      tags:
+      - Admin Products
+  /admin/sales:
+    get:
+      description: API for admin to get all sales report for a specific period in
+        csv form
+      operationId: GetFullSalesReport
+      parameters:
+      - description: Sales report starting date
+        in: query
+        name: start_date
+        type: string
+      - description: Sales report ending date
+        in: query
+        name: end_date
+        type: string
+      - description: Page Number
+        in: query
+        name: page_number
+        type: integer
+      - description: Count
+        in: query
+        name: count
+        type: integer
+      responses:
+        "200":
+          description: ecommerce_sales_report.csv
+          schema:
+            $ref: '#/definitions/response.Response'
+        "204":
+          description: No sales report found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: failed to get sales report
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get full sales report (Admin)
+      tags:
+      - Admin Sales
+  /admin/stocks:
+    get:
+      description: API for admin to get all stocks
+      operationId: GetAllStocks
+      parameters:
+      - description: Page Number
+        in: query
+        name: page_number
+        type: integer
+      - description: Count
+        in: query
+        name: count
+        type: integer
+      responses:
+        "200":
+          description: Successfully found all stocks
+          schema:
+            $ref: '#/definitions/response.Response'
+        "204":
+          description: No stocks found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to Get all stocks
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all stocks (Admin)
+      tags:
+      - Admin Stock
+    patch:
+      description: API for admin to update stock details
+      operationId: UpdateStock
+      parameters:
+      - description: Update stock details
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateStock'
+      responses:
+        "200":
+          description: Successfully updated sock
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Failed to bind input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to update stock
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Update stocks (Admin)
+      tags:
+      - Admin Stock
+  /admin/users:
+    get:
+      description: API for admin to get all user details
+      operationId: GetAllUsers
+      parameters:
+      - description: Page Number
+        in: query
+        name: page_number
+        type: integer
+      - description: Count
+        in: query
+        name: count
+        type: integer
+      responses:
+        "200":
+          description: Successfully got all users
+          schema:
+            $ref: '#/definitions/response.Response'
+        "204":
+          description: No users found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to find all users
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all users
+      tags:
+      - Admin User
+  /admin/users/block:
+    patch:
+      operationId: BlockUser
+      parameters:
+      - description: inputs
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.BlockUser'
+      responses:
+        "200":
+          description: Successfully changed block status of user
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: api for admin to block or unblock user
+      tags:
+      - Admin User
+  /auth/google-auth:
+    get:
+      description: API for user to load google login page
+      operationId: UserGoogleAuthLoginPage
+      responses:
+        "200":
+          description: Successfully google login page loaded
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: To load google login page (User)
+      tags:
+      - User Authentication
+  /auth/google-auth/callback:
+    post:
+      description: API for google to callback after authentication
+      operationId: UserGoogleAuthCallBack
+      responses:
+        "200":
+          description: Successfully logged in with google
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed Login with google
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Google auth callback (User)
+      tags:
+      - User Authentication
+  /auth/google-auth/initialize:
+    get:
+      description: API for user to initialize google auth
+      operationId: UserGoogleAuthInitialize
+      responses: {}
+      summary: Initialize google auth (User)
+      tags:
+      - User Authentication
+  /auth/renew-access-token:
+    post:
+      description: API for user to renew access token using refresh token
+      operationId: UserRenewAccessToken
+      parameters:
+      - description: Refresh token
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.RefreshToken'
+      responses:
+        "200":
+          description: Successfully generated access token using refresh token
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: Invalid refresh token
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: Refresh token blocked
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: No session found for the given refresh token
+          schema:
+            $ref: '#/definitions/response.Response'
+        "410":
+          description: Refresh token expired
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed generate access token
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: Renew Access Token (User)
+      tags:
+      - User Authentication
+  /auth/sign-in:
+    post:
+      description: API for user to login with email | phone | user_name with password
+      operationId: UserLogin
+      parameters:
+      - description: Login Details
+        in: body
+        name: inputs
+        required: true
+        schema:
+          $ref: '#/definitions/request.Login'
+      responses:
+        "200":
+          description: Successfully logged in
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.TokenResponse'
+              type: object
+        "400":
+          description: Invalid inputs
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: User not exist with given login credentials
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: User blocked by admin
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to login
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Login with password (User)
+      tags:
+      - User Authentication
+  /auth/sign-in/otp/send:
+    post:
+      description: 'API for user to send otp for login enter email | phone | user_name
+        : otp will send to user registered number'
+      operationId: UserLoginOtpSend
+      parameters:
+      - description: Login credentials
+        in: body
+        name: inputs
+        required: true
+        schema:
+          $ref: '#/definitions/request.OTPLogin'
+      responses:
+        "200":
+          description: Successfully otp send to user's registered number
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid Otp
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: User not exist with given login credentials
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: User blocked by admin
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to send otp
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Login with Otp send (User)
+      tags:
+      - User Authentication
+  /auth/sign-in/otp/verify:
+    post:
+      description: API for user to verify otp
+      operationId: UserLoginOtpVerify
+      parameters:
+      - description: Otp Verify Details
+        in: body
+        name: inputs
+        required: true
+        schema:
+          $ref: '#/definitions/request.OTPVerify'
+      responses:
+        "200":
+          description: Successfully user logged in
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.TokenResponse'
+              type: object
+        "400":
+          description: Invalid inputs
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: Otp not matched
+          schema:
+            $ref: '#/definitions/response.Response'
+        "410":
+          description: Otp Expired
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to verify otp
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Login with Otp verify (User)
+      tags:
+      - User Authentication
+  /auth/sign-up:
+    post:
+      description: API for user to register a new account
+      operationId: UserSignUp
+      parameters:
+      - description: Input Fields
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.UserSignUp'
+      responses:
+        "200":
+          description: Successfully account created and otp send to registered number
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.OTPResponse'
+              type: object
+        "400":
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "409":
+          description: A verified user already exist with given user credentials
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to signup
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Signup (User)
+      tags:
+      - User Authentication
+  /auth/sign-up/verify:
+    post:
+      description: API for user to verify otp on sign up
+      operationId: UserSignUpVerify
+      parameters:
+      - description: Otp Verify Details
+        in: body
+        name: inputs
+        required: true
+        schema:
+          $ref: '#/definitions/request.OTPVerify'
+      responses:
+        "200":
+          description: Successfully otp verified for user sign up
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.TokenResponse'
+              type: object
+        "400":
+          description: Invalid inputs
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: Otp not matched
+          schema:
+            $ref: '#/definitions/response.Response'
+        "410":
+          description: Otp Expired
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to verify otp
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: UserSingUp verify OTP  (User)
+      tags:
+      - User Authentication
+  /carts:
+    get:
+      description: API for user to get all cart items
+      operationId: GetCart
+      responses:
+        "200":
+          description: Successfully retrieved all cart items
+          schema:
+            $ref: '#/definitions/response.Response'
+        "204":
+          description: Cart is empty
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to get user cart
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get cart Items (User)
+      tags:
+      - User Cart
+    put:
+      description: API for user to update cart item quantity (minimum qty is 1)
+      operationId: UpdateCart
+      parameters:
+      - description: Input Field
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateCartItem'
+      responses:
+        "200":
+          description: Successfully to update cart item quantity changed in cart
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to update product item in cart
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Change Cart Qty (User)
+      tags:
+      - User Cart
+  /carts/{product_item_id}:
+    delete:
+      description: API for user to remove a product item from cart
+      operationId: RemoveFromCart
+      parameters:
+      - description: Product Item ID
+        in: path
+        name: product_item_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: Successfully product item removed form cart
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Product item not exist in cart
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to remove product item from cart
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Remove product item from cart (User)
+      tags:
+      - User Cart
+    post:
+      description: API for user to add a product item to cart
+      operationId: AddToCart
+      parameters:
+      - description: Product Item ID
+        in: path
+        name: product_item_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: Successfully product item added to cart
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Product item in out of stock
+          schema:
+            $ref: '#/definitions/response.Response'
+        "409":
+          description: Product item already exist in cart
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to add product item into cart
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Add product item to cart (User)
+      tags:
+      - User Cart
+  /carts/apply-coupon:
+    patch:
+      description: API for user to apply a coupon on cart
+      operationId: ApplyCouponToCart
+      parameters:
+      - description: Input Field
+        in: body
+        name: inputs
+        required: true
+        schema:
+          $ref: '#/definitions/request.ApplyCoupon'
+      responses:
+        "200":
+          description: Successfully coupon applied to user cart
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Apply coupon
+      tags:
+      - User Cart
+  /carts/checkout/payment-select-page:
+    get:
+      description: API for user to render payment select page
+      operationId: CartOrderPaymentSelectPage
+      responses:
+        "200":
+          description: Successfully rendered payment page
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to render payment page
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Render Payment Page (User)
+      tags:
+      - User Payment
+  /carts/place-order:
+    post:
+      description: API for user save an order
+      operationId: SaveOrder
+      parameters:
+      - description: Address ID
+        in: formData
+        name: address_id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: successfully order placed
+          schema:
+            $ref: '#/definitions/response.Response'
+        "204":
+          description: Cart is empty
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "409":
+          description: Can't place order out of stock product on cart
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to save order
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Save Order (User)
+      tags:
+      - User Orders
+  /carts/place-order/cod:
+    post:
+      description: API for user to place order for cash on delivery
+      operationId: PaymentCOD
+      parameters:
+      - description: Shop Order ID
+        in: formData
+        name: shop_order_id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: successfully order placed for COD
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed place order for COD
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Place order  for COD (User)
+      tags:
+      - User Payment
+  /carts/place-order/razorpay-checkout:
+    post:
+      description: API for user to create stripe payment
+      operationId: RazorpayCheckout
+      parameters:
+      - description: Shop Order ID
+        in: formData
+        name: shop_order_id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: successfully razorpay payment order created
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to make razorpay order
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      - ApiKeyAuth: []
+      summary: Razorpay checkout (User)
+      tags:
+      - User Payment
+  /carts/place-order/razorpay-verify:
+    post:
+      description: API for razorpay to callback backend for payment verification
+      operationId: RazorpayVerify
+      parameters:
+      - description: Razorpay payment id
+        in: formData
+        name: razorpay_order_id
+        required: true
+        type: string
+      - description: Razorpay payment id
+        in: formData
+        name: razorpay_payment_id
+        required: true
+        type: string
+      - description: Razorpay signature
+        in: formData
+        name: razorpay_signature
+        type: string
+      - description: Shop Order ID
+        in: formData
+        name: shop_order_id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Successfully razorpay payment verified
+          schema:
+            $ref: '#/definitions/response.Response'
+        "402":
+          description: Payment not approved
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to Approve order
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Razorpay verify (User)
+      tags:
+      - User Payment
+  /carts/place-order/stripe-checkout:
+    post:
+      description: API for user to create stripe payment
+      operationId: StripPaymentCheckout
+      parameters:
+      - description: Shop Order ID
+        in: formData
+        name: shop_order_id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: successfully stripe payment order created
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to create stripe order
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Stripe checkout (User)
+      tags:
+      - User Payment
+  /carts/place-order/stripe-verify:
+    post:
+      description: API for user to callback backend after stripe payment for verification
+      operationId: StripePaymentVeify
+      parameters:
+      - description: Stripe payment ID
+        in: formData
+        name: stripe_payment_id
+        required: true
+        type: string
+      - description: Shop Order ID
+        in: formData
+        name: shop_order_id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Successfully stripe payment verified
+          schema:
+            $ref: '#/definitions/response.Response'
+        "402":
+          description: Payment not approved
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to Approve order
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Stripe verify (User)
+      tags:
+      - User Payment
+  /orders:
+    get:
+      description: API to get order for user user orders
+      operationId: GetUserOrder
+      parameters:
+      - description: Page Number
+        in: query
+        name: page_number
+        type: integer
+      - description: Count Of Order
+        in: query
+        name: count
+        type: integer
+      responses:
+        "200":
+          description: Successfully retrieved all user orders
+          schema:
+            $ref: '#/definitions/response.Response'
+        "204":
+          description: No shop orders for user
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to retrieve all user orders
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get user orders (User)
+      tags:
+      - User Orders
+  /orders/{shop_order_id}/cancel:
+    post:
+      description: Api for user to cancel a order
+      operationId: CancelOrder
+      parameters:
+      - description: Shop Order ID
+        in: path
+        name: shop_order_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: Successfully order cancelled
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid inputs
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to cancel order
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Cancel order (User)
+      tags:
+      - User Orders
+  /orders/{shop_order_id}/items:
+    get:
+      description: API for user to get all order items of a specific order
+      operationId: GetAllOrderItemsUser
+      parameters:
+      - description: Shop Order ID
+        in: path
+        name: shop_order_id
+        required: true
+        type: integer
+      - description: Page Number
+        in: query
+        name: page_number
+        type: integer
+      - description: Count Of Order
+        in: query
+        name: count
+        type: integer
+      responses:
+        "200":
+          description: Successfully found order items
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to find order items
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all order items (User)
+      tags:
+      - User Orders
+  /orders/return:
+    post:
+      description: API for user to request a return for delivered order
+      operationId: SubmitReturnRequest
+      parameters:
+      - description: Input Fields
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.Return'
+      responses:
+        "200":
+          description: Successfully return request submitted for order
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Return request (User)
+      tags:
+      - User Orders
+  /payment-methods:
+    get:
+      description: API for user to get all payment methods
+      operationId: GetAllPaymentMethodsUser
+      responses:
+        "200":
+          description: Failed to retrieve payment methods
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Successfully retrieved all payment methods
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get payment methods (User)
+      tags:
+      - User Payment
+  /products:
+    get:
+      description: API for user to get all products
+      operationId: GetAllProductsUser
+      parameters:
+      - description: Page Number
+        in: query
+        name: page_number
+        type: integer
+      - description: Count
+        in: query
+        name: count
+        type: integer
+      responses:
+        "200":
+          description: Successfully found all products
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to get all products
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all products (User)
+      tags:
+      - User Products
+  /products/{product_id}/items:
+    get:
+      consumes:
+      - application/json
+      description: API for user to get all product items for a specific product
+      operationId: GetAllProductItemsUser
+      parameters:
+      - description: Product ID
+        in: path
+        name: product_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully get all product items
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Failed to get all product items
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all product items (User)
+      tags:
+      - User Products
+securityDefinitions:
+  BearerAuth:
+    description: 'Add prefix of Bearer before  token Ex: "Bearer token"'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

@@ -1,0 +1,36 @@
+version: '3'
+services:
+# database container
+  postgresdb:
+    image: postgres
+    env_file:
+      - .env
+    volumes:
+      - database:/var/lib/postgresql/data
+    networks:
+      - ecommerce-network
+# webapp container
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: nikhil382/ecommerce-gin-clean-arch
+    ports:
+      - 3000:3000
+    env_file:
+      - .env
+    environment:
+      - DB_HOST=postgresdb
+    depends_on:
+      - postgresdb
+    restart: always
+    networks:
+      - ecommerce-network
+
+# for persistent data storage
+volumes:
+  database:
+
+networks:
+  ecommerce-network:
+    driver: bridge
