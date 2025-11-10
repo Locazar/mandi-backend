@@ -1,5 +1,80 @@
 basePath: /api
 definitions:
+  domain.Admin:
+    properties:
+      aadhar:
+        type: string
+      address_line1:
+        type: string
+      address_line2:
+        type: string
+      agree_to_terms:
+        type: boolean
+      bank_account_number:
+        type: string
+      bank_ifsc:
+        type: string
+      city:
+        type: string
+      country:
+        type: string
+      created_at:
+        type: string
+      email:
+        type: string
+      gstin:
+        description: GST number (optional)
+        type: string
+      id:
+        type: integer
+      latitude:
+        type: number
+      longitude:
+        type: number
+      mobile:
+        type: string
+      pan:
+        type: string
+      password:
+        maxLength: 30
+        minLength: 5
+        type: string
+      pincode:
+        type: string
+      shop_id:
+        description: Shop registration number
+        type: string
+      shop_name:
+        type: string
+      state:
+        type: string
+      status:
+        description: e.g. "active", "inactive", "suspended"
+        type: string
+      updated_at:
+        type: string
+      user_name:
+        maxLength: 15
+        minLength: 3
+        type: string
+      verified:
+        description: e.g. "yes", "no", "pending"
+        type: string
+    required:
+    - address_line1
+    - agree_to_terms
+    - city
+    - country
+    - email
+    - latitude
+    - longitude
+    - mobile
+    - password
+    - pincode
+    - shop_name
+    - state
+    - user_name
+    type: object
   request.Address:
     properties:
       area:
@@ -2025,6 +2100,32 @@ paths:
       summary: Get full sales report (Admin)
       tags:
       - Admin Sales
+  /admin/signUp:
+    post:
+      operationId: AdminSignUp
+      parameters:
+      - description: inputs
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/domain.Admin'
+      responses:
+        "200":
+          description: successfully logged in
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: failed to generate jwt token
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: api for admin to login
+      tags:
+      - Admin SignUp
   /admin/stocks:
     get:
       description: API for admin to get all stocks

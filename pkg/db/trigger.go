@@ -47,7 +47,6 @@ func SetUpDBTriggers(db *gorm.DB) error {
 	if db.Exec(orderReturnProductUpdateExec).Error != nil {
 		return errors.New("failed to create orderReturnProductUpdateExec trigger")
 	}
-
 	log.Printf("successfully triggers updated for database")
 	return nil
 }

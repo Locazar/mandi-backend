@@ -2407,6 +2407,46 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/signUp": {
+            "post": {
+                "tags": [
+                    "Admin SignUp"
+                ],
+                "summary": "api for admin to login",
+                "operationId": "AdminSignUp",
+                "parameters": [
+                    {
+                        "description": "inputs",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/domain.Admin"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "successfully logged in",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "failed to generate jwt token",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/stocks": {
             "get": {
                 "security": [
@@ -4744,6 +4784,109 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "domain.Admin": {
+            "type": "object",
+            "required": [
+                "address_line1",
+                "agree_to_terms",
+                "city",
+                "country",
+                "email",
+                "latitude",
+                "longitude",
+                "mobile",
+                "password",
+                "pincode",
+                "shop_name",
+                "state",
+                "user_name"
+            ],
+            "properties": {
+                "aadhar": {
+                    "type": "string"
+                },
+                "address_line1": {
+                    "type": "string"
+                },
+                "address_line2": {
+                    "type": "string"
+                },
+                "agree_to_terms": {
+                    "type": "boolean"
+                },
+                "bank_account_number": {
+                    "type": "string"
+                },
+                "bank_ifsc": {
+                    "type": "string"
+                },
+                "city": {
+                    "type": "string"
+                },
+                "country": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "gstin": {
+                    "description": "GST number (optional)",
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "latitude": {
+                    "type": "number"
+                },
+                "longitude": {
+                    "type": "number"
+                },
+                "mobile": {
+                    "type": "string"
+                },
+                "pan": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string",
+                    "maxLength": 30,
+                    "minLength": 5
+                },
+                "pincode": {
+                    "type": "string"
+                },
+                "shop_id": {
+                    "description": "Shop registration number",
+                    "type": "string"
+                },
+                "shop_name": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "e.g. \"active\", \"inactive\", \"suspended\"",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_name": {
+                    "type": "string",
+                    "maxLength": 15,
+                    "minLength": 3
+                },
+                "verified": {
+                    "description": "e.g. \"yes\", \"no\", \"pending\"",
+                    "type": "string"
+                }
+            }
+        },
         "request.Address": {
             "type": "object",
             "required": [

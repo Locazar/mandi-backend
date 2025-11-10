@@ -25,15 +25,15 @@ func NewAdminHandler(adminUsecase usecaseInterface.AdminUseCase) interfaces.Admi
 	}
 }
 
-// // AdminSignUp godoc
-// // @summary api for admin to login
-// // @id AdminSignUp
-// // @tags Admin Login
-// // @Param input body domain.Admin{} true "inputs"
-// // @Router /admin/login [post]
-// // @Success 200 {object} response.Response{} "successfully logged in"
-// // @Failure 400 {object} response.Response{} "invalid input"
-// // @Failure 500 {object} response.Response{} "failed to generate jwt token"
+// AdminSignUp godoc
+// @summary api for admin to login
+// @id AdminSignUp
+// @tags Admin SignUp
+// @Param input body domain.Admin{} true "inputs"
+// @Router /admin/signUp [post]
+// @Success 200 {object} response.Response{} "successfully logged in"
+// @Failure 400 {object} response.Response{} "invalid input"
+// @Failure 500 {object} response.Response{} "failed to generate jwt token"
 func (a *adminHandler) AdminSignUp(ctx *gin.Context) {
 
 	var body domain.Admin
