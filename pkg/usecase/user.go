@@ -14,6 +14,7 @@ import (
 	service "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
 	"golang.org/x/crypto/bcrypt"
+	"googlemaps.github.io/maps"
 )
 
 type userUserCase struct {
@@ -199,4 +200,44 @@ func (c *userUserCase) FindAllWishListItems(ctx context.Context, userID uint) ([
 	}
 
 	return wishListItems, nil
+}
+
+func (c *userUserCase) FindLocation(ctx context.Context, lat string, long string) {
+
+	apiKey := "YOUR_API_KEY" // Replace with your actual API key
+	client, err := maps.NewClient(maps.WithAPIKey(apiKey))
+	if err != nil {
+		log.Fatalf("fatal error: %s", err)
+	}
+
+	// Example: Reverse Geocoding coordinates to an address
+	r := &maps.GeocodingRequest{
+		LatLng: &maps.LatLng{
+			Lat: 34.052235,
+			Lng: -118.243683,
+		},
+	}
+	resp, err := client.Geocode(context.Background(), r)
+	if err != nil {
+		log.Fatalf("fatal error: %s", err)
+	}
+
+	if len(resp) > 0 {
+		address := resp[0]
+		fmt.Printf("Formatted Address: %s\n", address.FormattedAddress)
+		for _, component := range address.AddressComponents {
+			for _, t := range component.Types {
+				switch t {
+				case "locality":
+					fmt.Printf("City: %s\n", component.LongName)
+				case "administrative_area_level_1":
+					fmt.Printf("State: %s\n", component.LongName)
+				case "country":
+					fmt.Printf("Country: %s\n", component.LongName)
+				}
+			}
+		}
+	} else {
+		fmt.Println("No results found.")
+	}
 }

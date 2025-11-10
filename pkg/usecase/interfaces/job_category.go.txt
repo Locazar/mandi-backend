@@ -1,0 +1,14 @@
+// package interfaces
+
+// import (
+// 	"context"
+
+// 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
+// 	"github.com/rohit221990/mandi-backend/pkg/domain"
+// )
+
+// type JobCategoryUseCase interface {
+// 	AddJobCategory(ctx context.Context, category domain.JobCategory) error
+// 	GetAllJobCategories(ctx context.Context, pagination request.Pagination) (categories []domain.JobCategory, err error)
+// 	UpdateJobCategory(ctx context.Context, category domain.JobCategory) error
+// }

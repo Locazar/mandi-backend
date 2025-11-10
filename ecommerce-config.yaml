@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ecommerce-config
+data:
+  postgres-host: "mydbinstance.cjygeicy8iag.ap-south-1.rds.amazonaws.com"
+  postgres-port: "5432"

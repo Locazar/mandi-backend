@@ -15,6 +15,11 @@ type productDatabase struct {
 	DB *gorm.DB
 }
 
+// SearchProducts implements interfaces.ProductRepository.
+func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, categoryID *string, brandID *string, locationID *string, pagination request.Pagination) (products []response.Product, err error) {
+	panic("unimplemented")
+}
+
 func NewProductRepository(db *gorm.DB) interfaces.ProductRepository {
 	return &productDatabase{
 		DB: db,

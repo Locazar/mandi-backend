@@ -6,7 +6,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/copier"
-	"github.com/rohit221990/mandi-backend/pkg/api/handler/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
@@ -19,7 +18,7 @@ type UserHandler struct {
 	userUseCase usecaseInterface.UserUseCase
 }
 
-func NewUserHandler(userUsecase usecaseInterface.UserUseCase) interfaces.UserHandler {
+func NewUserHandler(userUsecase usecaseInterface.UserUseCase) *UserHandler {
 	return &UserHandler{
 		userUseCase: userUsecase,
 	}
@@ -50,27 +49,27 @@ func NewUserHandler(userUsecase usecaseInterface.UserUseCase) interfaces.UserHan
 // // @Success 200 {object} response.Response{} "successfully got checkout data"
 // // @Failure 401 {object} res.Response{} "cart is empty so user can't call this api"
 // // @Failure 500 {object} res.Response{} "failed to get checkout items"
-func (c *UserHandler) CheckOutCart(ctx *gin.Context) {
+// func (c *UserHandler) CheckOutCart(ctx *gin.Context) {
 
-	// userId := utils.GetUserIdFromContext(ctx)
+// 	userId := utils.GetUserIdFromContext(ctx)
 
-	// resCheckOut, err := c.userUseCase.CheckOutCart(ctx, userId)
+// 	resCheckOut, err := c.userUseCase.CheckOutCart(ctx, userId)
 
-	// if err != nil {
-	// 	 response.ErrorResponse(500, "failed to get checkout items", err.Error(), nil)
-	// 	ctx.AbortWithStatusJSON(http.StatusInternalServerError, response)
-	// 	return
-	// }
+// 	if err != nil {
+// 		response.ErrorResponse(500, "failed to get checkout items", err.Error(), nil)
+// 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, response)
+// 		return
+// 	}
 
-	// if resCheckOut.ProductItems == nil {
-	// 	 response.ErrorResponse(401, "cart is empty can't checkout cart", "", nil)
-	// 	ctx.AbortWithStatusJSON(http.StatusUnauthorized, response)
-	// 	return
-	// }
+// 	if resCheckOut.ProductItems == nil {
+// 		response.ErrorResponse(401, "cart is empty can't checkout cart", "", nil)
+// 		ctx.AbortWithStatusJSON(http.StatusUnauthorized, response)
+// 		return
+// 	}
 
-	// responser := res.SuccessResponse(200, "successfully got checkout data", resCheckOut)
-	// ctx.JSON(http.StatusOK, responser)
-}
+// 	responser := res.SuccessResponse(200, "successfully got checkout data", resCheckOut)
+// 	ctx.JSON(http.StatusOK, responser)
+// }
 
 // GetProfile godoc
 //

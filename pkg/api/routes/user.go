@@ -10,6 +10,8 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 	userHandler handlerInterface.UserHandler, cartHandler handlerInterface.CartHandler,
 	productHandler handlerInterface.ProductHandler, paymentHandler handlerInterface.PaymentHandler,
 	orderHandler handlerInterface.OrderHandler, couponHandler handlerInterface.CouponHandler,
+	offerHandle handlerInterface.OfferHandler, stockHandler handlerInterface.StockHandler,
+	branHandler handlerInterface.BrandHandler,
 ) {
 
 	auth := api.Group("/auth")
@@ -127,6 +129,86 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 			orders.POST("/:shop_order_id/cancel", orderHandler.CancelOrder) // cancel an order
 		}
 
+		// Product Search
+		search := api.Group("/search")
+		{
+			search.GET("/", productHandler.SearchProducts)
+			search.GET("/suggestions", productHandler.GetProductSearchSuggestions)
+			search.GET("/filters", productHandler.GetProductSearchFilters)
+			search.GET("/locations", productHandler.GetProductSearchLocations)
+		}
+
+		// Shop by Category
+		category := api.Group("/categories")
+		{
+			category.GET("/", productHandler.GetAllCategories)
+			category.GET("/:category_id/products", productHandler.GetProductsByCategory)
+		}
+
+		// Shop by Brand
+		brand := api.Group("/brands")
+		{
+			brand.GET("/", productHandler.GetAllBrands)
+			brand.GET("/:brand_id/products", productHandler.GetProductsByBrand)
+		}
+
+		// Shop by Offers
+		offer := api.Group("/offers")
+		{
+			offer.GET("/", offerHandle.GetAllOffers)                 // get all offers
+			offer.GET("/category", offerHandle.GetAllCategoryOffers) // to get all offers of categories
+
+		}
+
+		// Shop Search Filters
+		filters := api.Group("/filters")
+		{
+			filters.GET("/categories", productHandler.GetCategoryFilters)
+			filters.GET("/brands", productHandler.GetBrandFilters)
+			filters.GET("/location", productHandler.GetLocationFilter)
+		}
+
+		// Shop by Location
+		location := api.Group("/locations")
+		{
+			location.GET("/", productHandler.GetProductsByLocation)
+			location.GET("/areas", productHandler.GetAllAreas)
+			location.GET("/cities", productHandler.GetAllCities)
+			location.GET("/states", productHandler.GetAllStates)
+			location.GET("/countries", productHandler.GetAllCountries)
+			location.GET("/pincodes", productHandler.GetAllPincodes)
+			location.GET("/states/:state_id/cities", productHandler.GetCitiesByState)
+			location.GET("/cities/:city_id/areas", productHandler.GetAreasByCity)
+			location.GET("/areas/:area_id/pincodes", productHandler.GetPincodesByArea)
+			location.GET("/pincodes/:pincode_id/location", productHandler.GetLocationByPincode)
+			location.GET("/nearby", productHandler.GetNearbyProductsByPincode)
+
+		}
+
+		// Job search
+		// jobs := api.Group("/jobs")
+		// {
+		// 	jobs.GET("/", userHandler.GetAllJobs)
+		// 	jobs.POST("/apply/:job_id", userHandler.ApplyToJob)
+		// 	jobs.GET("/applications", userHandler.GetUserJobApplications)
+		// 	jobs.DELETE("/applications/:application_id", userHandler.DeleteJobApplication)
+		// 	jobs.GET("/suggestions", userHandler.GetJobSearchSuggestions)
+		// 	jobs.GET("/filters", userHandler.GetJobSearchFilters)
+		// 	jobs.GET("/search", userHandler.SearchJobs)
+		// 	jobs.GET("/locations", userHandler.GetJobSearchLocations)
+		// }
+
+		// //Job Categories
+		// jobCategories := api.Group("/job-categories")
+		// {
+		// 	jobCategories.GET("/", userHandler.GetAllJobCategories)
+		// 	jobCategories.GET("/:category_id/jobs", userHandler.GetJobsByCategory)
+		// 	jobCategories.GET("/:category_id/subcategories", userHandler.GetJobSubCategories)
+		// 	jobCategories.GET("/subcategories/:subcategory_id/jobs", userHandler.GetJobsBySubCategory)
+		// 	jobCategories.GET("/filters", userHandler.GetJobCategoryFilters)
+		// 	jobCategories.GET("/locations", userHandler.GetJobCategoryLocations)
+		// 	jobCategories.GET("/search", userHandler.SearchJobsInCategory)
+		// }
 	}
 
 }

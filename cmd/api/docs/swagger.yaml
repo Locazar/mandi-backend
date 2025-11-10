@@ -450,6 +450,29 @@ definitions:
     required:
     - variation_value
     type: object
+  response.Location:
+    properties:
+      area:
+        type: string
+      city:
+        type: string
+      country:
+        type: string
+      latitude:
+        type: number
+      location_id:
+        type: string
+      longitude:
+        type: number
+      name:
+        type: string
+      pincode:
+        type: string
+      state:
+        type: string
+      zip_code:
+        type: string
+    type: object
   response.OTPResponse:
     properties:
       otp_id:
@@ -2389,6 +2412,28 @@ paths:
       summary: UserSingUp verify OTP  (User)
       tags:
       - User Authentication
+  /brands:
+    get:
+      consumes:
+      - application/json
+      description: API endpoint to retrieve the list of all product brands.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of brands
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get all brands
+      tags:
+      - Products
   /carts:
     get:
       description: API for user to get all cart items
@@ -2729,6 +2774,278 @@ paths:
       summary: Stripe verify (User)
       tags:
       - User Payment
+  /filters/areas:
+    get:
+      consumes:
+      - application/json
+      description: API endpoint to retrieve all available areas for filtering or display.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of all areas
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get all areas
+      tags:
+      - Filters
+  /filters/brands:
+    get:
+      consumes:
+      - application/json
+      description: API endpoint to retrieve product brand filters.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of product brands
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get brand filters
+      tags:
+      - Filters
+  /filters/categories:
+    get:
+      consumes:
+      - application/json
+      description: API endpoint to retrieve product category filters.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of product categories
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get category filters
+      tags:
+      - Filters
+  /filters/cities:
+    get:
+      consumes:
+      - application/json
+      description: API endpoint to retrieve all available cities for filtering or
+        display.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of all cities
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get all cities
+      tags:
+      - Filters
+  /filters/cities/{city_id}/areas:
+    get:
+      consumes:
+      - application/json
+      description: API endpoint to retrieve all areas corresponding to a specific
+        city ID.
+      parameters:
+      - description: City ID
+        in: path
+        name: city_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of areas for the given city
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get areas by city ID
+      tags:
+      - Filters
+  /filters/countries:
+    get:
+      consumes:
+      - application/json
+      description: API endpoint to retrieve all available countries for filtering
+        or display.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of all countries
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get all countries
+      tags:
+      - Filters
+  /filters/locations:
+    get:
+      consumes:
+      - application/json
+      description: API endpoint to retrieve product location filters.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of product locations
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get location filters
+      tags:
+      - Filters
+  /filters/pincode/{pincode_id}/location:
+    get:
+      consumes:
+      - application/json
+      description: API endpoint to retrieve a location corresponding to a specific
+        pincode.
+      parameters:
+      - description: Pincode ID
+        in: path
+        name: pincode_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Location matching the pincode
+          schema:
+            $ref: '#/definitions/response.Location'
+        "404":
+          description: Location not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get location by pincode
+      tags:
+      - Filters
+  /filters/pincodes:
+    get:
+      consumes:
+      - application/json
+      description: API endpoint to retrieve all available pincodes for filtering or
+        display.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of all pincodes
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get all pincodes
+      tags:
+      - Filters
+  /filters/states:
+    get:
+      consumes:
+      - application/json
+      description: API endpoint to retrieve all available states for filtering or
+        display.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of all states
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get all states
+      tags:
+      - Filters
+  /filters/states/{state_id}/cities:
+    get:
+      consumes:
+      - application/json
+      description: API endpoint to retrieve all cities corresponding to a specific
+        state ID.
+      parameters:
+      - description: State ID
+        in: path
+        name: state_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of cities for the given state
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get cities by state ID
+      tags:
+      - Filters
   /orders:
     get:
       description: API to get order for user user orders
@@ -2916,6 +3233,314 @@ paths:
       security:
       - BearerAuth: []
       summary: Get all product items (User)
+      tags:
+      - User Products
+  /products/brand/{brand_id}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a paginated list of products filtered by the given brand
+        ID.
+      parameters:
+      - description: Brand ID
+        in: path
+        name: brand_id
+        required: true
+        type: integer
+      - default: 20
+        description: Limit number of results
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Offset for pagination
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of products filtered by brand
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid brand ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get products by brand ID
+      tags:
+      - Products
+  /products/category/{category_id}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a paginated list of products filtered by the given category
+        ID.
+      parameters:
+      - description: Category ID
+        in: path
+        name: category_id
+        required: true
+        type: integer
+      - default: 20
+        description: Limit number of results
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Offset for pagination
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of products matching category
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid category ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get products by category ID
+      tags:
+      - Products
+  /products/location:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a paginated list of products filtered by the given location
+        ID.
+      parameters:
+      - description: Location ID
+        in: query
+        name: location_id
+        required: true
+        type: integer
+      - default: 20
+        description: Limit number of results
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Offset for pagination
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of products filtered by location
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid location ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get products by location ID
+      tags:
+      - Products
+  /products/nearby:
+    get:
+      consumes:
+      - application/json
+      description: API endpoint to retrieve a paginated list of products available
+        near a specified pincode within a given radius (in kilometers).
+      parameters:
+      - description: Pincode to search around
+        in: query
+        name: pincode
+        required: true
+        type: string
+      - default: 10
+        description: Radius in kilometers for nearby search
+        in: query
+        name: radius_km
+        type: number
+      - default: 20
+        description: Limit number of results
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Offset for pagination
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of nearby products
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid input parameters
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get nearby products by pincode within a radius
+      tags:
+      - Products
+  /products/search:
+    get:
+      consumes:
+      - application/json
+      description: API for user to search products with filters
+      operationId: SearchProducts
+      parameters:
+      - description: Search keyword
+        in: query
+        name: q
+        type: string
+      - description: Category ID
+        in: query
+        name: category_id
+        type: string
+      - description: Brand ID
+        in: query
+        name: brand_id
+        type: string
+      - description: Location ID
+        in: query
+        name: location_id
+        type: string
+      - description: Limit
+        in: query
+        name: limit
+        type: integer
+      - description: Offset
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully searched products
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to search products
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Search products
+      tags:
+      - User Products
+  /products/search/filters:
+    get:
+      consumes:
+      - application/json
+      description: API for user to get available filters for product search
+      operationId: GetProductSearchFilters
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved product search filters
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to retrieve product search filters
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get product search filters
+      tags:
+      - User Products
+  /products/search/locations:
+    get:
+      consumes:
+      - application/json
+      description: API for user to get available locations for product search
+      operationId: GetProductSearchLocations
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved product search locations
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to retrieve product search locations
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get product search locations
+      tags:
+      - User Products
+  /products/search/suggestions:
+    get:
+      consumes:
+      - application/json
+      description: API for user to get product name suggestions based on a prefix
+      operationId: GetProductSearchSuggestions
+      parameters:
+      - description: Search prefix
+        in: query
+        name: q
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved product search suggestions
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Query parameter q is required
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to retrieve product search suggestions
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get product search suggestions
       tags:
       - User Products
 securityDefinitions:

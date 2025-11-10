@@ -14,9 +14,11 @@ spec:
       labels:
         app: ecommerce-app
     spec:
+      imagePullSecrets:
+        - name: regcred
       containers:
         - name: ecommerce-app
-          image: rohit221990/mandi-backend
+          image: 851415515666.dkr.ecr.ap-south-1.amazonaws.com/mandi/mandibazar:latest
           ports:
             - containerPort: 3000
           env:
@@ -45,7 +47,6 @@ spec:
                 configMapKeyRef:
                   name: ecommerce-config
                   key: postgres-port
----
 apiVersion: v1
 kind: Service
 metadata:
@@ -58,4 +59,4 @@ spec:
     - protocol: TCP
       port: 3000
       targetPort: 3000
-      nodePort: 30001  
+      nodePort: 30001

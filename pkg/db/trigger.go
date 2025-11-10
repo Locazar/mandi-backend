@@ -9,6 +9,13 @@ import (
 
 func SetUpDBTriggers(db *gorm.DB) error {
 
+	// Execute PostGIS setup commands first
+	// for _, cmd := range postgisSetupCommands {
+	// 	if db.Exec(cmd).Error != nil {
+	// 		return errors.New("failed to execute postgis setup command: " + cmd)
+	// 	}
+	// }
+
 	// first execute the trigger funtion
 	if db.Exec(cartTotalPriceUpdateSqlFunc).Error != nil {
 		return errors.New("failed to execute cart_total_price update trigger fun()")
@@ -44,6 +51,13 @@ func SetUpDBTriggers(db *gorm.DB) error {
 	log.Printf("successfully triggers updated for database")
 	return nil
 }
+
+// var postgisSetupCommands = []string{
+// 	"CREATE EXTENSION IF NOT EXISTS postgis;",
+// 	"ALTER TABLE locations ADD COLUMN IF NOT EXISTS geog geography(Point, 4326);",
+// 	"UPDATE locations SET geog = ST_MakePoint(longitude, latitude)::geography WHERE geog IS NULL;",
+// 	"CREATE INDEX IF NOT EXISTS idx_locations_geog ON locations USING GIST(geog);",
+// }
 
 var (
 	// function which return total price calculation on cart when product_item added or remove delete cart
