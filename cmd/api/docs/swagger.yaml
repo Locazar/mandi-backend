@@ -244,6 +244,8 @@ definitions:
         maxLength: 50
         minLength: 2
         type: string
+      google_profile_image:
+        type: string
       last_name:
         maxLength: 50
         minLength: 1
@@ -719,6 +721,36 @@ paths:
       security:
       - BearerAuth: []
       summary: Get all user coupons (User)
+      tags:
+      - User Profile
+  /account/profile-image:
+    post:
+      consumes:
+      - multipart/form-data
+      description: API for user to upload profile image
+      operationId: UploadProfileImage
+      parameters:
+      - description: Profile image file to upload
+        in: formData
+        name: image
+        required: true
+        type: file
+      responses:
+        "200":
+          description: Successfully uploaded profile image
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Image file is required or invalid request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to upload image
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Upload profile image (User)
       tags:
       - User Profile
   /account/wallet:
@@ -2240,6 +2272,43 @@ paths:
       summary: api for admin to block or unblock user
       tags:
       - Admin User
+  /api/upload-profile-image:
+    post:
+      consumes:
+      - multipart/form-data
+      description: API endpoint to upload a user profile image file and save it to
+        AWS S3 storage.
+      parameters:
+      - description: Profile image file to upload
+        in: formData
+        name: image
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Returns URL of the uploaded image
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Image file is required or invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Failed to upload image to storage
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Upload profile image to S3
+      tags:
+      - User Profile
+      - File Upload
   /auth/google-auth:
     get:
       description: API for user to load google login page

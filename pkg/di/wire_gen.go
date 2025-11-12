@@ -38,7 +38,11 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	adminHandler := handler.NewAdminHandler(adminUseCase)
 	cartRepository := repository.NewCartRepository(gormDB)
 	productRepository := repository.NewProductRepository(gormDB)
-	userUseCase := usecase.NewUserUseCase(userRepository, cartRepository, productRepository)
+	cloudService, err := cloud.NewAWSCloudService(cfg)
+	if err != nil {
+		return nil, err
+	}
+	userUseCase := usecase.NewUserUseCase(userRepository, cartRepository, productRepository, cloudService)
 	userHandler := handler.NewUserHandler(userUseCase)
 	cartUseCase := usecase.NewCartUseCase(cartRepository, productRepository)
 	cartHandler := handler.NewCartHandler(cartUseCase)
@@ -47,10 +51,6 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	couponRepository := repository.NewCouponRepository(gormDB)
 	paymentUseCase := usecase.NewPaymentUseCase(paymentRepository, orderRepository, userRepository, cartRepository, couponRepository, cfg)
 	paymentHandler := handler.NewPaymentHandler(paymentUseCase)
-	cloudService, err := cloud.NewAWSCloudService(cfg)
-	if err != nil {
-		return nil, err
-	}
 	productUseCase := usecase.NewProductUseCase(productRepository, cloudService, gormDB)
 	productHandler := handler.NewProductHandler(productUseCase)
 	orderUseCase := usecase.NewOrderUseCase(orderRepository, cartRepository, userRepository, paymentRepository)

@@ -94,11 +94,11 @@ func saveAdmin(db *gorm.DB, email, userName, password string) error {
 
 	var (
 		searchQuery = `SELECT CASE WHEN id != 0 THEN 'T' ELSE 'F' END as exist FROM admins WHERE email = $1`
-		insertQuery = `INSERT INTO admins (user_name, email, mobile, password_hash, shop_name, gstin, shop_id,
+		insertQuery = `INSERT INTO admins (userName, email, mobile, password, shop_name, gstin, shop_id,
 		address_line1, address_line2, city, state, country, pincode,
 		bank_account_number, bank_ifsc, pan, aadhar, agree_to_terms,
 		verified, status, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-		$11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)`
+		$11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)`
 		exist bool
 		err   error
 	)
@@ -135,13 +135,36 @@ func saveAdmin(db *gorm.DB, email, userName, password string) error {
 		agree_to_terms := true
 		verified := "pending"
 		status := "active"
-		err = db.Exec(insertQuery, email, userName, hashPass, shop_name, gstin, shop_id,
-			address_line1, address_line2, city, state, mobile, country, pincode,
+		err = db.Exec(insertQuery, userName, email, mobile, hashPass, shop_name, gstin, shop_id,
+			address_line1, address_line2, city, state, country, pincode,
 			bank_account_number, bank_ifsc, pan, aadhar, agree_to_terms,
 			verified, status, createdAt, updatedAt).Error
 		if err != nil {
 			return fmt.Errorf("failed to save admin details %w", err)
 		}
 	}
+	return nil
+}
+
+func SeedCountries(db *gorm.DB) error {
+	countries := []domain.Country{
+		{ID: 1, CountryName: "India", ISOCode: "IN"},
+		{ID: 2, CountryName: "United States", ISOCode: "US"},
+		{ID: 3, CountryName: "United Kingdom", ISOCode: "GB"},
+		{ID: 4, CountryName: "Canada", ISOCode: "CA"},
+		{ID: 5, CountryName: "Australia", ISOCode: "AU"},
+		{ID: 6, CountryName: "Germany", ISOCode: "DE"},
+		{ID: 7, CountryName: "France", ISOCode: "FR"},
+		{ID: 8, CountryName: "Japan", ISOCode: "JP"},
+		{ID: 9, CountryName: "China", ISOCode: "CN"},
+		{ID: 10, CountryName: "Brazil", ISOCode: "BR"},
+	}
+
+	for _, country := range countries {
+		if err := db.FirstOrCreate(&country, domain.Country{ID: country.ID}).Error; err != nil {
+			return err
+		}
+	}
+
 	return nil
 }

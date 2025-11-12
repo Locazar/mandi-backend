@@ -88,6 +88,7 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 		{
 			account.GET("/", userHandler.GetProfile)
 			account.PUT("/", userHandler.UpdateProfile)
+			account.POST("upload-profile-image/:id", userHandler.UploadProfileImage)
 
 			account.GET("/address", userHandler.GetAllAddresses) // to show all address and // show countries
 			account.POST("/address", userHandler.SaveAddress)    // to add a new address

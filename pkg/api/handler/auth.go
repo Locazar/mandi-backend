@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -54,6 +55,8 @@ func (c *AuthHandler) UserLogin(ctx *gin.Context) {
 		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, body)
 		return
 	}
+
+	fmt.Printf("login details: %+v\n", body)
 
 	userID, err := c.authUseCase.UserLogin(ctx, body)
 

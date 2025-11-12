@@ -19,8 +19,8 @@ type Admin struct {
 	Country      string  `json:"country" gorm:"size:50" binding:"required"`
 	Pincode      string  `json:"pincode" gorm:"size:50" binding:"required"`
 	Mobile       string  `json:"mobile" gorm:"size:50" binding:"required"`
-	Latitude     float64 `json:"latitude" gorm:"type:decimal(10,7);" binding:"required"`
-	Longitude    float64 `json:"longitude" gorm:"type:decimal(10,7);" binding:"required"`
+	Latitude     float64 `json:"latitude" gorm:"type:decimal(10,7);"`
+	Longitude    float64 `json:"longitude" gorm:"type:decimal(10,7);"`
 
 	BankAccountNumber string `json:"bank_account_number" gorm:"size:50" binding:"omitempty"`
 	BankIFSC          string `json:"bank_ifsc" gorm:"size:20" binding:"omitempty"`

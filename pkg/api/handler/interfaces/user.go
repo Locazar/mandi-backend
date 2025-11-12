@@ -1,6 +1,8 @@
 package interfaces
 
-import "github.com/gin-gonic/gin"
+import (
+	"github.com/gin-gonic/gin"
+)
 
 type UserHandler interface {
 	GetProfile(ctx *gin.Context)
@@ -12,7 +14,7 @@ type UserHandler interface {
 	SaveToWishList(ctx *gin.Context)
 	RemoveFromWishList(ctx *gin.Context)
 	GetWishList(ctx *gin.Context)
-
+	UploadProfileImage(ctx *gin.Context)
 	// GetAllJobs(ctx *gin.Context)
 	// GetUserJobApplications(ctx *gin.Context)
 	// DeleteJobApplication(ctx *gin.Context)

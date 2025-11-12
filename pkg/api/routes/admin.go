@@ -21,10 +21,10 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			login.POST("/", authHandler.AdminLogin)
 		}
 
-		// signup := api.Group("/signup")
-		// {
-		// 	signup.POST("/", adminHandler.AdminSignUp)
-		// }
+		signup := api.Group("/signup")
+		{
+			signup.POST("/", adminHandler.AdminSignUp)
+		}
 
 		auth.POST("/renew-access-token", authHandler.AdminRenewAccessToken())
 	}

@@ -5,12 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"mime/multipart"
 
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/jinzhu/copier"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
+	"github.com/rohit221990/mandi-backend/pkg/service/cloud"
 	service "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
 	"golang.org/x/crypto/bcrypt"
@@ -18,17 +21,27 @@ import (
 )
 
 type userUserCase struct {
-	userRepo    interfaces.UserRepository
-	cartRepo    interfaces.CartRepository
-	productRepo interfaces.ProductRepository
+	userRepo      interfaces.UserRepository
+	cartRepo      interfaces.CartRepository
+	productRepo   interfaces.ProductRepository
+	imageUploader cloud.CloudService
+}
+
+// UploadProfileImage implements interfaces.UserUseCase.
+
+type S3ImageUploader struct {
+	// add AWS S3 client config here
+	uploader *manager.Uploader
+	bucket   string
 }
 
 func NewUserUseCase(userRepo interfaces.UserRepository, cartRepo interfaces.CartRepository,
-	productRepo interfaces.ProductRepository) service.UserUseCase {
+	productRepo interfaces.ProductRepository, imageUploader cloud.CloudService) service.UserUseCase {
 	return &userUserCase{
-		userRepo:    userRepo,
-		cartRepo:    cartRepo,
-		productRepo: productRepo,
+		userRepo:      userRepo,
+		cartRepo:      cartRepo,
+		productRepo:   productRepo,
+		imageUploader: imageUploader,
 	}
 }
 
@@ -85,12 +98,15 @@ func (c *userUserCase) SaveAddress(ctx context.Context, userID uint, address dom
 	}
 
 	// //this address not exist then create it
-	// country, err := c.userRepo.FindCountryByID(ctx, address.CountryID)
-	// if err != nil {
-	// 	return err
-	// } else if country.ID == 0 {
-	// 	return errors.New("invalid country id")
-	// }
+	fmt.Printf("saving address for user id: %d\n", userID)
+	fmt.Printf("address details: %+v\n", address)
+	// check the country id is valid or not
+	country, err := c.userRepo.FindCountryByID(ctx, address.CountryID)
+	if err != nil {
+		return err
+	} else if country.ID == 0 {
+		return errors.New("invalid country id")
+	}
 
 	// save the address on database
 	addressID, err := c.userRepo.SaveAddress(ctx, address)
@@ -240,4 +256,13 @@ func (c *userUserCase) FindLocation(ctx context.Context, lat string, long string
 	} else {
 		fmt.Println("No results found.")
 	}
+}
+
+func (u *userUserCase) UploadProfileImage(ctx context.Context, userID string, fileHeader *multipart.FileHeader, imageSize int64, filename string, headerContent string) (string, error) {
+	// Use the S3ImageUploader to upload the file
+	image_path, err := u.imageUploader.SaveFile(ctx, fileHeader)
+	if err != nil {
+		return "", utils.PrependMessageToError(err, "failed to save image on cloud storage")
+	}
+	return image_path, nil
 }

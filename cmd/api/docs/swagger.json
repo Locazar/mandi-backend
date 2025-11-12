@@ -238,6 +238,53 @@
                 }
             }
         },
+        "/account/profile-image": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "API for user to upload profile image",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "tags": [
+                    "User Profile"
+                ],
+                "summary": "Upload profile image (User)",
+                "operationId": "UploadProfileImage",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "Profile image file to upload",
+                        "name": "image",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully uploaded profile image",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Image file is required or invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to upload image",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/account/wallet": {
             "get": {
                 "security": [
@@ -2615,6 +2662,60 @@
                         "description": "invalid input",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/upload-profile-image": {
+            "post": {
+                "description": "API endpoint to upload a user profile image file and save it to AWS S3 storage.",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User Profile",
+                    "File Upload"
+                ],
+                "summary": "Upload profile image to S3",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "Profile image file to upload",
+                        "name": "image",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Returns URL of the uploaded image",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Image file is required or invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to upload image to storage",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -5121,6 +5222,9 @@
                     "type": "string",
                     "maxLength": 50,
                     "minLength": 2
+                },
+                "google_profile_image": {
+                    "type": "string"
                 },
                 "last_name": {
                     "type": "string",

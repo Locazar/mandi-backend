@@ -28,7 +28,7 @@ type ServerHTTP struct {
 // @BasePath					/api
 // @SecurityDefinitions.apikey	BearerAuth
 // @Name						Authorization
-// @In							header
+// @In							headerNewServerHTTP
 // @Description				Add prefix of Bearer before  token Ex: "Bearer token"
 // @Query.collection.format	multi
 func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware middleware.Middleware,

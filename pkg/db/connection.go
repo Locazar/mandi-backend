@@ -96,5 +96,9 @@ func ConnectDatabase(cfg config.Config) (*gorm.DB, error) {
 		return nil, err
 	}
 
+	if err := SeedCountries(db); err != nil {
+		return nil, err
+	}
+
 	return db, err
 }
