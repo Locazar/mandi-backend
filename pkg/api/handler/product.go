@@ -4,8 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/jinzhu/copier"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
@@ -543,4 +545,572 @@ func (p *ProductHandler) getAllProductItems() func(ctx *gin.Context) {
 
 		response.SuccessResponse(ctx, http.StatusOK, "Successfully get all product items ", productItems)
 	}
+}
+
+// Helper to convert *uuid.UUID to *string
+func uuidToStringPtr(id *uuid.UUID) *string {
+	if id == nil {
+		return nil
+	}
+	s := id.String()
+	return &s
+}
+func SafeIntToUint64(i int) (uint64, error) {
+	if i < 0 {
+		return 0, fmt.Errorf("cannot convert negative int (%d) to uint64", i)
+	}
+	return uint64(i), nil
+}
+
+// SearchProducts godoc
+//
+//	@Summary		Search products
+//	@Security		BearerAuth
+//	@Description	API for user to search products with filters
+//	@ID				SearchProducts
+//	@Tags			User Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			q			query	string	false	"Search keyword"
+//	@Param			category_id	query	string	false	"Category ID"
+//	@Param			brand_id	query	string	false	"Brand ID"
+//	@Param			location_id	query	string	false	"Location ID"
+//	@Param			limit		query	int		false	"Limit"
+//	@Param			offset		query	int		false	"Offset"
+//	@Router			/products/search [get]
+//	@Success		200	{object}	response.Response{}	"Successfully searched products"
+//	@Failure		500	{object}	response.Response{}	"Failed to search products
+func (h *ProductHandler) SearchProducts(c *gin.Context) {
+
+	keyword := c.Query("q")
+
+	var categoryID, brandID, locationID *uuid.UUID
+	if cid := c.Query("category_id"); cid != "" {
+		id, err := uuid.Parse(cid)
+		if err == nil {
+			categoryID = &id
+		}
+	}
+	if bid := c.Query("brand_id"); bid != "" {
+		id, err := uuid.Parse(bid)
+		if err == nil {
+			brandID = &id
+		}
+	}
+	if lid := c.Query("location_id"); lid != "" {
+		id, err := uuid.Parse(lid)
+		if err == nil {
+			locationID = &id
+		}
+	}
+
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+
+	catIDPtr := uuidToStringPtr(categoryID)
+	brandIDPtr := uuidToStringPtr(brandID)
+	locIDPtr := uuidToStringPtr(locationID)
+
+	// Assuming request.Pagination looks like:
+	pageNumber, err := SafeIntToUint64(offset)
+
+	limitUint64, err := SafeIntToUint64(limit)
+
+	pagination := request.Pagination{
+		PageNumber: pageNumber,
+		Count:      limitUint64,
+	}
+
+	products, err := h.productUseCase.SearchProducts(c, keyword, catIDPtr, brandIDPtr, locIDPtr, int(pagination.Count), int(pagination.PageNumber))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"products": products})
+}
+
+// GetProductSearchSuggestions godoc
+//
+//	@Summary		Get product search suggestions
+//	@Security		BearerAuth
+//	@Description	API for user to get product name suggestions based on a prefix
+//	@ID				GetProductSearchSuggestions
+//	@Tags			User Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			q	query	string	true	"Search prefix"
+//	@Router			/products/search/suggestions [get]
+//	@Success		200	{object}	response.Response{}	"Successfully retrieved product search suggestions"
+//	@Failure		400	{object}	response.Response{}	"Query parameter q is required"
+//	@Failure		500	{object}	response.Response{}	"Failed to retrieve product search suggestions"
+func (h *ProductHandler) GetProductSearchSuggestions(c *gin.Context) {
+	prefix := c.Query("q")
+	if prefix == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "query param q is required"})
+		return
+	}
+
+	suggestions, err := h.productUseCase.GetProductNameSuggestions(c, prefix)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"suggestions": suggestions})
+
+}
+
+// GetProductSearchFilters godoc
+//
+//	@Summary		Get product search filters
+//	@Security		BearerAuth
+//	@Description	API for user to get available filters for product search
+//	@ID				GetProductSearchFilters
+//	@Tags			User Products
+//	@Accept			json
+//	@Produce		json
+//	@Router			/products/search/filters [get]
+//	@Success		200	{object}	response.Response{}	"Successfully retrieved product search filters"
+//	@Failure		500	{object}	response.Response{}	"Failed to retrieve product search filters"
+func (h *ProductHandler) GetProductSearchFilters(c *gin.Context) {
+	filters, err := h.productUseCase.GetProductFilters(c)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, filters)
+
+}
+
+// GetProductSearchLocations godoc
+//
+//	@Summary		Get product search locations
+//	@Security		BearerAuth
+//	@Description	API for user to get available locations for product search
+//	@ID				GetProductSearchLocations
+//	@Tags			User Products
+//	@Accept			json
+//	@Produce		json
+//	@Router			/products/search/locations [get]
+//	@Success		200	{object}	response.Response{}	"Successfully retrieved product search locations"
+//	@Failure		500	{object}	response.Response{}	"Failed to retrieve product search locations"
+func (h *ProductHandler) GetProductSearchLocations(c *gin.Context) {
+	locations, err := h.productUseCase.GetProductLocations(c)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"locations": locations})
+
+}
+
+// GetProductsByCategory godoc
+//
+//	@Summary		Get products by category ID
+//	@Description	Retrieve a paginated list of products filtered by the given category ID.
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			category_id	path		int	true	"Category ID"
+//	@Param			limit		query		int	false	"Limit number of results"	default(20)
+//	@Param			offset		query		int	false	"Offset for pagination"		default(0)
+//	@Success		200			{object}	map[string]interface{}	"List of products matching category"
+//	@Failure		400			{object}	map[string]string		"Invalid category ID"
+//	@Failure		500			{object}	map[string]string		"Internal server error"
+//	@Router			/products/category/{category_id} [get]
+func (h *ProductHandler) GetProductsByCategory(c *gin.Context) {
+	cid := c.Param("category_id")
+	categoryID, err := strconv.Atoi(cid)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid category_id"})
+		return
+	}
+
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+
+	products, err := h.productUseCase.GetProductsByCategory(c, categoryID, limit, offset)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"products": products})
+
+}
+
+// GetAllBrands godoc
+//
+//	@Summary		Get all brands
+//	@Description	API endpoint to retrieve the list of all product brands.
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	map[string]interface{} "List of brands"
+//	@Failure		500	{object}	map[string]string	"Internal server error"
+//	@Router			/brands [get]
+func (h *ProductHandler) GetAllBrands(c *gin.Context) {
+
+	brands, err := h.productUseCase.GetAllBrands(c)
+	c.JSON(http.StatusOK, gin.H{"brands": brands})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"brands": brands})
+
+}
+
+// GetProductsByBrand godoc
+//
+//	@Summary		Get products by brand ID
+//	@Description	Retrieve a paginated list of products filtered by the given brand ID.
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			brand_id	path		int		true	"Brand ID"
+//	@Param			limit		query		int		false	"Limit number of results"	default(20)
+//	@Param			offset		query		int		false	"Offset for pagination"		default(0)
+//	@Success		200			{object}	map[string]interface{}	"List of products filtered by brand"
+//	@Failure		400			{object}	map[string]string		"Invalid brand ID"
+//	@Failure		500			{object}	map[string]string		"Internal server error"
+//	@Router			/products/brand/{brand_id} [get]
+func (h *ProductHandler) GetProductsByBrand(c *gin.Context) {
+
+	bid := c.Param("brand_id")
+	brandID, err := strconv.Atoi(bid)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid brand_id"})
+		return
+	}
+
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+
+	products, err := h.productUseCase.GetProductsByBrand(c, brandID, limit, offset)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"products": products})
+
+}
+
+// GetCategoryFilters godoc
+//
+//	@Summary		Get category filters
+//	@Description	API endpoint to retrieve product category filters.
+//	@Tags			Filters
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	map[string]interface{}	"List of product categories"
+//	@Failure		500	{object}	map[string]string		"Internal server error"
+//	@Router			/filters/categories [get]
+func (h *ProductHandler) GetCategoryFilters(c *gin.Context) {
+	categories, err := h.productUseCase.GetCategoryFilters(c)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"categories": categories})
+
+}
+
+// GetBrandFilters godoc
+//
+//	@Summary		Get brand filters
+//	@Description	API endpoint to retrieve product brand filters.
+//	@Tags			Filters
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	map[string]interface{}	"List of product brands"
+//	@Failure		500	{object}	map[string]string		"Internal server error"
+//	@Router			/filters/brands [get]
+func (h *ProductHandler) GetBrandFilters(c *gin.Context) {
+	brands, err := h.productUseCase.GetBrandFilters(c)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"brands": brands})
+
+}
+
+// GetLocationFilter godoc
+//
+//	@Summary		Get location filters
+//	@Description	API endpoint to retrieve product location filters.
+//	@Tags			Filters
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	map[string]interface{}	"List of product locations"
+//	@Failure		500	{object}	map[string]string		"Internal server error"
+//	@Router			/filters/locations [get]
+func (h *ProductHandler) GetLocationFilter(c *gin.Context) {
+	locations, err := h.productUseCase.GetLocationFilter(c)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"locations": locations})
+
+}
+
+// GetProductsByLocation godoc
+//
+//	@Summary		Get products by location ID
+//	@Description	Retrieve a paginated list of products filtered by the given location ID.
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			location_id	query		int		true	"Location ID"
+//	@Param			limit		query		int		false	"Limit number of results"	default(20)
+//	@Param			offset		query		int		false	"Offset for pagination"		default(0)
+//	@Success		200			{object}	map[string]interface{}	"List of products filtered by location"
+//	@Failure		400			{object}	map[string]string		"Invalid location ID"
+//	@Failure		500			{object}	map[string]string		"Internal server error"
+//	@Router			/products/location [get]
+func (h *ProductHandler) GetProductsByLocation(c *gin.Context) {
+
+	locationIDStr := c.Query("location_id")
+	locationID, err := strconv.Atoi(locationIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid location_id"})
+		return
+	}
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+
+	products, err := h.productUseCase.GetProductsByLocation(c, locationID, limit, offset)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"products": products})
+
+}
+
+// GetAllAreas godoc
+//
+//	@Summary		Get all areas
+//	@Description	API endpoint to retrieve all available areas for filtering or display.
+//	@Tags			Filters
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	map[string]interface{}	"List of all areas"
+//	@Failure		500	{object}	map[string]string		"Internal server error"
+//	@Router			/filters/areas [get]
+func (h *ProductHandler) GetAllAreas(c *gin.Context) {
+	areas, err := h.productUseCase.GetAllAreas(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"areas": areas})
+}
+
+// GetAllCities godoc
+//
+//	@Summary		Get all cities
+//	@Description	API endpoint to retrieve all available cities for filtering or display.
+//	@Tags			Filters
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	map[string]interface{}	"List of all cities"
+//	@Failure		500	{object}	map[string]string		"Internal server error"
+//	@Router			/filters/cities [get]
+func (h *ProductHandler) GetAllCities(c *gin.Context) {
+	cities, err := h.productUseCase.GetAllCities(c)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"cities": cities})
+
+}
+
+// GetAllStates godoc
+//
+//	@Summary		Get all states
+//	@Description	API endpoint to retrieve all available states for filtering or display.
+//	@Tags			Filters
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	map[string]interface{}	"List of all states"
+//	@Failure		500	{object}	map[string]string		"Internal server error"
+//	@Router			/filters/states [get]
+func (h *ProductHandler) GetAllStates(c *gin.Context) {
+	states, err := h.productUseCase.GetAllStates(c)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"states": states})
+
+}
+
+// GetAllCountries godoc
+//
+//	@Summary		Get all countries
+//	@Description	API endpoint to retrieve all available countries for filtering or display.
+//	@Tags			Filters
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	map[string]interface{}	"List of all countries"
+//	@Failure		500	{object}	map[string]string		"Internal server error"
+//	@Router			/filters/countries [get]
+func (h *ProductHandler) GetAllCountries(c *gin.Context) {
+	countries, err := h.productUseCase.GetAllCountries(c)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"countries": countries})
+
+}
+
+// GetAllPincodes godoc
+//
+//	@Summary		Get all pincodes
+//	@Description	API endpoint to retrieve all available pincodes for filtering or display.
+//	@Tags			Filters
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	map[string]interface{}	"List of all pincodes"
+//	@Failure		500	{object}	map[string]string		"Internal server error"
+//	@Router			/filters/pincodes [get]
+func (h *ProductHandler) GetAllPincodes(c *gin.Context) {
+	pincodes, err := h.productUseCase.GetAllPincodes(c)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"pincodes": pincodes})
+
+}
+
+// GetCitiesByState godoc
+//
+//	@Summary		Get cities by state ID
+//	@Description	API endpoint to retrieve all cities corresponding to a specific state ID.
+//	@Tags			Filters
+//	@Accept			json
+//	@Produce		json
+//	@Param			state_id	path		string	true	"State ID"
+//	@Success		200		{object}	map[string]interface{}	"List of cities for the given state"
+//	@Failure		500		{object}	map[string]string		"Internal server error"
+//	@Router			/filters/states/{state_id}/cities [get]
+func (h *ProductHandler) GetCitiesByState(c *gin.Context) {
+	state := c.Param("state_id") // Adjust type depending on state_id format
+
+	cities, err := h.productUseCase.GetCitiesByState(c, state)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"cities": cities})
+
+}
+
+func (h *ProductHandler) GetAreasByCity(c *gin.Context) {
+	city := c.Param("city_id")
+
+	areas, err := h.productUseCase.GetAreasByCity(c, city)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"areas": areas})
+
+}
+
+// GetAreasByCity godoc
+//
+//	@Summary		Get areas by city ID
+//	@Description	API endpoint to retrieve all areas corresponding to a specific city ID.
+//	@Tags			Filters
+//	@Accept			json
+//	@Produce		json
+//	@Param			city_id		path		string	true	"City ID"
+//	@Success		200			{object}	map[string]interface{}	"List of areas for the given city"
+//	@Failure		500			{object}	map[string]string		"Internal server error"
+//	@Router			/filters/cities/{city_id}/areas [get]
+func (h *ProductHandler) GetPincodesByArea(c *gin.Context) {
+	area := c.Param("area_id")
+
+	pincodes, err := h.productUseCase.GetPincodesByArea(c, area)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"pincodes": pincodes})
+
+}
+
+// GetLocationByPincode godoc
+//
+//	@Summary		Get location by pincode
+//	@Description	API endpoint to retrieve a location corresponding to a specific pincode.
+//	@Tags			Filters
+//	@Accept			json
+//	@Produce		json
+//	@Param			pincode_id	path		string	true	"Pincode ID"
+//	@Success		200			{object}	response.Location	"Location matching the pincode"
+//	@Failure		404			{object}	map[string]string	"Location not found"
+//	@Failure		500			{object}	map[string]string	"Internal server error"
+//	@Router			/filters/pincode/{pincode_id}/location [get]
+func (h *ProductHandler) GetLocationByPincode(c *gin.Context) {
+	pincode := c.Param("pincode_id")
+	loc, err := h.productUseCase.GetLocationByPincode(c, pincode)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if loc == (response.Location{}) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "location not found"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"location": loc})
+
+}
+
+// GetNearbyProductsByPincode godoc
+//
+//	@Summary		Get nearby products by pincode within a radius
+//	@Description	API endpoint to retrieve a paginated list of products available near a specified pincode within a given radius (in kilometers).
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			pincode		query		string	true	"Pincode to search around"
+//	@Param			radius_km	query		number	false	"Radius in kilometers for nearby search"	default(10)
+//	@Param			limit		query		int		false	"Limit number of results"			default(20)
+//	@Param			offset		query		int		false	"Offset for pagination"				default(0)
+//	@Success		200			{object}	map[string]interface{}	"List of nearby products"
+//	@Failure		400			{object}	map[string]string		"Invalid input parameters"
+//	@Failure		500			{object}	map[string]string		"Internal server error"
+//	@Router			/products/nearby [get]
+func (h *ProductHandler) GetNearbyProductsByPincode(c *gin.Context) {
+	pincode := c.Query("pincode")
+	if pincode == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "query parameter pincode is required"})
+		return
+	}
+
+	radiusKmStr := c.DefaultQuery("radius_km", "10")
+	radiusKm, err := strconv.ParseFloat(radiusKmStr, 64)
+	if err != nil || radiusKm <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid radius_km"})
+		return
+	}
+
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+
+	products, err := h.productUseCase.GetNearbyProductsByPincode(c, pincode, limit, offset)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"products": products})
+
 }

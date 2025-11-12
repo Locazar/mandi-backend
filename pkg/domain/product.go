@@ -1,21 +1,27 @@
 package domain
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 // represent a model of product
 type Product struct {
-	ID            uint      `json:"id" gorm:"primaryKey;not null"`
-	Name          string    `json:"product_name" gorm:"not null" binding:"required,min=3,max=50"`
-	Description   string    `json:"description" gorm:"not null" binding:"required,min=10,max=100"`
-	CategoryID    uint      `json:"category_id" binding:"omitempty,numeric"`
-	Category      Category  `json:"-"`
-	BrandID       uint      `gorm:"not null"`
-	Brand         Brand     `json:"-"`
-	Price         uint      `json:"price" gorm:"not null" binding:"required,numeric"`
-	DiscountPrice uint      `json:"discount_price"`
-	Image         string    `json:"image" gorm:"not null"`
-	CreatedAt     time.Time `json:"created_at" gorm:"not null"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	ID            uint       `json:"id" gorm:"primaryKey;not null"`
+	Name          string     `json:"product_name" gorm:"not null" binding:"required,min=3,max=50"`
+	Description   string     `json:"description" gorm:"not null" binding:"required,min=10,max=100"`
+	CategoryID    uint       `json:"category_id" binding:"omitempty,numeric"`
+	Category      Category   `json:"-"`
+	BrandID       uint       `gorm:"not null"`
+	Brand         Brand      `json:"-"`
+	Price         uint       `json:"price" gorm:"not null" binding:"required,numeric"`
+	DiscountPrice uint       `json:"discount_price"`
+	Image         string     `json:"image" gorm:"not null"`
+	CreatedAt     time.Time  `json:"created_at" gorm:"not null"`
+	UpdatedAt     time.Time  `json:"updated_at"`
+	LocationID    *uuid.UUID `json:"location_id,omitempty"`
+	Stock         int        `json:"stock"`
 }
 
 // this for a specific variant of product

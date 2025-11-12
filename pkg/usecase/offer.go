@@ -4,21 +4,25 @@ import (
 	"context"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	repo "github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
+	"gorm.io/gorm"
 )
 
 type offerUseCase struct {
 	offerRepo repo.OfferRepository
+	DB        DBQuerier
 }
 
-func NewOfferUseCase(offerRepo repo.OfferRepository) interfaces.OfferUseCase {
+func NewOfferUseCase(offerRepo repo.OfferRepository, db *gorm.DB) interfaces.OfferUseCase {
 	return &offerUseCase{
 		offerRepo: offerRepo,
+		DB:        &GormDBAdapter{db: db},
 	}
 }
 
@@ -297,4 +301,61 @@ func (c *offerUseCase) ChangeProductOffer(ctx context.Context, productOfferID, o
 	}
 
 	return nil
+}
+
+// services/offer_service.go
+
+func (s *offerUseCase) GetAllOffers(ctx context.Context) ([]Offer, error) {
+	query := `
+        SELECT offer_id, title, description, category_id, discount_percent, start_date, end_date, active
+        FROM offers
+        WHERE active = TRUE AND (start_date IS NULL OR start_date <= NOW()) AND (end_date IS NULL OR end_date >= NOW())
+        ORDER BY start_date DESC NULLS LAST
+    `
+	rows, err := s.DB.Query(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var offers []Offer
+	for rows.Next() {
+		var o Offer
+		err := rows.Scan(&o.OfferID, &o.Title, &o.Description, &o.CategoryID, &o.DiscountPercent, &o.StartDate, &o.EndDate, &o.Active)
+		if err != nil {
+			return nil, err
+		}
+		offers = append(offers, o)
+	}
+	return offers, nil
+}
+
+// services/offer_service.go
+
+func (s *offerUseCase) GetOffersByCategory(ctx context.Context, categoryID uuid.UUID) ([]Offer, error) {
+	query := `
+        SELECT offer_id, title, description, category_id, discount_percent, start_date, end_date, active
+        FROM offers
+        WHERE active = TRUE 
+        AND category_id = $1
+        AND (start_date IS NULL OR start_date <= NOW())
+        AND (end_date IS NULL OR end_date >= NOW())
+        ORDER BY start_date DESC NULLS LAST
+    `
+	rows, err := s.DB.Query(ctx, query, categoryID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var offers []Offer
+	for rows.Next() {
+		var o Offer
+		err := rows.Scan(&o.OfferID, &o.Title, &o.Description, &o.CategoryID, &o.DiscountPercent, &o.StartDate, &o.EndDate, &o.Active)
+		if err != nil {
+			return nil, err
+		}
+		offers = append(offers, o)
+	}
+	return offers, nil
 }

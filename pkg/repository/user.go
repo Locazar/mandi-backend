@@ -31,7 +31,10 @@ func (c *userDatabase) FindUserByUserID(ctx context.Context, userID uint) (user 
 func (c *userDatabase) FindUserByEmail(ctx context.Context, email string) (user domain.User, err error) {
 
 	query := `SELECT * FROM users WHERE email = $1`
+
+	fmt.Printf("Executing query: %s with email: %s\n", query, email) // Debugging line
 	err = c.DB.Raw(query, email).Scan(&user).Error
+	fmt.Printf("Query result: %+v, error: %v\n", user, err) // Debugging line
 
 	return user, err
 }
@@ -88,14 +91,14 @@ func (c *userDatabase) UpdateUser(ctx context.Context, user domain.User) (err er
 	// check password need to update or not
 	if user.Password != "" {
 		query := `UPDATE users SET user_name = $1, first_name = $2, last_name = $3,age = $4, 
-		email = $5, phone = $6, password = $7, updated_at = $8 WHERE id = $9`
+		email = $5, phone = $6, password = $7, google_image = $8, updated_at = $9 WHERE id = $10`
 		err = c.DB.Exec(query, user.UserName, user.FirstName, user.LastName, user.Age, user.Email,
-			user.Phone, user.Password, updatedAt, user.ID).Error
+			user.Phone, user.Password, user.GoogleImage, updatedAt, user.ID).Error
 	} else {
 		query := `UPDATE users SET user_name = $1, first_name = $2, last_name = $3,age = $4, 
-		email = $5, phone = $6, updated_at = $7 WHERE id = $8`
+		email = $5, phone = $6,  google_image = $7, updated_at = $8 WHERE id = $9`
 		err = c.DB.Exec(query, user.UserName, user.FirstName, user.LastName, user.Age, user.Email,
-			user.Phone, updatedAt, user.ID).Error
+			user.Phone, user.GoogleImage, updatedAt, user.ID).Error
 	}
 
 	if err != nil {
@@ -139,7 +142,9 @@ func (c *userDatabase) IsAddressAlreadyExistForUser(ctx context.Context, address
 	WHERE adrs.name = $1 AND adrs.house = $2 AND adrs.land_mark = $3 
 	AND adrs.pincode = $4 AND adrs.country_id = $5  AND urs.user_id = $6`
 	err = c.DB.Raw(query, address.Name, address.House, address.LandMark, address.Pincode, address.CountryID, userID).Scan(&exist).Error
-
+	if err != nil {
+		return exist, fmt.Errorf("filed to check address already exist for user with user_id %d", userID)
+	}
 	return
 }
 
@@ -158,6 +163,8 @@ func (c *userDatabase) FindAllAddressByUserID(ctx context.Context, userID uint) 
 func (c *userDatabase) FindCountryByID(ctx context.Context, countryID uint) (domain.Country, error) {
 
 	var country domain.Country
+
+	fmt.Printf("Finding country with ID: %d\n", countryID) // Debugging line
 
 	if c.DB.Raw("SELECT * FROM countries WHERE id = ?", countryID).Scan(&country).Error != nil {
 		return country, errors.New("filed to find the country")
@@ -186,7 +193,7 @@ func (c *userDatabase) SaveAddress(ctx context.Context, address domain.Address) 
 // update address
 func (c *userDatabase) UpdateAddress(ctx context.Context, address domain.Address) error {
 
-	address.CountryID = 1 // hardcoded !!!! should change
+	// address.CountryID = 1 // hardcoded !!!! should change
 	query := `UPDATE addresses SET name=$1, phone_number=$2, house=$3, area=$4, land_mark=$5, 
 	city=$6, pincode=$7,country_id=$8, updated_at = $9 WHERE id=$10`
 

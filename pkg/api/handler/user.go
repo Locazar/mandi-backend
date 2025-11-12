@@ -1,12 +1,15 @@
 package handler
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"net/http"
+	"path/filepath"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/copier"
-	"github.com/rohit221990/mandi-backend/pkg/api/handler/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
@@ -19,7 +22,7 @@ type UserHandler struct {
 	userUseCase usecaseInterface.UserUseCase
 }
 
-func NewUserHandler(userUsecase usecaseInterface.UserUseCase) interfaces.UserHandler {
+func NewUserHandler(userUsecase usecaseInterface.UserUseCase) *UserHandler {
 	return &UserHandler{
 		userUseCase: userUsecase,
 	}
@@ -50,27 +53,27 @@ func NewUserHandler(userUsecase usecaseInterface.UserUseCase) interfaces.UserHan
 // // @Success 200 {object} response.Response{} "successfully got checkout data"
 // // @Failure 401 {object} res.Response{} "cart is empty so user can't call this api"
 // // @Failure 500 {object} res.Response{} "failed to get checkout items"
-func (c *UserHandler) CheckOutCart(ctx *gin.Context) {
+// func (c *UserHandler) CheckOutCart(ctx *gin.Context) {
 
-	// userId := utils.GetUserIdFromContext(ctx)
+// 	userId := utils.GetUserIdFromContext(ctx)
 
-	// resCheckOut, err := c.userUseCase.CheckOutCart(ctx, userId)
+// 	resCheckOut, err := c.userUseCase.CheckOutCart(ctx, userId)
 
-	// if err != nil {
-	// 	 response.ErrorResponse(500, "failed to get checkout items", err.Error(), nil)
-	// 	ctx.AbortWithStatusJSON(http.StatusInternalServerError, response)
-	// 	return
-	// }
+// 	if err != nil {
+// 		response.ErrorResponse(500, "failed to get checkout items", err.Error(), nil)
+// 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, response)
+// 		return
+// 	}
 
-	// if resCheckOut.ProductItems == nil {
-	// 	 response.ErrorResponse(401, "cart is empty can't checkout cart", "", nil)
-	// 	ctx.AbortWithStatusJSON(http.StatusUnauthorized, response)
-	// 	return
-	// }
+// 	if resCheckOut.ProductItems == nil {
+// 		response.ErrorResponse(401, "cart is empty can't checkout cart", "", nil)
+// 		ctx.AbortWithStatusJSON(http.StatusUnauthorized, response)
+// 		return
+// 	}
 
-	// responser := res.SuccessResponse(200, "successfully got checkout data", resCheckOut)
-	// ctx.JSON(http.StatusOK, responser)
-}
+// 	responser := res.SuccessResponse(200, "successfully got checkout data", resCheckOut)
+// 	ctx.JSON(http.StatusOK, responser)
+// }
 
 // GetProfile godoc
 //
@@ -226,6 +229,8 @@ func (u *UserHandler) UpdateAddress(ctx *gin.Context) {
 		body.IsDefault = new(bool)
 	}
 
+	fmt.Printf("Update address request body: %+v\n", body)
+
 	err := u.userUseCase.UpdateAddress(ctx, body, userID)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to update user address", err, nil)
@@ -335,4 +340,109 @@ func (u *UserHandler) GetWishList(ctx *gin.Context) {
 	}
 
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved all product items in th wish list", wishListItems)
+}
+
+// UploadProfileImage godoc
+//
+//	@Summary		Upload profile image to S3
+//	@Description	API endpoint to upload a user profile image file and save it to AWS S3 storage.
+//	@Tags			User Profile, File Upload
+//	@Accept			multipart/form-data
+//	@Produce		json
+//	@Param			image	formData	file	true	"Profile image file to upload"
+//	@Success		200	{object}	map[string]string	"Returns URL of the uploaded image"
+//	@Failure		400	{object}	map[string]string	"Image file is required or invalid request"
+//	@Failure		500	{object}	map[string]string	"Failed to upload image to storage"
+//	@Router			/api/upload-profile-image [post]
+// func UploadProfileImage(c *gin.Context) {
+// 	file, err := c.FormFile("image")
+// 	if err != nil {
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Image file is required"})
+// 		return
+// 	}
+
+// 	openedFile, err := file.Open()
+// 	if err != nil {
+// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open image"})
+// 		return
+// 	}
+// 	defer openedFile.Close()
+
+// 	ctx := context.Background()
+// 	region := "ap-south-1" // Replace with your AWS region
+// 	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(region))
+// 	if err != nil {
+// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load AWS config"})
+// 		return
+// 	}
+
+// 	s3Client := s3.NewFromConfig(cfg)
+// 	uploader := manager.NewUploader(s3Client)
+
+// 	// Unique filename with timestamp and original extension
+// 	fileName := fmt.Sprintf("user-profile/%d%s", time.Now().UnixNano(), filepath.Ext(file.Filename))
+
+// 	bucketName := "s3-mandi-bucket" // Replace with your actual bucket name
+// 	contentType := file.Header.Get("Content-Type")
+// 	result, err := uploader.Upload(ctx, &s3.PutObjectInput{
+// 		Bucket:      &bucketName,
+// 		Key:         &fileName,
+// 		Body:        openedFile,
+// 		ContentType: &contentType,
+// 		ACL:         "public-read", // Adjust according to your bucket policy
+// 	})
+
+// 	if err != nil {
+// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Upload to S3 failed"})
+// 		return
+// 	}
+
+// 	c.JSON(http.StatusOK, gin.H{
+// 		"message":   "Upload successful",
+// 		"image_url": result.Location,
+// 	})
+// }
+
+// UploadProfileImage godoc
+//
+//	@Summary		Upload profile image (User)
+//	@Security		BearerAuth
+//	@Description	API for user to upload profile image
+//	@Id				UploadProfileImage
+//	@Tags			User Profile
+//	@Accept			multipart/form-data
+//	@Param			image	formData	file	true	"Profile image file to upload"
+//	@Router			/account/profile-image [post]
+//	@Success		200	{object}	response.Response{}	"Successfully uploaded profile image"
+//	@Failure		400	{object}	response.Response{}	"Image file is required or invalid request"
+//	@Failure		500	{object}	response.Response{}	"Failed to upload image"
+func (h *UserHandler) UploadProfileImage(c *gin.Context) {
+	var userID = c.Param("id")
+	var req request.UploadImageRequest
+	if err := c.ShouldBind(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Image file is required"})
+		return
+	}
+
+	file, err := req.Image.Open()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open image"})
+		return
+	}
+	defer file.Close()
+
+	// Generate unique filename
+	fileName := fmt.Sprintf("user-profile/%d%s", time.Now().UnixNano(), filepath.Ext(req.Image.Filename))
+
+	ctx := context.Background()
+	imageURL, err := h.userUseCase.UploadProfileImage(ctx, userID, req.Image, req.Image.Size, fileName, req.Image.Header.Get("Content-Type"))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload image"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":   "Upload successful",
+		"image_url": imageURL,
+	})
 }

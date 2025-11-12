@@ -28,7 +28,7 @@ type ServerHTTP struct {
 // @BasePath					/api
 // @SecurityDefinitions.apikey	BearerAuth
 // @Name						Authorization
-// @In							header
+// @In							headerNewServerHTTP
 // @Description				Add prefix of Bearer before  token Ex: "Bearer token"
 // @Query.collection.format	multi
 func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware middleware.Middleware,
@@ -50,7 +50,7 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware middlewa
 
 	// set up routes
 	routes.UserRoutes(engine.Group("/api"), authHandler, middleware, userHandler, cartHandler,
-		productHandler, paymentHandler, orderHandler, couponHandler)
+		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler)
 	routes.AdminRoutes(engine.Group("/api/admin"), authHandler, middleware, adminHandler,
 		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler)
 

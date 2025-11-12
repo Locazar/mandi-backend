@@ -37,7 +37,7 @@ type Address struct {
 	LandMark    string `json:"land_mark" gorm:"not null" binding:"required"`
 	City        string `json:"city" gorm:"not null"`
 	Pincode     uint   `json:"pincode" gorm:"not null" binding:"required,numeric,min=6,max=6"`
-	CountryID   uint   `json:"country_id" gorm:"not null" binding:"required"`
+	CountryID   uint   `json:"country_id" gorm:"not null" binding:"required,numeric"`
 	Country     Country
 	CreatedAt   time.Time `json:"created_at" gorm:"not null"`
 	UpdatedAt   time.Time `json:"updated_at"`
@@ -46,6 +46,7 @@ type Address struct {
 type Country struct {
 	ID          uint   `json:"id" gorm:"primaryKey;unique;"`
 	CountryName string `json:"country_name" gorm:"unique;not null"`
+	ISOCode     string `json:"iso_code" gorm:"unique;not null"`
 }
 
 // Wish List

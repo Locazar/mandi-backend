@@ -1,5 +1,7 @@
 package request
 
+import "mime/multipart"
+
 type UserSignUp struct {
 	UserName        string `json:"user_name"  binding:"required,min=3,max=15"`
 	FirstName       string `json:"first_name"  binding:"required,min=2,max=50"`
@@ -20,7 +22,7 @@ type Address struct {
 	LandMark    string `json:"land_mark" binding:"required"`
 	City        string `json:"city"`
 	Pincode     uint   `json:"pincode" binding:"required"`
-	// CountryID   uint   `json:"country_id" binding:"required"`
+	CountryID   uint   `json:"country_id" binding:"required"`
 
 	IsDefault *bool `json:"is_default"`
 }
@@ -33,7 +35,7 @@ type EditAddress struct {
 	LandMark    string `json:"land_mark" binding:"required"`
 	City        string `json:"city"`
 	Pincode     uint   `json:"pincode" binding:"required"`
-	// CountryID   uint   `json:"country_id" binding:"required"`
+	CountryID   uint   `json:"country_id" binding:"required"`
 
 	IsDefault *bool `json:"is_default"`
 }
@@ -59,4 +61,8 @@ type EditUser struct {
 	Phone           string `json:"phone" binding:"required,min=10,max=10"`
 	Password        string `json:"password"  binding:"omitempty,eqfield=ConfirmPassword"`
 	ConfirmPassword string `json:"confirm_password" binding:"omitempty"`
+}
+
+type UploadImageRequest struct {
+	Image *multipart.FileHeader `form:"image" binding:"required"`
 }

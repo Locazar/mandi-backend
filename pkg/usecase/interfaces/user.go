@@ -2,6 +2,7 @@ package interfaces
 
 import (
 	"context"
+	"mime/multipart"
 
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
@@ -23,4 +24,5 @@ type UserUseCase interface {
 	SaveToWishList(ctx context.Context, wishList domain.WishList) error
 	RemoveFromWishList(ctx context.Context, userID, productItemID uint) error
 	FindAllWishListItems(ctx context.Context, userID uint) ([]response.WishListItem, error)
+	UploadProfileImage(ctx context.Context, userID string, file *multipart.FileHeader, fileSize int64, fileName, contentType string) (string, error)
 }

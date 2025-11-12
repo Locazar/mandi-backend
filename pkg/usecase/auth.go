@@ -45,12 +45,13 @@ func NewAuthUseCase(authRepo interfaces.AuthRepository, tokenService token.Token
 }
 
 const (
-	AccessTokenDuration  = time.Minute * 20
+	AccessTokenDuration  = time.Hour * 24 * 7
 	RefreshTokenDuration = time.Hour * 24 * 7
 )
 
 func (c *authUseCase) UserLogin(ctx context.Context, loginDetails request.Login) (uint, error) {
 
+	fmt.Printf("loginDetails: %+v\n", loginDetails)
 	var (
 		user domain.User
 		err  error
@@ -66,6 +67,8 @@ func (c *authUseCase) UserLogin(ctx context.Context, loginDetails request.Login)
 		return 0, ErrEmptyLoginCredentials
 	}
 
+	fmt.Printf("Found user: %+v, error: %v\n", user, err)
+
 	if err != nil {
 		return 0, utils.PrependMessageToError(err, "failed to find user from database")
 	}
@@ -74,9 +77,9 @@ func (c *authUseCase) UserLogin(ctx context.Context, loginDetails request.Login)
 		return 0, ErrUserNotExist
 	}
 
-	if !user.Verified {
-		return 0, ErrUserNotVerified
-	}
+	// if !user.Verified {
+	// 	return 0, ErrUserNotVerified
+	// }
 
 	if user.BlockStatus {
 		return 0, ErrUserBlocked
@@ -86,6 +89,8 @@ func (c *authUseCase) UserLogin(ctx context.Context, loginDetails request.Login)
 	if err != nil {
 		return 0, ErrWrongPassword
 	}
+
+	fmt.Printf("User after password check: %+v\n", user)
 
 	return user.ID, nil
 }

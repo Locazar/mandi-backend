@@ -51,4 +51,6 @@ type ProductRepository interface {
 	// product item image
 	FindAllProductItemImages(ctx context.Context, productItemID uint) (images []string, err error)
 	SaveProductItemImage(ctx context.Context, productItemID uint, image string) error
+
+	SearchProducts(ctx context.Context, keyword string, categoryID, brandID, locationID *string, pagination request.Pagination) (products []response.Product, err error)
 }
