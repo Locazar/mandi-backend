@@ -441,12 +441,16 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
 	}
 
+	fmt.Printf("Product ID: %d\n", productID)
+
 	price, err1 := request.GetFormValuesAsUint(ctx, "price")
 	qtyInStock, err2 := request.GetFormValuesAsUint(ctx, "qty_in_stock")
 	variationOptionIDS, err3 := request.GetArrayFormValueAsUint(ctx, "variation_option_ids")
 	imageFileHeaders, err4 := request.GetArrayOfFromFiles(ctx, "images")
 
 	err = errors.Join(err1, err2, err3, err4)
+
+	fmt.Printf("Variation Option IDs: %+v\n", err)
 
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, BindFormValueMessage, err, nil)

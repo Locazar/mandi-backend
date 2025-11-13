@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -205,14 +206,17 @@ func (c *offerUseCase) ChangeCategoryOffer(ctx context.Context, categoryOfferID,
 // offer on products
 func (c *offerUseCase) SaveProductOffer(ctx context.Context, offerProduct domain.OfferProduct) error {
 
+	fmt.Printf("offerProduct received in usecase: %+v\n", offerProduct)
 	// check the any offer is already exist for the given product
-	offerProduct, err := c.offerRepo.FindOfferProductByProductID(ctx, offerProduct.ProductID)
+	offerProductData, err := c.offerRepo.FindOfferProductByProductID(ctx, offerProduct.ProductID)
 	if err != nil {
 		return utils.PrependMessageToError(err, "failed to check product have already offer exist")
 	}
-	if offerProduct.ID != 0 {
+	if offerProductData.ID != 0 {
 		return ErrProductOfferAlreadyExist
 	}
+
+	fmt.Printf("offerProduct: %+v\n", offerProduct)
 
 	err = c.offerRepo.Transactions(ctx, func(repo repo.OfferRepository) error {
 		// save product offer
@@ -220,6 +224,7 @@ func (c *offerUseCase) SaveProductOffer(ctx context.Context, offerProduct domain
 		if err != nil {
 			return utils.PrependMessageToError(err, "failed save product offer")
 		}
+		fmt.Printf("Saved product offer ID: %d\n", productOfferID)
 		// update the discount price of products
 		err = repo.UpdateProductsDiscountByProductOfferID(ctx, productOfferID)
 		if err != nil {

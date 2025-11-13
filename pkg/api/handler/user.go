@@ -403,19 +403,19 @@ func (u *UserHandler) GetWishList(ctx *gin.Context) {
 // 	})
 // }
 
-// UploadProfileImage godoc
-//
-//	@Summary		Upload profile image (User)
-//	@Security		BearerAuth
-//	@Description	API for user to upload profile image
-//	@Id				UploadProfileImage
-//	@Tags			User Profile
-//	@Accept			multipart/form-data
-//	@Param			image	formData	file	true	"Profile image file to upload"
-//	@Router			/account/profile-image [post]
-//	@Success		200	{object}	response.Response{}	"Successfully uploaded profile image"
-//	@Failure		400	{object}	response.Response{}	"Image file is required or invalid request"
-//	@Failure		500	{object}	response.Response{}	"Failed to upload image"
+//// UploadProfileImage godoc
+
+// @Summary		Upload profile image (User)
+// @Security		BearerAuth
+// @Description	API for user to upload profile image
+// @Id				UploadProfileImage
+// @Tags			User Profile
+// @Accept			multipart/form-data
+// @Param			image	formData	file	true	"Profile image file to upload"
+// @Router			/account/profile-image [post]
+// @Success		200	{object}	response.Response{}	"Successfully uploaded profile image"
+// @Failure		400	{object}	response.Response{}	"Image file is required or invalid request"
+// @Failure		500	{object}	response.Response{}	"Failed to upload image"
 func (h *UserHandler) UploadProfileImage(c *gin.Context) {
 	var userID = c.Param("id")
 	var req request.UploadImageRequest

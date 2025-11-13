@@ -279,6 +279,7 @@ func (c *productUseCase) FindAllVariationsAndItsValues(ctx context.Context, cate
 // to get all product
 func (c *productUseCase) FindAllProducts(ctx context.Context, pagination request.Pagination) ([]response.Product, error) {
 	responseProducts, err := c.productRepo.FindAllProducts(ctx, pagination)
+	fmt.Printf("%+v\n", responseProducts)
 	if err != nil {
 		return nil, utils.PrependMessageToError(err, "failed to get product details from database")
 	}
@@ -332,6 +333,9 @@ func (c *productUseCase) SaveProductItem(ctx context.Context, productID uint, pr
 	if err != nil {
 		return utils.PrependMessageToError(err, "failed to get variation count of product from database")
 	}
+
+	fmt.Printf("productItem VariationOptionIDs: %+v\n", productItem.VariationOptionIDs)
+	fmt.Printf("Expected variation count: %d\n", variationCount)
 
 	if len(productItem.VariationOptionIDs) != int(variationCount) {
 		return ErrNotEnoughVariations

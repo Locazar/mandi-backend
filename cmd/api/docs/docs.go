@@ -246,53 +246,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/account/profile-image": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "API for user to upload profile image",
-                "consumes": [
-                    "multipart/form-data"
-                ],
-                "tags": [
-                    "User Profile"
-                ],
-                "summary": "Upload profile image (User)",
-                "operationId": "UploadProfileImage",
-                "parameters": [
-                    {
-                        "type": "file",
-                        "description": "Profile image file to upload",
-                        "name": "image",
-                        "in": "formData",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Successfully uploaded profile image",
-                        "schema": {
-                            "$ref": "#/definitions/response.Response"
-                        }
-                    },
-                    "400": {
-                        "description": "Image file is required or invalid request",
-                        "schema": {
-                            "$ref": "#/definitions/response.Response"
-                        }
-                    },
-                    "500": {
-                        "description": "Failed to upload image",
-                        "schema": {
-                            "$ref": "#/definitions/response.Response"
-                        }
-                    }
-                }
-            }
-        },
         "/account/wallet": {
             "get": {
                 "security": [
@@ -2675,60 +2628,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/upload-profile-image": {
-            "post": {
-                "description": "API endpoint to upload a user profile image file and save it to AWS S3 storage.",
-                "consumes": [
-                    "multipart/form-data"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "User Profile",
-                    "File Upload"
-                ],
-                "summary": "Upload profile image to S3",
-                "parameters": [
-                    {
-                        "type": "file",
-                        "description": "Profile image file to upload",
-                        "name": "image",
-                        "in": "formData",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Returns URL of the uploaded image",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Image file is required or invalid request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Failed to upload image to storage",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/auth/google-auth": {
             "get": {
                 "description": "API for user to load google login page",
@@ -4893,8 +4792,6 @@ const docTemplate = `{
                 "city",
                 "country",
                 "email",
-                "latitude",
-                "longitude",
                 "mobile",
                 "password",
                 "pincode",
@@ -4991,6 +4888,7 @@ const docTemplate = `{
         "request.Address": {
             "type": "object",
             "required": [
+                "country_id",
                 "house",
                 "land_mark",
                 "name",
@@ -5003,6 +4901,9 @@ const docTemplate = `{
                 },
                 "city": {
                     "type": "string"
+                },
+                "country_id": {
+                    "type": "integer"
                 },
                 "house": {
                     "type": "string"
@@ -5122,6 +5023,7 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "address_id",
+                "country_id",
                 "house",
                 "land_mark",
                 "name",
@@ -5137,6 +5039,9 @@ const docTemplate = `{
                 },
                 "city": {
                     "type": "string"
+                },
+                "country_id": {
+                    "type": "integer"
                 },
                 "house": {
                     "type": "string"
@@ -5230,9 +5135,6 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 50,
                     "minLength": 2
-                },
-                "google_profile_image": {
-                    "type": "string"
                 },
                 "last_name": {
                     "type": "string",
@@ -5696,7 +5598,7 @@ const docTemplate = `{
             "description": "Add prefix of Bearer before  token Ex: \"Bearer token\"",
             "type": "apiKey",
             "name": "Authorization",
-            "in": "header"
+            "in": "headerNewServerHTTP"
         }
     }
 }`

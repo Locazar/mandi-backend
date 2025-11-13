@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"mime/multipart"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -82,16 +83,19 @@ func GetArrayFormValueAsUint(ctx *gin.Context, name string) ([]uint, error) {
 		return nil, fmt.Errorf("failed to get %s of array from request form data", name)
 	}
 
-	uintValues := make([]uint, len(values))
-
-	for i := range values {
-		fmt.Println("value: ", i)
-
-		num, err := strconv.ParseUint(values[i], 10, 32)
-		if err != nil {
-			return nil, fmt.Errorf("request value is not and integer for %s values", name)
+	var uintValues []uint
+	for _, value := range values {
+		parts := strings.Split(value, ",")
+		for _, part := range parts {
+			part = strings.TrimSpace(part)
+			if part != "" {
+				num, err := strconv.ParseUint(part, 10, 32)
+				if err != nil {
+					return nil, fmt.Errorf("request value is not an integer for %s values", name)
+				}
+				uintValues = append(uintValues, uint(num))
+			}
 		}
-		uintValues[i] = uint(num)
 	}
 
 	return uintValues, nil

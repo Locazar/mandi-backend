@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -265,14 +266,17 @@ func (c *offerHandler) ChangeCategoryOffer(ctx *gin.Context) {
 func (c *offerHandler) SaveProductOffer(ctx *gin.Context) {
 
 	var body request.OfferProduct
-
 	if err := ctx.ShouldBindJSON(&body); err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
 		return
 	}
 
+	fmt.Printf("Body after binding: %+v\n", body)
+
 	var offerProduct domain.OfferProduct
 	copier.Copy(&offerProduct, &body)
+
+	fmt.Printf("offerProduct after copying: %+v\n", offerProduct)
 
 	err := c.offerUseCase.SaveProductOffer(ctx, offerProduct)
 	if err != nil {

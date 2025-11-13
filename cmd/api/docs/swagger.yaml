@@ -66,8 +66,6 @@ definitions:
     - city
     - country
     - email
-    - latitude
-    - longitude
     - mobile
     - password
     - pincode
@@ -81,6 +79,8 @@ definitions:
         type: string
       city:
         type: string
+      country_id:
+        type: integer
       house:
         type: string
       is_default:
@@ -98,6 +98,7 @@ definitions:
       pincode:
         type: integer
     required:
+    - country_id
     - house
     - land_mark
     - name
@@ -175,6 +176,8 @@ definitions:
         type: string
       city:
         type: string
+      country_id:
+        type: integer
       house:
         type: string
       is_default:
@@ -193,6 +196,7 @@ definitions:
         type: integer
     required:
     - address_id
+    - country_id
     - house
     - land_mark
     - name
@@ -243,8 +247,6 @@ definitions:
       first_name:
         maxLength: 50
         minLength: 2
-        type: string
-      google_profile_image:
         type: string
       last_name:
         maxLength: 50
@@ -721,36 +723,6 @@ paths:
       security:
       - BearerAuth: []
       summary: Get all user coupons (User)
-      tags:
-      - User Profile
-  /account/profile-image:
-    post:
-      consumes:
-      - multipart/form-data
-      description: API for user to upload profile image
-      operationId: UploadProfileImage
-      parameters:
-      - description: Profile image file to upload
-        in: formData
-        name: image
-        required: true
-        type: file
-      responses:
-        "200":
-          description: Successfully uploaded profile image
-          schema:
-            $ref: '#/definitions/response.Response'
-        "400":
-          description: Image file is required or invalid request
-          schema:
-            $ref: '#/definitions/response.Response'
-        "500":
-          description: Failed to upload image
-          schema:
-            $ref: '#/definitions/response.Response'
-      security:
-      - BearerAuth: []
-      summary: Upload profile image (User)
       tags:
       - User Profile
   /account/wallet:
@@ -2272,43 +2244,6 @@ paths:
       summary: api for admin to block or unblock user
       tags:
       - Admin User
-  /api/upload-profile-image:
-    post:
-      consumes:
-      - multipart/form-data
-      description: API endpoint to upload a user profile image file and save it to
-        AWS S3 storage.
-      parameters:
-      - description: Profile image file to upload
-        in: formData
-        name: image
-        required: true
-        type: file
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Returns URL of the uploaded image
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "400":
-          description: Image file is required or invalid request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Failed to upload image to storage
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Upload profile image to S3
-      tags:
-      - User Profile
-      - File Upload
   /auth/google-auth:
     get:
       description: API for user to load google login page
@@ -3716,7 +3651,7 @@ paths:
 securityDefinitions:
   BearerAuth:
     description: 'Add prefix of Bearer before  token Ex: "Bearer token"'
-    in: header
+    in: headerNewServerHTTP
     name: Authorization
     type: apiKey
 swagger: "2.0"

@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
@@ -185,7 +186,7 @@ func (c *offerDatabase) FindOfferProductByProductID(ctx context.Context,
 func (c *offerDatabase) FindAllOfferProducts(ctx context.Context,
 	pagination request.Pagination) (offerProducts []response.OfferProduct, err error) {
 
-	query := `SELECT op.id AS offer_product_id, op.product_id,p.product_name,op.offer_id,o.offer_name, o.discount_rate  
+	query := `SELECT op.id AS offer_product_id, op.product_id,p.name,op.offer_id,o.name, o.discount_rate  
 	FROM offer_products op INNER JOIN products p ON p.id = op.product_id 
 	INNER JOIN offers o ON o.id = op.offer_id`
 	err = c.DB.Raw(query).Scan(&offerProducts).Error
@@ -276,11 +277,12 @@ func (c *offerDatabase) RemoveProductItemsDiscountByCategoryOfferID(ctx context.
 // Recalculate all product discount price by check given product offer id
 func (c *offerDatabase) UpdateProductsDiscountByProductOfferID(ctx context.Context, productOfferID uint) error {
 
+	fmt.Printf("Updating product discount for product offer id: %d\n", productOfferID)
 	query := `UPDATE products p SET discount_price = (p.price * (100 - o.discount_rate))/100 
 	FROM offer_products op
 	INNER JOIN  offers o ON op.offer_id = o.id 
 	WHERE p.id = op.product_id AND op.id = $1`
-	err := c.DB.Exec(query).Error
+	err := c.DB.Exec(query, productOfferID).Error
 
 	return err
 }
@@ -288,11 +290,12 @@ func (c *offerDatabase) UpdateProductsDiscountByProductOfferID(ctx context.Conte
 // Recalculate all product discount price by check given product offer id
 func (c *offerDatabase) RemoveProductsDiscountByProductOfferID(ctx context.Context, productOfferID uint) error {
 
+	fmt.Printf("Removing product discount for product offer id: %d\n", productOfferID)
 	query := `UPDATE products p SET discount_price = (p.price * (100 - o.discount_rate))/100 
 	FROM offer_products op
 	INNER JOIN  offers o ON op.offer_id = o.id 
 	WHERE p.id = op.product_id AND op.id = $1`
-	err := c.DB.Exec(query).Error
+	err := c.DB.Exec(query, productOfferID).Error
 
 	return err
 }
@@ -300,11 +303,12 @@ func (c *offerDatabase) RemoveProductsDiscountByProductOfferID(ctx context.Conte
 // Remove  product items discount price by given product offer id
 func (c *offerDatabase) UpdateProductItemsDiscountByProductOfferID(ctx context.Context, productOfferID uint) error {
 
+	fmt.Printf("Updating product items discount for product offer id: %d\n", productOfferID)
 	query := `UPDATE product_items pi SET discount_price = 0 
 	FROM offer_products op
 	INNER JOIN offers o ON o.id = op.offer_id  
 	WHERE pi.product_id = op.product_id AND op.id = $1`
-	err := c.DB.Exec(query).Error
+	err := c.DB.Exec(query, productOfferID).Error
 
 	return err
 }
@@ -316,7 +320,7 @@ func (c *offerDatabase) RemoveProductItemsDiscountByProductOfferID(ctx context.C
 	FROM offer_products op
 	INNER JOIN offers o ON o.id = op.offer_id  
 	WHERE pi.product_id = op.product_id AND op.id = $1`
-	err := c.DB.Exec(query).Error
+	err := c.DB.Exec(query, productOfferID).Error
 
 	return err
 }

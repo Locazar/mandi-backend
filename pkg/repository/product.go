@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
@@ -223,14 +224,14 @@ func (c *productDatabase) FindAllProducts(ctx context.Context, pagination reques
 	offset := (pagination.PageNumber - 1) * limit
 
 	query := `SELECT p.id, p.name, p.description, p.price, p.discount_price, 
-	p.image, p.image, p.category_id, sc.name AS category_name, 
-	mc.name AS main_category_name, p.brand_id, b.name AS brand_name,
-	p.created_at, p.updated_at 
+    p.image, p.category_id, sc.name AS category_name, 
+    mc.name AS main_category_name, p.brand_id, b.name AS brand_name,
+    p.created_at, p.updated_at 
 	FROM products p 
-	INNER JOIN categories sc ON p.category_id = sc.id 
-	INNER JOIN categories mc ON sc.category_id = mc.id 
-	INNER JOIN brands b ON b.id = p.brand_id 
-	ORDER BY created_at DESC LIMIT $1 OFFSET $2`
+	LEFT JOIN categories sc ON p.category_id = sc.id 
+	LEFT JOIN categories mc ON sc.category_id = mc.id 
+	LEFT JOIN brands b ON b.id = p.brand_id 
+	ORDER BY p.created_at DESC LIMIT $1 OFFSET $2`
 
 	err = c.DB.Raw(query, limit, offset).Scan(&products).Error
 
@@ -249,6 +250,7 @@ func (c *productDatabase) FindProductItemByID(ctx context.Context, productItemID
 // to get how many variations are available for a product
 func (c *productDatabase) FindVariationCountForProduct(ctx context.Context, productID uint) (variationCount uint, err error) {
 
+	fmt.Printf("Finding variation count for product ID: %d\n", productID) // Debugging line
 	query := `SELECT COUNT(v.id) FROM variations v
 	INNER JOIN categories c ON c.id = v.category_id 
 	INNER JOIN products p ON p.category_id = v.category_id 
@@ -296,15 +298,15 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context,
 
 	// first find all product_items
 
-	query := `SELECT p.name, pi.id,  pi.product_id, pi.price, pi.discount_price, 
-	pi.qty_in_stock, pi.sku, p.category_id, sc.name AS category_name, 
-	mc.name AS main_category_name, p.brand_id, b.name AS brand_name 
-	FROM product_items pi 
-	INNER JOIN products p ON p.id = pi.product_id 
-	INNER JOIN categories sc ON p.category_id = sc.id 
-	INNER JOIN categories mc ON sc.category_id = mc.id 
-	INNER JOIN brands b ON b.id = p.brand_id 
-	AND pi.product_id = $1`
+	query := `SELECT p.name, pi.id, pi.product_id, pi.price, pi.discount_price, 
+       pi.qty_in_stock, pi.sku, p.category_id, sc.name AS category_name, 
+       mc.name AS main_category_name, p.brand_id, b.name AS brand_name 
+FROM product_items pi 
+LEFT JOIN products p ON p.id = pi.product_id 
+LEFT JOIN categories sc ON p.category_id = sc.id 
+LEFT JOIN categories mc ON sc.category_id = mc.id 
+LEFT JOIN brands b ON b.id = p.brand_id 
+WHERE pi.product_id = $1;`
 
 	err = c.DB.Raw(query, productID).Scan(&productItems).Error
 
