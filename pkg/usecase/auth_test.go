@@ -9,6 +9,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
+	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"github.com/rohit221990/mandi-backend/pkg/mock/mockrepo"
 	"github.com/rohit221990/mandi-backend/pkg/mock/mockservice"
@@ -50,6 +51,18 @@ func createRandomLoginDetail(loginKey LoginKey) request.Login {
 		UserName: utils.GenerateRandomString(12),
 		Password: utils.GenerateRandomString(12),
 	}
+}
+
+// userRepoAdapter wraps mockrepo.MockUserRepository and adds missing methods required by
+// the production UserRepository interface so the mock can be passed where the full
+// interface is expected in tests.
+type userRepoAdapter struct {
+	*mockrepo.MockUserRepository
+}
+
+func (u *userRepoAdapter) FindSellersByRadius(ctx context.Context, req request.SellerRadiusRequest) ([]response.Admin, error) {
+	// Not used in these tests; return empty result.
+	return nil, nil
 }
 
 func TestUserLogin(t *testing.T) {
@@ -156,7 +169,7 @@ func TestUserLogin(t *testing.T) {
 			userMockRepo := mockrepo.NewMockUserRepository(ctl)
 			test.buildStub(userMockRepo, test.input)
 
-			authUseCase := NewAuthUseCase(nil, nil, userMockRepo, nil, nil)
+			authUseCase := NewAuthUseCase(nil, nil, &userRepoAdapter{userMockRepo}, nil, nil)
 			actualOutput, actualError := authUseCase.UserLogin(context.Background(), test.input)
 
 			if test.expectedError != nil {

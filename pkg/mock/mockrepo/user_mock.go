@@ -9,6 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	response "github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	domain "github.com/rohit221990/mandi-backend/pkg/domain"
 )
@@ -17,6 +18,11 @@ import (
 type MockUserRepository struct {
 	ctrl     *gomock.Controller
 	recorder *MockUserRepositoryMockRecorder
+}
+
+// FindSellersByRadius implements interfaces.UserRepository.
+func (m *MockUserRepository) FindSellersByRadius(ctx context.Context, reqData request.SellerRadiusRequest) (sellers []response.Admin, err error) {
+	panic("unimplemented")
 }
 
 // MockUserRepositoryMockRecorder is the mock recorder for MockUserRepository.
