@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
@@ -56,9 +57,13 @@ func (c *userDatabase) FindUserByUserName(ctx context.Context, userName string) 
 
 func (c *userDatabase) FindUserByUserNameEmailOrPhoneNotID(ctx context.Context,
 	userDetails domain.User) (user domain.User, err error) {
+	fmt.Printf("Checking for existing user with UserName: %s, Email: %s, Phone: %s excluding ID: %d\n",
+		userDetails.UserName, userDetails.Email, userDetails.Phone, userDetails.ID) // Debugging line
 
 	query := `SELECT * FROM users WHERE (user_name = $1 OR email = $2 OR phone = $3) AND id != $4`
 	err = c.DB.Raw(query, userDetails.UserName, userDetails.Email, userDetails.Phone, userDetails.ID).Scan(&user).Error
+
+	fmt.Printf("Found user: %+v, error: %v\n", user, err) // Debugging line
 
 	return
 }
@@ -292,4 +297,24 @@ func (c *userDatabase) RemoveWishListItem(ctx context.Context, userID, productIt
 	err := c.DB.Exec(query, productItemID, userID).Error
 
 	return err
+}
+
+func (c *userDatabase) FindSellersByRadius(ctx context.Context, reqData request.SellerRadiusRequest) (sellers []response.Admin, err error) {
+	query := `
+		SELECT * FROM (
+	 SELECT a.id, a.shop_name, a.email, a.mobile, a.latitude, a.longitude,
+			(6371 * acos(
+					cos(radians($1)) * cos(radians(a.latitude)) *
+					cos(radians(a.longitude) - radians($2)) +
+					sin(radians($1)) * sin(radians(a.latitude))
+			)) AS distance_km
+		FROM admins a
+		WHERE a.latitude IS NOT NULL AND a.longitude IS NOT NULL
+	) AS subquery
+	WHERE distance_km <= $3
+	`
+
+	err = c.DB.Raw(query, reqData.Latitude, reqData.Longitude, reqData.RadiusKm).Scan(&sellers).Error
+
+	return sellers, err
 }

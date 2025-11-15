@@ -195,3 +195,21 @@ func (c *adminHandler) GetFullSalesReport(ctx *gin.Context) {
 	csvWriter.Flush()
 
 }
+
+func (c *adminHandler) VerifyShop(ctx *gin.Context) {
+
+	var body domain.ShopVerification
+
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, body)
+		return
+	}
+
+	err := c.adminUseCase.VerifyShop(ctx, body)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to update shop verification status", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully updated shop verification status", nil)
+}

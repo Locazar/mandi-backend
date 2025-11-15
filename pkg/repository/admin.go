@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
@@ -37,19 +36,46 @@ func (c *adminDatabase) FindAdminByUserName(ctx context.Context, userName string
 }
 
 func (c *adminDatabase) SaveAdmin(ctx context.Context, admin domain.Admin) error {
-	fmt.Println(admin)
+	tx := c.DB.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+	// First insert into admins table
 	query := `INSERT INTO admins (user_name, email, mobile, password, shop_name, gstin, shop_id,
 		address_line1, address_line2, city, state, country, pincode,
 		bank_account_number, bank_ifsc, pan, aadhar, agree_to_terms,
-		verified, status, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-		$11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)`
+		verified, status, latitude, longitude, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+		$11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)`
 
-	err := c.DB.Exec(query, admin.UserName, admin.Email, admin.Mobile, admin.Password, admin.ShopName, admin.GSTIN, admin.ShopID,
+	if err := tx.Exec(query, admin.UserName, admin.Email, admin.Mobile, admin.Password, admin.ShopName, admin.GSTIN, admin.ShopID,
 		admin.AddressLine1, admin.AddressLine2, admin.City, admin.State, admin.Country, admin.Pincode,
 		admin.BankAccountNumber, admin.BankIFSC, admin.PAN, admin.Aadhar, admin.AgreeToTerms,
-		admin.Verified, admin.Status, time.Now(), time.Now()).Error
+		admin.Verified, admin.Status, admin.Latitude, admin.Longitude, time.Now(), time.Now()).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
 
-	return err
+	shopVerification := domain.ShopVerification{
+		AdminID:            admin.ID,
+		ShopID:             admin.ShopID,
+		VerificationStatus: "under_review",
+		Remarks:            "Shop registration under review",
+	}
+
+	queryShops := `INSERT INTO shop_verifications (shop_id, verification_status, remarks, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5)`
+
+	if err := tx.Exec(queryShops, admin.ShopID, shopVerification.VerificationStatus, shopVerification.Remarks, time.Now(), time.Now()).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// Commit transaction if both inserts succeed
+	if err := tx.Commit().Error; err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (c *adminDatabase) FindAllUser(ctx context.Context, pagination request.Pagination) (users []response.User, err error) {
@@ -94,4 +120,11 @@ func (c *adminDatabase) FindStockBySKU(ctx context.Context, sku string) (stock r
 	err = c.DB.Raw(query, sku).Scan(&stock).Error
 
 	return stock, err
+}
+
+func (c *adminDatabase) VerifyShop(ctx context.Context, shopVerification domain.ShopVerification) error {
+	query := `UPDATE admins SET shop_verification_status = $1, updated_at = $2 WHERE id = $3`
+	err := c.DB.Exec(query, shopVerification.VerificationStatus, time.Now(), shopVerification.ShopID).Error
+
+	return err
 }

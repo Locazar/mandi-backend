@@ -15,6 +15,7 @@ type UserHandler interface {
 	RemoveFromWishList(ctx *gin.Context)
 	GetWishList(ctx *gin.Context)
 	UploadProfileImage(ctx *gin.Context)
+	GetSellerByRadius(ctx *gin.Context)
 	// GetAllJobs(ctx *gin.Context)
 	// GetUserJobApplications(ctx *gin.Context)
 	// DeleteJobApplication(ctx *gin.Context)

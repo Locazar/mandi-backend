@@ -44,6 +44,7 @@ func (c *OrderUseCase) FindAllOrderStatuses(ctx context.Context) ([]domain.Order
 
 // Save order
 func (c *OrderUseCase) SaveOrder(ctx context.Context, userID, addressID uint) (uint, error) {
+	fmt.Printf("Starting order placement for user ID: %d, address ID: %d\n", userID, addressID)
 
 	cart, err := c.cartRepo.FindCartByUserID(ctx, userID)
 	if err != nil {
@@ -70,6 +71,8 @@ func (c *OrderUseCase) SaveOrder(ctx context.Context, userID, addressID uint) (u
 	}
 
 	orderTotal := cart.TotalPrice - cart.DiscountAmount
+
+	fmt.Printf("Calculated order total: %d (Total Price: %d, Discount: %d)\n", orderTotal, cart.TotalPrice, cart.DiscountAmount)
 
 	shopOrder := domain.ShopOrder{
 		UserID:          userID,
@@ -129,6 +132,7 @@ func (c *OrderUseCase) FindUserShopOrder(ctx context.Context, userID uint,
 	if err != nil {
 		return nil, utils.PrependMessageToError(err, "failed to find all shop orders by user id")
 	}
+	fmt.Printf("Found %d orders for user ID: %d\n", len(shopOrders), userID)
 
 	for i, order := range shopOrders {
 

@@ -66,3 +66,10 @@ type EditUser struct {
 type UploadImageRequest struct {
 	Image *multipart.FileHeader `form:"image" binding:"required"`
 }
+
+type SellerRadiusRequest struct {
+	Latitude  float64 `json:"latitude" binding:"required"`
+	Longitude float64 `json:"longitude" binding:"required"`
+	RadiusKm  float64 `json:"radius_km" binding:"required"`
+	Pagination
+}

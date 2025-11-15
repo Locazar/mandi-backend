@@ -55,6 +55,10 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 			{
 				productItem.GET("/", productHandler.GetAllProductItemsUser())
 			}
+			product.GET("/search", productHandler.SearchProducts)
+			product.GET("/suggestions", productHandler.GetProductSearchSuggestions)
+			product.GET("/filters", productHandler.GetProductSearchFilters)
+			product.GET("/locations", productHandler.GetProductSearchLocations)
 		}
 
 		// 	// cart
@@ -137,6 +141,12 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 			search.GET("/suggestions", productHandler.GetProductSearchSuggestions)
 			search.GET("/filters", productHandler.GetProductSearchFilters)
 			search.GET("/locations", productHandler.GetProductSearchLocations)
+		}
+
+		// Shop Search
+		shop := api.Group("/shop")
+		{
+			shop.GET("/search/radius", userHandler.GetSellerByRadius)
 		}
 
 		// Shop by Category

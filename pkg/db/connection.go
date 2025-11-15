@@ -37,6 +37,8 @@ func ConnectDatabase(cfg config.Config) (*gorm.DB, error) {
 
 		//admin
 		domain.Admin{},
+		domain.ShopVerification{},
+		domain.ShopVerificationHistory{},
 
 		//product
 		domain.Category{},

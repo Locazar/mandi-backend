@@ -617,8 +617,16 @@ func (h *ProductHandler) SearchProducts(c *gin.Context) {
 
 	// Assuming request.Pagination looks like:
 	pageNumber, err := SafeIntToUint64(offset)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 
 	limitUint64, err := SafeIntToUint64(limit)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 
 	pagination := request.Pagination{
 		PageNumber: pageNumber,
@@ -1110,6 +1118,71 @@ func (h *ProductHandler) GetNearbyProductsByPincode(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 
 	products, err := h.productUseCase.GetNearbyProductsByPincode(c, pincode, limit, offset)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"products": products})
+
+}
+
+// GetProductsByRadius godoc
+//
+//	@Summary		Get products by geographic radius
+//	@Description	Retrieve a paginated list of products available within a specified radius (in kilometers) from given latitude and longitude coordinates.
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			lat		query		number	true	"Latitude coordinate"
+//	@Param			lng		query		number	true	"Longitude coordinate"
+//	@Param			radius	query		number	true	"Radius in kilometers to search within"
+//	@Param			limit	query		int		false	"Limit number of results"	default(20)
+//	@Param			offset	query		int		false	"Offset for pagination"		default(0)
+//	@Success		200		{object}	map[string]interface{}	"List of products within the specified radius"
+//	@Failure		400		{object}	map[string]string		"Invalid input parameters"
+//	@Failure		500		{object}	map[string]string		"Internal server error"
+//	@Router			/products/radius [get]
+func (h *ProductHandler) GetProductsByRadius(c *gin.Context) {
+	latStr := c.Query("lat")
+	lngStr := c.Query("lng")
+	radiusStr := c.Query("radius")
+
+	if latStr == "" || lngStr == "" || radiusStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "lat, lng, and radius query parameters are required"})
+		return
+	}
+
+	lat, err := strconv.ParseFloat(latStr, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid lat"})
+		return
+	}
+
+	lng, err := strconv.ParseFloat(lngStr, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid lng"})
+		return
+	}
+
+	radius, err := strconv.ParseFloat(radiusStr, 64)
+	if err != nil || radius <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid radius"})
+		return
+	}
+
+	limit, err := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid limit"})
+		return
+	}
+	offset, err := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid offset"})
+		return
+	}
+
+	products, err := h.productUseCase.GetProductsByRadius(c, int(lat), int(lng), int(radius), limit, offset)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

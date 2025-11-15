@@ -2,12 +2,15 @@ package utils
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 )
 
 // To compare and return error for the same fields
 func CompareUserExistingDetails(user1, user2 domain.User) error {
+
+	fmt.Printf("Comparing users:\nUser1: %+v\nUser2: %+v\n", user1, user2) // Debugging line
 	var err error
 	if user1.Email == user2.Email {
 		err = AppendMessageToError(err, "user already exist with this email")

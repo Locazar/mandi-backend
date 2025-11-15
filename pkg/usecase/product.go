@@ -1221,3 +1221,73 @@ func (s *productUseCase) GetNearbyProductsByPincode(ctx context.Context, pincode
 
 	return products, nil
 }
+
+// services/product_service.go
+
+func (c *productUseCase) GetProductsByRadius(ctx context.Context, latitude int, longitude int, radiusMeters int, limit, offset int) ([]response.Product, error) {
+	// default radius if not provided
+	if radiusMeters <= 0 {
+		radiusMeters = DefaultRadiusMeters
+	}
+
+	query := `
+		SELECT * FROM (
+    SELECT p.id, p.name, p.description, p.brand_id, p.category_id, p.price, p.discount_price,
+           c.name, b.name, p.image, p.created_at, p.updated_at,
+           (6371 * acos(
+                cos(radians($1)) * cos(radians(p.latitude)) *
+                cos(radians(p.longitude) - radians($2)) +
+                sin(radians($1)) * sin(radians(p.latitude))
+           )) AS distance_km
+		FROM products p
+		JOIN categories c ON p.category_id = c.category_id
+		JOIN brands b ON p.brand_id = b.id
+		WHERE p.latitude IS NOT NULL AND p.longitude IS NOT NULL
+	) AS subquery
+	WHERE distance_km <= $3
+	ORDER BY distance_km;
+	`
+
+	fmt.Printf("Executing GetProductsByRadius with lat: %d, long: %d, radiusMeters: %d\n", latitude, longitude, radiusMeters)
+	rows, err := c.DB.Query(ctx, query, latitude, longitude, float64(radiusMeters)/1000)
+	fmt.Println("Query executed, checking for errors...")
+	if err != nil {
+		return nil, utils.PrependMessageToError(err, "failed to get products by radius")
+	}
+	fmt.Printf("Rows returned: %+v\n", rows)
+	defer rows.Close()
+
+	var products []response.Product
+	for rows.Next() {
+		var p response.Product
+		if err := rows.Scan(
+			&p.ID,
+			&p.Name,
+			&p.Description,
+			&p.BrandID,
+			&p.CategoryID,
+			&p.Price,
+			&p.DiscountPrice,
+			&p.CategoryName,
+			&p.BrandName,
+			&p.Image,
+			&p.CreatedAt,
+			&p.UpdatedAt,
+		); err != nil {
+			return nil, utils.PrependMessageToError(err, "failed to scan product row")
+		}
+		products = append(products, response.Product{
+			ID:            p.ID,
+			Name:          p.Name,
+			Description:   p.Description,
+			BrandID:       p.BrandID,
+			CategoryID:    p.CategoryID,
+			Price:         p.Price,
+			DiscountPrice: p.DiscountPrice,
+			Stock:         p.Stock,
+			LocationID:    p.LocationID,
+		})
+	}
+
+	return products, nil
+}

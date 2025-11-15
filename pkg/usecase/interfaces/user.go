@@ -25,4 +25,5 @@ type UserUseCase interface {
 	RemoveFromWishList(ctx context.Context, userID, productItemID uint) error
 	FindAllWishListItems(ctx context.Context, userID uint) ([]response.WishListItem, error)
 	UploadProfileImage(ctx context.Context, userID string, file *multipart.FileHeader, fileSize int64, fileName, contentType string) (string, error)
+	GetSellersByRadius(ctx context.Context, reqData request.SellerRadiusRequest) (sellers []response.Admin, err error)
 }

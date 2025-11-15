@@ -93,3 +93,12 @@ func (c *adminUseCase) GetFullSalesReport(ctx context.Context, requestData reque
 
 	return salesReport, nil
 }
+
+func (c *adminUseCase) VerifyShop(ctx context.Context, verify domain.ShopVerification) error {
+	err := c.adminRepo.VerifyShop(ctx, verify)
+
+	if err != nil {
+		return fmt.Errorf("failed to update shop verification status \nerror:%v", err.Error())
+	}
+	return nil
+}

@@ -266,3 +266,15 @@ func (u *userUserCase) UploadProfileImage(ctx context.Context, userID string, fi
 	}
 	return image_path, nil
 }
+
+func (c *userUserCase) GetSellersByRadius(ctx context.Context, reqData request.SellerRadiusRequest) (sellers []response.Admin, err error) {
+	sellers, err = c.userRepo.FindSellersByRadius(ctx, reqData)
+
+	if err != nil {
+		return sellers, fmt.Errorf("failed to get sellers by radius \nerror:%v", err.Error())
+	}
+
+	log.Printf("successfully got sellers within %v km radius", reqData.RadiusKm)
+
+	return sellers, nil
+}

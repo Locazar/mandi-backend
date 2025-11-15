@@ -63,3 +63,17 @@ type WishListItem struct {
 	QtyInStock      uint                    `json:"qty_in_stock"`
 	VariationValues []ProductVariationValue `gorm:"-"`
 }
+
+type Admin struct {
+	ID        uint      `json:"admin_id"`
+	ShopID    uint      `json:"shop_id"`
+	ShopName  string    `json:"shop_name"`
+	Email     string    `json:"email"`
+	Phone     string    `json:"phone"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Latitude  float64   `json:"latitude"`
+	Longitude float64   `json:"longitude"`
+	Verified  string    `json:"verified"`
+	Status    string    `json:"status"`
+}

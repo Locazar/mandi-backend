@@ -20,6 +20,9 @@ definitions:
         type: string
       created_at:
         type: string
+      electricity_bill:
+        description: URL or path to electricity bill document
+        type: string
       email:
         type: string
       gstin:
@@ -45,6 +48,15 @@ definitions:
         description: Shop registration number
         type: string
       shop_name:
+        type: string
+      shop_type:
+        description: e.g. "retail", "wholesale"
+        type: string
+      shop_verification_remarks:
+        description: remarks regarding verification
+        type: string
+      shop_verification_status:
+        description: e.g. "verified", "unverified", "under_review"
         type: string
       state:
         type: string
@@ -723,6 +735,36 @@ paths:
       security:
       - BearerAuth: []
       summary: Get all user coupons (User)
+      tags:
+      - User Profile
+  /account/profile-image:
+    post:
+      consumes:
+      - multipart/form-data
+      description: API for user to upload profile image
+      operationId: UploadProfileImage
+      parameters:
+      - description: Profile image file to upload
+        in: formData
+        name: image
+        required: true
+        type: file
+      responses:
+        "200":
+          description: Successfully uploaded profile image
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Image file is required or invalid request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to upload image
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Upload profile image (User)
       tags:
       - User Profile
   /account/wallet:
@@ -3525,6 +3567,61 @@ paths:
       summary: Get nearby products by pincode within a radius
       tags:
       - Products
+  /products/radius:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a paginated list of products available within a specified
+        radius (in kilometers) from given latitude and longitude coordinates.
+      parameters:
+      - description: Latitude coordinate
+        in: query
+        name: lat
+        required: true
+        type: number
+      - description: Longitude coordinate
+        in: query
+        name: lng
+        required: true
+        type: number
+      - description: Radius in kilometers to search within
+        in: query
+        name: radius
+        required: true
+        type: number
+      - default: 20
+        description: Limit number of results
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Offset for pagination
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of products within the specified radius
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid input parameters
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get products by geographic radius
+      tags:
+      - Products
   /products/search:
     get:
       consumes:
@@ -3648,6 +3745,52 @@ paths:
       summary: Get product search suggestions
       tags:
       - User Products
+  /search/radius:
+    get:
+      description: API for user to get sellers within a specified radius from given
+        latitude and longitude
+      operationId: GetSellerByRadius
+      parameters:
+      - description: Latitude
+        format: float64
+        in: query
+        name: latitude
+        required: true
+        type: number
+      - description: Longitude
+        format: float64
+        in: query
+        name: longitude
+        required: true
+        type: number
+      - description: Radius in kilometers
+        format: float64
+        in: query
+        name: radius_km
+        required: true
+        type: number
+      responses:
+        "200":
+          description: Successfully found sellers in the given radius
+          schema:
+            $ref: '#/definitions/response.Response'
+        "204":
+          description: No sellers found in the given radius
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to get sellers by radius
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get sellers by radius (User)
+      tags:
+      - User Profile
 securityDefinitions:
   BearerAuth:
     description: 'Add prefix of Bearer before  token Ex: "Bearer token"'

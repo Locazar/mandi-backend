@@ -66,7 +66,6 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			brand.PUT("/:brand_id", branHandler.Update)
 			brand.DELETE("/:brand_id", branHandler.Delete)
 		}
-
 		// product
 		product := api.Group("/products")
 		{

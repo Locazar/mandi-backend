@@ -19,4 +19,5 @@ type AdminRepository interface {
 
 	//stock side
 	FindStockBySKU(ctx context.Context, sku string) (stock response.Stock, err error)
+	VerifyShop(ctx context.Context, shopVerification domain.ShopVerification) error
 }

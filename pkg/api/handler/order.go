@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -73,9 +74,13 @@ func (c *OrderHandler) SaveOrder(ctx *gin.Context) {
 		return
 	}
 
+	fmt.Printf("Placing order for address id: %d\n", addressID)
+
 	userID := utils.GetUserIdFromContext(ctx)
 
 	shopOrderID, err := c.orderUseCase.SaveOrder(ctx, userID, addressID)
+
+	fmt.Printf("Order placed with shop order id: %d\n", shopOrderID)
 
 	if err != nil {
 		var statusCode int
@@ -116,6 +121,7 @@ func (c *OrderHandler) GetUserOrder(ctx *gin.Context) {
 	userId := utils.GetUserIdFromContext(ctx)
 	pagination := request.GetPagination(ctx)
 
+	fmt.Printf("Retrieving orders for user id: %d\n", userId)
 	orders, err := c.orderUseCase.FindUserShopOrder(ctx, userId, pagination)
 
 	if err != nil {

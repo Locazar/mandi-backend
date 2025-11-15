@@ -246,6 +246,53 @@ const docTemplate = `{
                 }
             }
         },
+        "/account/profile-image": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "API for user to upload profile image",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "tags": [
+                    "User Profile"
+                ],
+                "summary": "Upload profile image (User)",
+                "operationId": "UploadProfileImage",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "Profile image file to upload",
+                        "name": "image",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully uploaded profile image",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Image file is required or invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to upload image",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/account/wallet": {
             "get": {
                 "security": [
@@ -4545,6 +4592,85 @@ const docTemplate = `{
                 }
             }
         },
+        "/products/radius": {
+            "get": {
+                "description": "Retrieve a paginated list of products available within a specified radius (in kilometers) from given latitude and longitude coordinates.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Get products by geographic radius",
+                "parameters": [
+                    {
+                        "type": "number",
+                        "description": "Latitude coordinate",
+                        "name": "lat",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "number",
+                        "description": "Longitude coordinate",
+                        "name": "lng",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "number",
+                        "description": "Radius in kilometers to search within",
+                        "name": "radius",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Limit number of results",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Offset for pagination",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of products within the specified radius",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input parameters",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/products/search": {
             "get": {
                 "security": [
@@ -4781,6 +4907,73 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/search/radius": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "API for user to get sellers within a specified radius from given latitude and longitude",
+                "tags": [
+                    "User Profile"
+                ],
+                "summary": "Get sellers by radius (User)",
+                "operationId": "GetSellerByRadius",
+                "parameters": [
+                    {
+                        "type": "number",
+                        "format": "float64",
+                        "description": "Latitude",
+                        "name": "latitude",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "number",
+                        "format": "float64",
+                        "description": "Longitude",
+                        "name": "longitude",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "number",
+                        "format": "float64",
+                        "description": "Radius in kilometers",
+                        "name": "radius_km",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully found sellers in the given radius",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "204": {
+                        "description": "No sellers found in the given radius",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to get sellers by radius",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -4827,6 +5020,10 @@ const docTemplate = `{
                 "created_at": {
                     "type": "string"
                 },
+                "electricity_bill": {
+                    "description": "URL or path to electricity bill document",
+                    "type": "string"
+                },
                 "email": {
                     "type": "string"
                 },
@@ -4862,6 +5059,18 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "shop_name": {
+                    "type": "string"
+                },
+                "shop_type": {
+                    "description": "e.g. \"retail\", \"wholesale\"",
+                    "type": "string"
+                },
+                "shop_verification_remarks": {
+                    "description": "remarks regarding verification",
+                    "type": "string"
+                },
+                "shop_verification_status": {
+                    "description": "e.g. \"verified\", \"unverified\", \"under_review\"",
                     "type": "string"
                 },
                 "state": {

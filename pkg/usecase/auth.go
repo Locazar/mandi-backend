@@ -290,6 +290,7 @@ func (c *authUseCase) VerifyAndGetRefreshTokenSession(ctx context.Context, refre
 func (c *authUseCase) UserSignUp(ctx context.Context, signUpDetails domain.User) (string, error) {
 
 	existUser, err := c.userRepo.FindUserByUserNameEmailOrPhoneNotID(ctx, signUpDetails)
+	fmt.Printf("Existing user check result: %+v, error: %v\n", existUser, err) // Debugging line
 	if err != nil {
 		return "", utils.PrependMessageToError(err, "failed to check user details already exist")
 	}

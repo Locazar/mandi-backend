@@ -3,6 +3,7 @@ package interfaces
 import (
 	"context"
 
+	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 )
@@ -37,4 +38,5 @@ type UserRepository interface {
 	FindAllWishListItemsByUserID(ctx context.Context, userID uint) ([]response.WishListItem, error)
 	SaveWishListItem(ctx context.Context, wishList domain.WishList) error
 	RemoveWishListItem(ctx context.Context, userID, productItemID uint) error
+	FindSellersByRadius(ctx context.Context, reqData request.SellerRadiusRequest) (sellers []response.Admin, err error)
 }

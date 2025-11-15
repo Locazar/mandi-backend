@@ -47,4 +47,5 @@ type ProductUseCase interface {
 	GetPincodesByArea(ctx context.Context, areaID string) (pincodes []string, err error)
 	GetLocationByPincode(ctx context.Context, pincodeID string) (location response.Location, err error)
 	GetNearbyProductsByPincode(ctx context.Context, pincode string, limit, offset int) (products []response.Product, err error)
+	GetProductsByRadius(ctx context.Context, latitude int, longitude, radius int, limit, offset int) ([]response.Product, error)
 }

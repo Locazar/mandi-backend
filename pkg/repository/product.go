@@ -16,11 +16,6 @@ type productDatabase struct {
 	DB *gorm.DB
 }
 
-// SearchProducts implements interfaces.ProductRepository.
-func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, categoryID *string, brandID *string, locationID *string, pagination request.Pagination) (products []response.Product, err error) {
-	panic("unimplemented")
-}
-
 func NewProductRepository(db *gorm.DB) interfaces.ProductRepository {
 	return &productDatabase{
 		DB: db,
@@ -342,6 +337,51 @@ func (c *productDatabase) FindAllProductItemImages(ctx context.Context, productI
 	query := `SELECT image FROM product_images WHERE product_item_id = $1`
 
 	err = c.DB.Raw(query, productItemID).Scan(&images).Error
+
+	return
+}
+
+// SearchProducts implements interfaces.ProductRepository.
+func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, categoryID, brandID, locationID *string, pagination request.Pagination) (products []response.Product, err error) {
+
+	limit := pagination.Count
+	offset := (pagination.PageNumber - 1) * limit
+
+	baseQuery := `SELECT DISTINCT p.id, p.name, p.description, p.price, p.discount_price, 
+	p.image, p.category_id, sc.name AS category_name, 
+	mc.name AS main_category_name, p.brand_id, b.name AS brand_name,
+	p.created_at, p.updated_at
+	FROM products p
+	LEFT JOIN categories sc ON p.category_id = sc.id
+	LEFT JOIN categories mc ON sc.category_id = mc.id
+	LEFT JOIN brands b ON b.id = p.brand_id
+	LEFT JOIN product_items pi ON pi.product_id = p.id
+	WHERE (p.name ILIKE $1 OR p.description ILIKE $1)`
+
+	params := []interface{}{"%" + keyword + "%"}
+	paramIndex := 2
+	if categoryID != nil {
+		baseQuery += fmt.Sprintf(" AND p.category_id = $%d", paramIndex)
+		params = append(params, *categoryID)
+		paramIndex++
+	}
+	if brandID != nil {
+		baseQuery += fmt.Sprintf(" AND p.brand_id = $%d", paramIndex)
+		params = append(params, *brandID)
+		paramIndex++
+	}
+	if locationID != nil {
+		baseQuery += fmt.Sprintf(" AND s.location_id = $%d", paramIndex)
+		params = append(params, *locationID)
+		paramIndex++
+	}
+
+	baseQuery += " ORDER BY p.created_at DESC LIMIT $" + fmt.Sprint(paramIndex) + " OFFSET $" + fmt.Sprint(paramIndex+1)
+	params = append(params, limit, offset)
+
+	err = c.DB.Raw(baseQuery, params...).Scan(&products).Error
+
+	fmt.Printf("Executed Query: %s\n", err) // Debugging line
 
 	return
 }

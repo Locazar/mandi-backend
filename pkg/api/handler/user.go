@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -445,4 +446,59 @@ func (h *UserHandler) UploadProfileImage(c *gin.Context) {
 		"message":   "Upload successful",
 		"image_url": imageURL,
 	})
+}
+
+// GetSellerByRadius godoc
+//
+//	@Summary		Get sellers by radius (User)
+//	@Security		BearerAuth
+//	@Description	API for user to get sellers within a specified radius from given latitude and longitude
+//	@Id				GetSellerByRadius
+//	@Tags			User Profile
+//	@Param			latitude	query	float64	true	"Latitude"
+//	@Param			longitude	query	float64	true	"Longitude"
+//	@Param			radius_km	query	float64	true	"Radius in kilometers"
+//	@Router			/shop/search/radius [get]
+//	@Success		200	{object}	response.Response{}	"Successfully found sellers in the given radius"
+//	@Success		204	{object}	response.Response{}	"No sellers found in the given radius"
+//	@Failure		400	{object}	response.Response{}	"Invalid input"
+//	@Failure		500	{object}	response.Response{}	"Failed to get sellers by radius"
+func (c *UserHandler) GetSellerByRadius(ctx *gin.Context) {
+	// get latitude, longitude and radius from query params
+	latitudeStr := ctx.Query("latitude")
+	longitudeStr := ctx.Query("longitude")
+	radiusStr := ctx.Query("radius_km")
+
+	latitude, err1 := strconv.ParseFloat(latitudeStr, 64)
+	longitude, err2 := strconv.ParseFloat(longitudeStr, 64)
+	radius, err3 := strconv.ParseFloat(radiusStr, 64)
+
+	// join all error and send it if its not nil
+	err := errors.Join(err1, err2, err3)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindQueryFailMessage, err, nil)
+		return
+	}
+
+	pagination := request.GetPagination(ctx)
+
+	reqData := request.SellerRadiusRequest{
+		Latitude:   latitude,
+		Longitude:  longitude,
+		RadiusKm:   radius,
+		Pagination: pagination,
+	}
+
+	sellers, err := c.userUseCase.GetSellersByRadius(ctx, reqData)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get sellers by radius", err, nil)
+		return
+	}
+
+	if len(sellers) == 0 {
+		response.SuccessResponse(ctx, http.StatusNoContent, "No sellers found in the given radius", nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully found sellers in the given radius", sellers)
 }
