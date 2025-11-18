@@ -37,6 +37,7 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware middlewa
 	productHandler handlerInterface.ProductHandler, orderHandler handlerInterface.OrderHandler,
 	couponHandler handlerInterface.CouponHandler, offerHandler handlerInterface.OfferHandler,
 	stockHandler handlerInterface.StockHandler, branHandler handlerInterface.BrandHandler,
+	notificationHandler handlerInterface.NotificationHandler,
 ) *ServerHTTP {
 
 	engine := gin.New()
@@ -50,7 +51,7 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware middlewa
 
 	// set up routes
 	routes.UserRoutes(engine.Group("/api"), authHandler, middleware, userHandler, cartHandler,
-		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler)
+		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler, notificationHandler)
 	routes.AdminRoutes(engine.Group("/api/admin"), authHandler, middleware, adminHandler,
 		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler)
 

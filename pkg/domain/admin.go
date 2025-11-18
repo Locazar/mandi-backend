@@ -69,3 +69,24 @@ type AgentDetails struct {
 	Email     string `json:"email" gorm:"size:100;uniqueIndex" binding:"required,email"`
 	Phone     string `json:"phone" gorm:"size:15;uniqueIndex" binding:"required"`
 }
+
+type Advertisement struct {
+	ID              uint      `json:"id" gorm:"primaryKey;not null"`
+	Title           string    `json:"title" gorm:"size:100" binding:"required"`
+	Content         string    `json:"content" gorm:"type:text" binding:"required"`
+	ImageURL        string    `json:"image_url" gorm:"size:255" binding:"omitempty"`
+	TargetURL       string    `json:"target_url" gorm:"size:255" binding:"omitempty"`
+	StartDate       time.Time `json:"start_date" gorm:"not null" binding:"required"`
+	EndDate         time.Time `json:"end_date" gorm:"not null" binding:"required"`
+	CreatedAt       time.Time `json:"created_at" gorm:"not null;autoCreateTime"`
+	UpdatedAt       time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+	CreatedByAdmin  uint      `json:"created_by_admin" gorm:"not null"`
+	AdminID         uint      `json:"admin_id" gorm:"not null"`
+	AreaTargeted    string    `json:"area_targeted" gorm:"size:255" binding:"omitempty"`
+	PincodeTargeted string    `json:"pincode_targeted" gorm:"size:20" binding:"omitempty"`
+	Latitude        float64   `json:"latitude" gorm:"type:decimal(10,7);"`
+	Longitude       float64   `json:"longitude" gorm:"type:decimal(10,7);"`
+	DistanceKM      float64   `json:"distance_km" gorm:"type:decimal(10,2);"`
+	Status          string    `json:"status" gorm:"size:50"`   // e.g. "active", "inactive", "expired"
+	Priority        string    `json:"priority" gorm:"size:20"` // e.g. "high", "medium", "low"
+}

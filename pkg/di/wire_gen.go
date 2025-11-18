@@ -66,6 +66,9 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	brandRepository := repository.NewBrandDatabaseRepository(gormDB)
 	brandUseCase := usecase.NewBrandUseCase(brandRepository)
 	brandHandler := handler.NewBrandHandler(brandUseCase)
-	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler)
+	notificationRepository := repository.NewNotificationRepository(gormDB)
+	notificationUseCase := usecase.NewNotificationUseCase(notificationRepository)
+	notificationHandler := handler.NewNotificationHandler(notificationUseCase)
+	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler)
 	return serverHTTP, nil
 }

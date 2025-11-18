@@ -137,11 +137,38 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			sales.GET("/", adminHandler.GetFullSalesReport)
 		}
 
+		// stock
 		stock := api.Group("/stocks")
 		{
 			stock.GET("/", stockHandler.GetAllStocks)
 
 			stock.PATCH("/", stockHandler.UpdateStock)
+		}
+
+		// advertisement
+		advertisement := api.Group("/advertisements")
+		{
+			advertisement.POST("/", adminHandler.CreateAdvertisement)
+			advertisement.GET("/", adminHandler.GetAllAdvertisements)
+			advertisement.PUT("/", adminHandler.UpdateAdvertisement)
+			advertisement.DELETE("/:advertisement_id", adminHandler.DeleteAdvertisement)
+		}
+
+		// Shop details
+		shop := api.Group("/shops")
+		{
+			shop.POST("/", adminHandler.CreateShop)
+			shop.GET("/", adminHandler.GetAllShops)
+			shop.GET("/:shop_id", adminHandler.GetShopByID)
+			shop.PUT("/", adminHandler.UpdateShop)
+			shop.GET("/owner/:owner_id", adminHandler.GetShopByOwnerID)
+			shop.PUT("/verify", adminHandler.VerifyShop)
+		}
+
+		// Notification
+		notification := api.Group("/notifications")
+		{
+			notification.GET("/sendToUsersInRadius", adminHandler.SendNotificationToUsersInRadius)
 		}
 
 	}

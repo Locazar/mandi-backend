@@ -11,7 +11,7 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 	productHandler handlerInterface.ProductHandler, paymentHandler handlerInterface.PaymentHandler,
 	orderHandler handlerInterface.OrderHandler, couponHandler handlerInterface.CouponHandler,
 	offerHandle handlerInterface.OfferHandler, stockHandler handlerInterface.StockHandler,
-	branHandler handlerInterface.BrandHandler,
+	branHandler handlerInterface.BrandHandler, notificationHandler handlerInterface.NotificationHandler,
 ) {
 
 	auth := api.Group("/auth")
@@ -193,7 +193,14 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 			location.GET("/areas/:area_id/pincodes", productHandler.GetPincodesByArea)
 			location.GET("/pincodes/:pincode_id/location", productHandler.GetLocationByPincode)
 			location.GET("/nearby", productHandler.GetNearbyProductsByPincode)
+		}
 
+		notification := api.Group("/notifications")
+		{
+			notification.POST("/", notificationHandler.SaveNotification)
+			notification.GET("/", notificationHandler.GetNotificationsBy)
+			notification.PUT("/:notification_id/read", notificationHandler.MarkNotificationAsRead)
+			notification.POST("/generateFCMToken", notificationHandler.GenerateFCMToken)
 		}
 
 		// Job search

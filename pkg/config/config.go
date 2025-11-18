@@ -40,6 +40,19 @@ type Config struct {
 	AwsBucketName  string `mapstructure:"AWS_BUCKET_NAME"`
 }
 
+var firbaseConfig = map[string]interface{}{
+	"type":                        "service_account",
+	"project_id":                  "mandi-backend-379522",
+	"private_key_id":              "some_key_id",
+	"private_key":                 "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n",
+	"client_email":                "some_email@mandi-backend-379522.iam.gserviceaccount.com",
+	"client_id":                   "some_client_id",
+	"auth_uri":                    "https://accounts.google.com/o/oauth2/auth",
+	"token_uri":                   "https://oauth2.googleapis.com/token",
+	"auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+	"client_x509_cert_url":        "some_cert_url",
+}
+
 // name of envs and used to read from system envs
 var envsNames = []string{
 	"ADMIN_EMAIL", "ADMIN_USER_NAME", "ADMIN_PASSWORD",
@@ -75,5 +88,9 @@ func LoadConfig() (config Config, err error) {
 	if err := validator.New().Struct(config); err != nil {
 		return config, err
 	}
+
+	//firebase config
+	viper.Set("FIREBASE_CONFIG", firbaseConfig)
+
 	return config, nil
 }

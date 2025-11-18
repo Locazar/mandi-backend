@@ -74,6 +74,12 @@ func ConnectDatabase(cfg config.Config) (*gorm.DB, error) {
 		//wallet
 		domain.Wallet{},
 		domain.Transaction{},
+
+		//Advertisement
+		domain.Advertisement{},
+
+		//Notification
+		domain.Notification{},
 	)
 
 	if err != nil {

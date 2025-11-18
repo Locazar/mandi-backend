@@ -1,5 +1,5 @@
 # build stage
-FROM golang:1.20.6-alpine3.18 AS build-stage
+FROM golang:1.23 AS build-stage
 
 WORKDIR /app
 # download the dependancy
