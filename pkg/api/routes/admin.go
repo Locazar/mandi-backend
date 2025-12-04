@@ -16,7 +16,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 
 	auth := api.Group("/auth")
 	{
-		login := auth.Group("/sign-in")
+		login := auth.Group("/signin")
 		{
 			login.POST("/", authHandler.AdminLogin)
 		}
@@ -24,9 +24,19 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		signup := api.Group("/signup")
 		{
 			signup.POST("/", adminHandler.AdminSignUp)
+			signup.POST("/verify", adminHandler.AdminSignUpVerify)
 		}
 
 		auth.POST("/renew-access-token", authHandler.AdminRenewAccessToken())
+	}
+
+	// Profile endpoint (accessible without full authentication)
+	api.GET("/profile", adminHandler.GetAdminWithShopVerificationByPhone)
+
+	// Product details endpoint (public access)
+	productDetails := api.Group("/product-details")
+	{
+		productDetails.GET("/details", adminHandler.GetAllProductDetails)
 	}
 
 	api.Use(middleware.AuthenticateAdmin())
@@ -38,6 +48,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			user.GET("/", adminHandler.GetAllUsers)
 			user.PATCH("/block", adminHandler.BlockUser)
 		}
+
 		// category
 		category := api.Group("/categories")
 		{
@@ -161,14 +172,34 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			shop.GET("/", adminHandler.GetAllShops)
 			shop.GET("/:shop_id", adminHandler.GetShopByID)
 			shop.PUT("/", adminHandler.UpdateShop)
-			shop.GET("/owner/:owner_id", adminHandler.GetShopByOwnerID)
-			shop.PUT("/verify", adminHandler.VerifyShop)
+			shop.GET("/shop_details", adminHandler.GetShopByOwnerID)
+			shop.POST("/verify", adminHandler.VerifyShop)
+			shop.GET("/verify-status", adminHandler.GetVerificationStatus)
+
+			shop.POST("/upload-profile-image", middleware.AuthenticateAdmin(), adminHandler.UploadAdminProfileImage)
+
+			document := shop.Group("/business-document")
+			{
+				document.POST("/send-otp", adminHandler.UploadShopDocument)
+				document.POST("/verify-otp", adminHandler.VerifyShopDocument)
+			}
+
+			address := shop.Group("/address-details")
+			{
+				address.POST("/save", adminHandler.UploadAddress)
+			}
 		}
 
 		// Notification
 		notification := api.Group("/notifications")
 		{
 			notification.GET("/sendToUsersInRadius", adminHandler.SendNotificationToUsersInRadius)
+		}
+
+		identity := api.Group("/identity-document")
+		{
+			identity.POST("/send-otp", adminHandler.AdminDocumentOtpSend)
+			identity.POST("/verify-otp", adminHandler.AdminDocumentOtpVerify)
 		}
 
 	}

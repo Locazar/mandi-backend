@@ -10,7 +10,6 @@ type User struct {
 	LastName    string    `json:"last_name" copier:"must"`
 	Age         uint      `json:"age" copier:"must"`
 	Email       string    `json:"email" copier:"must"`
-	UserName    string    `json:"user_name" copire:"must"`
 	Phone       string    `json:"phone" copier:"must"`
 	Verified    bool      `json:"verified"`
 	BlockStatus bool      `json:"block_status" copier:"must"`

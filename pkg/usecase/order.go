@@ -422,3 +422,13 @@ func (c *OrderUseCase) UpdateReturnDetails(ctx context.Context, updateDetails re
 	log.Printf("successfully updated order return request for shop_order_id %v", shopOrder.ID)
 	return nil
 }
+
+func (c *OrderUseCase) SubmitShoppingFeedback(ctx context.Context, feedbackDetails request.ShoppingFeedback) error {
+
+	err := c.orderRepo.SaveShoppingFeedback(ctx, feedbackDetails)
+	if err != nil {
+		return utils.PrependMessageToError(err, "failed to save shopping feedback")
+	}
+
+	return nil
+}

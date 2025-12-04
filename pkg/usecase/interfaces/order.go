@@ -32,4 +32,7 @@ type OrderUseCase interface {
 	// wallet
 	FindUserWallet(ctx context.Context, userID uint) (wallet domain.Wallet, err error)
 	FindUserWalletTransactions(ctx context.Context, userID uint, pagination request.Pagination) (transactions []domain.Transaction, err error)
+
+	//feedback
+	SubmitShoppingFeedback(ctx context.Context, feedbackDetails request.ShoppingFeedback) error
 }

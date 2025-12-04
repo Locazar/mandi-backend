@@ -8,7 +8,6 @@ import (
 // to store env variables
 type Config struct {
 	AdminEmail    string `mapstructure:"ADMIN_EMAIL"`
-	AdminUserName string `mapstructure:"ADMIN_USER_NAME"`
 	AdminPassword string `mapstructure:"ADMIN_PASSWORD"`
 	DBHost        string `mapstructure:"DB_HOST"`
 	DBName        string `mapstructure:"DB_NAME"`
@@ -55,7 +54,7 @@ var firbaseConfig = map[string]interface{}{
 
 // name of envs and used to read from system envs
 var envsNames = []string{
-	"ADMIN_EMAIL", "ADMIN_USER_NAME", "ADMIN_PASSWORD",
+	"ADMIN_EMAIL", "ADMIN_PASSWORD",
 	"DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD", "DB_PORT", // database
 	"ADMIN_AUTH_KEY", "USER_AUTH_KEY", // token auth
 	"AUTH_TOKEN", "ACCOUNT_SID", "SERVICE_SID", // twilio

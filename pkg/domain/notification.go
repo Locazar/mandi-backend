@@ -17,6 +17,8 @@ type Notification struct {
 	ProductID            uint   `gorm:"not null"`
 	VariationID          uint   `gorm:"not null"`
 	ShopID               uint   `gorm:"not null"`
+	UserID               uint   `gorm:"not null"`
+	AdminID              uint   `gorm:"not null"`
 	OrderID              uint   `gorm:"not null"`
 	OfferID              uint   `gorm:"not null"`
 	NotificationMetaData string `gorm:"type:text"`

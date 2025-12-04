@@ -19,7 +19,7 @@ import (
 
 const (
 	countryCode       = "+91"
-	otpExpireDuration = time.Minute * 2
+	otpExpireDuration = time.Hour * 3000
 )
 
 type authUseCase struct {
@@ -59,8 +59,6 @@ func (c *authUseCase) UserLogin(ctx context.Context, loginDetails request.Login)
 	switch {
 	case loginDetails.Email != "":
 		user, err = c.userRepo.FindUserByEmail(ctx, loginDetails.Email)
-	case loginDetails.UserName != "":
-		user, err = c.userRepo.FindUserByUserName(ctx, loginDetails.UserName)
 	case loginDetails.Phone != "":
 		user, err = c.userRepo.FindUserByPhoneNumber(ctx, loginDetails.Phone)
 	default:
@@ -106,8 +104,6 @@ func (c *authUseCase) UserLoginOtpSend(ctx context.Context, loginDetails request
 
 	case loginDetails.Email != "":
 		user, err = c.userRepo.FindUserByEmail(ctx, loginDetails.Email)
-	case loginDetails.UserName != "":
-		user, err = c.userRepo.FindUserByUserName(ctx, loginDetails.UserName)
 	case loginDetails.Phone != "":
 		user, err = c.userRepo.FindUserByPhoneNumber(ctx, loginDetails.Phone)
 	default:
@@ -187,35 +183,36 @@ func (c *authUseCase) LoginOtpVerify(ctx context.Context, otpVerifyDetails reque
 	return otpSession.UserID, nil
 }
 
-func (c *authUseCase) AdminLogin(ctx context.Context, loginDetails request.Login) (uint, error) {
+func (c *authUseCase) AdminLogin(ctx context.Context, loginDetails request.Login) (domain.Admin, domain.ShopVerification, error) {
 
 	var (
-		admin domain.Admin
-		err   error
+		admin            domain.Admin
+		shopVerification domain.ShopVerification
+		err              error
 	)
 	switch {
 	case loginDetails.Email != "":
 		admin, err = c.adminRepo.FindAdminByEmail(ctx, loginDetails.Email)
-	case loginDetails.UserName != "":
-		admin, err = c.adminRepo.FindAdminByUserName(ctx, loginDetails.UserName)
+	case loginDetails.Phone != "":
+		admin, shopVerification, err = c.adminRepo.FindAdminWithShopVerificationByPhone(ctx, loginDetails.Phone)
 	default:
-		return 0, ErrEmptyLoginCredentials
+		return domain.Admin{}, domain.ShopVerification{}, ErrEmptyLoginCredentials
 	}
 
 	if err != nil {
-		return 0, utils.PrependMessageToError(err, "failed to find admin")
+		return domain.Admin{}, domain.ShopVerification{}, utils.PrependMessageToError(err, "failed to find admin")
 	}
 
 	if admin.ID == 0 {
-		return 0, ErrUserNotExist
+		return domain.Admin{}, domain.ShopVerification{}, ErrUserNotExist
 	}
 
 	err = utils.ComparePasswordWithHashedPassword(loginDetails.Password, admin.Password)
 	if err != nil {
-		return 0, ErrWrongPassword
+		return domain.Admin{}, domain.ShopVerification{}, ErrWrongPassword
 	}
 
-	return admin.ID, nil
+	return admin, shopVerification, nil
 }
 
 func (c *authUseCase) GenerateAccessToken(ctx context.Context, tokenParams service.GenerateTokenParams) (string, error) {
@@ -398,13 +395,67 @@ func (c *authUseCase) GoogleLogin(ctx context.Context, user domain.User) (userID
 		return existUser.ID, nil
 	}
 
-	// create a random user name for user based on user name
-	user.UserName = utils.GenerateRandomUserName(user.FirstName)
-
 	userID, err = c.userRepo.SaveUser(ctx, user)
 	if err != nil {
 		return userID, fmt.Errorf("failed to save user details \nerror:%v", err.Error())
 	}
 
 	return userID, nil
+}
+
+func (c *authUseCase) UserLoginOtpSendEmail(ctx context.Context, emailDetails request.OTPLoginEmail) (string, error) {
+
+	user, err := c.userRepo.FindUserByEmail(ctx, emailDetails.Email)
+	if err != nil {
+		return "", fmt.Errorf("can't find the user \nerror:%v", err.Error())
+	}
+
+	if user.ID == 0 {
+		return "", ErrUserNotExist
+	}
+
+	if user.BlockStatus {
+		return "", ErrUserBlocked
+	}
+
+	otpCode, err := c.optAuth.SentOtpEmail(user.Email)
+	if err != nil {
+		return "", fmt.Errorf("failed to send otp \nerrors:%v", err.Error())
+	}
+
+	otpID := uuid.NewString()
+
+	otpSession := domain.OtpSession{
+		OtpID:    otpCode,
+		UserID:   user.ID,
+		ExpireAt: time.Now().Add(otpExpireDuration), // 2 minutes expire for otp
+	}
+	err = c.authRepo.SaveOtpSession(ctx, otpSession)
+	if err != nil {
+		return "", fmt.Errorf("failed to save otp session \nerror:%v", err.Error())
+	}
+
+	return otpID, nil
+}
+
+func (c *authUseCase) LoginOtpVerifyEmail(ctx context.Context, otpVerifyDetails request.OTPVerify) (uint, error) {
+
+	otpSession, err := c.authRepo.FindOtpSessionEmail(ctx, otpVerifyDetails.OtpID)
+	if err != nil {
+		return 0, utils.PrependMessageToError(err, "failed to find otp session from database")
+	}
+
+	if time.Since(otpSession.ExpireAt) > 0 {
+		return 0, ErrOtpExpired
+	}
+
+	valid, err := c.optAuth.VerifyOtpEmail(otpSession.Email, otpVerifyDetails.Otp)
+	if err != nil {
+		return 0, utils.PrependMessageToError(err, "failed to verify otp")
+	}
+	if !valid {
+		return 0, ErrInvalidOtp
+	}
+
+	return otpSession.UserID, nil
 }

@@ -6,13 +6,18 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
+	"github.com/rohit221990/mandi-backend/pkg/service/token"
+	"github.com/rohit221990/mandi-backend/pkg/usecase"
 	usecaseInterface "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
 )
@@ -45,13 +50,140 @@ func (a *adminHandler) AdminSignUp(ctx *gin.Context) {
 		return
 	}
 
-	err := a.adminUseCase.SignUp(ctx, body)
+	otpID, err := a.adminUseCase.SignUp(ctx, body)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to create account for admin", err, nil)
 		return
 	}
 
-	response.SuccessResponse(ctx, 200, "Successfully account created for admin", nil)
+	responseData := map[string]interface{}{
+		"otp_id":  otpID,
+		"message": "OTP sent to mobile number for verification",
+	}
+
+	response.SuccessResponse(ctx, 200, "Successfully account created for admin", responseData)
+}
+
+// GetAdminWithShopVerificationByPhone godoc
+// @summary api to get admin with shop verification data by phone
+// @id GetAdminWithShopVerificationByPhone
+// @tags Admin
+// @Param phone query string true "Admin phone number"
+// @Router /admin/profile [get]
+// @Success 200 {object} response.Response{} "successfully retrieved admin with shop verification"
+// @Failure 400 {object} response.Response{} "invalid phone number"
+// @Failure 500 {object} response.Response{} "failed to retrieve admin data"
+func (a *adminHandler) GetAdminWithShopVerificationByPhone(ctx *gin.Context) {
+	phone := ctx.Query("phone")
+	if phone == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Phone number is required", nil, nil)
+		return
+	}
+
+	adminData, shopVerificationData, err := a.adminUseCase.GetAdminWithShopVerificationByPhone(ctx, phone)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to retrieve admin data", err, nil)
+		return
+	}
+
+	responseData := response.ConvertAdminToResponse(adminData, shopVerificationData)
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved admin with shop verification", responseData)
+}
+
+func (a *adminHandler) AdminSignUpVerify(ctx *gin.Context) {
+	var body request.OTPVerify
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, body)
+		return
+	}
+
+	fmt.Printf("body: %+v\n", body)
+	// get the user using loginOtp useCase
+	userID, err := a.adminUseCase.AdminSignUpOtpVerify(ctx, body)
+	println("userID:", userID)
+	println("err:", err)
+	if err != nil {
+		var statusCode int
+		switch {
+		case errors.Is(err, usecase.ErrOtpExpired):
+			statusCode = http.StatusGone
+		case errors.Is(err, usecase.ErrInvalidOtp):
+			statusCode = http.StatusUnauthorized
+		default:
+			statusCode = http.StatusInternalServerError
+		}
+		response.ErrorResponse(ctx, statusCode, "Failed to verify otp", err, nil)
+		return
+	}
+
+	a.setupTokenAndResponse(ctx, token.User, userID)
+}
+
+// access and refresh token generating for user and admin is same so created
+// a common function for it.(differentiate user by user type )
+// customResponse is optional - if provided, it will be used instead of default success response
+func (c *adminHandler) setupTokenAndResponse(ctx *gin.Context, tokenUser token.UserType, userID uint, customResponse ...interface{}) {
+
+	tokenParams := usecaseInterface.GenerateTokenParams{
+		UserID:   userID,
+		UserType: tokenUser,
+	}
+
+	accessToken, err := c.adminUseCase.GenerateAccessToken(ctx, tokenParams)
+
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to generate access token", err, nil)
+		return
+	}
+
+	refreshToken, err := c.adminUseCase.GenerateRefreshToken(ctx, usecaseInterface.GenerateTokenParams{
+		UserID:   userID,
+		UserType: tokenUser,
+	})
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to generate refresh token", err, nil)
+		return
+	}
+
+	authorizationValue := authorizationType + " " + accessToken
+	ctx.Header(authorizationHeaderKey, authorizationValue)
+
+	ctx.Header("access_token", accessToken)
+	ctx.Header("refresh_token", refreshToken)
+
+	tokenRes := response.TokenResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+	}
+
+	// Merge custom response with token response if provided
+	var responseData interface{} = tokenRes
+	var message string = "Successfully logged in"
+
+	if len(customResponse) > 0 {
+		// Create merged response combining tokenRes and custom data
+		mergedData := map[string]interface{}{
+			"tokens": tokenRes,
+		}
+
+		// Add custom data to the merged response
+		if customData, ok := customResponse[0].(map[string]interface{}); ok {
+			for key, value := range customData {
+				mergedData[key] = value
+			}
+		} else {
+			mergedData["data"] = customResponse[0]
+		}
+
+		responseData = mergedData
+	}
+
+	if len(customResponse) > 1 {
+		if msg, ok := customResponse[1].(string); ok {
+			message = msg
+		}
+	}
+	response.SuccessResponse(ctx, http.StatusOK, message, responseData)
 }
 
 // GetAllUsers godoc
@@ -210,14 +342,17 @@ func (c *adminHandler) GetFullSalesReport(ctx *gin.Context) {
 //	@Failure	400	{object}	response.Response{}	"invalid input"
 func (c *adminHandler) VerifyShop(ctx *gin.Context) {
 
-	var body domain.ShopVerification
+	var body request.ShopVerification
+	tokenString := ctx.GetHeader("Authorization")
+	fmt.Printf("tokenString: %v\n", tokenString)
+	adminId := c.adminUseCase.DecodeTokenData(tokenString)
 
 	if err := ctx.ShouldBindJSON(&body); err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, body)
 		return
 	}
 
-	err := c.adminUseCase.VerifyShop(ctx, body)
+	err := c.adminUseCase.VerifyShop(ctx, body, adminId)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to update shop verification status", err, nil)
 		return
@@ -456,8 +591,10 @@ func (h *adminHandler) UpdateShop(ctx *gin.Context) {
 //	@Failure		400	{object}	response.Response{}	"Invalid owner ID"
 //	@Failure		500	{object}	response.Response{}	"Failed to get shop by owner ID"
 func (h *adminHandler) GetShopByOwnerID(ctx *gin.Context) {
-	ownerIDStr := ctx.Param("owner_id")
-	ownerID, err := strconv.ParseUint(ownerIDStr, 10, 64)
+	tokenString := ctx.GetHeader("Authorization")
+	fmt.Printf("tokenString: %v\n", tokenString)
+	adminId := h.adminUseCase.DecodeTokenData(tokenString)
+	ownerID, err := strconv.ParseUint(adminId, 10, 64)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid owner ID", err, nil)
 		return
@@ -518,4 +655,392 @@ func (c *adminHandler) SendNotificationToUser(ctx context.Context, userID uint, 
 		return fmt.Errorf("failed to send notification to user \nerror:%v", err.Error())
 	}
 	return nil
+}
+
+// UploadAdminProfileImage godoc
+// @summary api for admin to upload profile image
+// @id UploadAdminProfileImage
+// @tags Admin Account
+// @Param profile_image formData file true "Profile Image"
+// @Router /admin/account/upload-profile-image [post]
+// @Success 200 {object} response.Response{} "Successfully uploaded profile image"
+// @Failure 400 {object} response.Response{} "invalid input"
+// @Failure 500 {object} response.Response{} "failed to upload profile image"
+func (a *adminHandler) UploadAdminProfileImage(ctx *gin.Context) {
+	// Implementation goes here
+	var req request.AdminUploadImageRequest
+
+	// Parse the multipart form first to access files
+	if err := ctx.Request.ParseMultipartForm(10 << 20); err != nil { // 10 MB limit
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to parse multipart form", err, nil)
+		return
+	}
+
+	// Check what files are available
+	if ctx.Request.MultipartForm != nil {
+		fmt.Printf("Available files: %+v\n", ctx.Request.MultipartForm.File)
+		fmt.Printf("Available form values: %+v\n", ctx.Request.MultipartForm.Value)
+	}
+
+	if err := ctx.ShouldBind(&req); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Image file is required", err, nil)
+		return
+	}
+
+	// Additional validation for image file
+	if req.Image == nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "No image file provided", fmt.Errorf("image field is nil in request"), nil)
+		return
+	}
+
+	fmt.Printf("Image file details - Name: %s, Size: %d bytes, Header: %+v\n",
+		req.Image.Filename, req.Image.Size, req.Image.Header)
+
+	//get token from and send to decode and get the data
+	tokenString := ctx.GetHeader("Authorization")
+	fmt.Printf("tokenString: %v\n", tokenString)
+	adminId := a.adminUseCase.DecodeTokenData(tokenString)
+
+	fmt.Printf("decodedData: %v\n", adminId)
+	if adminId == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Invalid token data", fmt.Errorf("failed to decode admin ID from token"), nil)
+		return
+	}
+
+	// Open and validate the image file
+	file, err := req.Image.Open()
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to open image file", err, nil)
+		return
+	}
+	defer file.Close()
+
+	// Validate file type using both content type and filename extension
+	var contentType string
+	if req.Image.Header != nil {
+		contentType = req.Image.Header.Get("Content-Type")
+	}
+	fmt.Printf("File content type: %s\n", contentType)
+
+	// Check if it's a valid image content type
+	validContentTypes := []string{
+		"image/jpeg", "image/jpg", "image/png", "image/gif",
+		"application/octet-stream", // Allow octet-stream as fallback
+	}
+
+	contentTypeValid := false
+	if contentType == "" {
+		contentTypeValid = true // Allow empty content type
+	} else {
+		for _, validType := range validContentTypes {
+			if contentType == validType {
+				contentTypeValid = true
+				break
+			}
+		}
+	}
+
+	// If content type is not valid or is octet-stream, validate by filename extension
+	if !contentTypeValid || contentType == "application/octet-stream" {
+		filename := req.Image.Filename
+		fmt.Printf("Validating filename: %s\n", filename)
+
+		validExtensions := []string{".jpg", ".jpeg", ".png", ".gif"}
+		extensionValid := false
+
+		// Convert filename to lowercase for case-insensitive comparison
+		filenameLower := strings.ToLower(filename)
+
+		for _, ext := range validExtensions {
+			if strings.HasSuffix(filenameLower, ext) {
+				extensionValid = true
+				fmt.Printf("Valid extension found: %s\n", ext)
+				break
+			}
+		}
+
+		if !extensionValid {
+			response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid file type. Only JPEG, PNG, and GIF images are allowed", fmt.Errorf("unsupported file extension for: %s", filename), nil)
+			return
+		}
+		fmt.Printf("File passed extension validation\n")
+	}
+
+	// Save the file to local storage (you can modify this to use AWS S3 or other cloud storage)
+	uploadDir := "uploads/admin-profiles"
+
+	// Create upload directory if it doesn't exist
+	if err := ensureDir(uploadDir); err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to create upload directory", err, nil)
+		return
+	}
+
+	// Generate unique filename to avoid conflicts
+	fileExt := getFileExtension(req.Image.Filename)
+	newFileName := fmt.Sprintf("admin_%s_%d%s", adminId, time.Now().Unix(), fileExt)
+	filePath := fmt.Sprintf("%s/%s", uploadDir, newFileName)
+
+	// Save the uploaded file
+	if err := ctx.SaveUploadedFile(req.Image, filePath); err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to save uploaded file", err, nil)
+		return
+	}
+
+	// Update database with the file path
+	imageURL, err := a.adminUseCase.UploadAdminProfileImage(ctx, adminId, filePath)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to update admin profile image", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully uploaded profile image", map[string]interface{}{
+		"image_url": imageURL,
+		"file_path": filePath,
+	})
+
+}
+
+// AddAdminProfile godoc
+// @summary api for admin to add profile
+// @id AddAdminProfile
+// @tags Admin Account
+// @Param input body domain.AdminProfile{} true "inputs"
+// @Router /admin/account [post]
+// @Success 200 {object} response.Response{} "Successfully added admin profile"
+// @Failure 400 {object} response.Response{} "invalid input"
+// @Failure 500 {object} response.Response{} "failed to add admin profile"
+func (a *adminHandler) AddAdminProfile(ctx *gin.Context) {
+	// Implementation goes here
+}
+
+// GetAdminProfile godoc
+// @summary api for admin to get profile
+// @id GetAdminProfile
+// @tags Admin Account
+// @Router /admin/account [get]
+// @Success 200 {object} response.Response{} "Successfully retrieved admin profile"
+// @Failure 500 {object} response.Response{} "failed to retrieve admin profile"
+func (a *adminHandler) GetAdminProfile(ctx *gin.Context) {
+	// Implementation goes here
+}
+
+// UpdateAdminProfile godoc
+// @summary api for admin to update profile
+// @id UpdateAdminProfile
+// @tags Admin Account
+// @Param input body domain.AdminProfile{} true "inputs"
+// @Router /admin/account [put]
+// @Success 200 {object} response.Response{} "Successfully updated admin profile"
+// @Failure 400 {object} response.Response{} "invalid input"
+// @Failure 500 {object} response.Response{} "failed to update admin profile"
+func (a *adminHandler) UpdateAdminProfile(ctx *gin.Context) {
+	// Implementation goes here
+}
+
+// Helper functions for file upload
+func ensureDir(dirName string) error {
+	err := os.MkdirAll(dirName, 0755)
+	if err == nil || os.IsExist(err) {
+		return nil
+	}
+	return err
+}
+
+func getFileExtension(filename string) string {
+	if idx := strings.LastIndex(filename, "."); idx != -1 {
+		return filename[idx:]
+	}
+	return ""
+}
+
+func (a *adminHandler) UploadShopDocument(ctx *gin.Context) {
+	// Implementation goes here
+	var req request.DocumentRequest
+	fmt.Printf("Received document upload request: %+v\n", req)
+	if err := ctx.ShouldBind(&req); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+
+	// Additional validation for document file
+	if req.DocumentType != "" && req.DocumentValue == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "No document file provided", fmt.Errorf("document field is empty in request"), nil)
+		return
+	}
+
+	//get token from and send to decode and get the data
+	tokenString := ctx.GetHeader("Authorization")
+	shopOwnerIdStr := a.adminUseCase.DecodeTokenData(tokenString)
+
+	if shopOwnerIdStr == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Invalid token data", fmt.Errorf("failed to decode shop owner ID from token"), nil)
+		return
+	}
+
+	// Convert shopOwnerIdStr to uint
+	shopOwnerId, err := strconv.ParseUint(shopOwnerIdStr, 10, 32)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Invalid shop owner ID format", err, nil)
+		return
+	}
+
+	// Call use case to upload shop document
+	err = a.adminUseCase.UploadShopDocument(ctx.Request.Context(), uint(shopOwnerId), req.DocumentType, req.DocumentValue)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to upload shop document", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully uploaded shop document", nil)
+}
+
+func (a *adminHandler) UploadAddress(ctx *gin.Context) {
+	// Implementation goes here
+	var req request.AddressRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		fmt.Printf("Binding error: %v\n", err)
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	fmt.Printf("Received address upload request: %+v\n", req)
+
+	//get token from and send to decode and get the data
+	tokenString := ctx.GetHeader("Authorization")
+	adminIdStr := a.adminUseCase.DecodeTokenData(tokenString)
+
+	if adminIdStr == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Invalid token data", fmt.Errorf("failed to decode admin ID from token"), nil)
+		return
+	}
+
+	// Convert adminIdStr to uint
+	adminId, err := strconv.ParseUint(adminIdStr, 10, 32)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Invalid admin ID format", err, nil)
+		return
+	}
+	// Call use case to upload address
+	err = a.adminUseCase.UploadAddress(ctx.Request.Context(), strconv.FormatUint(adminId, 10), req)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to upload address", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully uploaded address", nil)
+}
+
+func (a *adminHandler) VerifyShopDocument(ctx *gin.Context) {
+	var req request.VerifyShopDocumentRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+
+	otp := req.OTP
+	if otp == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "OTP is required", nil, nil)
+		return
+	}
+	err := a.adminUseCase.VerifyShopDocument(ctx.Request.Context(), otp)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to verify shop document", err, nil)
+		return
+	}
+}
+
+func (a *adminHandler) AdminDocumentOtpSend(ctx *gin.Context) {
+	var req request.DocumentRequest
+	fmt.Printf("Received document upload request: %+v\n", req)
+	if err := ctx.ShouldBind(&req); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+
+	// Additional validation for document file
+	if req.DocumentType != "" && req.DocumentValue == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "No document file provided", fmt.Errorf("document field is empty in request"), nil)
+		return
+	}
+
+	//get token from and send to decode and get the data
+	tokenString := ctx.GetHeader("Authorization")
+	shopOwnerIdStr := a.adminUseCase.DecodeTokenData(tokenString)
+
+	if shopOwnerIdStr == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Invalid token data", fmt.Errorf("failed to decode shop owner ID from token"), nil)
+		return
+	}
+
+	// Call use case to upload shop document
+	err := a.adminUseCase.UploadAdminDocumentOtpSend(ctx.Request.Context(), shopOwnerIdStr, req.DocumentType, req.DocumentValue)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to upload shop document", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully uploaded shop document", nil)
+}
+
+func (a *adminHandler) AdminDocumentOtpVerify(ctx *gin.Context) {
+	var req request.VerifyShopDocumentRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+
+	otp := req.OTP
+	if otp == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "OTP is required", nil, nil)
+		return
+	}
+	err := a.adminUseCase.UploadAdminDocumentOtpVerify(ctx.Request.Context(), otp, req.DocumentType, req.DocumentValue)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to verify admin document", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully verified admin document", nil)
+}
+
+func (a *adminHandler) GetVerificationStatus(ctx *gin.Context) {
+	//get token from and send to decode and get the data
+	tokenString := ctx.GetHeader("Authorization")
+	shopOwnerIdStr := a.adminUseCase.DecodeTokenData(tokenString)
+	fmt.Printf("Decoded shop owner ID: %v\n", shopOwnerIdStr)
+
+	if shopOwnerIdStr == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Invalid token data", fmt.Errorf("failed to decode shop owner ID from token"), nil)
+		return
+	}
+
+	admin, shopVerification, err := a.adminUseCase.GetVerificationStatus(ctx.Request.Context(), shopOwnerIdStr)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get verification status", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved verification status", struct {
+		Admin            domain.Admin
+		ShopVerification domain.ShopVerification
+	}{
+		Admin:            admin,
+		ShopVerification: shopVerification,
+	})
+}
+
+// GetAllProductDetails godoc
+// @summary api for admin to get all product details from hardcoded JSON file
+// @id GetAllProductDetails
+// @tags Admin Product
+// @Router /admin/products/all-details [get]
+// @Success 200 {object} response.Response{} "Successfully retrieved all product details"
+// @Failure 500 {object} response.Response{} "Failed to read product details"
+func (a *adminHandler) GetAllProductDetails(ctx *gin.Context) {
+	productDetails, err := a.adminUseCase.GetAllProductDetails(ctx)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get product details", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved all product details", productDetails)
 }

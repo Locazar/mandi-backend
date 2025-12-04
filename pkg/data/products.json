@@ -1,0 +1,149 @@
+{
+  "Departments": [
+    {
+      "name": "Hardware",
+      "categories": [
+        {
+          "name": "Tools & Equipment",
+          "subcategories": [
+            "Hand Tools",
+            "Power Tools",
+            "Gardening Tools",
+            "Measuring Tools"
+          ]
+        },
+        {
+          "name": "Electrical & Lighting",
+          "subcategories": [
+            "Bulbs & Lamps",
+            "Switches & Sockets",
+            "Cables & Wires"
+          ]
+        },
+        {
+          "name": "Plumbing & Sanitation",
+          "subcategories": ["Pipes & Fittings", "Bathroom Accessories"]
+        },
+        {
+          "name": "Paints & Chemicals",
+          "subcategories": ["Paints & Primers", "Adhesives & Sealants"]
+        },
+        {
+          "name": "Building Materials",
+          "subcategories": ["Cement & Concrete", "Bricks & Blocks"]
+        },
+        {
+          "name": "Safety & Security",
+          "subcategories": ["Safety Helmets", "Locks & Alarms"]
+        }
+      ]
+    },
+    {
+      "name": "Clothing & Accessories",
+      "categories": [
+        {
+          "name": "Men’s Clothing",
+          "subcategories": ["T-Shirts", "Shirts", "Trousers"]
+        },
+        {
+          "name": "Women’s Clothing",
+          "subcategories": [
+            "Tops & T-Shirts",
+            "Dresses & Skirts",
+            "Ethnic Wear"
+          ]
+        },
+        {
+          "name": "Kids’ Clothing",
+          "subcategories": ["Tops & Tees", "Bottoms", "School Uniforms"]
+        },
+        {
+          "name": "Footwear",
+          "subcategories": ["Men’s Footwear", "Women’s Footwear"]
+        },
+        {
+          "name": "Accessories",
+          "subcategories": ["Bags", "Belts", "Jewelry"]
+        }
+      ]
+    },
+    {
+      "name": "Small Business Products & Services",
+      "categories": [
+        {
+          "name": "Stationery & Office Supplies",
+          "subcategories": ["Notebooks", "Pens & Pencils"]
+        },
+        {
+          "name": "Food & Grocery Items",
+          "subcategories": ["Spices & Condiments", "Packaged Foods"]
+        },
+        {
+          "name": "Local Handicrafts & Gifts",
+          "subcategories": ["Decorative Items", "Souvenirs"]
+        },
+        {
+          "name": "Services",
+          "subcategories": [
+            "Plumbing Services",
+            "Tailoring & Alterations",
+            "Electrical Services",
+            "Catering & Food Delivery"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Furniture",
+      "categories": [
+        {
+          "name": "Living Room Furniture",
+          "subcategories": ["Sofas & Couches", "Coffee Tables", "TV Units"]
+        },
+        {
+          "name": "Bedroom Furniture",
+          "subcategories": ["Beds", "Wardrobes", "Dressers"]
+        },
+        {
+          "name": "Dining Room Furniture",
+          "subcategories": ["Dining Tables", "Dining Chairs"]
+        },
+        {
+          "name": "Outdoor Furniture",
+          "subcategories": ["Patio Sets", "Garden Benches"]
+        },
+        {
+          "name": "Office Furniture",
+          "subcategories": ["Desks", "Office Chairs", "Storage Cabinets"]
+        },
+        {
+          "name": "Storage & Shelving",
+          "subcategories": ["Bookshelves", "Shoe Racks", "Cabinets"]
+        }
+      ]
+    },
+    {
+      "department": "General Merchandise",
+      "categories": [
+        {
+          "name": "Clothing",
+          "subcategories": [
+            "Accessories"
+          ]
+        },
+        {
+          "name": "Electronics",
+          "subcategories": [
+            "Mobile Phones",
+            "Audio Devices",
+            "Small Appliances"
+          ]
+        },
+        {
+          "name": "Toys & Games",
+          "subcategories": ["Educational Toys", "Outdoor Games", "Board Games"]
+        }
+      ]
+    }
+  ]
+}

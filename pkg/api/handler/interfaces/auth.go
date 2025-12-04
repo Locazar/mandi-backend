@@ -14,6 +14,7 @@ type AuthHandler interface {
 
 	UserLoginOtpVerify(ctx *gin.Context)
 	UserLoginOtpSend(ctx *gin.Context)
+	UserLoginOtpSendEmail(ctx *gin.Context)
 
 	UserRenewAccessToken() gin.HandlerFunc
 

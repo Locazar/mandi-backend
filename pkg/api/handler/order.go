@@ -401,3 +401,30 @@ func (c *OrderHandler) UpdateReturnRequest(ctx *gin.Context) {
 
 	response.SuccessResponse(ctx, http.StatusOK, "successfully order return updated")
 }
+
+// SubmitShoppingFeedback godoc
+//
+//	@summary		Submit shopping feedback (User)
+//	@Security		BearerAuth
+//	@description	API for user to submit shopping feedback for an order
+//	@id				SubmitShoppingFeedback
+//	@tags			User Feedback
+//	@Param			input	body	request.ShoppingFeedback	true	"Input Fields"
+//	@Router			/feedback/shop [post]
+//	@Success		200	{object}	response.Response{}	"Successfully submitted shopping feedback"
+//	@Failure		400	{object}	response.Response{}	"invalid input"
+func (c *OrderHandler) SubmitShoppingFeedback(ctx *gin.Context) {
+	var body request.ShoppingFeedback
+
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	err := c.orderUseCase.SubmitShoppingFeedback(ctx, body)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to submit shopping feedback", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully submitted shopping feedback", nil)
+}

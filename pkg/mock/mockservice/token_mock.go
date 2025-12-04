@@ -17,6 +17,11 @@ type MockTokenService struct {
 	recorder *MockTokenServiceMockRecorder
 }
 
+// DecodeTokenData implements token.TokenService.
+func (m *MockTokenService) DecodeTokenData(tokenString string) string {
+	panic("unimplemented")
+}
+
 // MockTokenServiceMockRecorder is the mock recorder for MockTokenService.
 type MockTokenServiceMockRecorder struct {
 	mock *MockTokenService

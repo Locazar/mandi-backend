@@ -20,6 +20,8 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 		{
 			signup.POST("/", authHandler.UserSignUp)
 			signup.POST("/verify", authHandler.UserSignUpVerify)
+			signup.POST("/resend-otp", authHandler.UserLoginOtpSend)
+			signup.POST("/email/otp/send", authHandler.UserLoginOtpSendEmail)
 		}
 
 		login := auth.Group("/sign-in")
@@ -201,6 +203,11 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 			notification.GET("/", notificationHandler.GetNotificationsBy)
 			notification.PUT("/:notification_id/read", notificationHandler.MarkNotificationAsRead)
 			notification.POST("/generateFCMToken", notificationHandler.GenerateFCMToken)
+		}
+
+		feedback := api.Group("/feedback")
+		{
+			feedback.POST("/shop", orderHandler.SubmitShoppingFeedback)
 		}
 
 		// Job search

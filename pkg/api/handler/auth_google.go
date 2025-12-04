@@ -67,10 +67,9 @@ func (c *AuthHandler) UserGoogleAuthCallBack(ctx *gin.Context) {
 	}
 
 	user := domain.User{
-		FirstName:   googleUser.FirstName,
-		LastName:    googleUser.LastName,
-		Email:       googleUser.Email,
-		GoogleImage: googleUser.AvatarURL,
+		FirstName: googleUser.FirstName,
+		LastName:  googleUser.LastName,
+		Email:     googleUser.Email,
 	}
 
 	userID, err := c.authUseCase.GoogleLogin(ctx, user)

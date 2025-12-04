@@ -48,4 +48,6 @@ type OrderRepository interface {
 
 	FindWalletTransactions(ctx context.Context, walletID uint,
 		pagination request.Pagination) (transaction []domain.Transaction, err error)
+
+	SaveShoppingFeedback(ctx context.Context, feedback request.ShoppingFeedback) error
 }

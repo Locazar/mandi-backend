@@ -48,7 +48,7 @@ func createRandomLoginDetail(loginKey LoginKey) request.Login {
 		}
 	}
 	return request.Login{
-		UserName: utils.GenerateRandomString(12),
+		Phone:    utils.GenerateRandomString(12),
 		Password: utils.GenerateRandomString(12),
 	}
 }
@@ -63,6 +63,11 @@ type userRepoAdapter struct {
 func (u *userRepoAdapter) FindSellersByRadius(ctx context.Context, req request.SellerRadiusRequest) ([]response.Admin, error) {
 	// Not used in these tests; return empty result.
 	return nil, nil
+}
+
+func (u *userRepoAdapter) UpdateAdminVerified(ctx context.Context, adminID uint) error {
+	// Not used in these tests; return nil.
+	return nil
 }
 
 func TestUserLogin(t *testing.T) {
@@ -104,7 +109,7 @@ func TestUserLogin(t *testing.T) {
 			buildStub: func(mockRepo *mockrepo.MockUserRepository, loginDetails request.Login) {
 				dbError := fmt.Errorf("error from find user on database")
 				mockRepo.EXPECT().
-					FindUserByUserName(gomock.Any(), loginDetails.UserName).
+					FindUserByUserName(gomock.Any(), loginDetails.Phone).
 					Times(1).Return(domain.User{}, dbError)
 			},
 			expectedError: fmt.Errorf("failed to find user from database \nerror: %v", "error from find user on database"),
@@ -126,7 +131,7 @@ func TestUserLogin(t *testing.T) {
 			expectedOutput: 0,
 			buildStub: func(mockRepo *mockrepo.MockUserRepository, loginDetails request.Login) {
 				outputUser := domain.User{ID: 1, BlockStatus: true}
-				mockRepo.EXPECT().FindUserByUserName(gomock.Any(), loginDetails.UserName).
+				mockRepo.EXPECT().FindUserByUserName(gomock.Any(), loginDetails.Phone).
 					Times(1).Return(outputUser, nil)
 			},
 			expectedError: ErrUserBlocked,

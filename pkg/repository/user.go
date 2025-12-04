@@ -58,10 +58,10 @@ func (c *userDatabase) FindUserByUserName(ctx context.Context, userName string) 
 func (c *userDatabase) FindUserByUserNameEmailOrPhoneNotID(ctx context.Context,
 	userDetails domain.User) (user domain.User, err error) {
 	fmt.Printf("Checking for existing user with UserName: %s, Email: %s, Phone: %s excluding ID: %d\n",
-		userDetails.UserName, userDetails.Email, userDetails.Phone, userDetails.ID) // Debugging line
+		userDetails.Email, userDetails.Phone, userDetails.ID) // Debugging line
 
 	query := `SELECT * FROM users WHERE (user_name = $1 OR email = $2 OR phone = $3) AND id != $4`
-	err = c.DB.Raw(query, userDetails.UserName, userDetails.Email, userDetails.Phone, userDetails.ID).Scan(&user).Error
+	err = c.DB.Raw(query, userDetails.Email, userDetails.Phone, userDetails.ID).Scan(&user).Error
 
 	fmt.Printf("Found user: %+v, error: %v\n", user, err) // Debugging line
 
@@ -71,13 +71,13 @@ func (c *userDatabase) FindUserByUserNameEmailOrPhoneNotID(ctx context.Context,
 func (c *userDatabase) SaveUser(ctx context.Context, user domain.User) (userID uint, err error) {
 
 	//save the user details
-	query := `INSERT INTO users (user_name, first_name, 
-		last_name, age, email, phone, password, google_image, created_at) 
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9 ) RETURNING id`
+	query := `INSERT INTO users (first_name, 
+		last_name, age, email, phone, password, created_at) 
+	VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`
 
 	createdAt := time.Now()
-	err = c.DB.Raw(query, user.UserName, user.FirstName, user.LastName,
-		user.Age, user.Email, user.Phone, user.Password, user.GoogleImage, createdAt).Scan(&userID).Error
+	err = c.DB.Raw(query, user.FirstName, user.LastName,
+		user.Age, user.Email, user.Phone, user.Password, createdAt).Scan(&userID).Error
 
 	return userID, err
 }
@@ -90,20 +90,28 @@ func (c *userDatabase) UpdateVerified(ctx context.Context, userID uint) error {
 	return err
 }
 
+func (c *userDatabase) UpdateAdminVerified(ctx context.Context, adminID uint) error {
+
+	query := `UPDATE admins SET verified_seller = 'T' WHERE id = $1`
+	err := c.DB.Exec(query, adminID).Error
+
+	return err
+}
+
 func (c *userDatabase) UpdateUser(ctx context.Context, user domain.User) (err error) {
 
 	updatedAt := time.Now()
 	// check password need to update or not
 	if user.Password != "" {
-		query := `UPDATE users SET user_name = $1, first_name = $2, last_name = $3,age = $4, 
-		email = $5, phone = $6, password = $7, google_image = $8, updated_at = $9 WHERE id = $10`
-		err = c.DB.Exec(query, user.UserName, user.FirstName, user.LastName, user.Age, user.Email,
-			user.Phone, user.Password, user.GoogleImage, updatedAt, user.ID).Error
+		query := `UPDATE users SET first_name = $1, last_name = $2,age = $3, 
+		email = $4, phone = $5, password = $6, updated_at = $7 WHERE id = $8`
+		err = c.DB.Exec(query, user.FirstName, user.LastName, user.Age, user.Email,
+			user.Phone, user.Password, updatedAt, user.ID).Error
 	} else {
-		query := `UPDATE users SET user_name = $1, first_name = $2, last_name = $3,age = $4, 
-		email = $5, phone = $6,  google_image = $7, updated_at = $8 WHERE id = $9`
-		err = c.DB.Exec(query, user.UserName, user.FirstName, user.LastName, user.Age, user.Email,
-			user.Phone, user.GoogleImage, updatedAt, user.ID).Error
+		query := `UPDATE users SET first_name = $1, last_name = $2,age = $3, 
+		email = $4, phone = $5,  updated_at = $6 WHERE id = $7`
+		err = c.DB.Exec(query, user.FirstName, user.LastName, user.Age, user.Email,
+			user.Phone, updatedAt, user.ID).Error
 	}
 
 	if err != nil {
@@ -128,8 +136,8 @@ func (c *userDatabase) IsAddressIDExist(ctx context.Context, addressID uint) (ex
 }
 func (c *userDatabase) FindAddressByID(ctx context.Context, addressID uint) (address response.Address, err error) {
 
-	query := `SELECT adrs.id, adrs.house, adrs.name, adrs.phone_number, adrs.area, adrs.land_mark, 
-	adrs.city, adrs.pincode, country_id, country_name FROM addresses adrs 
+	query := `SELECT adrs.id, adrs.address_line1, adrs.address_line2, adrs.phone_number, adrs.area, adrs.land_mark, 
+	adrs.city, adrs.pincode, country_id, country_name, adrs.latitude, adrs.longitude FROM addresses adrs 
 	INNER JOIN countries c ON c.id = adrs.country_id  
 	INNER JOIN user_addresses uadrs ON uadrs.address_id = adrs.id 
 	WHERE adrs.id = $1 `
@@ -146,7 +154,7 @@ func (c *userDatabase) IsAddressAlreadyExistForUser(ctx context.Context, address
 	INNER JOIN user_addresses urs ON adrs.id = urs.address_id 
 	WHERE adrs.name = $1 AND adrs.house = $2 AND adrs.land_mark = $3 
 	AND adrs.pincode = $4 AND adrs.country_id = $5  AND urs.user_id = $6`
-	err = c.DB.Raw(query, address.Name, address.House, address.LandMark, address.Pincode, address.CountryID, userID).Scan(&exist).Error
+	err = c.DB.Raw(query, address.AddtessLine1, address.AddtessLine2, address.LandMark, address.Pincode, address.CountryID, userID).Scan(&exist).Error
 	if err != nil {
 		return exist, fmt.Errorf("filed to check address already exist for user with user_id %d", userID)
 	}
@@ -181,14 +189,13 @@ func (c *userDatabase) FindCountryByID(ctx context.Context, countryID uint) (dom
 // save address
 func (c *userDatabase) SaveAddress(ctx context.Context, address domain.Address) (addressID uint, err error) {
 	address.CountryID = 1 // hardcoded !!!! should change
-	query := `INSERT INTO addresses (name, phone_number, house,area, land_mark, city, pincode, country_id, created_at) 
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`
+	query := `INSERT INTO addresses (address_line1, address_line2, area, land_mark, city, pincode, country_id, latitude, longitude, created_at) 
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`
 
 	createdAt := time.Now()
 
-	if c.DB.Raw(query, address.Name, address.PhoneNumber,
-		address.House, address.Area, address.LandMark, address.City,
-		address.Pincode, address.CountryID, createdAt,
+	if c.DB.Raw(query, address.AddtessLine1, address.AddtessLine2, address.Area, address.LandMark, address.City,
+		address.Pincode, address.CountryID, address.Latitude, address.Longitude, createdAt,
 	).Scan(&address).Error != nil {
 		return addressID, errors.New("filed to insert address on database")
 	}
@@ -199,13 +206,13 @@ func (c *userDatabase) SaveAddress(ctx context.Context, address domain.Address) 
 func (c *userDatabase) UpdateAddress(ctx context.Context, address domain.Address) error {
 
 	// address.CountryID = 1 // hardcoded !!!! should change
-	query := `UPDATE addresses SET name=$1, phone_number=$2, house=$3, area=$4, land_mark=$5, 
-	city=$6, pincode=$7,country_id=$8, updated_at = $9 WHERE id=$10`
+	query := `UPDATE addresses SET address_line1=$1, address_line2=$2, area=$3, land_mark=$4, 
+	city=$5, pincode=$6,country_id=$7, latitude=$8, longitude=$9, updated_at = $10 WHERE id=$11`
 
 	updatedAt := time.Now()
-	if c.DB.Raw(query, address.Name, address.PhoneNumber, address.House,
+	if c.DB.Raw(query, address.AddtessLine1, address.AddtessLine2,
 		address.Area, address.LandMark, address.City, address.Pincode,
-		address.CountryID, updatedAt, address.ID).Scan(&address).Error != nil {
+		address.CountryID, address.Latitude, address.Longitude, updatedAt, address.ID).Scan(&address).Error != nil {
 		return errors.New("filed to update the address for edit address")
 	}
 	return nil
@@ -283,9 +290,9 @@ func (c *userDatabase) FindAllWishListItemsByUserID(ctx context.Context, userID 
 
 func (c *userDatabase) SaveWishListItem(ctx context.Context, wishList domain.WishList) error {
 
-	query := `INSERT INTO wish_lists (user_id,product_item_id) VALUES ($1,$2) RETURNING *`
+	query := `INSERT INTO wish_lists (user_id,product_item_id,shop_id,admin_id) VALUES ($1,$2,$3,$4) RETURNING *`
 
-	if c.DB.Raw(query, wishList.UserID, wishList.ProductItemID).Scan(&wishList).Error != nil {
+	if c.DB.Raw(query, wishList.UserID, wishList.ProductItemID, wishList.ShopID, wishList.AdminID).Scan(&wishList).Error != nil {
 		return errors.New("filed to insert new wishlist on database")
 	}
 	return nil

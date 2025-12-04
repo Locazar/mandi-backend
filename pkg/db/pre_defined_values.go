@@ -88,7 +88,7 @@ func savePaymentMethods(db *gorm.DB) error {
 	return nil
 }
 
-func saveAdmin(db *gorm.DB, email, userName, password string) error {
+func saveAdmin(db *gorm.DB, email, password string) error {
 
 	var (
 		searchQuery = `SELECT CASE WHEN id != 0 THEN 'T' ELSE 'F' END as exist FROM admins WHERE email = $1`

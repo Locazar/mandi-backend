@@ -418,7 +418,6 @@ func (u *UserHandler) GetWishList(ctx *gin.Context) {
 // @Failure		400	{object}	response.Response{}	"Image file is required or invalid request"
 // @Failure		500	{object}	response.Response{}	"Failed to upload image"
 func (h *UserHandler) UploadProfileImage(c *gin.Context) {
-	var userID = c.Param("id")
 	var req request.UploadImageRequest
 	if err := c.ShouldBind(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Image file is required"})
@@ -436,7 +435,7 @@ func (h *UserHandler) UploadProfileImage(c *gin.Context) {
 	fileName := fmt.Sprintf("user-profile/%d%s", time.Now().UnixNano(), filepath.Ext(req.Image.Filename))
 
 	ctx := context.Background()
-	imageURL, err := h.userUseCase.UploadProfileImage(ctx, userID, req.Image, req.Image.Size, fileName, req.Image.Header.Get("Content-Type"))
+	imageURL, err := h.userUseCase.UploadProfileImage(ctx, req.UserID, req.Image, req.Image.Size, fileName, req.Image.Header.Get("Content-Type"))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload image"})
 		return

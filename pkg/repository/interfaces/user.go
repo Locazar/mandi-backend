@@ -15,7 +15,7 @@ type UserRepository interface {
 	FindUserByUserName(ctx context.Context, userName string) (user domain.User, err error)
 	FindUserByPhoneNumber(ctx context.Context, phoneNumber string) (user domain.User, err error)
 	FindUserByUserNameEmailOrPhoneNotID(ctx context.Context, user domain.User) (domain.User, error)
-
+	UpdateAdminVerified(ctx context.Context, adminID uint) error
 	SaveUser(ctx context.Context, user domain.User) (userID uint, err error)
 	UpdateVerified(ctx context.Context, userID uint) error
 	UpdateUser(ctx context.Context, user domain.User) (err error)

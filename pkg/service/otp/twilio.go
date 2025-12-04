@@ -56,3 +56,13 @@ func (c *twilioOtp) VerifyOtp(phoneNumber string, code string) (valid bool, err 
 
 	return true, nil
 }
+
+func (c *twilioOtp) SentOtpEmail(email string) (string, error) {
+	// implement email otp sending logic here
+	return "", fmt.Errorf("not implemented")
+}
+
+func (c *twilioOtp) VerifyOtpEmail(email string, code string) (valid bool, err error) {
+	// implement email otp verification logic here
+	return false, fmt.Errorf("not implemented")
+}

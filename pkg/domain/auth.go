@@ -6,7 +6,9 @@ import (
 
 type RefreshSession struct {
 	TokenID      string    `json:"token_id" gorm:"primaryKey;not null"`
-	UserID       uint      `json:"user_id" gorm:"not null"`
+	UserID       uint      `json:"user_id"`
+	AdminID      uint      `json:"admin_id"`
+	UserType     string    `json:"user_type"`
 	RefreshToken string    `json:"refresh_token" gorm:"not null"`
 	ExpireAt     time.Time `json:"expire_at" gorm:"not null"`
 	IsBlocked    bool      `json:"is_blocked" gorm:"not null;default:false"`
@@ -15,7 +17,19 @@ type RefreshSession struct {
 type OtpSession struct {
 	ID       uint      `json:"id" gorm:"primaryKey;not null"`
 	OtpID    string    `json:"otp_id" gorm:"unique;not null"`
+	UserID   uint      `json:"user_id"`
+	AdminID  uint      `json:"admin_id"`
+	UserType string    `json:"user_type"`
+	Phone    string    `json:"phone"`
+	ExpireAt time.Time `json:"expire_at"`
+}
+
+type OtpSessionEmail struct {
+	ID       uint      `json:"id" gorm:"primaryKey;not null"`
+	OtpID    string    `json:"otp_id" gorm:"unique;not null"`
 	UserID   uint      `json:"user_id" gorm:"not null"`
-	Phone    string    `json:"phone" gorm:"not null"`
+	AdminID  uint      `json:"admin_id" gorm:"not null"`
+	UserType string    `json:"user_type" gorm:"not null"`
+	Email    string    `json:"email" gorm:"not null"`
 	ExpireAt time.Time `json:"expire_at" gorm:"not null"`
 }

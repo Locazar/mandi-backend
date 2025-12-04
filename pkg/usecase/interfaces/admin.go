@@ -9,13 +9,18 @@ import (
 )
 
 type AdminUseCase interface {
-	SignUp(ctx context.Context, admin domain.Admin) error
+	SignUp(ctx context.Context, admin domain.Admin) (string, error)
+	AdminSignUpOtpVerify(ctx context.Context, otpVerifyDetails request.OTPVerify) (userID uint, err error)
+	GetAdminWithShopVerificationByPhone(ctx context.Context, phone string) (domain.Admin, domain.ShopVerification, error)
+	GenerateAccessToken(ctx context.Context, tokenParams GenerateTokenParams) (tokenString string, err error)
+	GenerateRefreshToken(ctx context.Context, tokenParams GenerateTokenParams) (tokenString string, err error)
 
 	FindAllUser(ctx context.Context, pagination request.Pagination) (users []response.User, err error)
 	BlockOrUnBlockUser(ctx context.Context, blockDetails request.BlockUser) error
 
 	GetFullSalesReport(ctx context.Context, requestData request.SalesReport) (salesReport []response.SalesReport, err error)
-	VerifyShop(ctx context.Context, verify domain.ShopVerification) error
+	VerifyShop(ctx context.Context, verify request.ShopVerification, adminId string) error
+	GetVerificationStatus(ctx context.Context, adminId string) (domain.Admin, domain.ShopVerification, error)
 
 	CreateAdvertisement(ctx context.Context, ad domain.Advertisement) (domain.Advertisement, error)
 	GetAllAdvertisements(ctx context.Context, pagination request.Pagination) (ads []domain.Advertisement, err error)
@@ -28,6 +33,14 @@ type AdminUseCase interface {
 	GetShopByOwnerID(ctx context.Context, ownerID uint) (shop domain.ShopDetails, err error)
 	SendNotificationToUsersInRadius(ctx context.Context, requestData request.NotificationRadiusRequest) error
 	SendNotificationToUser(ctx context.Context, userID uint, message string) error
+	UploadAdminProfileImage(ctx context.Context, adminID string, imagePath string) (string, error)
+	DecodeTokenData(tokenString string) string
+	UploadShopDocument(ctx context.Context, shopID uint, documentType string, documentValue string) error
+	UploadAddress(ctx context.Context, adminId string, address request.AddressRequest) error
+	VerifyShopDocument(ctx context.Context, otp string) error
+	UploadAdminDocumentOtpSend(ctx context.Context, adminId string, documentType string, documentValue string) error
+	UploadAdminDocumentOtpVerify(ctx context.Context, otp string, documentType string, documentValue string) error
+	GetAllProductDetails(ctx context.Context) (products []any, err error)
 }
 
 // GetCategory(ctx context.Context) (helper.Category, any)

@@ -2,8 +2,12 @@ package repository
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"strconv"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
@@ -43,12 +47,48 @@ func (c *adminDatabase) FindAdminByEmail(ctx context.Context, email string) (dom
 	return admin, err
 }
 
-func (c *adminDatabase) FindAdminByUserName(ctx context.Context, userName string) (domain.Admin, error) {
+func (c *adminDatabase) FindAdminByPhone(ctx context.Context, phone string) (domain.Admin, error) {
 
 	var admin domain.Admin
-	err := c.DB.Raw("SELECT * FROM admins WHERE user_name = $1", userName).Scan(&admin).Error
+	err := c.DB.Raw("SELECT * FROM admins WHERE mobile = $1", phone).Scan(&admin).Error
 
 	return admin, err
+}
+
+func (c *adminDatabase) FindAdminWithShopVerificationByPhone(ctx context.Context, phone string) (domain.Admin, domain.ShopVerification, error) {
+	var admin domain.Admin
+	var shopVerification domain.ShopVerification
+
+	// First get admin data
+	query := `SELECT a.id, a.full_name, a.email, a.password, a.address_line1, a.address_line2, 
+		a.city, a.state, a.country, a.pincode, a.mobile, a.latitude, a.longitude,
+		a.payment_status, a.payment_type, a.payment_date, a.start_date, a.expiry_date,
+		a.bank_account_number, a.bank_ifsc, a.pan, a.aadhar, a.agree_to_terms,
+		a.created_at, a.updated_at, a.verified_seller, a.status
+	FROM admins a 
+	WHERE a.mobile = $1`
+
+	err := c.DB.Raw(query, phone).Scan(&admin).Error
+	if err != nil {
+		return admin, shopVerification, err
+	}
+
+	// Then get shop verification data
+	shopQuery := `SELECT sv.id, sv.admin_id, sv.shop_id, sv.shop_name, sv.verification_status, 
+		sv.remarks, sv.agent_id, sv.created_at, sv.updated_at
+	FROM shop_verifications sv 
+	WHERE sv.admin_id = $1`
+
+	// Use string conversion of admin ID
+	adminIDStr := fmt.Sprintf("%d", admin.ID)
+	shopErr := c.DB.Raw(shopQuery, adminIDStr).Scan(&shopVerification).Error
+	// Shop verification might not exist, so don't treat as error
+	if shopErr != nil {
+		fmt.Printf("Shop verification not found for admin %d: %v\n", admin.ID, shopErr)
+	}
+
+	fmt.Printf("FindAdminWithShopVerificationByPhone - Admin: %+v, Shop: %+v\n", admin, shopVerification)
+	return admin, shopVerification, nil
 }
 
 func (c *adminDatabase) SaveAdmin(ctx context.Context, admin domain.Admin) error {
@@ -57,34 +97,34 @@ func (c *adminDatabase) SaveAdmin(ctx context.Context, admin domain.Admin) error
 		return tx.Error
 	}
 	// First insert into admins table
-	query := `INSERT INTO admins (user_name, email, mobile, password,
+	query := `INSERT INTO admins (full_name, email, mobile, password,
 		address_line1, address_line2, city, state, country, pincode,
 		bank_account_number, bank_ifsc, pan, aadhar, agree_to_terms,
-		verified, status, latitude, longitude, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-		$11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)`
+		verified_seller, status, latitude, longitude, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+		$11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21) RETURNING id`
 
-	if err := tx.Exec(query, admin.UserName, admin.Email, admin.Mobile, admin.Password,
+	var adminID = uuid.NewString()
+	err := tx.Raw(query, admin.FullName, admin.Email, admin.Mobile, admin.Password,
 		admin.AddressLine1, admin.AddressLine2, admin.City, admin.State, admin.Country, admin.Pincode,
 		admin.BankAccountNumber, admin.BankIFSC, admin.PAN, admin.Aadhar, admin.AgreeToTerms,
-		admin.Verified, admin.Status, admin.Latitude, admin.Longitude, time.Now(), time.Now()).Error; err != nil {
+		admin.VerifiedSeller, admin.Status, admin.Latitude, admin.Longitude, time.Now(), time.Now()).Scan(&adminID).Error
+	if err != nil {
 		tx.Rollback()
 		return err
 	}
 
-	// shopVerification := domain.ShopVerification{
-	// 	AdminID:            admin.ID,
-	// 	ShopID:             admin.ShopID,
-	// 	VerificationStatus: "under_review",
-	// 	Remarks:            "Shop registration under review",
-	// }
+	shopVerification := domain.ShopVerification{
+		AdminID: adminID,
+		Remarks: "Shop registration under review",
+	}
 
-	// queryShops := `INSERT INTO shop_verifications (shop_id, verification_status, remarks, created_at, updated_at)
-	// 	VALUES ($1, $2, $3, $4, $5)`
+	queryShops := `INSERT INTO shop_verifications (admin_id, verification_status, remarks, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5)`
 
-	// if err := tx.Exec(queryShops, admin.ShopID, shopVerification.VerificationStatus, shopVerification.Remarks, time.Now(), time.Now()).Error; err != nil {
-	// 	tx.Rollback()
-	// 	return err
-	// }
+	if err := tx.Exec(queryShops, adminID, shopVerification.VerificationStatus, shopVerification.Remarks, time.Now(), time.Now()).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
 
 	// Commit transaction if both inserts succeed
 	if err := tx.Commit().Error; err != nil {
@@ -138,11 +178,50 @@ func (c *adminDatabase) FindStockBySKU(ctx context.Context, sku string) (stock r
 	return stock, err
 }
 
-func (c *adminDatabase) VerifyShop(ctx context.Context, shopVerification domain.ShopVerification) error {
-	query := `UPDATE admins SET shop_verification_status = $1, updated_at = $2 WHERE id = $3`
-	err := c.DB.Exec(query, shopVerification.VerificationStatus, time.Now(), shopVerification.ShopID).Error
+func (c *adminDatabase) VerifyShop(ctx context.Context, shopVerification request.ShopVerification, adminId string, verificationStatus bool) error {
+	// Get shop Id and shop name using admin Id and Insert the table firsttime and next time just update the status
+	var verificationStatusValue bool
+	query := `SELECT id, shop_name, document_type FROM shop_details WHERE admin_id = $1`
+	var shopID *string
+	var shopName *string
+	var Document_Type *string
+	err := c.DB.Raw(query, adminId).Scan(&struct {
+		ShopID        *string `gorm:"column:id"`
+		ShopName      *string `gorm:"column:shop_name"`
+		Document_Type *string `gorm:"column:document_type"`
+	}{shopID, shopName, Document_Type}).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return fmt.Errorf("failed to fetch shop details for admin %s: %v", adminId, err)
+	}
 
-	return err
+	fmt.Printf("Document_Type for admin %s: %v\n", adminId, Document_Type)
+
+	// Check if Document_Type is nil before dereferencing
+	if Document_Type != nil && *Document_Type != "manual" {
+		verificationStatusValue = verificationStatus
+	} else {
+		// If Document_Type is nil or "manual", use the provided verificationStatus
+		verificationStatusValue = verificationStatus
+	}
+
+	fmt.Printf("Fetched shop details for admin %s: shopID=%v, shopName=%v, verificationStatusValue=%v\n", adminId, shopID, shopName, verificationStatusValue)
+
+	insertQuery := `INSERT INTO shop_details (admin_id, shop_name, shop_verification_status, photo_shop_verification, business_doc_verification, identity_doc_verification, address_proof_verification, updated_at, created_at)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+	ON CONFLICT (admin_id) DO UPDATE SET
+	shop_name = EXCLUDED.shop_name,
+	shop_verification_status = EXCLUDED.shop_verification_status,
+	photo_shop_verification = EXCLUDED.photo_shop_verification,
+	business_doc_verification = EXCLUDED.business_doc_verification,
+	identity_doc_verification = EXCLUDED.identity_doc_verification,
+	address_proof_verification = EXCLUDED.address_proof_verification,
+	updated_at = EXCLUDED.updated_at`
+	err = c.DB.Exec(insertQuery, adminId, shopName, verificationStatusValue, shopVerification.Photo_Shop_Verification, shopVerification.Business_Doc_Verification, shopVerification.Identity_Doc_Verification, shopVerification.Address_Proof_Verification, time.Now(), time.Now()).Error
+	if err != nil {
+		return fmt.Errorf("failed to upsert shop details for admin %s: %v", adminId, err)
+	}
+	return nil
+
 }
 
 func (c *adminDatabase) CreateAdvertisement(ctx context.Context, ad domain.Advertisement) (domain.Advertisement, error) {
@@ -192,19 +271,19 @@ func (c *adminDatabase) CreateShop(ctx context.Context, shop domain.ShopDetails)
 		return shop, tx.Error
 	}
 
-	query := `INSERT INTO shop_details (owner_id, shop_name, gstin, shop_id, address_line1, address_line2, email, mobile,
-	city, state, country, pincode, bank_account_number, shop_type, shop_status, bank_ifsc, pan, gstin, msme_registration_number, electricity_bill, itr_documents, created_at, updated_at)
+	query := `INSERT INTO shop_details (owner_id, shop_name, address_line1, address_line2, email, mobile,
+	city, state, country, pincode, bank_account_number, shop_type, shop_status, bank_ifsc, pan, itr_documents, document_type, document_value, created_at, updated_at)
 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22) RETURNING id`
 
-	err := tx.Exec(query, shop.OwnerID, shop.ShopName, shop.GSTIN, shop.ShopID, shop.AddressLine1,
-		shop.AddressLine2, shop.Email, shop.Mobile, shop.City, shop.State, shop.Country, shop.Pincode,
-		shop.BankAccountNumber, shop.ShopType, shop.ShopStatus, shop.BankIFSC, shop.PanNumber, shop.GSTIN, shop.MSMERegistrationNumber, shop.ElectricityBill, shop.ITRDocuments,
+	err := tx.Exec(query, shop.AdminID, shop.ShopName, shop.AddressLine1,
+		shop.AddressLine2, shop.Email, shop.Phone, shop.City, shop.State, shop.Country, shop.Pincode,
+		shop.BankAccountNumber, shop.ShopType, shop.ShopStatus, shop.BankIFSC, shop.PanNumber, shop.ITRDocuments, shop.Document_Type, shop.Document_Value,
 		time.Now(), time.Now()).Scan(&shop.ID).Error
 
 	queryShops := `INSERT INTO shop_verifications (shop_id, admin_id, verification_status, remarks, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6)`
 
-	if err := tx.Exec(queryShops, shop.ShopID, shop.OwnerID, shop.ShopVerificationStatus, shop.ShopVerificationRemarks, time.Now(), time.Now()).Error; err != nil {
+	if err := tx.Exec(queryShops, shop.AdminID, shop.ShopVerificationStatus, shop.ShopVerificationRemarks, time.Now(), time.Now()).Error; err != nil {
 		tx.Rollback()
 		return shop, err
 	}
@@ -235,18 +314,18 @@ func (c *adminDatabase) GetShopByID(ctx context.Context, shopID uint) (shop doma
 }
 
 func (c *adminDatabase) UpdateShop(ctx context.Context, shop domain.ShopDetails) (domain.ShopDetails, error) {
-	query := `UPDATE shop_details SET owner_id = $1, shop_name = $2, gstin = $3, shop_id = $4,
-	address_line1 = $5, address_line2 = $6, city = $7, state = $8, country = $9, pincode = $10,
-	bank_account_number = $11, bank_ifsc = $12, pan = $13, latitude = $14, longitude = $15, gstin = $16, MSME_registration_number = $17, electricity_bill = $18, itr_documents = $19, shop_verification_status = $20, shop_verification_remarks = $21, updated_at = $22 WHERE id = $23`
+	query := `UPDATE shop_details SET admin_id = $1, shop_name = $2, shop_id = $3,
+	address_line1 = $4, address_line2 = $5, city = $6, state = $7, country = $8, pincode = $9,
+	bank_account_number = $10, bank_ifsc = $11, pan = $12, latitude = $13, longitude = $14, itr_documents = $15, shop_verification_status = $16, shop_verification_remarks = $17, updated_at = $18, document_type = $19, document_value = $20 WHERE id = $21`
 
-	err := c.DB.Exec(query, shop.OwnerID, shop.ShopName, shop.GSTIN, shop.ShopID,
+	err := c.DB.Exec(query, shop.AdminID, shop.ShopName,
 		shop.AddressLine1, shop.AddressLine2, shop.City, shop.State, shop.Country, shop.Pincode,
-		shop.BankAccountNumber, shop.BankIFSC, shop.PanNumber, shop.Latitude, shop.Longitude, shop.GSTIN, shop.MSMERegistrationNumber, shop.ElectricityBill, shop.ITRDocuments, shop.ShopVerificationStatus, shop.ShopVerificationRemarks, time.Now(), shop.ID).Error
+		shop.BankAccountNumber, shop.BankIFSC, shop.PanNumber, shop.Latitude, shop.Longitude, shop.ITRDocuments, shop.ShopVerificationStatus, shop.ShopVerificationRemarks, time.Now(), shop.Document_Type, shop.Document_Value, shop.ID).Error
 	return shop, err
 }
 
 func (c *adminDatabase) GetShopByOwnerID(ctx context.Context, ownerID uint) (shop domain.ShopDetails, err error) {
-	query := `SELECT * FROM shop_details WHERE owner_id = $1`
+	query := `SELECT * FROM shop_details WHERE admin_id = $1`
 	err = c.DB.Raw(query, ownerID).Scan(&shop).Error
 
 	return shop, err
@@ -282,4 +361,101 @@ func (c *adminDatabase) SendNotificationToUser(ctx context.Context, userID uint,
 		return err
 	}
 	return nil
+}
+
+func (c *adminDatabase) UploadAdminProfileImage(ctx context.Context, adminID string, imagePath string) (string, error) {
+	query := `UPDATE shop_details SET shop_image_url = $1, updated_at = $2 WHERE id = $3`
+	err := c.DB.Exec(query, imagePath, time.Now(), adminID).Error
+	return imagePath, err
+}
+
+func (c *adminDatabase) UploadShopDocument(ctx context.Context, shopID uint, documentType string, documentValue string) error {
+	query := `UPDATE shop_details SET document_type = $1, document_value = $2, updated_at = $3 WHERE admin_id = $4`
+	err := c.DB.Exec(query, documentType, documentValue, time.Now(), shopID).Error
+	return err
+}
+
+func (c *adminDatabase) UploadAddress(ctx context.Context, adminId string, address request.AddressRequest) error {
+	// Parse latitude and longitude from string to float64
+	latitude, err := strconv.ParseFloat(address.Latitude, 64)
+	if err != nil {
+		return fmt.Errorf("invalid latitude format: %v", err)
+	}
+
+	longitude, err := strconv.ParseFloat(address.Longitude, 64)
+	if err != nil {
+		return fmt.Errorf("invalid longitude format: %v", err)
+	}
+
+	//insert or update address in shop_details table
+	query := `INSERT INTO shop_details (admin_id, shop_name, phone, address_line1, address_line2, city, state, pincode, latitude, longitude, created_at, updated_at)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+	ON CONFLICT (admin_id) DO UPDATE SET
+		shop_name = EXCLUDED.shop_name,
+		phone = EXCLUDED.phone,
+		address_line1 = EXCLUDED.address_line1,
+		address_line2 = EXCLUDED.address_line2,
+		city = EXCLUDED.city,
+		state = EXCLUDED.state,
+		pincode = EXCLUDED.pincode,
+		latitude = EXCLUDED.latitude,
+		longitude = EXCLUDED.longitude,
+		updated_at = EXCLUDED.updated_at`
+
+	err = c.DB.Exec(query, adminId, address.ShopName, address.Phone, address.AddressLine1, address.AddressLine2, address.City, address.State, address.Pincode,
+		latitude, longitude, time.Now(), time.Now()).Error
+
+	return err
+}
+
+func (c *adminDatabase) UploadAdminDocumentOtpSend(ctx context.Context, adminID string, documentType string, documentValue string) error {
+	// For simplicity, assuming OTP verification is done elsewhere
+	var value string
+	if documentType == "Pan" {
+		value = documentType
+	} else {
+		value = documentType
+	}
+
+	// documentValue is a column name of admins table
+	query := `UPDATE admins SET ` + value + ` = $1, updated_at = $2 WHERE id = $3`
+	err := c.DB.Exec(query, value, time.Now(), adminID).Error
+	return err
+}
+
+func (c *adminDatabase) GetVerificationStatus(ctx context.Context, adminId string) (domain.Admin, domain.ShopVerification, error) {
+	var admin domain.Admin
+	var shopVerification domain.ShopVerification
+
+	// Get admin verification status
+	adminQuery := `SELECT verified_seller FROM admins WHERE id = $1`
+	err := c.DB.Raw(adminQuery, adminId).Scan(&admin).Error
+	if err != nil {
+		return admin, shopVerification, err
+	}
+
+	// Get shop details (shop_verification_status and document_type)
+	var shopDetails struct {
+		ShopVerificationStatus bool   `gorm:"column:shop_verification_status"`
+		DocumentType           string `gorm:"column:document_type"`
+	}
+	shopDetailsQuery := `SELECT shop_verification_status, document_type FROM shop_details WHERE admin_id = $1`
+	shopDetailsErr := c.DB.Raw(shopDetailsQuery, adminId).Scan(&shopDetails).Error
+	if shopDetailsErr != nil && !errors.Is(shopDetailsErr, gorm.ErrRecordNotFound) {
+		return admin, shopVerification, shopDetailsErr
+	}
+
+	// Get shop verification status
+	shopQuery := `SELECT verification_status FROM shop_verifications WHERE admin_id = $1`
+	err = c.DB.Raw(shopQuery, adminId).Scan(&shopVerification).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return admin, shopVerification, err
+	}
+
+	// Set the shop details values in the shopVerification struct if found
+	if shopDetailsErr == nil {
+		shopVerification.VerificationStatus = shopDetails.ShopVerificationStatus
+	}
+
+	return admin, shopVerification, nil
 }

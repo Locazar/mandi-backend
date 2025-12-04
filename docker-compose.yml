@@ -2,13 +2,17 @@ version: '3'
 services:
 # database container
   postgresdb:
-    image: postgres
+    build:
+      context: ./docker/postgres
+      dockerfile: Dockerfile
     environment:
       POSTGRES_USER: rohitjangid
       POSTGRES_PASSWORD: 12345
       POSTGRES_DB: mandi
     volumes:
       - database:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
     networks:
       - ecommerce-network
 # webapp container

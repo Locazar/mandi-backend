@@ -109,7 +109,7 @@ func (u *AuthHandler) UserLoginOtpSend(ctx *gin.Context) {
 	}
 
 	//check all input field is empty
-	if body.Email == "" && body.Phone == "" && body.UserName == "" {
+	if body.Email == "" && body.Phone == "" {
 		err := errors.New("enter at least user_name or email or phone")
 		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
 		return
@@ -288,8 +288,9 @@ func (c *AuthHandler) AdminLogin(ctx *gin.Context) {
 		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, body)
 		return
 	}
+	fmt.Printf("Admin login details: %+v\n", body)
 
-	adminID, err := c.authUseCase.AdminLogin(ctx, body)
+	admin, shopVerification, err := c.authUseCase.AdminLogin(ctx, body)
 	if err != nil {
 
 		var statusCode int
@@ -309,13 +310,15 @@ func (c *AuthHandler) AdminLogin(ctx *gin.Context) {
 		return
 	}
 
+	fmt.Printf("Admin login successful, adminID: %d\n", admin.ID)
 	// setup token common part
-	c.setupTokenAndResponse(ctx, token.Admin, adminID)
+	c.setupTokenAndResponse(ctx, token.Admin, admin.ID, shopVerification)
 }
 
 // access and refresh token generating for user and admin is same so created
 // a common function for it.(differentiate user by user type )
-func (c *AuthHandler) setupTokenAndResponse(ctx *gin.Context, tokenUser token.UserType, userID uint) {
+// customResponse is optional - if provided, it will be used instead of default success response
+func (c *AuthHandler) setupTokenAndResponse(ctx *gin.Context, tokenUser token.UserType, userID uint, customResponse ...interface{}) {
 
 	tokenParams := usecaseInterface.GenerateTokenParams{
 		UserID:   userID,
@@ -349,7 +352,35 @@ func (c *AuthHandler) setupTokenAndResponse(ctx *gin.Context, tokenUser token.Us
 		RefreshToken: refreshToken,
 	}
 
-	response.SuccessResponse(ctx, http.StatusOK, "Successfully logged in", tokenRes)
+	// Merge custom response with token response if provided
+	var responseData interface{} = tokenRes
+	var message string = "Successfully logged in"
+
+	if len(customResponse) > 0 {
+		// Create merged response combining tokenRes and custom data
+		mergedData := map[string]interface{}{
+			"tokens": tokenRes,
+		}
+
+		// Add custom data to the merged response
+		if customData, ok := customResponse[0].(map[string]interface{}); ok {
+			for key, value := range customData {
+				mergedData[key] = value
+			}
+		} else {
+			mergedData["data"] = customResponse[0]
+		}
+
+		responseData = mergedData
+	}
+
+	if len(customResponse) > 1 {
+		if msg, ok := customResponse[1].(string); ok {
+			message = msg
+		}
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, message, responseData)
 }
 
 // UserRenewAccessToken godoc
@@ -443,4 +474,96 @@ func (c *AuthHandler) renewAccessToken(tokenUser token.UserType) gin.HandlerFunc
 		}
 		response.SuccessResponse(ctx, http.StatusOK, "Successfully generated access token using refresh token", accessTokenRes)
 	}
+}
+
+// UserLoginOtpSendEmail godoc
+//
+//	@Summary		Login with Otp send email (User)
+//	@Description	API for user to send otp for login enter email : otp will send to user registered email
+//	@Id				UserLoginOtpSendEmail
+//	@Tags			User Authentication
+//	@Param			inputs	body	request.OTPLoginEmail{}	true	"Login credentials"
+//	@Router			/auth/sign-in/otp/send-email [post]
+//	@Success		200	{object}	response.Response{response.OTPResponse{}}	"Successfully otp send to user's registered email"
+//	@Failure		400	{object}	response.Response{}							"Invalid Otp"
+//	@Failure		403	{object}	response.Response{}							"User blocked by admin"
+//	@Failure		401	{object}	response.Response{}							"User not exist with given login credentials"
+//	@Failure		500	{object}	response.Response{}							"Failed to send otp"
+func (c *AuthHandler) UserLoginOtpSendEmail(ctx *gin.Context) {
+
+	var body request.OTPLoginEmail
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, body)
+		return
+	}
+
+	//check all input field is empty
+	if body.Email == "" {
+		err := errors.New("enter at least user_name or email or phone")
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+
+	otpID, err := c.authUseCase.UserLoginOtpSendEmail(ctx, body)
+
+	if err != nil {
+		var statusCode int
+
+		switch {
+		case errors.Is(err, usecase.ErrEmptyLoginCredentials):
+			statusCode = http.StatusBadRequest
+		case errors.Is(err, usecase.ErrUserNotExist):
+			statusCode = http.StatusForbidden
+		case errors.Is(err, usecase.ErrUserBlocked):
+			statusCode = http.StatusUnauthorized
+		default:
+			statusCode = http.StatusInternalServerError
+		}
+		response.ErrorResponse(ctx, statusCode, "Failed to send otp", err, nil)
+		return
+	}
+
+	otpRes := response.OTPResponse{
+		OtpID: otpID,
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully otp send to user's registered email", otpRes)
+}
+
+// UserLoginOtpVerifyEmail godoc
+//
+//	@summary		Login with Otp verify email (User)
+//	@description	API for user to verify otp
+//	@id				UserLoginOtpVerifyEmail
+//	@tags			User Authentication
+//	@param			inputs	body	request.OTPVerify{}	true	"Otp Verify Details"
+//	@Router			/auth/sign-in/otp/verify-email [post]
+//	@Success		200	{object}	response.Response{data=response.TokenResponse}	"Successfully user logged in"
+//	@Failure		400	{object}	response.Response{}								"Invalid inputs"
+//	@Failure		401	{object}	response.Response{}								"Otp not matched"
+//	@Failure		410	{object}	response.Response{}								"Otp Expired"
+//	@Failure		500	{object}	response.Response{}								"Failed to verify otp
+func (c *AuthHandler) UserLoginOtpVerifyEmail(ctx *gin.Context) {
+	var body request.OTPVerify
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, body)
+		return
+	}
+
+	// get the user using loginOtp useCase
+	userID, err := c.authUseCase.LoginOtpVerify(ctx, body)
+	if err != nil {
+		var statusCode int
+		switch {
+		case errors.Is(err, usecase.ErrOtpExpired):
+			statusCode = http.StatusGone
+		case errors.Is(err, usecase.ErrInvalidOtp):
+			statusCode = http.StatusUnauthorized
+		default:
+			statusCode = http.StatusInternalServerError
+		}
+		response.ErrorResponse(ctx, statusCode, "Failed to verify otp", err, nil)
+		return
+	}
+
+	c.setupTokenAndResponse(ctx, token.User, userID)
 }

@@ -50,6 +50,21 @@ func (mr *MockAuthRepositoryMockRecorder) FindOtpSession(ctx, otpID interface{})
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindOtpSession", reflect.TypeOf((*MockAuthRepository)(nil).FindOtpSession), ctx, otpID)
 }
 
+// FindOtpSessionEmail mocks base method.
+func (m *MockAuthRepository) FindOtpSessionEmail(ctx context.Context, otpID string) (domain.OtpSessionEmail, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindOtpSessionEmail", ctx, otpID)
+	ret0, _ := ret[0].(domain.OtpSessionEmail)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindOtpSessionEmail indicates an expected call of FindOtpSessionEmail.
+func (mr *MockAuthRepositoryMockRecorder) FindOtpSessionEmail(ctx, otpID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindOtpSessionEmail", reflect.TypeOf((*MockAuthRepository)(nil).FindOtpSessionEmail), ctx, otpID)
+}
+
 // FindRefreshSessionByTokenID mocks base method.
 func (m *MockAuthRepository) FindRefreshSessionByTokenID(ctx context.Context, tokenID string) (domain.RefreshSession, error) {
 	m.ctrl.T.Helper()
@@ -77,6 +92,20 @@ func (m *MockAuthRepository) SaveOtpSession(ctx context.Context, otpSession doma
 func (mr *MockAuthRepositoryMockRecorder) SaveOtpSession(ctx, otpSession interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveOtpSession", reflect.TypeOf((*MockAuthRepository)(nil).SaveOtpSession), ctx, otpSession)
+}
+
+// SaveOtpSessionEmail mocks base method.
+func (m *MockAuthRepository) SaveOtpSessionEmail(ctx context.Context, otpSession domain.OtpSessionEmail) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SaveOtpSessionEmail", ctx, otpSession)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SaveOtpSessionEmail indicates an expected call of SaveOtpSessionEmail.
+func (mr *MockAuthRepositoryMockRecorder) SaveOtpSessionEmail(ctx, otpSession interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveOtpSessionEmail", reflect.TypeOf((*MockAuthRepository)(nil).SaveOtpSessionEmail), ctx, otpSession)
 }
 
 // SaveRefreshSession mocks base method.

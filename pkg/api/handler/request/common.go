@@ -5,9 +5,8 @@ import (
 )
 
 type OTPLogin struct {
-	Email    string `json:"email" binding:"omitempty,email"`
-	UserName string `json:"user_name" binding:"omitempty,min=3,max=16"`
-	Phone    string `json:"phone" binding:"omitempty,min=10,max=10"`
+	Email string `json:"email" binding:"omitempty,email"`
+	Phone string `json:"phone" binding:"omitempty,min=10,max=10"`
 }
 
 type OTPVerify struct {

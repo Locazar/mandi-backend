@@ -1,14 +1,30 @@
 package response
 
-import "time"
+import (
+	"time"
+
+	"github.com/rohit221990/mandi-backend/pkg/domain"
+)
 
 var ResoposeMap map[string]string
 
 // admin
 type AdminLogin struct {
-	ID       uint   `json:"id" `
-	UserName string `json:"user_name"`
-	Email    string `json:"email"`
+	ID    uint   `json:"id" `
+	Email string `json:"email"`
+}
+
+type AdminWithShopVerification struct {
+	Admin            domain.Admin            `json:"admin"`
+	ShopVerification domain.ShopVerification `json:"shop_verification"`
+}
+
+// Helper function to convert domain objects to response
+func ConvertAdminToResponse(admin domain.Admin, shopVerification domain.ShopVerification) AdminWithShopVerification {
+	return AdminWithShopVerification{
+		Admin:            admin,
+		ShopVerification: shopVerification,
+	}
 }
 
 // reponse for get all variations with its respective category

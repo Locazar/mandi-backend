@@ -5,6 +5,7 @@ import "time"
 type TokenService interface {
 	GenerateToken(req GenerateTokenRequest) (GenerateTokenResponse, error)
 	VerifyToken(req VerifyTokenRequest) (VerifyTokenResponse, error)
+	DecodeTokenData(tokenString string) string
 }
 
 type UserType string

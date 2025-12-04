@@ -13,4 +13,7 @@ type AuthRepository interface {
 
 	SaveOtpSession(ctx context.Context, otpSession domain.OtpSession) error
 	FindOtpSession(ctx context.Context, otpID string) (domain.OtpSession, error)
+
+	SaveOtpSessionEmail(ctx context.Context, otpSession domain.OtpSessionEmail) error
+	FindOtpSessionEmail(ctx context.Context, otpID string) (domain.OtpSessionEmail, error)
 }

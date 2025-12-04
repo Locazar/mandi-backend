@@ -15,9 +15,6 @@ func CompareUserExistingDetails(user1, user2 domain.User) error {
 	if user1.Email == user2.Email {
 		err = AppendMessageToError(err, "user already exist with this email")
 	}
-	if user1.UserName == user2.UserName {
-		err = AppendMessageToError(err, "user already exist with this user name")
-	}
 	if user1.Phone == user2.Phone {
 		err = AppendMessageToError(err, "user already exist with this phone")
 	}

@@ -113,6 +113,21 @@ func (mr *MockAuthUseCaseMockRecorder) LoginOtpVerify(ctx, otpVerifyDetails inte
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LoginOtpVerify", reflect.TypeOf((*MockAuthUseCase)(nil).LoginOtpVerify), ctx, otpVerifyDetails)
 }
 
+// LoginOtpVerifyEmail mocks base method.
+func (m *MockAuthUseCase) LoginOtpVerifyEmail(ctx context.Context, otpVerifyDetails request.OTPVerify) (uint, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "LoginOtpVerifyEmail", ctx, otpVerifyDetails)
+	ret0, _ := ret[0].(uint)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// LoginOtpVerifyEmail indicates an expected call of LoginOtpVerifyEmail.
+func (mr *MockAuthUseCaseMockRecorder) LoginOtpVerifyEmail(ctx, otpVerifyDetails interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LoginOtpVerifyEmail", reflect.TypeOf((*MockAuthUseCase)(nil).LoginOtpVerifyEmail), ctx, otpVerifyDetails)
+}
+
 // SingUpOtpVerify mocks base method.
 func (m *MockAuthUseCase) SingUpOtpVerify(ctx context.Context, otpVerifyDetails request.OTPVerify) (uint, error) {
 	m.ctrl.T.Helper()
@@ -156,6 +171,21 @@ func (m *MockAuthUseCase) UserLoginOtpSend(ctx context.Context, loginDetails req
 func (mr *MockAuthUseCaseMockRecorder) UserLoginOtpSend(ctx, loginDetails interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UserLoginOtpSend", reflect.TypeOf((*MockAuthUseCase)(nil).UserLoginOtpSend), ctx, loginDetails)
+}
+
+// UserLoginOtpSendEmail mocks base method.
+func (m *MockAuthUseCase) UserLoginOtpSendEmail(ctx context.Context, emailDetails request.OTPLoginEmail) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UserLoginOtpSendEmail", ctx, emailDetails)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UserLoginOtpSendEmail indicates an expected call of UserLoginOtpSendEmail.
+func (mr *MockAuthUseCaseMockRecorder) UserLoginOtpSendEmail(ctx, emailDetails interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UserLoginOtpSendEmail", reflect.TypeOf((*MockAuthUseCase)(nil).UserLoginOtpSendEmail), ctx, emailDetails)
 }
 
 // UserSignUp mocks base method.

@@ -3415,6 +3415,59 @@ const docTemplate = `{
                 }
             }
         },
+        "/auth/sign-in/otp/send-email": {
+            "post": {
+                "description": "API for user to send otp for login enter email : otp will send to user registered email",
+                "tags": [
+                    "User Authentication"
+                ],
+                "summary": "Login with Otp send email (User)",
+                "operationId": "UserLoginOtpSendEmail",
+                "parameters": [
+                    {
+                        "description": "Login credentials",
+                        "name": "inputs",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.OTPLoginEmail"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully otp send to user's registered email",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid Otp",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "User not exist with given login credentials",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "User blocked by admin",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to send otp",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/auth/sign-in/otp/verify": {
             "post": {
                 "description": "API for user to verify otp",
@@ -3423,6 +3476,71 @@ const docTemplate = `{
                 ],
                 "summary": "Login with Otp verify (User)",
                 "operationId": "UserLoginOtpVerify",
+                "parameters": [
+                    {
+                        "description": "Otp Verify Details",
+                        "name": "inputs",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.OTPVerify"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully user logged in",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/response.TokenResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid inputs",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Otp not matched",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "410": {
+                        "description": "Otp Expired",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to verify otp",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/sign-in/otp/verify-email": {
+            "post": {
+                "description": "API for user to verify otp",
+                "tags": [
+                    "User Authentication"
+                ],
+                "summary": "Login with Otp verify email (User)",
+                "operationId": "UserLoginOtpVerifyEmail",
                 "parameters": [
                     {
                         "description": "Otp Verify Details",
@@ -5680,7 +5798,6 @@ const docTemplate = `{
                 "mobile",
                 "password",
                 "pincode",
-                "shop_name",
                 "state",
                 "user_name"
             ],
@@ -5712,15 +5829,7 @@ const docTemplate = `{
                 "created_at": {
                     "type": "string"
                 },
-                "electricity_bill": {
-                    "description": "URL or path to electricity bill document",
-                    "type": "string"
-                },
                 "email": {
-                    "type": "string"
-                },
-                "gstin": {
-                    "description": "GST number (optional)",
                     "type": "string"
                 },
                 "id": {
@@ -5746,25 +5855,6 @@ const docTemplate = `{
                 "pincode": {
                     "type": "string"
                 },
-                "shop_id": {
-                    "description": "Shop registration number",
-                    "type": "string"
-                },
-                "shop_name": {
-                    "type": "string"
-                },
-                "shop_type": {
-                    "description": "e.g. \"retail\", \"wholesale\"",
-                    "type": "string"
-                },
-                "shop_verification_remarks": {
-                    "description": "remarks regarding verification",
-                    "type": "string"
-                },
-                "shop_verification_status": {
-                    "description": "e.g. \"verified\", \"unverified\", \"under_review\"",
-                    "type": "string"
-                },
                 "state": {
                     "type": "string"
                 },
@@ -5780,7 +5870,7 @@ const docTemplate = `{
                     "maxLength": 15,
                     "minLength": 3
                 },
-                "verified": {
+                "verified_seller": {
                     "description": "e.g. \"yes\", \"no\", \"pending\"",
                     "type": "string"
                 }
@@ -6023,6 +6113,12 @@ const docTemplate = `{
                 "land_mark": {
                     "type": "string"
                 },
+                "latitude": {
+                    "type": "number"
+                },
+                "longitude": {
+                    "type": "number"
+                },
                 "name": {
                     "type": "string",
                     "maxLength": 50,
@@ -6160,6 +6256,12 @@ const docTemplate = `{
                 },
                 "land_mark": {
                     "type": "string"
+                },
+                "latitude": {
+                    "type": "number"
+                },
+                "longitude": {
+                    "type": "number"
                 },
                 "name": {
                     "type": "string",
@@ -6451,6 +6553,17 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 16,
                     "minLength": 3
+                }
+            }
+        },
+        "request.OTPLoginEmail": {
+            "type": "object",
+            "required": [
+                "email"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
                 }
             }
         },

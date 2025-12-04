@@ -17,13 +17,15 @@ type AuthUseCase interface {
 	UserLogin(ctx context.Context, loginDetails request.Login) (userID uint, err error)
 	UserLoginOtpSend(ctx context.Context, loginDetails request.OTPLogin) (otpID string, err error)
 	LoginOtpVerify(ctx context.Context, otpVerifyDetails request.OTPVerify) (userID uint, err error)
+	UserLoginOtpSendEmail(ctx context.Context, emailDetails request.OTPLoginEmail) (otpID string, err error)
 
 	// admin
-	AdminLogin(ctx context.Context, loginDetails request.Login) (adminID uint, err error)
+	AdminLogin(ctx context.Context, loginDetails request.Login) (domain.Admin, domain.ShopVerification, error)
 	// token
 	GenerateAccessToken(ctx context.Context, tokenParams GenerateTokenParams) (tokenString string, err error)
 	GenerateRefreshToken(ctx context.Context, tokenParams GenerateTokenParams) (tokenString string, err error)
 	VerifyAndGetRefreshTokenSession(ctx context.Context, refreshToken string, usedFor token.UserType) (domain.RefreshSession, error)
+	LoginOtpVerifyEmail(ctx context.Context, otpVerifyDetails request.OTPVerify) (userID uint, err error)
 }
 
 type GenerateTokenParams struct {

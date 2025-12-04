@@ -91,6 +91,12 @@ type Offer struct {
 	DiscountRate uint      `json:"discount_rate" gorm:"not null" binding:"required,numeric,min=1,max=100"`
 	StartDate    time.Time `json:"start_date" gorm:"not null" binding:"required"`
 	EndDate      time.Time `json:"end_date" gorm:"not null" binding:"required,gtfield=StartDate"`
+	ProductID    uint      `json:"product_id"`
+	Product      Product   `json:"-"`
+	CreatedAt    time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt    time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+	AdminID      uint      `json:"admin_id"`
+	ShopID       uint      `json:"shop_id"`
 }
 
 type OfferCategory struct {
