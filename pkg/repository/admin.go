@@ -166,7 +166,7 @@ func (c *adminDatabase) CreateFullSalesReport(ctc context.Context, salesReq requ
 
 // stock side
 func (c *adminDatabase) FindStockBySKU(ctx context.Context, sku string) (stock response.Stock, err error) {
-	query := `SELECT pi.sku, pi.qty_in_stock, pi.price, p.name AS product_name, vo.value AS variation_value  
+	query := `SELECT p.name AS product_name, vo.value AS variation_value  
 	FROM product_items pi 
 	INNER JOIN products p ON p.id = pi.product_id 
 	INNER JOIN product_configurations pc ON pc.product_item_id = pi.id 

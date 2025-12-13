@@ -1044,3 +1044,13 @@ func (a *adminHandler) GetAllProductDetails(ctx *gin.Context) {
 
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved all product details", productDetails)
 }
+
+func (a *ProductHandler) GetAllSubCategories(ctx *gin.Context) {
+	subCategories, err := a.productUseCase.GetAllSubCategories(ctx)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get sub-categories", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved all sub-categories", subCategories)
+}

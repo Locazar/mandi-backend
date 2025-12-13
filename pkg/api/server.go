@@ -49,6 +49,10 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware middlewa
 	// swagger docs
 	engine.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
 
+	// Serve static files from uploads directory
+	// Using StaticFS with http.Dir for better control
+	engine.StaticFS("/uploads", http.Dir("./uploads"))
+
 	// set up routes
 	routes.UserRoutes(engine.Group("/api"), authHandler, middleware, userHandler, cartHandler,
 		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler, notificationHandler)

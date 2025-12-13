@@ -207,14 +207,6 @@ func (c *userUserCase) FindAllWishListItems(ctx context.Context, userID uint) ([
 		return nil, utils.PrependMessageToError(err, "failed to find wish list product items")
 	}
 
-	for i, productItem := range wishListItems {
-		variationValues, err := c.productRepo.FindAllVariationValuesOfProductItem(ctx, productItem.ProductItemID)
-		if err != nil {
-			return nil, utils.PrependMessageToError(err, "failed to find variation values product item")
-		}
-		wishListItems[i].VariationValues = variationValues
-	}
-
 	return wishListItems, nil
 }
 

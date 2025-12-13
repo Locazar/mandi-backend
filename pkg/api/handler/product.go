@@ -1,8 +1,11 @@
 package handler
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 
@@ -13,17 +16,29 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
+	"github.com/rohit221990/mandi-backend/pkg/service/token"
 	"github.com/rohit221990/mandi-backend/pkg/usecase"
 	usecaseInterface "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
+	"github.com/rohit221990/mandi-backend/pkg/utils"
 )
+
+// Helper function to get minimum of two integers
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
 
 type ProductHandler struct {
 	productUseCase usecaseInterface.ProductUseCase
+	tokenService   token.TokenService
 }
 
-func NewProductHandler(productUsecase usecaseInterface.ProductUseCase) interfaces.ProductHandler {
+func NewProductHandler(productUsecase usecaseInterface.ProductUseCase, tokenService token.TokenService) interfaces.ProductHandler {
 	return &ProductHandler{
 		productUseCase: productUsecase,
+		tokenService:   tokenService,
 	}
 }
 
@@ -57,7 +72,11 @@ func (p *ProductHandler) GetAllCategories(ctx *gin.Context) {
 		return
 	}
 
-	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved all categories", categories)
+	ctx.JSON(http.StatusOK, response.Response{
+		Status:  true,
+		Message: "Successfully get all categories",
+		Data:    categories,
+	})
 }
 
 // SaveCategory godoc
@@ -76,7 +95,8 @@ func (p *ProductHandler) GetAllCategories(ctx *gin.Context) {
 //	@Failure		409	{object}	response.Response{}	"Category already exist"
 //	@Failure		409	{object}	response.Response{}	"Failed to save category"
 func (p *ProductHandler) SaveCategory(ctx *gin.Context) {
-
+	var department_id string = ctx.Param("department_id")
+	print("department id in handler", department_id)
 	var body request.Category
 
 	if err := ctx.ShouldBindJSON(&body); err != nil {
@@ -84,7 +104,7 @@ func (p *ProductHandler) SaveCategory(ctx *gin.Context) {
 		return
 	}
 
-	err := p.productUseCase.SaveCategory(ctx, body.Name)
+	err := p.productUseCase.SaveCategory(ctx, body, department_id)
 
 	if err != nil {
 
@@ -116,14 +136,15 @@ func (p *ProductHandler) SaveCategory(ctx *gin.Context) {
 //	@Failure		409	{object}	response.Response{}	"Sub category already exist"
 //	@Failure		500	{object}	response.Response{}	"Failed to add subcategory"
 func (p *ProductHandler) SaveSubCategory(ctx *gin.Context) {
-
+	var department_id string = ctx.Param("department_id")
+	var category_id string = ctx.Param("category_id")
 	var body request.SubCategory
 	if err := ctx.ShouldBindJSON(&body); err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
 		return
 	}
 
-	err := p.productUseCase.SaveSubCategory(ctx, body)
+	err := p.productUseCase.SaveSubCategory(ctx, body, department_id, category_id)
 
 	if err != nil {
 
@@ -264,34 +285,52 @@ func (c *ProductHandler) GetAllVariations(ctx *gin.Context) {
 
 // SaveProduct godoc
 //
-//	@Summary		Add a new product (Admin)
+//	@Summary		Add a new product with image (Admin)
 //	@Security		BearerAuth
-//	@Description	API for admin to add a new product
+//	@Description	API for admin to add a new product with image file upload (multipart/form-data)
 //	@ID				SaveProduct
 //	@Tags			Admin Products
+//	@Accept			mpfd
 //	@Produce		json
-//	@Param			name		formData	string				true	"Product Name"
-//	@Param			description	formData	string				true	"Product Description"
-//	@Param			category_id	formData	int					true	"Category Id"
-//	@Param			brand_id	formData	int					true	"Brand Id"
-//	@Param			price		formData	int					true	"Product Price"
-//	@Param			image		formData	file				true	"Product Description"
-//	@Success		200			{object}	response.Response{}	"successfully product added"
+//	@Param			product_name	formData	string				true	"Product Name"
+//	@Param			description		formData	string				true	"Product Description"
+//	@Param			department		formData	string				true	"Department Name"
+//	@Param			department_id	formData	int					true	"Department ID"
+//	@Param			category_id		formData	int					true	"Category ID"
+//	@Param			brand_id		formData	int					true	"Brand ID"
+//	@Param			price			formData	int					true	"Product Price"
+//	@Param			condition		formData	string				false	"Product Condition"
+//	@Param			specification	formData	string				false	"Product Specification"
+//	@Param			highlights		formData	string				false	"Product Highlights"
+//	@Param			image			formData	file				true	"Product Image"
+//	@Success		201				{object}	response.Response{}	"successfully product added"
 //	@Router			/admin/products [post]
 //	@Failure		400	{object}	response.Response{}	"invalid input"
 //	@Failure		409	{object}	response.Response{}	"Product name already exist"
 func (p *ProductHandler) SaveProduct(ctx *gin.Context) {
 
-	name, err1 := request.GetFormValuesAsString(ctx, "name")
+	tokenString := ctx.GetHeader("Authorization")
+	fmt.Printf("tokenString: %v\n", tokenString)
+
+	adminID := p.tokenService.DecodeTokenData(tokenString)
+	// Check if this is a JSON request (without file upload)
+	contentType := ctx.GetHeader("Content-Type")
+	if contentType == "application/json" || contentType == "" {
+		p.SaveProductJSON(ctx, adminID)
+		return
+	}
+
+	// Handle multipart/form-data request
+	name, err1 := request.GetFormValuesAsString(ctx, "category")
+	departmentID, errDeptID := request.GetFormValuesAsUint(ctx, "department_id")
 	description, err2 := request.GetFormValuesAsString(ctx, "description")
 	categoryID, err3 := request.GetFormValuesAsUint(ctx, "category_id")
-	price, err4 := request.GetFormValuesAsUint(ctx, "price")
-	brandID, err5 := request.GetFormValuesAsUint(ctx, "brand_id")
 
 	fileHeader, err6 := ctx.FormFile("image")
 
-	err := errors.Join(err1, err2, err3, err4, err5, err6)
-
+	fmt.Printf("Received form data - Name: %s, DepartmentID: %d, Description: %s, CategoryID: %d\n", name, departmentID, description, categoryID)
+	// Only check required fields
+	err := errors.Join(err1, err2, err3, err6, errDeptID)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, BindFormValueMessage, err, nil)
 		return
@@ -299,14 +338,105 @@ func (p *ProductHandler) SaveProduct(ctx *gin.Context) {
 
 	product := request.Product{
 		Name:            name,
+		DepartmentID:    departmentID,
 		Description:     description,
 		CategoryID:      categoryID,
-		BrandID:         brandID,
-		Price:           price,
 		ImageFileHeader: fileHeader,
 	}
 
-	err = p.productUseCase.SaveProduct(ctx, product)
+	fmt.Printf("Product to be saved: %+v\n", product)
+
+	productID, err := p.productUseCase.SaveProduct(ctx, product, adminID)
+
+	fmt.Printf("Result of SaveProduct - productID: %d, err: %v\n", productID, err)
+	if err != nil {
+		statusCode := http.StatusInternalServerError
+		if errors.Is(err, usecase.ErrProductAlreadyExist) {
+			statusCode = http.StatusConflict
+		}
+		fmt.Printf("Successfully product added: %v\n", map[string]uint{"product_id": productID})
+		response.ErrorResponse(ctx, statusCode, "Failed to add product", err, map[string]uint{"product_id": productID})
+		return
+	}
+
+	fmt.Printf("Successfully product added: %v\n", map[string]uint{"product_id": productID})
+
+	response.SuccessResponse(ctx, http.StatusCreated, "Successfully product added", map[string]uint{"product_id": productID})
+}
+
+// SaveProductJSON handles JSON requests without image uploa
+func (p *ProductHandler) SaveProductJSON(ctx *gin.Context, adminID string) {
+	// Debug: Log raw request body
+	rawData, _ := ctx.GetRawData()
+	fmt.Printf("\n=== DEBUG SaveProductJSON ===\n")
+	fmt.Printf("Raw request body: %s\n", string(rawData))
+	fmt.Printf("Content-Type: %s\n", ctx.GetHeader("Content-Type"))
+	fmt.Printf("Body length: %d bytes\n", len(rawData))
+
+	// Check if the body starts with a quote (indicating it's a string-wrapped JSON)
+	if len(rawData) > 0 && rawData[0] == '"' {
+		fmt.Printf("WARNING: Request body appears to be a JSON string (double-encoded)\n")
+		// Unwrap the double-encoded JSON string
+		var unwrappedJSON string
+		if err := json.Unmarshal(rawData, &unwrappedJSON); err != nil {
+			fmt.Printf("Failed to unwrap double-encoded JSON: %v\n", err)
+			response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid JSON format (double-encoded)", err, nil)
+			return
+		}
+		rawData = []byte(unwrappedJSON)
+		fmt.Printf("Unwrapped JSON: %s\n", string(rawData))
+		fmt.Printf("First 100 chars of unwrapped: %s\n", string(rawData[:min(100, len(rawData))]))
+	}
+
+	// Additional validation: Check if it's valid JSON before binding
+	var testJSON interface{}
+	if err := json.Unmarshal(rawData, &testJSON); err != nil {
+		fmt.Printf("JSON validation failed: %v\n", err)
+		fmt.Printf("Problematic JSON (first 200 chars): %s\n", string(rawData[:min(200, len(rawData))]))
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid JSON syntax", err, nil)
+		return
+	}
+	fmt.Printf("JSON validation passed\n")
+	fmt.Printf("=============================\n\n")
+
+	// Re-bind the body since we read it
+	ctx.Request.Body = io.NopCloser(bytes.NewBuffer(rawData))
+
+	var body struct {
+		Name           string      `json:"category" binding:"min=3,max=50"`
+		Description    string      `json:"description"`
+		CategoryID     uint        `json:"category_id"`
+		DepartmentID   uint        `json:"department_id"`
+		Condition      string      `json:"condition" binding:"omitempty"`
+		Specifications interface{} `json:"specifications" binding:"omitempty"` // Can be string or object
+		Highlights     interface{} `json:"highlights" binding:"omitempty"`     // Can be string or array
+		ImageURL       string      `json:"image_url" binding:"omitempty"`      // For existing image URL
+	}
+
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		fmt.Printf("JSON binding error: %v\n", err)
+		fmt.Printf("Error type: %T\n", err)
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+
+	// For JSON requests without file upload, you need to provide image_url or handle it differently
+	if body.ImageURL == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "image_url is required for JSON requests", errors.New("image_url field is missing or empty"), nil)
+		return
+	}
+
+	// Convert highlights to string
+
+	product := request.Product{
+		Name:         body.Name,
+		DepartmentID: body.DepartmentID,
+		Description:  body.Description,
+		CategoryID:   body.CategoryID,
+		// Note: ImageFileHeader is nil, you'll need to handle this in the usecase
+	}
+
+	productID, err := p.productUseCase.SaveProduct(ctx, product, adminID)
 
 	if err != nil {
 		statusCode := http.StatusInternalServerError
@@ -317,7 +447,7 @@ func (p *ProductHandler) SaveProduct(ctx *gin.Context) {
 		return
 	}
 
-	response.SuccessResponse(ctx, http.StatusCreated, "Successfully product added")
+	response.SuccessResponse(ctx, http.StatusCreated, "Successfully product added", map[string]uint{"product_id": productID})
 }
 
 // GetAllProductsAdmin godoc
@@ -374,6 +504,35 @@ func (p *ProductHandler) getAllProducts() func(ctx *gin.Context) {
 		response.SuccessResponse(ctx, http.StatusOK, "Successfully found all products", products)
 	}
 
+}
+
+// GetProductByID godoc
+//
+//	@Summary		Get product by ID (Admin)
+//	@Security		BearerAuth
+//	@Description	API for admin to get a single product by ID with all details
+//	@ID				GetProductByID
+//	@Tags			Admin Products
+//	@Param			product_id	path	int	true	"Product ID"
+//	@Router			/admin/products/{product_id} [get]
+//	@Success		200	{object}	response.Response{}	"Successfully found product"
+//	@Failure		400	{object}	response.Response{}	"Invalid product ID"
+//	@Failure		404	{object}	response.Response{}	"Product not found"
+//	@Failure		500	{object}	response.Response{}	"Failed to get product"
+func (p *ProductHandler) GetProductByID(ctx *gin.Context) {
+	productID, err := request.GetParamAsUint(ctx, "product_id")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid product ID", err, nil)
+		return
+	}
+
+	product, err := p.productUseCase.FindProductByID(ctx, productID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get product", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully found product", product)
 }
 
 // UpdateProduct godoc
@@ -435,38 +594,57 @@ func (c *ProductHandler) UpdateProduct(ctx *gin.Context) {
 //	@Failure		400	{object}	response.Response{}	"invalid input"
 //	@Failure		409	{object}	response.Response{}	"Product have already this configured product items exist"
 func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
+	subCategoryIDStr := ctx.PostForm("sub_category_id")
+	fmt.Printf("SubCategoryID from form: %s\n", subCategoryIDStr)
+	var subCategoryID uint
+	if subCategoryIDStr != "" {
+		if n, err := strconv.Atoi(subCategoryIDStr); err == nil {
+			subCategoryID = uint(n)
+		} else {
+			response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid sub_category_id", err, nil)
+			return
+		}
+	}
 
 	productID, err := request.GetParamAsUint(ctx, "product_id")
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+	subCategoryName := ctx.PostForm("sub_category_name")
+	dynamicFieldsStr := ctx.PostForm("dynamic_fields")
+	files := ctx.Request.MultipartForm.File["images[]"]
+	fmt.Printf("Product ID from param: %d\n", productID)
+	fmt.Printf("SubCategory Name from form: %s\n", subCategoryName)
+	fmt.Printf("Dynamic Fields from form: %s\n", dynamicFieldsStr)
+	fmt.Printf("Image Files from form: %+v\n", files)
+
+	var imagePaths []string
+	for _, fileHeader := range files {
+		localPath, err := utils.SaveFileLocally(fileHeader, "uploads/products")
+		if err != nil {
+			response.ErrorResponse(ctx, http.StatusBadRequest, BindFormValueMessage, err, nil)
+			return
+		}
+		imagePaths = append(imagePaths, localPath)
 	}
+	fmt.Printf("Saved image paths: %+v\n", imagePaths)
 
-	fmt.Printf("Product ID: %d\n", productID)
-
-	price, err1 := request.GetFormValuesAsUint(ctx, "price")
-	qtyInStock, err2 := request.GetFormValuesAsUint(ctx, "qty_in_stock")
-	variationOptionIDS, err3 := request.GetArrayFormValueAsUint(ctx, "variation_option_ids")
-	imageFileHeaders, err4 := request.GetArrayOfFromFiles(ctx, "images")
-
-	err = errors.Join(err1, err2, err3, err4)
-
-	fmt.Printf("Variation Option IDs: %+v\n", err)
-
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindFormValueMessage, err, nil)
-		return
+	var dynamicFields map[string]interface{}
+	if err := json.Unmarshal([]byte(dynamicFieldsStr), &dynamicFields); err != nil {
+		// handle error
 	}
-
 	productItem := request.ProductItem{
-		Price:              price,
-		VariationOptionIDs: variationOptionIDS,
-		QtyInStock:         qtyInStock,
-		ImageFileHeaders:   imageFileHeaders,
+		SubCategoryName:   subCategoryName,
+		SubCategoryID:     subCategoryID,
+		DynamicFields:     dynamicFields,
+		ProductItemImages: imagePaths,
 	}
 
-	fmt.Println(productItem, productID)
+	// // Convert request.ProductItem to domain.ProductItem
+	// var domainProductItem domain.ProductItem
+	// if err := copier.Copy(&domainProductItem, &productItem); err != nil {
+	// 	response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to map product item", err, nil)
+	// 	return
+	// }
 
-	err = p.productUseCase.SaveProductItem(ctx, productID, productItem)
+	err = p.productUseCase.SaveProductItem(ctx, productItem, productID)
 
 	if err != nil {
 
@@ -486,6 +664,51 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 	}
 
 	response.SuccessResponse(ctx, http.StatusCreated, "Successfully product item added", nil)
+
+	// if err := ctx.ShouldBindJSON(&body); err != nil {
+	// 	response.ErrorResponse(ctx, http.StatusBadRequest, "invalid request body", err, nil)
+	// 	return
+	// }
+
+	// Map request to domain model
+	// (Removed redeclaration of imageFileHeader)
+
+	// 	productItem = request.ProductItem{
+	// 		SubCategoryName:  subCategoryName,
+	// 		SubCategoryID:    subCategoryID,
+	// 		DynamicFields:    dynamicFields,
+	// 		ProductItemImage: imagePaths,
+	// 	}
+
+	// 	// Convert request.ProductItem to domain.ProductItem
+	// 	var domainProductItem2 domain.ProductItem
+	// 	if err := copier.Copy(&domainProductItem2, &productItem); err != nil {
+	// 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to map product item", err, nil)
+	// 		return
+	// 	}
+
+	// 	err = p.productUseCase.SaveProductItem(ctx, domainProductItem2, productID)
+
+	// 	if err != nil {
+
+	// 		var statusCode int
+
+	// 		switch {
+	// 		case errors.Is(err, usecase.ErrProductItemAlreadyExist):
+	// 			statusCode = http.StatusConflict
+	// 		case errors.Is(err, usecase.ErrNotEnoughVariations):
+	// 			statusCode = http.StatusBadRequest
+	// 		default:
+	// 			statusCode = http.StatusInternalServerError
+	// 		}
+
+	// 		response.ErrorResponse(ctx, statusCode, "Failed to add product item", err, nil)
+	// 		return
+	// 	}
+
+	// 	response.SuccessResponse(ctx, http.StatusCreated, "Successfully product item added", nil)
+	// }
+
 }
 
 // GetAllProductItemsAdmin godoc
@@ -546,6 +769,8 @@ func (p *ProductHandler) getAllProductItems() func(ctx *gin.Context) {
 			response.SuccessResponse(ctx, http.StatusOK, "No product items found")
 			return
 		}
+
+		fmt.Printf("Product Items: %+v\n", productItems)
 
 		response.SuccessResponse(ctx, http.StatusOK, "Successfully get all product items ", productItems)
 	}
@@ -1190,4 +1415,340 @@ func (h *ProductHandler) GetProductsByRadius(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"products": products})
 
+}
+
+func (a *ProductHandler) SaveDepartment(ctx *gin.Context) {
+	var body request.Department
+
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+
+	err := a.productUseCase.SaveDepartment(ctx, body.Name)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to save department", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusCreated, "Successfully department saved", nil)
+}
+
+func (a *ProductHandler) GetAllDepartments(ctx *gin.Context) {
+	departments, err := a.productUseCase.GetAllDepartments(ctx)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get departments", err, nil)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, response.Response{
+		Status:  true,
+		Message: "Successfully get all departments",
+		Data:    departments,
+	})
+}
+
+func (a *ProductHandler) GetDepartmentByID(ctx *gin.Context) {
+	departmentID, err := request.GetParamAsUint(ctx, "id")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+		return
+	}
+
+	department, err := a.productUseCase.GetDepartmentByID(ctx, departmentID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get department", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully get department", department)
+}
+
+func (a *ProductHandler) GetAllCategoriesByDepartmentID(ctx *gin.Context) {
+	departmentID, err := request.GetParamAsUint(ctx, "department_id")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+		return
+	}
+
+	categories, err := a.productUseCase.GetAllCategoriesByDepartmentID(ctx, departmentID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get categories", err, nil)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, response.Response{
+		Status:  true,
+		Message: "Successfully get all categories",
+		Data:    categories,
+	})
+}
+
+func (a *ProductHandler) GetAllSubCategoriesByCategoryID(ctx *gin.Context) {
+	categoryID, err := request.GetParamAsUint(ctx, "category_id")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+		return
+	}
+
+	subCategories, err := a.productUseCase.GetAllSubCategoriesByCategoryID(ctx, categoryID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get sub-categories", err, nil)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, response.Response{
+		Status:  true,
+		Message: "Successfully get all sub-categories",
+		Data:    subCategories,
+	})
+}
+
+// SaveSubTypeAttribute saves a new sub type attribute for a subcategory
+func (p *ProductHandler) SaveSubTypeAttribute(ctx *gin.Context) {
+	subCategoryID, err := request.GetParamAsUint(ctx, "sub_category_id")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+		return
+	}
+
+	var body request.SubTypeAttribute
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+
+	if err := p.productUseCase.SaveSubTypeAttribute(ctx, subCategoryID, body); err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to save sub type attribute", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusCreated, "Sub type attribute created successfully", nil)
+}
+
+// GetAllSubTypeAttributes retrieves all sub type attributes for a subcategory
+func (p *ProductHandler) GetAllSubTypeAttributes(ctx *gin.Context) {
+	subCategoryID, err := request.GetParamAsUint(ctx, "sub_category_id")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+		return
+	}
+
+	attributes, err := p.productUseCase.GetAllSubTypeAttributes(ctx, subCategoryID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get sub type attributes", err, nil)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, response.Response{
+		Status:  true,
+		Message: "Successfully retrieved sub type attributes",
+		Data:    attributes,
+	})
+}
+
+// GetSubTypeAttributeByID retrieves a single sub type attribute by ID
+func (p *ProductHandler) GetSubTypeAttributeByID(ctx *gin.Context) {
+	attributeID, err := request.GetParamAsUint(ctx, "attribute_id")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+		return
+	}
+
+	attribute, err := p.productUseCase.GetSubTypeAttributeByID(ctx, attributeID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get sub type attribute", err, nil)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, response.Response{
+		Status:  true,
+		Message: "Successfully retrieved sub type attribute",
+		Data:    attribute,
+	})
+}
+
+// SaveSubTypeAttributeOption saves a new option for a sub type attribute
+func (p *ProductHandler) SaveSubTypeAttributeOption(ctx *gin.Context) {
+	attributeID, err := request.GetParamAsUint(ctx, "attribute_id")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+		return
+	}
+
+	var body request.SubTypeAttributeOption
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+
+	if err := p.productUseCase.SaveSubTypeAttributeOption(ctx, attributeID, body); err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to save sub type attribute option", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusCreated, "Sub type attribute option created successfully", nil)
+}
+
+// GetAllSubTypeAttributeOptions retrieves all options for a sub type attribute
+func (p *ProductHandler) GetAllSubTypeAttributeOptions(ctx *gin.Context) {
+	attributeID, err := request.GetParamAsUint(ctx, "attribute_id")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+		return
+	}
+
+	options, err := p.productUseCase.GetAllSubTypeAttributeOptions(ctx, attributeID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get sub type attribute options", err, nil)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, response.Response{
+		Status:  true,
+		Message: "Successfully retrieved sub type attribute options",
+		Data:    options,
+	})
+}
+
+// GetSubTypeAttributeOptionByID retrieves a single option by ID
+func (p *ProductHandler) GetSubTypeAttributeOptionByID(ctx *gin.Context) {
+	optionID, err := request.GetParamAsUint(ctx, "option_id")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+		return
+	}
+
+	option, err := p.productUseCase.GetSubTypeAttributeOptionByID(ctx, optionID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get sub type attribute option", err, nil)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, response.Response{
+		Status:  true,
+		Message: "Successfully retrieved sub type attribute option",
+		Data:    option,
+	})
+}
+
+// SaveCategoryImage saves a new category image
+func (p *ProductHandler) SaveCategoryImage(ctx *gin.Context) {
+	categoryID, err := request.GetParamAsUint(ctx, "category_id")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+		return
+	}
+
+	var image request.CategoryImage
+	if err := ctx.ShouldBindJSON(&image); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+
+	err = p.productUseCase.SaveCategoryImage(ctx, categoryID, image)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to save category image", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusCreated, "Successfully saved category image", nil)
+}
+
+// GetAllCategoryImages retrieves all images for a category
+func (p *ProductHandler) GetAllCategoryImages(ctx *gin.Context) {
+	categoryID, err := request.GetParamAsUint(ctx, "category_id")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+		return
+	}
+
+	images, err := p.productUseCase.GetAllCategoryImages(ctx, categoryID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get category images", err, nil)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, response.Response{
+		Status:  true,
+		Message: "Successfully retrieved category images",
+		Data:    images,
+	})
+}
+
+// GetCategoryImageByID retrieves a single category image
+func (p *ProductHandler) GetCategoryImageByID(ctx *gin.Context) {
+	imageID, err := request.GetParamAsUint(ctx, "image_id")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+		return
+	}
+
+	image, err := p.productUseCase.GetCategoryImageByID(ctx, imageID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get category image", err, nil)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, response.Response{
+		Status:  true,
+		Message: "Successfully retrieved category image",
+		Data:    image,
+	})
+}
+
+// UpdateCategoryImage updates an existing category image
+func (p *ProductHandler) UpdateCategoryImage(ctx *gin.Context) {
+	imageID, err := request.GetParamAsUint(ctx, "image_id")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+		return
+	}
+
+	var image request.CategoryImage
+	if err := ctx.ShouldBindJSON(&image); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+
+	err = p.productUseCase.UpdateCategoryImage(ctx, imageID, image)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to update category image", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully updated category image", nil)
+}
+
+// DeleteCategoryImage soft deletes a category image
+func (p *ProductHandler) DeleteCategoryImage(ctx *gin.Context) {
+	imageID, err := request.GetParamAsUint(ctx, "image_id")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+		return
+	}
+
+	err = p.productUseCase.DeleteCategoryImage(ctx, imageID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to delete category image", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully deleted category image", nil)
+}
+
+func (p *ProductHandler) GetProductItemByID(ctx *gin.Context) {
+	productItemID, err := request.GetParamAsUint(ctx, "product_item_id")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+		return
+	}
+
+	productItem, err := p.productUseCase.GetProductItemByID(ctx, productItemID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get product item", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully get product item", productItem)
 }

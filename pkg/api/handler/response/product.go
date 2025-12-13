@@ -27,14 +27,41 @@ type Product struct {
 
 // for a specific category representation
 type Category struct {
-	ID          uint          `json:"category_id"`
-	Name        string        `json:"category_name"`
-	SubCategory []SubCategory `json:"sub_category" gorm:"-"`
+	ID           uint   `json:"category_id"`
+	Name         string `json:"category_name"`
+	DepartmentID uint   `json:"department_id"`
 }
 
 type SubCategory struct {
-	ID   uint   `json:"category_id"`
-	Name string `json:"category_name"`
+	ID           uint   `json:"sub_category_id"`
+	Name         string `json:"category_name"`
+	DepartmentID uint   `json:"department_id"`
+	CategoryID   uint   `json:"parent_category_id"`
+}
+
+type SubTypeAttribute struct {
+	ID            uint   `json:"id"`
+	SubCategoryID uint   `json:"sub_category_id"`
+	FieldName     string `json:"field_name"`
+	FieldType     string `json:"field_type"`
+	IsRequired    bool   `json:"is_required"`
+	SortOrder     int    `json:"sort_order"`
+}
+
+type SubTypeAttributeOption struct {
+	ID                 uint   `json:"id"`
+	SubTypeAttributeID uint   `json:"sub_type_attribute_id"`
+	OptionValue        string `json:"option_value"`
+	SortOrder          int    `json:"sort_order"`
+}
+
+type CategoryImage struct {
+	ID         uint   `json:"id"`
+	CategoryID uint   `json:"category_id"`
+	ImageURL   string `json:"image_url"`
+	AltText    string `json:"alt_text"`
+	SortOrder  int    `json:"sort_order"`
+	IsActive   bool   `json:"is_active"`
 }
 
 // for a specific variation representation
@@ -52,19 +79,15 @@ type VariationOption struct {
 
 // for response a specific products all product items
 type ProductItems struct {
-	ID               uint                    `json:"product_item_id"`
-	Name             string                  `json:"product_name"`
-	ProductID        uint                    `json:"product_id"`
-	Price            uint                    `json:"price"`
-	DiscountPrice    uint                    `json:"discount_price"`
-	SKU              string                  `json:"sku"`
-	QtyInStock       uint                    `json:"qty_in_stock"`
-	CategoryName     string                  `json:"category_name"`
-	MainCategoryName string                  `json:"main_category_name"`
-	BrandID          uint                    `json:"brand_id"`
-	BrandName        string                  `json:"brand_name"`
-	VariationValues  []ProductVariationValue `json:"variation_values" gorm:"-"`
-	Images           []string                `json:"images" gorm:"-"`
+	ID                uint                   `json:"product_item_id"`
+	Name              string                 `json:"product_name"`
+	ProductID         uint                   `json:"product_id"`
+	CategoryName      string                 `json:"category_name"`
+	MainCategoryName  string                 `json:"main_category_name"`
+	ProductItemImages []string               `json:"product_item_images"`
+	DynamicFields     map[string]interface{} `json:"dynamic_fields"`
+	CreatedAt         time.Time              `json:"created_at"`
+	UpdatedAt         time.Time              `json:"updated_at"`
 }
 
 type ProductVariationValue struct {
@@ -165,4 +188,9 @@ type Pincode struct {
 type Area struct {
 	ID   uint   `json:"area_id"`
 	Name string `json:"area_name"`
+}
+
+type Department struct {
+	ID   uint   `json:"department_id"`
+	Name string `json:"department_name"`
 }

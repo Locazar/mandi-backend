@@ -9,9 +9,13 @@ type ProductHandler interface {
 	SaveVariation(ctx *gin.Context)
 	SaveVariationOption(ctx *gin.Context)
 	GetAllVariations(ctx *gin.Context)
+	GetAllSubCategories(ctx *gin.Context)
+	GetAllCategoriesByDepartmentID(ctx *gin.Context)
+	GetAllSubCategoriesByCategoryID(ctx *gin.Context)
 
 	GetAllProductsAdmin() func(ctx *gin.Context)
 	GetAllProductsUser() func(ctx *gin.Context)
+	GetProductByID(ctx *gin.Context)
 
 	SaveProduct(ctx *gin.Context)
 	UpdateProduct(ctx *gin.Context)
@@ -40,4 +44,26 @@ type ProductHandler interface {
 	GetProductSearchSuggestions(ctx *gin.Context)
 	GetProductSearchFilters(ctx *gin.Context)
 	GetProductSearchLocations(ctx *gin.Context)
+	GetProductItemByID(ctx *gin.Context)
+
+	// department
+	SaveDepartment(ctx *gin.Context)
+	GetAllDepartments(ctx *gin.Context)
+
+	// sub type attributes
+	SaveSubTypeAttribute(ctx *gin.Context)
+	GetAllSubTypeAttributes(ctx *gin.Context)
+	GetSubTypeAttributeByID(ctx *gin.Context)
+
+	// sub type attribute options
+	SaveSubTypeAttributeOption(ctx *gin.Context)
+	GetAllSubTypeAttributeOptions(ctx *gin.Context)
+	GetSubTypeAttributeOptionByID(ctx *gin.Context)
+
+	// category images
+	SaveCategoryImage(ctx *gin.Context)
+	GetAllCategoryImages(ctx *gin.Context)
+	GetCategoryImageByID(ctx *gin.Context)
+	UpdateCategoryImage(ctx *gin.Context)
+	DeleteCategoryImage(ctx *gin.Context)
 }

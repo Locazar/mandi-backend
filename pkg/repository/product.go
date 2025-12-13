@@ -2,6 +2,8 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -41,37 +43,38 @@ func (c *productDatabase) Transactions(ctx context.Context, trxFn func(repo inte
 }
 
 // To check the category name exist
-func (c *productDatabase) IsCategoryNameExist(ctx context.Context, name string) (exist bool, err error) {
+func (c *productDatabase) IsCategoryNameExist(ctx context.Context, name string, departmentId uint) (exist bool, err error) {
 
-	query := `SELECT EXISTS(SELECT 1 FROM categories WHERE name = $1 AND category_id IS NULL)`
-	err = c.DB.Raw(query, name).Scan(&exist).Error
+	query := `SELECT EXISTS(SELECT 1 FROM categories WHERE name = $1 AND department_id = $2)`
+	err = c.DB.Raw(query, name, departmentId).Scan(&exist).Error
 
 	return
 }
 
 // Save Category
-func (c *productDatabase) SaveCategory(ctx context.Context, categoryName string) (err error) {
+func (c *productDatabase) SaveCategory(ctx context.Context, category request.Category, departmentId string) (err error) {
 
-	query := `INSERT INTO categories (name) VALUES ($1)`
-	err = c.DB.Exec(query, categoryName).Error
+	query := `INSERT INTO categories (name, department_id) VALUES ($1, $2)`
+	err = c.DB.Exec(query, category.Name, departmentId).Error
 
 	return err
 }
 
 // To check the sub category name already exist for the category
-func (c *productDatabase) IsSubCategoryNameExist(ctx context.Context, name string, categoryID uint) (exist bool, err error) {
+func (c *productDatabase) IsSubCategoryNameExist(ctx context.Context, name string, departmentId uint) (exist bool, err error) {
 
-	query := `SELECT EXISTS(SELECT 1 FROM categories WHERE name = $1 AND category_id = $2)`
-	err = c.DB.Raw(query, name, categoryID).Scan(&exist).Error
+	query := `SELECT EXISTS(SELECT 1 FROM categories WHERE name = $1 AND department_id = $2)`
+	err = c.DB.Raw(query, name, departmentId).Scan(&exist).Error
 
 	return
 }
 
 // Save Category as sub category
-func (c *productDatabase) SaveSubCategory(ctx context.Context, categoryID uint, categoryName string) (err error) {
+func (c *productDatabase) SaveSubCategory(ctx context.Context, body request.SubCategory, departmentID string, categoryID string) (err error) {
 
-	query := `INSERT INTO categories (category_id, name) VALUES ($1, $2)`
-	err = c.DB.Exec(query, categoryID, categoryName).Error
+	print("department id in repo", departmentID, "category id in repo", categoryID)
+	query := `INSERT INTO sub_categories (department_id, category_id, name) VALUES ($1, $2, $3)`
+	err = c.DB.Exec(query, departmentID, categoryID, body.Name).Error
 
 	return err
 }
@@ -83,7 +86,7 @@ func (c *productDatabase) FindAllMainCategories(ctx context.Context,
 	limit := pagination.Count
 	offset := (pagination.PageNumber - 1) * limit
 
-	query := `SELECT id, name FROM categories WHERE category_id IS NULL 
+	query := `SELECT id, name FROM categories 
 	LIMIT $1 OFFSET $2`
 	err = c.DB.Raw(query, limit, offset).Scan(&categories).Error
 
@@ -94,7 +97,7 @@ func (c *productDatabase) FindAllMainCategories(ctx context.Context,
 func (c *productDatabase) FindAllSubCategories(ctx context.Context,
 	categoryID uint) (subCategories []response.SubCategory, err error) {
 
-	query := `SELECT id, name FROM categories WHERE category_id = $1`
+	query := `SELECT id, name FROM sub_categories WHERE category_id = $1`
 	err = c.DB.Raw(query, categoryID).Scan(&subCategories).Error
 
 	return
@@ -184,30 +187,85 @@ func (c *productDatabase) IsProductNameExist(ctx context.Context, productName st
 	return
 }
 
-// to add a new product in database
-func (c *productDatabase) SaveProduct(ctx context.Context, product domain.Product) error {
+// Check if product with same name exists for a specific shop
+func (c *productDatabase) IsProductNameExistForShop(ctx context.Context, productName string, shopID *string) (exist bool, err error) {
 
-	query := `INSERT INTO products (name, description, category_id, brand_id, price, image, created_at) 
-	VALUES($1, $2, $3, $4, $5, $6, $7)`
+	query := `SELECT EXISTS(SELECT 1 FROM products WHERE name = $1 AND shop_id = $2)`
+	err = c.DB.Raw(query, productName, shopID).Scan(&exist).Error
+
+	return
+}
+
+// to add a new product in database
+func (c *productDatabase) SaveProduct(ctx context.Context, product domain.Product, adminID string) (productID uint, err error) {
+	// Get the shop Id and Shop name using adminID
+
+	fmt.Printf("Saving product: %+v for adminID: %s\n", product, adminID)
+	var shopDetails struct {
+		ShopID   string `gorm:"column:id"`
+		ShopName string `gorm:"column:shop_name"`
+	}
+
+	query := `SELECT id, shop_name FROM shop_details WHERE admin_id = $1`
+	err = c.DB.Raw(query, adminID).Scan(&shopDetails).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return 0, fmt.Errorf("failed to fetch shop details for admin %s: %v", adminID, err)
+	}
+
+	fmt.Printf("Shop ID: %v, Shop Name: %v\n", shopDetails.ShopID, shopDetails.ShopName)
+
+	// Check if product with shop_id and category_id already exists
+	checkQuery := `SELECT id FROM products WHERE shop_id = $1 AND category_id = $2 LIMIT 1`
+	err = c.DB.Raw(checkQuery, shopDetails.ShopID, product.CategoryID).Scan(&productID).Error
+
+	fmt.Printf("Checked existing product ID: %d for shop_id: %v and category_id: %d\n", productID, shopDetails.ShopID, product.CategoryID)
+	if err == nil && productID != 0 {
+		// Product already exists, return existing product ID
+		fmt.Printf("Product already exists with ID: %d for shop_id: %v and category_id: %d\n",
+			productID, shopDetails.ShopID, product.CategoryID)
+		return productID, nil
+	}
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return 0, fmt.Errorf("failed to check if product exists: %v", err)
+	}
+
+	// Validate department_id exists
+	if product.DepartmentID != 0 {
+		var deptExists bool
+		deptQuery := `SELECT EXISTS(SELECT 1 FROM departments WHERE id = $1)`
+		err = c.DB.Raw(deptQuery, product.DepartmentID).Scan(&deptExists).Error
+		if err != nil {
+			return 0, fmt.Errorf("failed to check if department exists: %v", err)
+		}
+		if !deptExists {
+			return 0, fmt.Errorf("department with id %d does not exist", product.DepartmentID)
+		}
+	}
+
+	// Insert new product
+	query = `INSERT INTO products (name, description, category_id, image, department_id, shop_id, created_at) 
+	VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING id`
 
 	createdAt := time.Now()
-	err := c.DB.Exec(query, product.Name, product.Description, product.CategoryID, product.BrandID,
-		product.Price, product.Image, createdAt).Error
+	err = c.DB.Raw(query, product.Name, product.Description, product.CategoryID, product.Image, product.DepartmentID, shopDetails.ShopID, createdAt).Scan(&productID).Error
+	if err != nil {
+		return 0, fmt.Errorf("failed to insert product: %v", err)
+	}
 
-	return err
+	fmt.Printf("New product created with ID: %d\n", productID)
+	return productID, nil
 }
 
 // update product
 func (c *productDatabase) UpdateProduct(ctx context.Context, product domain.Product) error {
 
-	query := `UPDATE products SET name = $1, description = $2, category_id = $3, 
-	price = $4, image = $5, brand_id = $6, updated_at = $7 
-	WHERE id = $8`
+	query := `UPDATE products SET name = $1, description = $2, category_id = $3, image = $4, updated_at = $5 
+	WHERE id = $6`
 
 	updatedAt := time.Now()
 
 	err := c.DB.Exec(query, product.Name, product.Description, product.CategoryID,
-		product.Price, product.Image, product.BrandID, updatedAt, product.ID).Error
+		product.Image, updatedAt, product.ID).Error
 
 	return err
 }
@@ -218,15 +276,7 @@ func (c *productDatabase) FindAllProducts(ctx context.Context, pagination reques
 	limit := pagination.Count
 	offset := (pagination.PageNumber - 1) * limit
 
-	query := `SELECT p.id, p.name, p.description, p.price, p.discount_price, 
-    p.image, p.category_id, sc.name AS category_name, 
-    mc.name AS main_category_name, p.brand_id, b.name AS brand_name,
-    p.created_at, p.updated_at 
-	FROM products p 
-	LEFT JOIN categories sc ON p.category_id = sc.id 
-	LEFT JOIN categories mc ON sc.category_id = mc.id 
-	LEFT JOIN brands b ON b.id = p.brand_id 
-	ORDER BY p.created_at DESC LIMIT $1 OFFSET $2`
+	query := `SELECT * FROM products ORDER BY created_at DESC LIMIT $1 OFFSET $2`
 
 	err = c.DB.Raw(query, limit, offset).Scan(&products).Error
 
@@ -276,35 +326,78 @@ func (c *productDatabase) SaveProductConfiguration(ctx context.Context, productI
 	return err
 }
 
-func (c *productDatabase) SaveProductItem(ctx context.Context, productItem domain.ProductItem) (productItemID uint, err error) {
+func (c *productDatabase) SaveProductItem(ctx context.Context, productItem request.ProductItem, productID uint) (productItemID uint, err error) {
 
-	query := `INSERT INTO product_items (product_id, qty_in_stock, price, sku,created_at) VALUES($1, $2, $3, $4, $5) 
-	 RETURNING id AS product_item_id`
+	query := `INSERT INTO product_items (product_id, sub_category_name, dynamic_fields, product_item_images, created_at, updated_at) 
+VALUES($1, $2, $3, $4, $5, $6) RETURNING id`
+
 	createdAt := time.Now()
-	err = c.DB.Raw(query, productItem.ProductID, productItem.QtyInStock, productItem.Price, productItem.SKU, createdAt).
-		Scan(&productItemID).Error
 
-	return
+	// Marshal DynamicFields to JSON for JSONB column
+	dynamicFieldsJSON, err := json.Marshal(productItem.DynamicFields)
+	if err != nil {
+		return 0, err
+	}
+
+	err = c.DB.Raw(query, productID, productItem.SubCategoryName, dynamicFieldsJSON, productItem.ProductItemImages, createdAt, createdAt).Scan(&productItemID).Error
+
+	return productItemID, err
 }
 
 // for get all products items for a product
 func (c *productDatabase) FindAllProductItems(ctx context.Context,
 	productID uint) (productItems []response.ProductItems, err error) {
+	// First, get product details (e.g., category_id) from products table
+	var product struct {
+		CategoryID uint
+	}
+	err = c.DB.Raw("SELECT category_id FROM products WHERE id = ?", productID).Scan(&product).Error
+	if err != nil {
+		return
+	}
 
-	// first find all product_items
+	// Now use product.CategoryID in the next query if needed
 
-	query := `SELECT p.name, pi.id, pi.product_id, pi.price, pi.discount_price, 
-       pi.qty_in_stock, pi.sku, p.category_id, sc.name AS category_name, 
-       mc.name AS main_category_name, p.brand_id, b.name AS brand_name 
-FROM product_items pi 
-LEFT JOIN products p ON p.id = pi.product_id 
-LEFT JOIN categories sc ON p.category_id = sc.id 
-LEFT JOIN categories mc ON sc.category_id = mc.id 
-LEFT JOIN brands b ON b.id = p.brand_id 
-WHERE pi.product_id = $1;`
+	query := `SELECT pi.sub_category_name, pi.id, pi.product_id, p.category_id, sc.name AS category_name, 
+		   mc.name AS main_category_name
+	       FROM product_items pi 
+	       LEFT JOIN products p ON p.id = pi.product_id 
+	       LEFT JOIN categories sc ON p.category_id = sc.id 
+	       LEFT JOIN categories mc ON p.category_id = mc.id 
+	       WHERE pi.product_id = $1;`
 
-	err = c.DB.Raw(query, productID).Scan(&productItems).Error
+	// Internal struct for scanning DB result (no []string field)
+	type productItemDB struct {
+		Name             string `gorm:"column:sub_category_name"`
+		ID               uint   `gorm:"column:id"`
+		ProductID        uint   `gorm:"column:product_id"`
+		CategoryID       uint   `gorm:"column:category_id"`
+		CategoryName     string `gorm:"column:category_name"`
+		MainCategoryName string `gorm:"column:main_category_name"`
+	}
+	var dbItems []productItemDB
+	err = c.DB.Raw(query, productID).Scan(&dbItems).Error
+	if err != nil {
+		return
+	}
 
+	// Map to response.ProductItems and fill images
+	for _, dbItem := range dbItems {
+		item := response.ProductItems{
+			ID:               dbItem.ID,
+			Name:             dbItem.Name,
+			ProductID:        dbItem.ProductID,
+			CategoryName:     dbItem.CategoryName,
+			MainCategoryName: dbItem.MainCategoryName,
+		}
+		images, imgErr := c.FindAllProductItemImages(ctx, dbItem.ID)
+		if imgErr != nil {
+			item.ProductItemImages = []string{}
+		} else {
+			item.ProductItemImages = images
+		}
+		productItems = append(productItems, item)
+	}
 	return
 }
 
@@ -323,7 +416,7 @@ func (c *productDatabase) FindAllVariationValuesOfProductItem(ctx context.Contex
 }
 
 // To save image for product item
-func (c *productDatabase) SaveProductItemImage(ctx context.Context, productItemID uint, image string) error {
+func (c *productDatabase) SaveProductItemImage(ctx context.Context, productItemID uint, image domain.ProductItemImage) error {
 
 	query := `INSERT INTO product_images (product_item_id, image) VALUES ($1, $2)`
 	err := c.DB.Exec(query, productItemID, image).Error
@@ -334,7 +427,7 @@ func (c *productDatabase) SaveProductItemImage(ctx context.Context, productItemI
 // To find all images of a product item
 func (c *productDatabase) FindAllProductItemImages(ctx context.Context, productItemID uint) (images []string, err error) {
 
-	query := `SELECT image FROM product_images WHERE product_item_id = $1`
+	query := `SELECT product_item_images FROM product_items WHERE id = $1`
 
 	err = c.DB.Raw(query, productItemID).Scan(&images).Error
 
@@ -382,6 +475,199 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 	err = c.DB.Raw(baseQuery, params...).Scan(&products).Error
 
 	fmt.Printf("Executed Query: %s\n", err) // Debugging line
+
+	return
+}
+
+func (c *productDatabase) SaveDepartment(ctx context.Context, departmentName string) error {
+
+	query := `INSERT INTO departments (name) VALUES ($1)`
+	err := c.DB.Exec(query, departmentName).Error
+
+	return err
+}
+
+func (c *productDatabase) GetAllDepartments(ctx context.Context) (departments []response.Department, err error) {
+
+	query := `SELECT id, name FROM departments`
+	err = c.DB.Raw(query).Scan(&departments).Error
+	return
+}
+
+func (c *productDatabase) GetDepartmentByID(ctx context.Context, departmentID uint) (department response.Department, err error) {
+
+	query := `SELECT id, name FROM departments WHERE id = $1`
+	err = c.DB.Raw(query, departmentID).Scan(&department).Error
+
+	return
+}
+
+func (c *productDatabase) GetAllSubCategories(ctx context.Context) (subCategories []response.SubCategory, err error) {
+
+	query := `SELECT id, name FROM sub_categories`
+	err = c.DB.Raw(query).Scan(&subCategories).Error
+
+	return
+}
+
+func (c *productDatabase) GetAllCategoriesByDepartmentID(ctx context.Context, departmentID uint) (categories []response.Category, err error) {
+
+	query := `SELECT id, name FROM categories WHERE department_id = $1`
+	err = c.DB.Raw(query, departmentID).Scan(&categories).Error
+
+	return
+}
+
+func (c *productDatabase) GetAllSubCategoriesByCategoryID(ctx context.Context, categoryID uint) (subCategories []response.SubCategory, err error) {
+
+	query := `SELECT id, name FROM sub_categories WHERE category_id = $1`
+	err = c.DB.Raw(query, categoryID).Scan(&subCategories).Error
+
+	return
+}
+
+// SaveSubTypeAttribute saves a new sub type attribute for a subcategory
+func (c *productDatabase) SaveSubTypeAttribute(ctx context.Context, subCategoryID uint, attribute domain.SubTypeAttributes) error {
+	attribute.SubCategoryID = subCategoryID
+	return c.DB.Create(&attribute).Error
+}
+
+// GetAllSubTypeAttributes retrieves all sub type attributes for a subcategory
+func (c *productDatabase) GetAllSubTypeAttributes(ctx context.Context, subCategoryID uint) (attributes []response.SubTypeAttribute, err error) {
+	query := `SELECT id, sub_category_id, field_name, field_type, is_required, sort_order 
+	          FROM sub_type_attributes 
+	          WHERE sub_category_id = $1 
+	          ORDER BY sort_order ASC`
+	err = c.DB.Raw(query, subCategoryID).Scan(&attributes).Error
+	return
+}
+
+// GetSubTypeAttributeByID retrieves a single sub type attribute by ID
+func (c *productDatabase) GetSubTypeAttributeByID(ctx context.Context, attributeID uint) (attribute response.SubTypeAttribute, err error) {
+	query := `SELECT id, sub_category_id, field_name, field_type, is_required, sort_order 
+	          FROM sub_type_attributes 
+	          WHERE id = $1`
+	err = c.DB.Raw(query, attributeID).Scan(&attribute).Error
+	return
+}
+
+// SaveSubTypeAttributeOption saves a new option for a sub type attribute
+func (c *productDatabase) SaveSubTypeAttributeOption(ctx context.Context, attributeID uint, option domain.SubTypeAttributeOptions) error {
+	option.SubTypeAttributeID = attributeID
+	return c.DB.Create(&option).Error
+}
+
+// GetAllSubTypeAttributeOptions retrieves all options for a sub type attribute
+func (c *productDatabase) GetAllSubTypeAttributeOptions(ctx context.Context, attributeID uint) (options []response.SubTypeAttributeOption, err error) {
+	query := `SELECT id, sub_type_attribute_id, option_value, sort_order 
+	          FROM sub_type_attribute_options 
+	          WHERE sub_type_attribute_id = $1 
+	          ORDER BY sort_order ASC`
+	err = c.DB.Raw(query, attributeID).Scan(&options).Error
+	return
+}
+
+// GetSubTypeAttributeOptionByID retrieves a single option by ID
+func (c *productDatabase) GetSubTypeAttributeOptionByID(ctx context.Context, optionID uint) (option response.SubTypeAttributeOption, err error) {
+	query := `SELECT id, sub_type_attribute_id, option_value, sort_order 
+	          FROM sub_type_attribute_options 
+	          WHERE id = $1`
+	err = c.DB.Raw(query, optionID).Scan(&option).Error
+	return
+}
+
+// SaveCategoryImage saves a new category image
+func (c *productDatabase) SaveCategoryImage(ctx context.Context, categoryID uint, image domain.CategoryImage) error {
+	image.CategoryID = categoryID
+	query := `INSERT INTO category_images (category_id, image_url, alt_text, sort_order, is_active) 
+	          VALUES ($1, $2, $3, $4, $5)`
+	return c.DB.Exec(query, image.CategoryID, image.ImageURL, image.AltText, image.SortOrder, image.IsActive).Error
+}
+
+// GetAllCategoryImages retrieves all images for a category
+func (c *productDatabase) GetAllCategoryImages(ctx context.Context, categoryID uint) (images []response.CategoryImage, err error) {
+	query := `SELECT id, category_id, image_url, alt_text, sort_order, is_active 
+	          FROM category_images 
+	          WHERE category_id = $1 AND is_active = true 
+	          ORDER BY sort_order ASC, id ASC`
+	err = c.DB.Raw(query, categoryID).Scan(&images).Error
+	return
+}
+
+// GetCategoryImageByID retrieves a single category image by ID
+func (c *productDatabase) GetCategoryImageByID(ctx context.Context, imageID uint) (image response.CategoryImage, err error) {
+	query := `SELECT id, category_id, image_url, alt_text, sort_order, is_active 
+	          FROM category_images 
+	          WHERE id = $1`
+	err = c.DB.Raw(query, imageID).Scan(&image).Error
+	return
+}
+
+// UpdateCategoryImage updates an existing category image
+func (c *productDatabase) UpdateCategoryImage(ctx context.Context, image domain.CategoryImage) error {
+	query := `UPDATE category_images 
+	          SET image_url = $1, alt_text = $2, sort_order = $3, is_active = $4, updated_at = CURRENT_TIMESTAMP 
+	          WHERE id = $5`
+	return c.DB.Exec(query, image.ImageURL, image.AltText, image.SortOrder, image.IsActive, image.ID).Error
+}
+
+// DeleteCategoryImage soft deletes a category image
+func (c *productDatabase) DeleteCategoryImage(ctx context.Context, imageID uint) error {
+	query := `UPDATE category_images SET is_active = false, updated_at = CURRENT_TIMESTAMP WHERE id = $1`
+	return c.DB.Exec(query, imageID).Error
+}
+
+func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID uint) (productItem response.ProductItems, err error) {
+	// First, get product item details (excluding images)
+	query := `SELECT pi.id, pi.sub_category_name, pi.product_id, p.category_id, 
+	           sc.name AS category_name, mc.name AS main_category_name, 
+	           pi.dynamic_fields, pi.created_at, pi.updated_at
+	       FROM product_items pi 
+	       LEFT JOIN products p ON p.id = pi.product_id 
+	       LEFT JOIN categories sc ON p.category_id = sc.id 
+	       LEFT JOIN categories mc ON p.category_id = mc.id 
+	       WHERE pi.id = $1;`
+
+	var dbItem struct {
+		ID               uint
+		SubCategoryName  string
+		ProductID        uint
+		CategoryID       uint
+		CategoryName     string
+		MainCategoryName string
+		DynamicFields    []byte
+		CreatedAt        time.Time
+		UpdatedAt        time.Time
+	}
+
+	err = c.DB.Raw(query, productItemID).Scan(&dbItem).Error
+	if err != nil {
+		return
+	}
+
+	productItem.ID = dbItem.ID
+	productItem.Name = dbItem.SubCategoryName
+	productItem.ProductID = dbItem.ProductID
+	productItem.CategoryName = dbItem.CategoryName
+	productItem.MainCategoryName = dbItem.MainCategoryName
+	productItem.CreatedAt = dbItem.CreatedAt
+	productItem.UpdatedAt = dbItem.UpdatedAt
+
+	// Fetch images from product_images table
+	images, imgErr := c.FindAllProductItemImages(ctx, dbItem.ID)
+	if imgErr != nil {
+		productItem.ProductItemImages = []string{}
+	} else {
+		productItem.ProductItemImages = images
+	}
+
+	// Unmarshal DynamicFields JSONB to map
+	var dynamicFields map[string]interface{}
+	err = json.Unmarshal(dbItem.DynamicFields, &dynamicFields)
+	if err != nil {
+		return
+	}
+	productItem.DynamicFields = dynamicFields
 
 	return
 }

@@ -44,8 +44,5 @@ type SalesReport struct {
 type Stock struct {
 	ProductItemID    uint              `json:"product_item_id"`
 	ProductName      string            `json:"product_name"`
-	Price            uint              `json:"price"`
-	SKU              string            `json:"sku"`
-	QtyInStock       uint              `json:"qty_in_stock"`
 	VariationOptions []VariationOption `gorm:"-"`
 }

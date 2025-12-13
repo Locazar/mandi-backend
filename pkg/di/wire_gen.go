@@ -52,7 +52,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	paymentUseCase := usecase.NewPaymentUseCase(paymentRepository, orderRepository, userRepository, cartRepository, couponRepository, cfg)
 	paymentHandler := handler.NewPaymentHandler(paymentUseCase)
 	productUseCase := usecase.NewProductUseCase(productRepository, cloudService, gormDB)
-	productHandler := handler.NewProductHandler(productUseCase)
+	productHandler := handler.NewProductHandler(productUseCase, tokenService)
 	orderUseCase := usecase.NewOrderUseCase(orderRepository, cartRepository, userRepository, paymentRepository)
 	orderHandler := handler.NewOrderHandler(orderUseCase)
 	couponUseCase := usecase.NewCouponUseCase(couponRepository, cartRepository)

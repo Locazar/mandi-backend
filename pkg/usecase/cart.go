@@ -36,15 +36,15 @@ func (c *cartUseCase) GetUserCart(ctx context.Context, userID uint) (cart domain
 
 func (c *cartUseCase) SaveProductItemToCart(ctx context.Context, userID, productItemId uint) error {
 
-	productItem, err := c.productRepo.FindProductItemByID(ctx, productItemId)
+	_, err := c.productRepo.FindProductItemByID(ctx, productItemId)
 	if err != nil {
 		return utils.PrependMessageToError(err, "failed to find product items")
 	}
 
-	// check productItem is out of stock or not
-	if productItem.QtyInStock == 0 {
-		return ErrProductItemOutOfStock
-	}
+	// // check productItem is out of stock or not
+	// if productItem.QtyInStock == 0 {
+	// 	return ErrProductItemOutOfStock
+	// }
 
 	// find the cart of user
 	cart, err := c.cartRepo.FindCartByUserID(ctx, userID)
@@ -108,7 +108,7 @@ func (c *cartUseCase) UpdateCartItem(ctx context.Context, updateDetails request.
 
 	const maxCartItemQty = 100
 	//check the given product_item_id is valid or not
-	productItem, err := c.productRepo.FindProductItemByID(ctx, updateDetails.ProductItemID)
+	_, err := c.productRepo.FindProductItemByID(ctx, updateDetails.ProductItemID)
 	if err != nil {
 		return utils.PrependMessageToError(err, "failed to find product items")
 	}
@@ -117,7 +117,7 @@ func (c *cartUseCase) UpdateCartItem(ctx context.Context, updateDetails request.
 		return ErrRequireMinimumCartItemQty
 	}
 
-	if updateDetails.Count > productItem.QtyInStock || updateDetails.Count > maxCartItemQty {
+	if updateDetails.Count > maxCartItemQty {
 		return ErrInvalidCartItemUpdateQty
 	}
 

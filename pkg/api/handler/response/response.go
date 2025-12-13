@@ -29,9 +29,15 @@ func SuccessResponse(ctx *gin.Context, statusCode int, message string, data ...i
 
 func ErrorResponse(ctx *gin.Context, statusCode int, message string, err error, data interface{}) {
 
-	log.Printf("\033[0;31m%s\033[0m\n", err.Error())
+	var errFields []string
+	if err != nil {
+		log.Printf("\033[0;31m%s\033[0m\n", err.Error())
+		errFields = strings.Split(err.Error(), "\n")
+	} else {
+		log.Printf("\033[0;31m%s\033[0m\n", message)
+		errFields = []string{message}
+	}
 
-	errFields := strings.Split(err.Error(), "\n")
 	response := Response{
 		Status:  false,
 		Message: message,

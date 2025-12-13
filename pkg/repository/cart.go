@@ -95,7 +95,7 @@ func (c *cartDatabase) FindAllCartItemsByCartID(ctx context.Context, cartID uint
 
 	// get the cartItem of all user with subtotal
 	query := `SELECT ci.product_item_id, p.name AS product_name, ci.qty,pi.price ,
-	 pi.discount_price, pi.qty_in_stock,
+	 pi.discount_price,
 	 CASE WHEN pi.discount_price > 0 THEN pi.discount_price * ci.qty ELSE pi.price * ci.qty END AS sub_total   
 	 FROM cart_items ci INNER JOIN product_items pi ON ci.product_item_id = pi.id 
 	 INNER JOIN products p ON pi.product_id = p.id AND ci.cart_id=?`
@@ -112,7 +112,7 @@ func (c *cartDatabase) IsCartValidForOrder(ctx context.Context, userID uint) (va
 		EXISTS( SELECT DISTINCT pi.id FROM product_items pi 
 		INNER JOIN cart_items ci ON pi.id = ci.product_item_id 
 		INNER JOIN carts c ON ci.cart_id = c.id 
-		WHERE c.user_id = $1 AND pi.qty_in_stock <= 0) AS valid FROM carts`
+		WHERE c.user_id = $1) AS valid FROM carts`
 
 	err = c.DB.Raw(query, userID).Scan(&outOfStockExist).Error
 

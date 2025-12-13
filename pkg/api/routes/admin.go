@@ -49,24 +49,63 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			user.PATCH("/block", adminHandler.BlockUser)
 		}
 
-		// category
-		category := api.Group("/categories")
+		//department
+		department := api.Group("/departments")
 		{
-			category.GET("/", productHandler.GetAllCategories)
-			category.POST("/", middleware.TrimSpaces(), productHandler.SaveCategory)
-			category.POST("/sub-categories", middleware.TrimSpaces(), productHandler.SaveSubCategory)
+			department.POST("/", middleware.TrimSpaces(), productHandler.SaveDepartment)
+			department.GET("/", productHandler.GetAllDepartments)
 
-			variation := category.Group("/:category_id/variations")
+			// category
+			category := department.Group("/:department_id/categories")
 			{
-				variation.POST("/", middleware.TrimSpaces(), productHandler.SaveVariation)
-				variation.GET("/", productHandler.GetAllVariations)
+				category.GET("/", productHandler.GetAllCategoriesByDepartmentID)
+				category.POST("/", middleware.TrimSpaces(), productHandler.SaveCategory)
 
-				variationOption := variation.Group("/:variation_id/options")
+				// Category images for a specific category
+				categoryImages := category.Group("/:category_id/images")
 				{
-					variationOption.POST("/", middleware.TrimSpaces(), productHandler.SaveVariationOption)
+					categoryImages.POST("/", middleware.TrimSpaces(), productHandler.SaveCategoryImage)
+					categoryImages.GET("/", productHandler.GetAllCategoryImages)
+					categoryImages.GET("/:image_id", productHandler.GetCategoryImageByID)
+					categoryImages.PUT("/:image_id", middleware.TrimSpaces(), productHandler.UpdateCategoryImage)
+					categoryImages.DELETE("/:image_id", productHandler.DeleteCategoryImage)
+				}
+
+				// Sub-categories for a specific category
+				subCategory := category.Group("/:category_id/sub-categories")
+				{
+					subCategory.POST("/", middleware.TrimSpaces(), productHandler.SaveSubCategory)
+					subCategory.GET("/", productHandler.GetAllSubCategoriesByCategoryID)
+
+					// Sub type attributes for a specific subcategory
+					subTypeAttr := subCategory.Group("/:sub_category_id/attributes")
+					{
+						subTypeAttr.POST("/", middleware.TrimSpaces(), productHandler.SaveSubTypeAttribute)
+						subTypeAttr.GET("/", productHandler.GetAllSubTypeAttributes)
+						subTypeAttr.GET("/:attribute_id", productHandler.GetSubTypeAttributeByID)
+
+						// Sub type attribute options for a specific attribute
+						attrOption := subTypeAttr.Group("/:attribute_id/options")
+						{
+							attrOption.POST("/", middleware.TrimSpaces(), productHandler.SaveSubTypeAttributeOption)
+							attrOption.GET("/", productHandler.GetAllSubTypeAttributeOptions)
+							attrOption.GET("/:option_id", productHandler.GetSubTypeAttributeOptionByID)
+						}
+					}
+				}
+
+				// Variations for a specific category (sibling to subCategory, not child)
+				variation := category.Group("/:category_id/variations")
+				{
+					variation.POST("/", middleware.TrimSpaces(), productHandler.SaveVariation)
+					variation.GET("/", productHandler.GetAllVariations)
+
+					variationOption := variation.Group("/:variation_id/options")
+					{
+						variationOption.POST("/", middleware.TrimSpaces(), productHandler.SaveVariationOption)
+					}
 				}
 			}
-
 		}
 		// brand
 		brand := api.Group("/brands")
@@ -81,13 +120,15 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		product := api.Group("/products")
 		{
 			product.GET("/", productHandler.GetAllProductsAdmin())
+			product.GET("/:product_id", productHandler.GetProductByID)
 			product.POST("/", middleware.TrimSpaces(), productHandler.SaveProduct)
 			product.PUT("/", middleware.TrimSpaces(), productHandler.UpdateProduct)
 
 			productItem := product.Group("/:product_id/items")
 			{
-				productItem.GET("/", productHandler.GetAllProductItemsAdmin())
-				productItem.POST("/", productHandler.SaveProductItem)
+				productItem.GET("", productHandler.GetAllProductItemsAdmin())
+				productItem.POST("", productHandler.SaveProductItem)
+				productItem.GET("/:product_item_id", productHandler.GetProductItemByID)
 			}
 		}
 		// 	// order

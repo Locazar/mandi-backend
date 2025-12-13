@@ -13,7 +13,7 @@ type Pagination struct {
 
 const (
 	defaultPageNumber = 1
-	defaultPageCount  = 10
+	defaultPageCount  = 25
 )
 
 func GetPagination(ctx *gin.Context) Pagination {

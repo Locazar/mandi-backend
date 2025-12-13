@@ -86,6 +86,14 @@ func ConnectDatabase(cfg config.Config) (*gorm.DB, error) {
 
 		//Payment Methods
 		domain.PaymentMethod{},
+
+		// department
+		domain.Department{},
+		domain.SubCategory{},
+
+		domain.SubTypeAttributes{},
+		domain.SubTypeAttributeOptions{},
+		domain.SubCategoryDetails{},
 	)
 
 	if err != nil {

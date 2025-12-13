@@ -155,30 +155,13 @@ func (c *productUseCase) FindAllCategories(ctx context.Context, pagination reque
 		return nil, utils.PrependMessageToError(err, "failed find all main categories")
 	}
 
-	for i, category := range categories {
-
-		subCategory, err := c.productRepo.FindAllSubCategories(ctx, category.ID)
-		if err != nil {
-			return nil, utils.PrependMessageToError(err, "failed to find sub categories")
-		}
-		categories[i].SubCategory = subCategory
-	}
-
 	return categories, nil
 }
 
 // Save category
-func (c *productUseCase) SaveCategory(ctx context.Context, categoryName string) error {
+func (c *productUseCase) SaveCategory(ctx context.Context, body request.Category, departmentId string) error {
 
-	categoryExist, err := c.productRepo.IsCategoryNameExist(ctx, categoryName)
-	if err != nil {
-		return utils.PrependMessageToError(err, "failed to check category already exist")
-	}
-	if categoryExist {
-		return ErrCategoryAlreadyExist
-	}
-
-	err = c.productRepo.SaveCategory(ctx, categoryName)
+	err := c.productRepo.SaveCategory(ctx, body, departmentId)
 	if err != nil {
 		return utils.PrependMessageToError(err, "failed to save category")
 	}
@@ -187,17 +170,9 @@ func (c *productUseCase) SaveCategory(ctx context.Context, categoryName string) 
 }
 
 // Save Sub category
-func (c *productUseCase) SaveSubCategory(ctx context.Context, subCategory request.SubCategory) error {
+func (c *productUseCase) SaveSubCategory(ctx context.Context, body request.SubCategory, departmentId string, category_id string) error {
 
-	subCatExist, err := c.productRepo.IsSubCategoryNameExist(ctx, subCategory.Name, subCategory.CategoryID)
-	if err != nil {
-		return utils.PrependMessageToError(err, "failed to check sub category already exist")
-	}
-	if subCatExist {
-		return ErrCategoryAlreadyExist
-	}
-
-	err = c.productRepo.SaveSubCategory(ctx, subCategory.CategoryID, subCategory.Name)
+	err := c.productRepo.SaveSubCategory(ctx, body, departmentId, category_id)
 	if err != nil {
 		return utils.PrependMessageToError(err, "failed to save sub category")
 	}
@@ -284,153 +259,56 @@ func (c *productUseCase) FindAllProducts(ctx context.Context, pagination request
 		return nil, utils.PrependMessageToError(err, "failed to get product details from database")
 	}
 
-	for i, p := range responseProducts {
-		url, err := c.cloudService.GetFileUrl(ctx, p.Image)
-		if err != nil {
-			responseProducts[i].Image = p.Image
-		} else {
-			responseProducts[i].Image = url
-		}
-	}
-
+	// Images are already stored as local paths, no need to fetch from cloud
+	// Just return the products as-is with their local image paths
 	return responseProducts, nil
 }
 
+// to get product by ID
+func (c *productUseCase) FindProductByID(ctx context.Context, productID uint) (domain.Product, error) {
+	product, err := c.productRepo.FindProductByID(ctx, productID)
+	if err != nil {
+		return product, utils.PrependMessageToError(err, "failed to get product from database")
+	}
+	return product, nil
+}
+
 // to add new product
-func (c *productUseCase) SaveProduct(ctx context.Context, product request.Product) error {
+func (c *productUseCase) SaveProduct(ctx context.Context, product request.Product, adminID string) (productID uint, err error) {
 
-	productNameExist, err := c.productRepo.IsProductNameExist(ctx, product.Name)
+	// productNameExist, err := c.productRepo.IsProductNameExist(ctx, product.Name)
+	// if err != nil {
+	// 	return 0, utils.PrependMessageToError(err, "failed to check product name already exist")
+	// }
+	// if productNameExist {
+	// 	return 0, utils.PrependMessageToError(ErrProductAlreadyExist, "product name "+product.Name)
+	// }
+
+	// Save image to uploads folder in project directory
+	localPath, err := utils.SaveFileLocally(product.ImageFileHeader, "uploads/products")
+	fmt.Printf("Local path of saved image: %s\n", localPath)
 	if err != nil {
-		return utils.PrependMessageToError(err, "failed to check product name already exist")
-	}
-	if productNameExist {
-		return utils.PrependMessageToError(ErrProductAlreadyExist, "product name "+product.Name)
+		return 0, utils.PrependMessageToError(err, "failed to save image locally")
 	}
 
-	uploadID, err := c.cloudService.SaveFile(ctx, product.ImageFileHeader)
+	productID, err = c.productRepo.SaveProduct(ctx, domain.Product{
+		Name:         product.Name,
+		Description:  product.Description,
+		CategoryID:   product.CategoryID,
+		Image:        localPath,
+		DepartmentID: product.DepartmentID,
+	}, adminID)
 	if err != nil {
-		return utils.PrependMessageToError(err, "failed to save image on cloud storage")
+		return 0, utils.PrependMessageToError(err, "failed to save product")
 	}
-
-	err = c.productRepo.SaveProduct(ctx, domain.Product{
-		Name:        product.Name,
-		Description: product.Description,
-		CategoryID:  product.CategoryID,
-		BrandID:     product.BrandID,
-		Price:       product.Price,
-		Image:       uploadID,
-	})
-	if err != nil {
-		return utils.PrependMessageToError(err, "failed to save product")
-	}
-	return nil
+	return productID, nil
 }
 
 // for add new productItem for a specific product
-func (c *productUseCase) SaveProductItem(ctx context.Context, productID uint, productItem request.ProductItem) error {
-
-	variationCount, err := c.productRepo.FindVariationCountForProduct(ctx, productID)
+func (c *productUseCase) SaveProductItem(ctx context.Context, productItem request.ProductItem, productID uint) error {
+	_, err := c.productRepo.SaveProductItem(ctx, productItem, productID)
 	if err != nil {
-		return utils.PrependMessageToError(err, "failed to get variation count of product from database")
-	}
-
-	fmt.Printf("productItem VariationOptionIDs: %+v\n", productItem.VariationOptionIDs)
-	fmt.Printf("Expected variation count: %d\n", variationCount)
-
-	if len(productItem.VariationOptionIDs) != int(variationCount) {
-		return ErrNotEnoughVariations
-	}
-
-	// check the given all combination already exist (Color:Red with Size:M)
-	productItemExist, err := c.isProductVariationCombinationExist(productID, productItem.VariationOptionIDs)
-	if err != nil {
-		return err
-	}
-	if productItemExist {
-		return ErrProductItemAlreadyExist
-	}
-
-	err = c.productRepo.Transactions(ctx, func(trxRepo interfaces.ProductRepository) error {
-
-		sku := utils.GenerateSKU()
-		newProductItem := domain.ProductItem{
-			ProductID:  productID,
-			QtyInStock: productItem.QtyInStock,
-			Price:      productItem.Price,
-			SKU:        sku,
-		}
-
-		productItemID, err := trxRepo.SaveProductItem(ctx, newProductItem)
-		if err != nil {
-			return utils.PrependMessageToError(err, "failed to save product item")
-		}
-
-		errChan := make(chan error, 2)
-		newCtx, cancel := context.WithCancel(ctx) // for any of one of goroutine get error then cancel the working of other also
-		defer cancel()
-
-		go func() {
-			// save all product configurations based on given variation option id
-			for _, variationOptionID := range productItem.VariationOptionIDs {
-
-				select {
-				case <-newCtx.Done():
-					return
-				default:
-					err = trxRepo.SaveProductConfiguration(ctx, productItemID, variationOptionID)
-					if err != nil {
-						errChan <- utils.PrependMessageToError(err, "failed to save product_item configuration")
-						return
-					}
-				}
-			}
-			errChan <- nil
-		}()
-
-		go func() {
-			// save all images for the given product item
-			for _, imageFile := range productItem.ImageFileHeaders {
-
-				select {
-				case <-newCtx.Done():
-					return
-				default:
-					// upload image on cloud
-					uploadID, err := c.cloudService.SaveFile(ctx, imageFile)
-					if err != nil {
-						errChan <- utils.PrependMessageToError(err, "failed to upload image to cloud")
-						return
-					}
-					// save upload id on database
-					err = trxRepo.SaveProductItemImage(ctx, productItemID, uploadID)
-					if err != nil {
-						errChan <- utils.PrependMessageToError(err, "failed to save image for product item on database")
-						return
-					}
-				}
-			}
-			errChan <- nil
-		}()
-
-		// wait for the both go routine to complete
-		for i := 1; i <= 2; i++ {
-
-			select {
-			case <-ctx.Done():
-				return nil
-			case err := <-errChan:
-				if err != nil { // if any of the goroutine send error then return the error
-					return err
-				}
-				// no error then continue for the next check of select
-			}
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return err
+		return utils.PrependMessageToError(err, "failed to save product item")
 	}
 	return nil
 }
@@ -478,75 +356,6 @@ func (c *productUseCase) FindAllProductItems(ctx context.Context, productID uint
 	productItems, err := c.productRepo.FindAllProductItems(ctx, productID)
 	if err != nil {
 		return productItems, err
-	}
-
-	errChan := make(chan error, 2)
-	newCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	go func() {
-
-		// get all variation values of each product items
-		for i := range productItems {
-
-			select { // checking each time context is cancelled or not
-			case <-ctx.Done():
-				return
-			default:
-				variationValues, err := c.productRepo.FindAllVariationValuesOfProductItem(ctx, productItems[i].ID)
-				if err != nil {
-					errChan <- utils.PrependMessageToError(err, "failed to find variation values product item")
-					return
-				}
-				productItems[i].VariationValues = variationValues
-			}
-		}
-		errChan <- nil
-	}()
-
-	go func() {
-		// get all images of each product items
-		for i := range productItems {
-
-			select { // checking each time context is cancelled or not
-			case <-newCtx.Done():
-				return
-			default:
-				images, err := c.productRepo.FindAllProductItemImages(ctx, productItems[i].ID)
-
-				imageUrls := make([]string, len(images))
-
-				for j := range images {
-
-					url, err := c.cloudService.GetFileUrl(ctx, images[j])
-					if err != nil {
-						errChan <- utils.PrependMessageToError(err, "failed to get image url from could service")
-					}
-					imageUrls[j] = url
-				}
-
-				if err != nil {
-					errChan <- utils.PrependMessageToError(err, "failed to find images of product item")
-					return
-				}
-				productItems[i].Images = imageUrls
-			}
-		}
-		errChan <- nil
-	}()
-
-	// wait for the two routine to complete
-	for i := 1; i <= 2; i++ {
-
-		select {
-		case <-ctx.Done():
-			return nil, nil
-		case err := <-errChan:
-			if err != nil {
-				return nil, err
-			}
-			// no error then continue for the next check
-		}
 	}
 
 	return productItems, nil
@@ -908,9 +717,8 @@ func (s *productUseCase) GetCategoryFilters(ctx context.Context) ([]response.Cat
 
 		// Map scanned result to response.Category
 		categories = append(categories, response.Category{
-			ID:          c.CategoryID,
-			Name:        c.Name,
-			SubCategory: nil, // Populate this if needed later
+			ID:   c.CategoryID,
+			Name: c.Name,
 		})
 	}
 	return categories, nil
@@ -1290,4 +1098,193 @@ func (c *productUseCase) GetProductsByRadius(ctx context.Context, latitude int, 
 	}
 
 	return products, nil
+}
+
+func (c *productUseCase) SaveDepartment(ctx context.Context, departmentName string) error {
+	err := c.productRepo.SaveDepartment(ctx, departmentName)
+	if err != nil {
+		return utils.PrependMessageToError(err, "failed to save department")
+	}
+	return nil
+}
+
+func (c *productUseCase) GetAllDepartments(ctx context.Context) ([]response.Department, error) {
+	departments, err := c.productRepo.GetAllDepartments(ctx)
+	if err != nil {
+		return nil, utils.PrependMessageToError(err, "failed to get departments")
+	}
+	// loop through departments and map to response.Department
+	resDepartments := make([]response.Department, len(departments))
+	for i, dept := range departments {
+		resDepartments[i] = response.Department{
+			ID:   dept.ID,
+			Name: dept.Name,
+		}
+	}
+	return resDepartments, nil
+}
+
+func (c *productUseCase) GetDepartmentByID(ctx context.Context, departmentID uint) (response.Department, error) {
+	department, err := c.productRepo.GetDepartmentByID(ctx, departmentID)
+	if err != nil {
+		return response.Department{}, utils.PrependMessageToError(err, "failed to get department by id")
+	}
+	return response.Department{
+		ID:   department.ID,
+		Name: department.Name,
+	}, nil
+}
+
+func (c *productUseCase) GetAllSubCategories(ctx context.Context) ([]response.SubCategory, error) {
+	subCategories, err := c.productRepo.GetAllSubCategories(ctx)
+	if err != nil {
+		return nil, utils.PrependMessageToError(err, "failed to get sub-categories")
+	}
+	return subCategories, nil
+}
+
+func (c *productUseCase) GetAllCategoriesByDepartmentID(ctx context.Context, departmentID uint) ([]response.Category, error) {
+	categories, err := c.productRepo.GetAllCategoriesByDepartmentID(ctx, departmentID)
+	if err != nil {
+		return nil, utils.PrependMessageToError(err, "failed to get categories by department id")
+	}
+	return categories, nil
+}
+
+func (c *productUseCase) GetAllSubCategoriesByCategoryID(ctx context.Context, categoryID uint) ([]response.SubCategory, error) {
+	subCategories, err := c.productRepo.GetAllSubCategoriesByCategoryID(ctx, categoryID)
+	if err != nil {
+		return nil, utils.PrependMessageToError(err, "failed to get sub-categories by category id")
+	}
+	return subCategories, nil
+}
+
+// SaveSubTypeAttribute saves a new sub type attribute
+func (c *productUseCase) SaveSubTypeAttribute(ctx context.Context, subCategoryID uint, attribute request.SubTypeAttribute) error {
+	// Convert request to domain model
+	domainAttribute := domain.SubTypeAttributes{
+		FieldName:  attribute.FieldName,
+		FieldType:  attribute.FieldType,
+		IsRequired: attribute.IsRequired,
+		SortOrder:  attribute.SortOrder,
+	}
+
+	return c.productRepo.SaveSubTypeAttribute(ctx, subCategoryID, domainAttribute)
+}
+
+// GetAllSubTypeAttributes retrieves all sub type attributes for a subcategory
+func (c *productUseCase) GetAllSubTypeAttributes(ctx context.Context, subCategoryID uint) ([]response.SubTypeAttribute, error) {
+	attributes, err := c.productRepo.GetAllSubTypeAttributes(ctx, subCategoryID)
+	if err != nil {
+		return nil, utils.PrependMessageToError(err, "failed to get sub type attributes")
+	}
+	return attributes, nil
+}
+
+// GetSubTypeAttributeByID retrieves a single sub type attribute by ID
+func (c *productUseCase) GetSubTypeAttributeByID(ctx context.Context, attributeID uint) (response.SubTypeAttribute, error) {
+	attribute, err := c.productRepo.GetSubTypeAttributeByID(ctx, attributeID)
+	if err != nil {
+		return response.SubTypeAttribute{}, utils.PrependMessageToError(err, "failed to get sub type attribute by id")
+	}
+	return attribute, nil
+}
+
+// SaveSubTypeAttributeOption saves a new option for a sub type attribute
+func (c *productUseCase) SaveSubTypeAttributeOption(ctx context.Context, attributeID uint, option request.SubTypeAttributeOption) error {
+	// Convert request to domain model
+	domainOption := domain.SubTypeAttributeOptions{
+		OptionValue: option.OptionValue,
+		SortOrder:   option.SortOrder,
+	}
+
+	return c.productRepo.SaveSubTypeAttributeOption(ctx, attributeID, domainOption)
+}
+
+// GetAllSubTypeAttributeOptions retrieves all options for a sub type attribute
+func (c *productUseCase) GetAllSubTypeAttributeOptions(ctx context.Context, attributeID uint) ([]response.SubTypeAttributeOption, error) {
+	options, err := c.productRepo.GetAllSubTypeAttributeOptions(ctx, attributeID)
+	if err != nil {
+		return nil, utils.PrependMessageToError(err, "failed to get sub type attribute options")
+	}
+	return options, nil
+}
+
+// GetSubTypeAttributeOptionByID retrieves a single option by ID
+func (c *productUseCase) GetSubTypeAttributeOptionByID(ctx context.Context, optionID uint) (response.SubTypeAttributeOption, error) {
+	option, err := c.productRepo.GetSubTypeAttributeOptionByID(ctx, optionID)
+	if err != nil {
+		return response.SubTypeAttributeOption{}, utils.PrependMessageToError(err, "failed to get sub type attribute option by id")
+	}
+	return option, nil
+}
+
+// SaveCategoryImage saves a new category image
+func (c *productUseCase) SaveCategoryImage(ctx context.Context, categoryID uint, image request.CategoryImage) error {
+	categoryImage := domain.CategoryImage{
+		CategoryID: categoryID,
+		ImageURL:   image.ImageURL,
+		AltText:    image.AltText,
+		SortOrder:  image.SortOrder,
+		IsActive:   image.IsActive,
+	}
+	if categoryImage.IsActive == false {
+		categoryImage.IsActive = true
+	}
+	err := c.productRepo.SaveCategoryImage(ctx, categoryID, categoryImage)
+	if err != nil {
+		return utils.PrependMessageToError(err, "failed to save category image")
+	}
+	return nil
+}
+
+// GetAllCategoryImages retrieves all images for a category
+func (c *productUseCase) GetAllCategoryImages(ctx context.Context, categoryID uint) ([]response.CategoryImage, error) {
+	images, err := c.productRepo.GetAllCategoryImages(ctx, categoryID)
+	if err != nil {
+		return nil, utils.PrependMessageToError(err, "failed to get all category images")
+	}
+	return images, nil
+}
+
+// GetCategoryImageByID retrieves a single category image
+func (c *productUseCase) GetCategoryImageByID(ctx context.Context, imageID uint) (response.CategoryImage, error) {
+	image, err := c.productRepo.GetCategoryImageByID(ctx, imageID)
+	if err != nil {
+		return response.CategoryImage{}, utils.PrependMessageToError(err, "failed to get category image by id")
+	}
+	return image, nil
+}
+
+// UpdateCategoryImage updates an existing category image
+func (c *productUseCase) UpdateCategoryImage(ctx context.Context, imageID uint, image request.CategoryImage) error {
+	categoryImage := domain.CategoryImage{
+		ID:        imageID,
+		ImageURL:  image.ImageURL,
+		AltText:   image.AltText,
+		SortOrder: image.SortOrder,
+		IsActive:  image.IsActive,
+	}
+	err := c.productRepo.UpdateCategoryImage(ctx, categoryImage)
+	if err != nil {
+		return utils.PrependMessageToError(err, "failed to update category image")
+	}
+	return nil
+}
+
+// DeleteCategoryImage soft deletes a category image
+func (c *productUseCase) DeleteCategoryImage(ctx context.Context, imageID uint) error {
+	err := c.productRepo.DeleteCategoryImage(ctx, imageID)
+	if err != nil {
+		return utils.PrependMessageToError(err, "failed to delete category image")
+	}
+	return nil
+}
+
+func (c *productUseCase) GetProductItemByID(ctx context.Context, productItemID uint) (response.ProductItems, error) {
+	productItem, err := c.productRepo.GetProductItemByID(ctx, productItemID)
+	if err != nil {
+		return response.ProductItems{}, utils.PrependMessageToError(err, "failed to get product item by id")
+	}
+	return productItem, nil
 }

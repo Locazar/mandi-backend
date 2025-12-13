@@ -278,8 +278,7 @@ func (c *userDatabase) FindWishListItem(ctx context.Context, productID, userID u
 
 func (c *userDatabase) FindAllWishListItemsByUserID(ctx context.Context, userID uint) (productItems []response.WishListItem, err error) {
 
-	query := `SELECT p.name, wl.id, pi.id AS product_item_id, pi.product_id, pi.price, pi.discount_price, 
-	pi.qty_in_stock, sku FROM wish_lists wl 
+	query := `SELECT p.name, wl.id, pi.id AS product_item_id, pi.product_id, FROM wish_lists wl 
 	INNER JOIN product_items pi ON wl.product_item_id = pi.id 
 	INNER JOIN products p ON pi.product_id = p.id 
 	AND wl.user_id = $1`

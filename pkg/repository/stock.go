@@ -33,10 +33,10 @@ func (c *stockDatabase) FindAll(ctx context.Context, pagination request.Paginati
 	limit := pagination.Count
 	offset := (pagination.PageNumber - 1) * limit
 
-	query := `SELECT pi.id AS product_item_id, pi.sku, pi.qty_in_stock, pi.price, p.name AS product_name
+	query := `SELECT pi.id AS product_item_id, p.name AS product_name
 	FROM product_items pi 
 	INNER JOIN products p ON p.id = pi.product_id
-	ORDER BY qty_in_stock LIMIT $1 OFFSET $2`
+	ORDER BY product_item_id LIMIT $1 OFFSET $2`
 
 	err = c.DB.Raw(query, limit, offset).Scan(&stocks).Error
 	if err != nil {

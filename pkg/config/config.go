@@ -37,6 +37,8 @@ type Config struct {
 	AwsSecretKey   string `mapstructure:"AWS_SECRET_ACCESS_KEY"`
 	AwsRegion      string `mapstructure:"AWS_REGION"`
 	AwsBucketName  string `mapstructure:"AWS_BUCKET_NAME"`
+
+	SharedUploadsPath string `mapstructure:"SHARED_UPLOADS_PATH"`
 }
 
 var firbaseConfig = map[string]interface{}{
@@ -62,6 +64,7 @@ var envsNames = []string{
 	"STRIPE_SECRET", "STRIPE_PUBLISH_KEY", "STRIPE_WEBHOOK", // stripe
 	"GOAUTH_CLIENT_ID", "GOAUTH_CLIENT_SECRET", "GOAUTH_CALL_BACK_URL", //goath
 	"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_REGION", "AWS_BUCKET_NAME", // aws s3
+	"SHARED_UPLOADS_PATH", // shared uploads directory
 }
 
 func LoadConfig() (config Config, err error) {

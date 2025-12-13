@@ -10,8 +10,8 @@ import (
 
 type ProductUseCase interface {
 	FindAllCategories(ctx context.Context, pagination request.Pagination) ([]response.Category, error)
-	SaveCategory(ctx context.Context, categoryName string) error
-	SaveSubCategory(ctx context.Context, subCategory request.SubCategory) error
+	SaveCategory(ctx context.Context, body request.Category, departmentId string) error
+	SaveSubCategory(ctx context.Context, body request.SubCategory, departmentId string, category_id string) error
 
 	// variations
 	SaveVariation(ctx context.Context, categoryID uint, variationNames []string) error
@@ -21,10 +21,11 @@ type ProductUseCase interface {
 
 	// products
 	FindAllProducts(ctx context.Context, pagination request.Pagination) (products []response.Product, err error)
-	SaveProduct(ctx context.Context, product request.Product) error
+	FindProductByID(ctx context.Context, productID uint) (product domain.Product, err error)
+	SaveProduct(ctx context.Context, product request.Product, adminID string) (productID uint, err error)
 	UpdateProduct(ctx context.Context, product domain.Product) error
 
-	SaveProductItem(ctx context.Context, productID uint, productItem request.ProductItem) error
+	SaveProductItem(ctx context.Context, productItem request.ProductItem, productID uint) error
 	FindAllProductItems(ctx context.Context, productID uint) ([]response.ProductItems, error)
 	SearchProducts(ctx context.Context, keyword string, categoryID, brandID, locationID *string, limit, offset int) (products []response.Product, err error)
 	GetProductNameSuggestions(ctx context.Context, prefix string) (suggestions []string, err error)
@@ -48,4 +49,31 @@ type ProductUseCase interface {
 	GetLocationByPincode(ctx context.Context, pincodeID string) (location response.Location, err error)
 	GetNearbyProductsByPincode(ctx context.Context, pincode string, limit, offset int) (products []response.Product, err error)
 	GetProductsByRadius(ctx context.Context, latitude int, longitude, radius int, limit, offset int) ([]response.Product, error)
+
+	// department
+	SaveDepartment(ctx context.Context, departmentName string) error
+	GetAllDepartments(ctx context.Context) ([]response.Department, error)
+	GetDepartmentByID(ctx context.Context, departmentID uint) (response.Department, error)
+
+	GetAllSubCategories(ctx context.Context) ([]response.SubCategory, error)
+	GetAllCategoriesByDepartmentID(ctx context.Context, departmentID uint) ([]response.Category, error)
+	GetAllSubCategoriesByCategoryID(ctx context.Context, categoryID uint) ([]response.SubCategory, error)
+
+	// sub type attributes
+	SaveSubTypeAttribute(ctx context.Context, subCategoryID uint, attribute request.SubTypeAttribute) error
+	GetAllSubTypeAttributes(ctx context.Context, subCategoryID uint) ([]response.SubTypeAttribute, error)
+	GetSubTypeAttributeByID(ctx context.Context, attributeID uint) (response.SubTypeAttribute, error)
+
+	// sub type attribute options
+	SaveSubTypeAttributeOption(ctx context.Context, attributeID uint, option request.SubTypeAttributeOption) error
+	GetAllSubTypeAttributeOptions(ctx context.Context, attributeID uint) ([]response.SubTypeAttributeOption, error)
+	GetSubTypeAttributeOptionByID(ctx context.Context, optionID uint) (response.SubTypeAttributeOption, error)
+
+	// category images
+	SaveCategoryImage(ctx context.Context, categoryID uint, image request.CategoryImage) error
+	GetAllCategoryImages(ctx context.Context, categoryID uint) ([]response.CategoryImage, error)
+	GetCategoryImageByID(ctx context.Context, imageID uint) (response.CategoryImage, error)
+	UpdateCategoryImage(ctx context.Context, imageID uint, image request.CategoryImage) error
+	DeleteCategoryImage(ctx context.Context, imageID uint) error
+	GetProductItemByID(ctx context.Context, productItemID uint) (response.ProductItems, error)
 }

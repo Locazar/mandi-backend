@@ -89,3 +89,30 @@ type Advertisement struct {
 	Status          string    `json:"status" gorm:"size:50"`   // e.g. "active", "inactive", "expired"
 	Priority        string    `json:"priority" gorm:"size:20"` // e.g. "high", "medium", "low"
 }
+
+type SubTypeAttributes struct {
+	ID            uint   `json:"id" gorm:"primaryKey;not null"`
+	SubCategoryID uint   `json:"sub_category_id" gorm:"not null" binding:"required,numeric"`
+	FieldName     string `json:"field_name" gorm:"size:50" binding:"required"`
+	FieldType     string `json:"field_type" gorm:"size:20" binding:"required"` // dropdown, number, text
+	IsRequired    bool   `json:"is_required" gorm:"not null;default:true"`
+	SortOrder     int    `json:"sort_order" gorm:"not null;default:0"`
+}
+type SubTypeAttributeOptions struct {
+	ID                 uint `json:"id" gorm:"primaryKey;not null"`
+	SubTypeAttributeID uint `json:"sub_type_attribute_id" gorm:"not null" binding:"required,numeric"`
+	SubTypeAttribute   SubTypeAttributes
+	OptionValue        string `json:"option_value" gorm:"size:50" binding:"required"`
+	SortOrder          int    `json:"sort_order" gorm:"not null;default:0"`
+}
+
+type CategoryImage struct {
+	ID         uint      `json:"id" gorm:"primaryKey;not null"`
+	CategoryID uint      `json:"category_id" gorm:"not null" binding:"required,numeric"`
+	ImageURL   string    `json:"image_url" gorm:"not null" binding:"required"`
+	AltText    string    `json:"alt_text" gorm:"size:255" binding:"omitempty"`
+	SortOrder  int       `json:"sort_order" gorm:"not null;default:0"`
+	IsActive   bool      `json:"is_active" gorm:"not null;default:true"`
+	CreatedAt  time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt  time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+}
