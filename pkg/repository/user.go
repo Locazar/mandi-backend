@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
@@ -57,10 +58,10 @@ func (c *userDatabase) FindUserByUserName(ctx context.Context, userName string) 
 
 func (c *userDatabase) FindUserByUserNameEmailOrPhoneNotID(ctx context.Context,
 	userDetails domain.User) (user domain.User, err error) {
-	fmt.Printf("Checking for existing user with UserName: %s, Email: %s, Phone: %s excluding ID: %d\n",
+	fmt.Printf("Checking for existing user with Email: %s, Phone: %s excluding ID: %d\n",
 		userDetails.Email, userDetails.Phone, userDetails.ID) // Debugging line
 
-	query := `SELECT * FROM users WHERE (user_name = $1 OR email = $2 OR phone = $3) AND id != $4`
+	query := `SELECT * FROM users WHERE (email = $1 OR phone = $2) AND id != $3`
 	err = c.DB.Raw(query, userDetails.Email, userDetails.Phone, userDetails.ID).Scan(&user).Error
 
 	fmt.Printf("Found user: %+v, error: %v\n", user, err) // Debugging line
@@ -69,16 +70,61 @@ func (c *userDatabase) FindUserByUserNameEmailOrPhoneNotID(ctx context.Context,
 }
 
 func (c *userDatabase) SaveUser(ctx context.Context, user domain.User) (userID uint, err error) {
+	// Build dynamic column list and values
+	columns := []string{}
+	placeholders := []string{}
+	values := []interface{}{}
+	paramCount := 1
 
-	//save the user details
-	query := `INSERT INTO users (first_name, 
-		last_name, age, email, phone, password, created_at) 
-	VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`
+	// Map struct fields to database columns
+	if user.FirstName != "" {
+		columns = append(columns, "first_name")
+		placeholders = append(placeholders, fmt.Sprintf("$%d", paramCount))
+		values = append(values, user.FirstName)
+		paramCount++
+	}
+	if user.LastName != "" {
+		columns = append(columns, "last_name")
+		placeholders = append(placeholders, fmt.Sprintf("$%d", paramCount))
+		values = append(values, user.LastName)
+		paramCount++
+	}
+	if user.Age != 0 {
+		columns = append(columns, "age")
+		placeholders = append(placeholders, fmt.Sprintf("$%d", paramCount))
+		values = append(values, user.Age)
+		paramCount++
+	}
+	if user.Email != "" {
+		columns = append(columns, "email")
+		placeholders = append(placeholders, fmt.Sprintf("$%d", paramCount))
+		values = append(values, user.Email)
+		paramCount++
+	}
+	if user.Phone != "" {
+		columns = append(columns, "phone")
+		placeholders = append(placeholders, fmt.Sprintf("$%d", paramCount))
+		values = append(values, user.Phone)
+		paramCount++
+	}
+	if user.Password != "" {
+		columns = append(columns, "password")
+		placeholders = append(placeholders, fmt.Sprintf("$%d", paramCount))
+		values = append(values, user.Password)
+		paramCount++
+	}
 
-	createdAt := time.Now()
-	err = c.DB.Raw(query, user.FirstName, user.LastName,
-		user.Age, user.Email, user.Phone, user.Password, createdAt).Scan(&userID).Error
+	// Always add created_at
+	columns = append(columns, "created_at")
+	placeholders = append(placeholders, fmt.Sprintf("$%d", paramCount))
+	values = append(values, time.Now())
 
+	// Build dynamic query
+	query := fmt.Sprintf("INSERT INTO users (%s) VALUES (%s) RETURNING id",
+		strings.Join(columns, ", "),
+		strings.Join(placeholders, ", "))
+
+	err = c.DB.Raw(query, values...).Scan(&userID).Error
 	return userID, err
 }
 

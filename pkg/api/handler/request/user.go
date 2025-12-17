@@ -3,13 +3,13 @@ package request
 import "mime/multipart"
 
 type UserSignUp struct {
-	FirstName       string `json:"first_name"  binding:"required,min=2,max=50"`
-	LastName        string `json:"last_name"  binding:"required,min=1,max=50"`
-	Age             uint   `json:"age"  binding:"required,numeric"`
-	Email           string `json:"email" binding:"required,email"`
-	Phone           string `json:"phone" binding:"required,min=10,max=10"`
-	Password        string `json:"password"  binding:"required,eqfield=ConfirmPassword"`
-	ConfirmPassword string `json:"confirm_password" binding:"required"`
+	FirstName       string `json:"first_name"`
+	LastName        string `json:"last_name"`
+	Age             uint   `json:"age"`
+	Email           string `json:"email"`
+	Phone           string `json:"phone"`
+	Password        string `json:"password"`
+	ConfirmPassword string `json:"confirm_password"`
 }
 
 // for address add address

@@ -10,8 +10,8 @@ type ShopDetails struct {
 	Email     string `json:"email" gorm:"size:100;uniqueIndex;"`
 	Phone     string `json:"phone" gorm:"size:50;"`
 
-	AddressLine1 string  `json:"address_line_1" gorm:"size:255" binding:"required"`
-	AddressLine2 string  `json:"address_line_2" gorm:"size:255" binding:"omitempty"`
+	AddressLine1 string  `json:"address_line1" gorm:"size:255"`
+	AddressLine2 string  `json:"address_line2" gorm:"size:255" binding:"omitempty"`
 	City         string  `json:"city" gorm:"size:50" binding:"required"`
 	State        string  `json:"state" gorm:"size:50" binding:"required"`
 	Country      string  `json:"country" gorm:"size:50" binding:"required"`

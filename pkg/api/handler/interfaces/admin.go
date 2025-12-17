@@ -45,4 +45,6 @@ type AdminHandler interface {
 
 	// Product details
 	GetAllProductDetails(ctx *gin.Context)
+	UploadShopById(ctx *gin.Context)
+	GetShopProfileImageById(ctx *gin.Context)
 }

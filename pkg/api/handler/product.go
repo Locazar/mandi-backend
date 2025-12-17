@@ -1417,6 +1417,18 @@ func (h *ProductHandler) GetProductsByRadius(c *gin.Context) {
 
 }
 
+// SaveDepartment godoc
+//
+//	@Summary		Save a new department
+//	@Description	API endpoint to create a new product department.
+//	@Tags			Admin Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			department	body		request.Department	true	"Department to be created"
+//	@Success		201			{object}	response.Response{}	"Successfully department saved"
+//	@Failure		400			{object}	response.Response{}	"Invalid input"
+//	@Failure		500			{object}	response.Response{}	"Failed to save department"
+//	@Router			/admin/departments [post]
 func (a *ProductHandler) SaveDepartment(ctx *gin.Context) {
 	var body request.Department
 
@@ -1434,6 +1446,17 @@ func (a *ProductHandler) SaveDepartment(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusCreated, "Successfully department saved", nil)
 }
 
+// GetAllDepartments godoc
+//
+//	@Summary		Get all departments
+//	@Description	API endpoint to retrieve all product departments.
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	response.Response{}	"Successfully retrieved all departments"
+//	@Failure		500	{object}	response.Response{}	"Failed to get departments"
+//	@Router			/departments [get]
+
 func (a *ProductHandler) GetAllDepartments(ctx *gin.Context) {
 	departments, err := a.productUseCase.GetAllDepartments(ctx)
 	if err != nil {
@@ -1448,6 +1471,18 @@ func (a *ProductHandler) GetAllDepartments(ctx *gin.Context) {
 	})
 }
 
+// GetDepartmentByID godoc
+//
+//	@Summary		Get department by ID
+//	@Description	API endpoint to retrieve a product department by its ID.
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			id	path		uint	true	"Department ID"
+//	@Success		200	{object}	response.Response{}	"Successfully retrieved department"
+//	@Failure		400	{object}	response.Response{}	"Invalid department ID"
+//	@Failure		500	{object}	response.Response{}	"Failed to get department"
+//	@Router			/departments/{id} [get]
 func (a *ProductHandler) GetDepartmentByID(ctx *gin.Context) {
 	departmentID, err := request.GetParamAsUint(ctx, "id")
 	if err != nil {
@@ -1464,6 +1499,18 @@ func (a *ProductHandler) GetDepartmentByID(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully get department", department)
 }
 
+// GetAllCategoriesByDepartmentID godoc
+//
+//	@Summary		Get all categories by department ID
+//	@Description	API endpoint to retrieve all product categories under a specific department.
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			department_id	path		uint	true	"Department ID"
+//	@Success		200				{object}	response.Response{}	"Successfully retrieved all categories"
+//	@Failure		400				{object}	response.Response{}	"Invalid department ID"
+//	@Failure		500				{object}	response.Response{}	"Failed to get categories"
+//	@Router			/departments/{department_id}/categories [get]
 func (a *ProductHandler) GetAllCategoriesByDepartmentID(ctx *gin.Context) {
 	departmentID, err := request.GetParamAsUint(ctx, "department_id")
 	if err != nil {
@@ -1484,6 +1531,18 @@ func (a *ProductHandler) GetAllCategoriesByDepartmentID(ctx *gin.Context) {
 	})
 }
 
+// GetAllSubCategoriesByCategoryID godoc
+//
+//	@Summary		Get all sub-categories by category ID
+//	@Description	API endpoint to retrieve all product sub-categories under a specific category.
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			category_id	path		uint	true	"Category ID"
+//	@Success		200			{object}	response.Response{}	"Successfully retrieved all sub-categories"
+//	@Failure		400			{object}	response.Response{}	"Invalid category ID"
+//	@Failure		500			{object}	response.Response{}	"Failed to get sub-categories"
+//	@Router			/categories/{category_id}/sub-categories [get]
 func (a *ProductHandler) GetAllSubCategoriesByCategoryID(ctx *gin.Context) {
 	categoryID, err := request.GetParamAsUint(ctx, "category_id")
 	if err != nil {
@@ -1497,6 +1556,8 @@ func (a *ProductHandler) GetAllSubCategoriesByCategoryID(ctx *gin.Context) {
 		return
 	}
 
+	fmt.Println("SubCategories:", subCategories)
+
 	ctx.JSON(http.StatusOK, response.Response{
 		Status:  true,
 		Message: "Successfully get all sub-categories",
@@ -1504,7 +1565,19 @@ func (a *ProductHandler) GetAllSubCategoriesByCategoryID(ctx *gin.Context) {
 	})
 }
 
-// SaveSubTypeAttribute saves a new sub type attribute for a subcategory
+// SaveSubTypeAttribute godoc
+//
+//	@Summary		Save a new sub type attribute
+//	@Description	API endpoint to create a new sub type attribute for a specific subcategory.
+//	@Tags			Admin Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			sub_category_id	path		uint					true	"Subcategory ID"
+//	@Param			attribute		body		request.SubTypeAttribute	true	"Sub type attribute to be created"
+//	@Success		201				{object}	response.Response{}	"Successfully sub type attribute created"
+//	@Failure		400				{object}	response.Response{}	"Invalid input"
+//	@Failure		500				{object}	response.Response{}	"Failed to save sub type attribute"
+//	@Router			/admin/sub-categories/{sub_category_id}/attributes [post]
 func (p *ProductHandler) SaveSubTypeAttribute(ctx *gin.Context) {
 	subCategoryID, err := request.GetParamAsUint(ctx, "sub_category_id")
 	if err != nil {
@@ -1526,7 +1599,18 @@ func (p *ProductHandler) SaveSubTypeAttribute(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusCreated, "Sub type attribute created successfully", nil)
 }
 
-// GetAllSubTypeAttributes retrieves all sub type attributes for a subcategory
+// GetAllSubTypeAttributes godoc
+//
+//	@Summary		Get all sub type attributes
+//	@Description	API endpoint to retrieve all sub type attributes for a specific subcategory.
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			sub_category_id	path		uint	true	"Subcategory ID"
+//	@Success		200				{object}	response.Response{}	"Successfully retrieved sub type attributes"
+//	@Failure		400				{object}	response.Response{}	"Invalid subcategory ID"
+//	@Failure		500				{object}	response.Response{}	"Failed to get sub type attributes"
+//	@Router			/sub-categories/{sub_category_id}/attributes [get]
 func (p *ProductHandler) GetAllSubTypeAttributes(ctx *gin.Context) {
 	subCategoryID, err := request.GetParamAsUint(ctx, "sub_category_id")
 	if err != nil {
@@ -1547,7 +1631,18 @@ func (p *ProductHandler) GetAllSubTypeAttributes(ctx *gin.Context) {
 	})
 }
 
-// GetSubTypeAttributeByID retrieves a single sub type attribute by ID
+// GetSubTypeAttributeByID godoc
+//
+//	@Summary		Get sub type attribute by ID
+//	@Description	API endpoint to retrieve a sub type attribute by its ID.
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			attribute_id	path		uint	true	"Sub type attribute ID"
+//	@Success		200				{object}	response.Response{}	"Successfully retrieved sub type attribute"
+//	@Failure		400				{object}	response.Response{}	"Invalid attribute ID"
+//	@Failure		500				{object}	response.Response{}	"Failed to get sub type attribute"
+//	@Router			/attributes/{attribute_id} [get]
 func (p *ProductHandler) GetSubTypeAttributeByID(ctx *gin.Context) {
 	attributeID, err := request.GetParamAsUint(ctx, "attribute_id")
 	if err != nil {
@@ -1568,7 +1663,19 @@ func (p *ProductHandler) GetSubTypeAttributeByID(ctx *gin.Context) {
 	})
 }
 
-// SaveSubTypeAttributeOption saves a new option for a sub type attribute
+// SaveSubTypeAttributeOption godoc
+//
+//	@Summary		Save a new sub type attribute option
+//	@Description	API endpoint to create a new option for a specific sub type attribute.
+//	@Tags			Admin Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			attribute_id	path		uint						true	"Sub type attribute ID"
+//	@Param			option			body		request.SubTypeAttributeOption	true	"Sub type attribute option to be created"
+//	@Success		201				{object}	response.Response{}	"Successfully sub type attribute option created"
+//	@Failure		400				{object}	response.Response{}	"Invalid input"
+//	@Failure		500				{object}	response.Response{}	"Failed to save sub type attribute option"
+//	@Router			/admin/attributes/{attribute_id}/options [post]
 func (p *ProductHandler) SaveSubTypeAttributeOption(ctx *gin.Context) {
 	attributeID, err := request.GetParamAsUint(ctx, "attribute_id")
 	if err != nil {
@@ -1590,7 +1697,18 @@ func (p *ProductHandler) SaveSubTypeAttributeOption(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusCreated, "Sub type attribute option created successfully", nil)
 }
 
-// GetAllSubTypeAttributeOptions retrieves all options for a sub type attribute
+// GetAllSubTypeAttributeOptions godoc
+//
+//	@Summary		Get all sub type attribute options
+//	@Description	API endpoint to retrieve all options for a specific sub type attribute.
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			attribute_id	path		uint	true	"Sub type attribute ID"
+//	@Success		200				{object}	response.Response{}	"Successfully retrieved sub type attribute options"
+//	@Failure		400				{object}	response.Response{}	"Invalid attribute ID"
+//	@Failure		500				{object}	response.Response{}	"Failed to get sub type attribute options"
+//	@Router			/attributes/{attribute_id}/options [get]
 func (p *ProductHandler) GetAllSubTypeAttributeOptions(ctx *gin.Context) {
 	attributeID, err := request.GetParamAsUint(ctx, "attribute_id")
 	if err != nil {
@@ -1611,7 +1729,18 @@ func (p *ProductHandler) GetAllSubTypeAttributeOptions(ctx *gin.Context) {
 	})
 }
 
-// GetSubTypeAttributeOptionByID retrieves a single option by ID
+// GetSubTypeAttributeOptionByID godoc
+//
+//	@Summary		Get sub type attribute option by ID
+//	@Description	API endpoint to retrieve a sub type attribute option by its ID.
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			option_id	path		uint	true	"Sub type attribute option ID"
+//	@Success		200			{object}	response.Response{}	"Successfully retrieved sub type attribute option"
+//	@Failure		400			{object}	response.Response{}	"Invalid option ID"
+//	@Failure		500			{object}	response.Response{}	"Failed to get sub type attribute option"
+//	@Router			/options/{option_id} [get]
 func (p *ProductHandler) GetSubTypeAttributeOptionByID(ctx *gin.Context) {
 	optionID, err := request.GetParamAsUint(ctx, "option_id")
 	if err != nil {
@@ -1632,7 +1761,19 @@ func (p *ProductHandler) GetSubTypeAttributeOptionByID(ctx *gin.Context) {
 	})
 }
 
-// SaveCategoryImage saves a new category image
+// SaveCategoryImage godoc
+//
+//	@Summary		Save category image
+//	@Description	API endpoint to save an image for a specific product category.
+//	@Tags			Admin Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			category_id	path		uint				true	"Category ID"
+//	@Param			image		body		request.CategoryImage	true	"Category image to be saved"
+//	@Success		201			{object}	response.Response{}	"Successfully saved category image"
+//	@Failure		400			{object}	response.Response{}	"Invalid input"
+//	@Failure		500			{object}	response.Response{}	"Failed to save category image"
+//	@Router			/admin/categories/{category_id}/images [post]
 func (p *ProductHandler) SaveCategoryImage(ctx *gin.Context) {
 	categoryID, err := request.GetParamAsUint(ctx, "category_id")
 	if err != nil {
@@ -1655,7 +1796,18 @@ func (p *ProductHandler) SaveCategoryImage(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusCreated, "Successfully saved category image", nil)
 }
 
-// GetAllCategoryImages retrieves all images for a category
+// GetAllCategoryImages godoc
+//
+//	@Summary		Get all category images
+//	@Description	API endpoint to retrieve all images for a specific product category.
+//	@Tags			Admin Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			category_id	path		uint	true	"Category ID"
+//	@Success		200			{object}	response.Response{}	"Successfully retrieved category images"
+//	@Failure		400			{object}	response.Response{}	"Invalid category ID"
+//	@Failure		500			{object}	response.Response{}	"Failed to get category images"
+//	@Router			/admin/categories/{category_id}/images [get]
 func (p *ProductHandler) GetAllCategoryImages(ctx *gin.Context) {
 	categoryID, err := request.GetParamAsUint(ctx, "category_id")
 	if err != nil {
@@ -1676,7 +1828,18 @@ func (p *ProductHandler) GetAllCategoryImages(ctx *gin.Context) {
 	})
 }
 
-// GetCategoryImageByID retrieves a single category image
+// GetCategoryImageByID godoc
+//
+//	@Summary		Get category image by ID
+//	@Description	API endpoint to retrieve a category image by its ID.
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			image_id	path		uint	true	"Category Image ID"
+//	@Success		200			{object}	response.Response{}	"Successfully retrieved category image"
+//	@Failure		400			{object}	response.Response{}	"Invalid category image ID"
+//	@Failure		500			{object}	response.Response{}	"Failed to get category image"
+//	@Router			/products/category/image/{image_id} [get]
 func (p *ProductHandler) GetCategoryImageByID(ctx *gin.Context) {
 	imageID, err := request.GetParamAsUint(ctx, "image_id")
 	if err != nil {
@@ -1697,7 +1860,19 @@ func (p *ProductHandler) GetCategoryImageByID(ctx *gin.Context) {
 	})
 }
 
-// UpdateCategoryImage updates an existing category image
+// UpdateCategoryImage godoc
+//
+//	@Summary		Update category image
+//	@Description	API endpoint to update a category image by its ID.
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			image_id	path		int	true	"Category Image ID"
+//	@Param			image		body		request.CategoryImage	true	"Updated category image data"
+//	@Success		200			{object}	response.Response{}	"Successfully updated category image"
+//	@Failure		400			{object}	response.Response{}	"Invalid input"
+//	@Failure		500			{object}	response.Response{}	"Failed to update category image"
+//	@Router			/products/category/image/{image_id} [put]
 func (p *ProductHandler) UpdateCategoryImage(ctx *gin.Context) {
 	imageID, err := request.GetParamAsUint(ctx, "image_id")
 	if err != nil {
@@ -1720,7 +1895,18 @@ func (p *ProductHandler) UpdateCategoryImage(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully updated category image", nil)
 }
 
-// DeleteCategoryImage soft deletes a category image
+// DeleteCategoryImage godoc
+//	@Summary		Delete category image
+//	@Description	Delete a category image by its ID.
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			image_id	path		int	true	"Category Image ID"
+//	@Success		200			{object}	response.Response{}	"Successfully deleted category image"
+//	@Failure		400			{object}	response.Response{}	"Invalid category image ID"
+//	@Failure		500			{object}	response.Response{}	"Internal server error"
+//	@Router			/products/category/image/{image_id} [delete]
+
 func (p *ProductHandler) DeleteCategoryImage(ctx *gin.Context) {
 	imageID, err := request.GetParamAsUint(ctx, "image_id")
 	if err != nil {
@@ -1737,6 +1923,18 @@ func (p *ProductHandler) DeleteCategoryImage(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully deleted category image", nil)
 }
 
+// GetProductItemByID godoc
+// /	@Summary		Get product item by ID
+//
+//	@Description	Retrieve a product item by its unique ID.
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			product_item_id	path		int	true	"Product Item ID"
+//	@Success		200				{object}	response.Response{}	"Successfully retrieved product item"
+//	@Failure		400				{object}	response.Response{}	"Invalid product item ID"
+//	@Failure		500				{object}	response.Response{}	"Internal server error"
+//	@Router			/products/item/{product_item_id} [get]
 func (p *ProductHandler) GetProductItemByID(ctx *gin.Context) {
 	productItemID, err := request.GetParamAsUint(ctx, "product_item_id")
 	if err != nil {

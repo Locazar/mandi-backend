@@ -319,12 +319,13 @@ func (c *adminUseCase) GetShopByID(ctx context.Context, shopID uint) (shop domai
 	if err != nil {
 		return domain.ShopDetails{}, fmt.Errorf("failed to get shop by id \nerror:%v", err.Error())
 	}
+	fmt.Printf("Retrieved shop: %+v\n", shop) // Debugging line
 	return shop, nil
 }
-func (c *adminUseCase) UpdateShop(ctx context.Context, shop domain.ShopDetails) (domain.ShopDetails, error) {
-	updatedShop, err := c.adminRepo.UpdateShop(ctx, shop)
+func (c *adminUseCase) UpdateShop(ctx context.Context, shop map[string]interface{}, shopId string) (map[string]interface{}, error) {
+	updatedShop, err := c.adminRepo.UpdateShop(ctx, shop, shopId)
 	if err != nil {
-		return domain.ShopDetails{}, fmt.Errorf("failed to update shop \nerror:%v", err.Error())
+		return nil, fmt.Errorf("failed to update shop \nerror:%v", err.Error())
 	}
 	return updatedShop, nil
 }
@@ -353,11 +354,11 @@ func (c *adminUseCase) SendNotificationToUser(ctx context.Context, userID uint, 
 	return nil
 }
 
-func (c *adminUseCase) UploadAdminProfileImage(ctx context.Context, adminID string, imagePath string) (string, error) {
+func (c *adminUseCase) UploadAdminProfileImage(ctx context.Context, adminID string, imagePath string, shopId string) (string, error) {
 	if imagePath == "" {
 		return "", fmt.Errorf("invalid image path data")
 	}
-	uploadedImagePath, err := c.adminRepo.UploadAdminProfileImage(ctx, adminID, imagePath)
+	uploadedImagePath, err := c.adminRepo.UploadAdminProfileImage(ctx, adminID, imagePath, shopId)
 	if err != nil {
 		return "", fmt.Errorf("failed to upload admin profile image \nerror:%v", err.Error())
 	}
@@ -369,6 +370,7 @@ func (c *adminUseCase) DecodeTokenData(tokenString string) string {
 }
 
 func (c *adminUseCase) UploadShopDocument(ctx context.Context, shopID uint, documentType string, documentValue string) error {
+
 	err := c.adminRepo.UploadShopDocument(ctx, shopID, documentType, documentValue)
 	if err != nil {
 		return fmt.Errorf("failed to upload shop document \nerror:%v", err.Error())
@@ -438,4 +440,12 @@ func (c *adminUseCase) GetAllProductDetails(ctx context.Context) (products []any
 		return nil, fmt.Errorf("failed to get all product details \nerror:%v", err.Error())
 	}
 	return products, nil
+}
+
+func (c *adminUseCase) GetShopProfileImageById(ctx context.Context, shopId string) (string, error) {
+	shopProfileImage, err := c.adminRepo.GetShopProfileImageById(ctx, shopId)
+	if err != nil {
+		return "", fmt.Errorf("failed to get shop profile image by id \nerror:%v", err.Error())
+	}
+	return shopProfileImage, nil
 }

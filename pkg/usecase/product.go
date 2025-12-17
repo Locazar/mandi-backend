@@ -1117,8 +1117,9 @@ func (c *productUseCase) GetAllDepartments(ctx context.Context) ([]response.Depa
 	resDepartments := make([]response.Department, len(departments))
 	for i, dept := range departments {
 		resDepartments[i] = response.Department{
-			ID:   dept.ID,
-			Name: dept.Name,
+			ID:       dept.ID,
+			Name:     dept.Name,
+			ImageUrl: dept.ImageUrl,
 		}
 	}
 	return resDepartments, nil
@@ -1156,6 +1157,7 @@ func (c *productUseCase) GetAllSubCategoriesByCategoryID(ctx context.Context, ca
 	if err != nil {
 		return nil, utils.PrependMessageToError(err, "failed to get sub-categories by category id")
 	}
+	fmt.Printf("Retrieved %d sub-categories for category ID %d\n", len(subCategories), categoryID)
 	return subCategories, nil
 }
 

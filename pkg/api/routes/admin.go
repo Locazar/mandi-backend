@@ -213,12 +213,14 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			shop.GET("/", adminHandler.GetAllShops)
 			shop.GET("/:shop_id", adminHandler.GetShopByID)
 			shop.PUT("/", adminHandler.UpdateShop)
+			shop.PUT("/:shop_id", adminHandler.UploadShopById)
 			shop.GET("/shop_details", adminHandler.GetShopByOwnerID)
 			shop.POST("/verify", adminHandler.VerifyShop)
 			shop.GET("/verify-status", adminHandler.GetVerificationStatus)
 
 			shop.POST("/upload-profile-image", middleware.AuthenticateAdmin(), adminHandler.UploadAdminProfileImage)
-
+			shop.PUT("/upload-profile-image/:shop_id", middleware.AuthenticateAdmin(), adminHandler.UploadAdminProfileImage)
+			shop.GET("/shop-profile-image/:shop_id", middleware.AuthenticateAdmin(), adminHandler.GetShopProfileImageById)
 			document := shop.Group("/business-document")
 			{
 				document.POST("/send-otp", adminHandler.UploadShopDocument)

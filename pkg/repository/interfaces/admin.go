@@ -31,15 +31,16 @@ type AdminRepository interface {
 	CreateShop(ctx context.Context, shop domain.ShopDetails) (domain.ShopDetails, error)
 	GetAllShops(ctx context.Context, pagination request.Pagination) (shops []domain.ShopDetails, err error)
 	GetShopByID(ctx context.Context, shopID uint) (shop domain.ShopDetails, err error)
-	UpdateShop(ctx context.Context, shop domain.ShopDetails) (domain.ShopDetails, error)
+	UpdateShop(ctx context.Context, shop map[string]interface{}, shopId string) (map[string]interface{}, error)
 	GetShopByOwnerID(ctx context.Context, ownerID uint) (shop domain.ShopDetails, err error)
 
 	SendNotificationToUsersInRadius(ctx context.Context, requestData request.NotificationRadiusRequest) error
 	SendNotificationToUser(ctx context.Context, userID uint, message string) error
-	UploadAdminProfileImage(ctx context.Context, adminID string, imagePath string) (string, error)
+	UploadAdminProfileImage(ctx context.Context, adminID string, imagePath string, shopId string) (string, error)
 	UploadShopDocument(ctx context.Context, shopID uint, documentType string, documentValue string) error
 	UploadAddress(ctx context.Context, adminId string, address request.AddressRequest) error
 	UploadAdminDocumentOtpSend(ctx context.Context, adminID string, documentType string, documentValue string) error
 
 	GetVerificationStatus(ctx context.Context, adminId string) (domain.Admin, domain.ShopVerification, error)
+	GetShopProfileImageById(ctx context.Context, shopId string) (string, error)
 }

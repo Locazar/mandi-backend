@@ -13,9 +13,10 @@ type DocumentRequest struct {
 
 type AddressRequest struct {
 	ShopName     string `json:"shop_name" binding:"required"`
+	OwnerName    string `json:"owner_name" binding:"required"`
 	Phone        string `json:"phone" binding:"required"`
-	AddressLine1 string `json:"address_line_1" binding:"required"`
-	AddressLine2 string `json:"address_line_2" binding:"omitempty"`
+	AddressLine1 string `json:"address_line1" binding:"required"`
+	AddressLine2 string `json:"address_line2" binding:"omitempty"`
 	City         string `json:"city" binding:"required"`
 	State        string `json:"state" binding:"required"`
 	Pincode      string `json:"pincode"`

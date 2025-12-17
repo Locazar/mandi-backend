@@ -5946,17 +5946,17 @@ const docTemplate = `{
         "domain.ShopDetails": {
             "type": "object",
             "required": [
-                "address_line_1",
+                "address_line1",
                 "city",
                 "country",
                 "pincode",
                 "state"
             ],
             "properties": {
-                "address_line_1": {
+                "address_line1": {
                     "type": "string"
                 },
-                "address_line_2": {
+                "address_line2": {
                     "type": "string"
                 },
                 "bank_account_number": {

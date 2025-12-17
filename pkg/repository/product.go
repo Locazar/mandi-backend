@@ -489,14 +489,14 @@ func (c *productDatabase) SaveDepartment(ctx context.Context, departmentName str
 
 func (c *productDatabase) GetAllDepartments(ctx context.Context) (departments []response.Department, err error) {
 
-	query := `SELECT id, name FROM departments`
+	query := `SELECT id, name, image_url FROM departments`
 	err = c.DB.Raw(query).Scan(&departments).Error
 	return
 }
 
 func (c *productDatabase) GetDepartmentByID(ctx context.Context, departmentID uint) (department response.Department, err error) {
 
-	query := `SELECT id, name FROM departments WHERE id = $1`
+	query := `SELECT id, name, image_url FROM departments WHERE id = $1`
 	err = c.DB.Raw(query, departmentID).Scan(&department).Error
 
 	return
@@ -512,7 +512,7 @@ func (c *productDatabase) GetAllSubCategories(ctx context.Context) (subCategorie
 
 func (c *productDatabase) GetAllCategoriesByDepartmentID(ctx context.Context, departmentID uint) (categories []response.Category, err error) {
 
-	query := `SELECT id, name FROM categories WHERE department_id = $1`
+	query := `SELECT id, name, image_url FROM categories WHERE department_id = $1`
 	err = c.DB.Raw(query, departmentID).Scan(&categories).Error
 
 	return
@@ -520,7 +520,7 @@ func (c *productDatabase) GetAllCategoriesByDepartmentID(ctx context.Context, de
 
 func (c *productDatabase) GetAllSubCategoriesByCategoryID(ctx context.Context, categoryID uint) (subCategories []response.SubCategory, err error) {
 
-	query := `SELECT id, name FROM sub_categories WHERE category_id = $1`
+	query := `SELECT id, name, image_url FROM sub_categories WHERE category_id = $1`
 	err = c.DB.Raw(query, categoryID).Scan(&subCategories).Error
 
 	return

@@ -30,6 +30,7 @@ type Category struct {
 	ID           uint   `json:"category_id"`
 	Name         string `json:"category_name"`
 	DepartmentID uint   `json:"department_id"`
+	ImageUrl     string `json:"image_url"`
 }
 
 type SubCategory struct {
@@ -37,6 +38,7 @@ type SubCategory struct {
 	Name         string `json:"category_name"`
 	DepartmentID uint   `json:"department_id"`
 	CategoryID   uint   `json:"parent_category_id"`
+	ImageUrl     string `json:"image_url"`
 }
 
 type SubTypeAttribute struct {
@@ -46,6 +48,7 @@ type SubTypeAttribute struct {
 	FieldType     string `json:"field_type"`
 	IsRequired    bool   `json:"is_required"`
 	SortOrder     int    `json:"sort_order"`
+	ImageUrl      string `json:"image_url"`
 }
 
 type SubTypeAttributeOption struct {
@@ -191,6 +194,7 @@ type Area struct {
 }
 
 type Department struct {
-	ID   uint   `json:"department_id"`
-	Name string `json:"department_name"`
+	ID       uint   `json:"department_id"`
+	Name     string `json:"department_name"`
+	ImageUrl string `json:"image_url"`
 }

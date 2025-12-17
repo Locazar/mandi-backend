@@ -547,6 +547,8 @@ func (h *adminHandler) GetShopByID(ctx *gin.Context) {
 		return
 	}
 
+	fmt.Printf("shop00000000: %+v\n", shop)
+
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully got shop by ID", shop)
 }
 
@@ -561,21 +563,70 @@ func (h *adminHandler) GetShopByID(ctx *gin.Context) {
 //	@Success	200	{object}	response.Response{}	"Successfully updated shop"
 //	@Failure	400	{object}	response.Response{}	"invalid input"
 func (h *adminHandler) UpdateShop(ctx *gin.Context) {
-	var body domain.ShopDetails
-
-	if err := ctx.ShouldBindJSON(&body); err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, body)
+	// Accept a map for partial update
+	var updateFields map[string]interface{}
+	if err := ctx.ShouldBindJSON(&updateFields); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, updateFields)
 		return
 	}
 
-	// Call use case to update shop
-	_, err := h.adminUseCase.UpdateShop(ctx, body)
+	decodeToken := ctx.GetHeader("Authorization")
+	shopId := h.adminUseCase.DecodeTokenData(decodeToken)
+
+	// Remove empty or nil fields (optional, can be handled in usecase/repo)
+	for k, v := range updateFields {
+		if v == nil || v == "" {
+			delete(updateFields, k)
+		}
+	}
+
+	// Call use case to update only changed fields
+	updatedData, err := h.adminUseCase.UpdateShop(ctx, updateFields, shopId)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to update shop", err, nil)
 		return
 	}
 
-	response.SuccessResponse(ctx, http.StatusOK, "Successfully updated shop", nil)
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully updated shop", updatedData)
+}
+
+// UploadShopById godoc
+//
+//	@summary 	API for admin to update shop by ID
+//	@Security	BearerAuth
+//	@id			UploadShopById
+//	@tags		Admin Shop
+//	@Param		shop_id	path	string	true	"Shop ID"
+//	@Param		input	body	map[string]interface{}	true	"Shop details (single or multiple attributes)"
+//	@Router		/admin/shops/{shop_id} [put]
+//	@Success	200	{object}	response.Response{}	"Successfully updated shop"
+//	@Failure	400	{object}	response.Response{}	"Invalid input"
+func (h *adminHandler) UploadShopById(ctx *gin.Context) {
+	shopId := ctx.Param("shop_id")
+
+	// Accept a map for partial update - can be single or multiple attributes
+	var shopDetails map[string]interface{}
+	if err := ctx.ShouldBindJSON(&shopDetails); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid input", err, nil)
+		return
+	}
+
+	fmt.Printf("Received shop ID: %s with details: %+v\n", shopId, shopDetails)
+
+	// Remove empty or nil fields
+	for k, v := range shopDetails {
+		if v == nil || v == "" {
+			delete(shopDetails, k)
+		}
+	}
+
+	updatedData, err := h.adminUseCase.UpdateShop(ctx, shopDetails, shopId)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to update shop", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully updated shop", updatedData)
 }
 
 // GetShopByOwnerID godoc
@@ -605,6 +656,8 @@ func (h *adminHandler) GetShopByOwnerID(ctx *gin.Context) {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get shop by owner ID", err, nil)
 		return
 	}
+
+	fmt.Printf("shop11111111: %+v\n", shop)
 
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully got shop by owner ID", shop)
 }
@@ -667,6 +720,8 @@ func (c *adminHandler) SendNotificationToUser(ctx context.Context, userID uint, 
 // @Failure 400 {object} response.Response{} "invalid input"
 // @Failure 500 {object} response.Response{} "failed to upload profile image"
 func (a *adminHandler) UploadAdminProfileImage(ctx *gin.Context) {
+	var shopId = ctx.Param("shop_id")
+	fmt.Printf("shopId: %v\n", shopId)
 	// Implementation goes here
 	var req request.AdminUploadImageRequest
 
@@ -787,7 +842,7 @@ func (a *adminHandler) UploadAdminProfileImage(ctx *gin.Context) {
 	}
 
 	// Update database with the file path
-	imageURL, err := a.adminUseCase.UploadAdminProfileImage(ctx, adminId, filePath)
+	imageURL, err := a.adminUseCase.UploadAdminProfileImage(ctx, adminId, filePath, shopId)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to update admin profile image", err, nil)
 		return
@@ -1053,4 +1108,19 @@ func (a *ProductHandler) GetAllSubCategories(ctx *gin.Context) {
 	}
 
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved all sub-categories", subCategories)
+}
+
+func (a *adminHandler) GetShopProfileImageById(ctx *gin.Context) {
+	shopId := ctx.Param("shop_id")
+	fmt.Printf("shopId: %v\n", shopId)
+
+	imageURL, err := a.adminUseCase.GetShopProfileImageById(ctx, shopId)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get shop profile image", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved shop profile image", map[string]interface{}{
+		"image_url": imageURL,
+	})
 }

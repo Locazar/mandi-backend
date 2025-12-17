@@ -4,12 +4,12 @@ import "time"
 
 type User struct {
 	ID          uint      `json:"id" gorm:"primaryKey;unique"`
-	Age         uint      `json:"age" binding:"required,numeric"`
-	FirstName   string    `json:"first_name" gorm:"not null" binding:"required,min=2,max=50"`
-	LastName    string    `json:"last_name" gorm:"not null" binding:"required,min=1,max=50"`
-	Email       string    `json:"email" gorm:"unique;not null" binding:"email"`
-	Phone       string    `json:"phone" gorm:"unique" binding:"required,min=10,max=10"`
-	Password    string    `json:"password" binding:"required"`
+	Age         uint      `json:"age"`
+	FirstName   string    `json:"first_name" gorm:"not null"`
+	LastName    string    `json:"last_name" gorm:"not null"`
+	Email       string    `json:"email" gorm:"unique;not null"`
+	Phone       string    `json:"phone" gorm:"unique"`
+	Password    string    `json:"password"`
 	Verified    bool      `json:"verified" gorm:"default:false"`
 	BlockStatus bool      `json:"block_status" gorm:"default:false"`
 	CreatedAt   time.Time `json:"created_at" gorm:"autoCreateTime"`

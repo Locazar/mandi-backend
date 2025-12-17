@@ -29,11 +29,11 @@ type AdminUseCase interface {
 	CreateShop(ctx context.Context, shop domain.ShopDetails) (domain.ShopDetails, error)
 	GetAllShops(ctx context.Context, pagination request.Pagination) (shops []domain.ShopDetails, err error)
 	GetShopByID(ctx context.Context, shopID uint) (shop domain.ShopDetails, err error)
-	UpdateShop(ctx context.Context, shop domain.ShopDetails) (domain.ShopDetails, error)
+	UpdateShop(ctx context.Context, shop map[string]interface{}, shopId string) (map[string]interface{}, error)
 	GetShopByOwnerID(ctx context.Context, ownerID uint) (shop domain.ShopDetails, err error)
 	SendNotificationToUsersInRadius(ctx context.Context, requestData request.NotificationRadiusRequest) error
 	SendNotificationToUser(ctx context.Context, userID uint, message string) error
-	UploadAdminProfileImage(ctx context.Context, adminID string, imagePath string) (string, error)
+	UploadAdminProfileImage(ctx context.Context, adminID string, imagePath string, shopId string) (string, error)
 	DecodeTokenData(tokenString string) string
 	UploadShopDocument(ctx context.Context, shopID uint, documentType string, documentValue string) error
 	UploadAddress(ctx context.Context, adminId string, address request.AddressRequest) error
@@ -41,6 +41,7 @@ type AdminUseCase interface {
 	UploadAdminDocumentOtpSend(ctx context.Context, adminId string, documentType string, documentValue string) error
 	UploadAdminDocumentOtpVerify(ctx context.Context, otp string, documentType string, documentValue string) error
 	GetAllProductDetails(ctx context.Context) (products []any, err error)
+	GetShopProfileImageById(ctx context.Context, shopId string) (string, error)
 }
 
 // GetCategory(ctx context.Context) (helper.Category, any)
