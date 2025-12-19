@@ -20,9 +20,12 @@ type Product struct {
 // this for a specific variant of product
 type ProductItem struct {
 	ID                uint      `json:"id" gorm:"primaryKey;not null"`
-	ProductID         uint      `json:"product_id" gorm:"not null" binding:"required,numeric"`
 	SubCategoryName   string    `json:"sub_category_name" gorm:"not null" binding:"required"`
-	DynamicFields     string    `json:"dynamic_fields" gorm:"type:jsonb;not null"` // stored as JSONB in DB
+	SubCategoryID     uint      `json:"sub_category_id" binding:"omitempty,numeric"`
+	CategoryID        uint      `json:"category_id" binding:"omitempty,numeric"`
+	DepartmentID      uint      `json:"department_id" binding:"omitempty,numeric"`
+	DynamicFields     string    `json:"dynamic_fields" gorm:"type:jsonb;not null"`
+	AdminID           string    `json:"admin_id" gorm:"type:jsonb;not null"` // stored as JSONB in DB
 	ProductItemImages []string  `json:"product_item_images" gorm:"type:text[]"`
 	CreatedAt         time.Time `json:"created_at" gorm:"not null"`
 	UpdatedAt         time.Time `json:"updated_at" gorm:"autoUpdateTime"`
@@ -128,14 +131,12 @@ type Offer struct {
 	Name         string    `json:"offer_name" gorm:"not null;unique" binding:"required"`
 	Description  string    `json:"description" gorm:"not null" binding:"required,min=6,max=50"`
 	DiscountRate uint      `json:"discount_rate" gorm:"not null" binding:"required,numeric,min=1,max=100"`
+	OfferType    string    `json:"offer_type" gorm:"not null" binding:"required"` // percentage,fixed
 	StartDate    time.Time `json:"start_date" gorm:"not null" binding:"required"`
-	EndDate      time.Time `json:"end_date" gorm:"not null" binding:"required,gtfield=StartDate"`
-	ProductID    uint      `json:"product_id"`
-	Product      Product   `json:"-"`
+	EndDate      time.Time `json:"end_date" gorm:"not null" binding:"required"`
+	Image        string    `json:"image_url" gorm:"not null" binding:"required"`
 	CreatedAt    time.Time `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt    time.Time `json:"updated_at" gorm:"autoUpdateTime"`
-	AdminID      uint      `json:"admin_id"`
-	ShopID       uint      `json:"shop_id"`
 	Sort_Order   int       `json:"sort_order" gorm:"not null;default:0"`
 	Is_Active    bool      `json:"is_active" gorm:"not null;default:true"`
 }
@@ -151,13 +152,12 @@ type OfferCategory struct {
 }
 
 type OfferProduct struct {
-	ID         uint `json:"id" gorm:"primaryKey;not null"`
-	OfferID    uint `json:"offer_id" gorm:"not null"`
-	Offer      Offer
-	ProductID  uint `json:"product_id" gorm:"not null"`
-	Product    Product
-	Sort_Order int  `json:"sort_order" gorm:"not null;default:0"`
-	Is_Active  bool `json:"is_active" gorm:"not null;default:true"`
+	ID            uint `json:"id" gorm:"primaryKey;not null"`
+	OfferID       uint `json:"offer_id" gorm:"not null"`
+	Offer         Offer
+	ProductItemID uint `json:"product_item_id" gorm:"not null"`
+	Sort_Order    int  `json:"sort_order" gorm:"not null;default:0"`
+	Is_Active     bool `json:"is_active" gorm:"not null;default:true"`
 }
 
 type SubCategoryDetails struct {

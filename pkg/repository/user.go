@@ -76,25 +76,6 @@ func (c *userDatabase) SaveUser(ctx context.Context, user domain.User) (userID u
 	values := []interface{}{}
 	paramCount := 1
 
-	// Map struct fields to database columns
-	if user.FirstName != "" {
-		columns = append(columns, "first_name")
-		placeholders = append(placeholders, fmt.Sprintf("$%d", paramCount))
-		values = append(values, user.FirstName)
-		paramCount++
-	}
-	if user.LastName != "" {
-		columns = append(columns, "last_name")
-		placeholders = append(placeholders, fmt.Sprintf("$%d", paramCount))
-		values = append(values, user.LastName)
-		paramCount++
-	}
-	if user.Age != 0 {
-		columns = append(columns, "age")
-		placeholders = append(placeholders, fmt.Sprintf("$%d", paramCount))
-		values = append(values, user.Age)
-		paramCount++
-	}
 	if user.Email != "" {
 		columns = append(columns, "email")
 		placeholders = append(placeholders, fmt.Sprintf("$%d", paramCount))
@@ -105,12 +86,6 @@ func (c *userDatabase) SaveUser(ctx context.Context, user domain.User) (userID u
 		columns = append(columns, "phone")
 		placeholders = append(placeholders, fmt.Sprintf("$%d", paramCount))
 		values = append(values, user.Phone)
-		paramCount++
-	}
-	if user.Password != "" {
-		columns = append(columns, "password")
-		placeholders = append(placeholders, fmt.Sprintf("$%d", paramCount))
-		values = append(values, user.Password)
 		paramCount++
 	}
 

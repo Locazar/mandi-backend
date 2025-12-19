@@ -276,10 +276,69 @@ func (c *productDatabase) FindAllProducts(ctx context.Context, pagination reques
 	limit := pagination.Count
 	offset := (pagination.PageNumber - 1) * limit
 
-	query := `SELECT * FROM products ORDER BY created_at DESC LIMIT $1 OFFSET $2`
+	query := `SELECT p.*, c.name AS category_name, c.image_url AS category_image_url 
+	FROM products p 
+	LEFT JOIN categories c ON p.category_id = c.id 
+	ORDER BY p.created_at DESC LIMIT $1 OFFSET $2`
 
 	err = c.DB.Raw(query, limit, offset).Scan(&products).Error
+	if err != nil {
+		return nil, err
+	}
 
+	// Fetch product items for each product
+	for i := range products {
+		productItems, itemErr := c.findProductItemsByProductID(ctx, products[i].ID)
+		if itemErr != nil {
+			products[i].ProductItems = []response.ProductItems{}
+		} else {
+			products[i].ProductItems = productItems
+		}
+	}
+
+	return
+}
+
+// helper method to get product items by product ID (internal use)
+func (c *productDatabase) findProductItemsByProductID(ctx context.Context, productID uint) (productItems []response.ProductItems, err error) {
+	query := `SELECT pi.sub_category_name, pi.id, pi.product_id, p.category_id, 
+		   sc.name AS category_name, mc.name AS main_category_name
+	       FROM product_items pi 
+	       LEFT JOIN products p ON p.id = pi.product_id 
+	       LEFT JOIN categories sc ON p.category_id = sc.id 
+	       LEFT JOIN categories mc ON p.category_id = mc.id 
+	       WHERE pi.product_id = $1`
+
+	type productItemDB struct {
+		Name             string `gorm:"column:sub_category_name"`
+		ID               uint   `gorm:"column:id"`
+		ProductID        uint   `gorm:"column:product_id"`
+		CategoryID       uint   `gorm:"column:category_id"`
+		CategoryName     string `gorm:"column:category_name"`
+		MainCategoryName string `gorm:"column:main_category_name"`
+	}
+	var dbItems []productItemDB
+	err = c.DB.Raw(query, productID).Scan(&dbItems).Error
+	if err != nil {
+		return
+	}
+
+	for _, dbItem := range dbItems {
+		item := response.ProductItems{
+			ID:               dbItem.ID,
+			Name:             dbItem.Name,
+			ProductID:        dbItem.ProductID,
+			CategoryName:     dbItem.CategoryName,
+			MainCategoryName: dbItem.MainCategoryName,
+		}
+		images, imgErr := c.FindAllProductItemImages(ctx, dbItem.ID)
+		if imgErr != nil {
+			item.ProductItemImages = []string{}
+		} else {
+			item.ProductItemImages = images
+		}
+		productItems = append(productItems, item)
+	}
 	return
 }
 
@@ -326,10 +385,10 @@ func (c *productDatabase) SaveProductConfiguration(ctx context.Context, productI
 	return err
 }
 
-func (c *productDatabase) SaveProductItem(ctx context.Context, productItem request.ProductItem, productID uint) (productItemID uint, err error) {
+func (c *productDatabase) SaveProductItem(ctx context.Context, productItem request.ProductItem, adminID string) (productItemID uint, err error) {
 
-	query := `INSERT INTO product_items (product_id, sub_category_name, dynamic_fields, product_item_images, created_at, updated_at) 
-VALUES($1, $2, $3, $4, $5, $6) RETURNING id`
+	query := `INSERT INTO product_items (admin_id, sub_category_name, dynamic_fields, product_item_images, category_id, department_id, sub_category_id, created_at, updated_at) 
+VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`
 
 	createdAt := time.Now()
 
@@ -339,66 +398,122 @@ VALUES($1, $2, $3, $4, $5, $6) RETURNING id`
 		return 0, err
 	}
 
-	err = c.DB.Raw(query, productID, productItem.SubCategoryName, dynamicFieldsJSON, productItem.ProductItemImages, createdAt, createdAt).Scan(&productItemID).Error
+	err = c.DB.Raw(query, adminID, productItem.SubCategoryName, dynamicFieldsJSON, productItem.ProductItemImages, productItem.CategoryID, productItem.DepartmentID, productItem.SubCategoryID, createdAt, createdAt).Scan(&productItemID).Error
 
 	return productItemID, err
 }
 
-// for get all products items for a product
+// for get all products items for a product filtered by admin_id
 func (c *productDatabase) FindAllProductItems(ctx context.Context,
-	productID uint) (productItems []response.ProductItems, err error) {
-	// First, get product details (e.g., category_id) from products table
-	var product struct {
-		CategoryID uint
-	}
-	err = c.DB.Raw("SELECT category_id FROM products WHERE id = ?", productID).Scan(&product).Error
-	if err != nil {
-		return
-	}
+	adminID string) (productItems []response.ProductItems, err error) {
 
-	// Now use product.CategoryID in the next query if needed
-
-	query := `SELECT pi.sub_category_name, pi.id, pi.product_id, p.category_id, sc.name AS category_name, 
-		   mc.name AS main_category_name
+	query := `SELECT pi.sub_category_name, pi.id, pi.category_id, pi.department_id, pi.sub_category_id,
+		   pi.product_item_images, pi.dynamic_fields, pi.created_at, pi.updated_at,
+		   c.name AS category_name, d.name AS department_name, sc.name AS sub_category_name_ref,
+		   sc.image_url AS sub_category_image_url
 	       FROM product_items pi 
-	       LEFT JOIN products p ON p.id = pi.product_id 
-	       LEFT JOIN categories sc ON p.category_id = sc.id 
-	       LEFT JOIN categories mc ON p.category_id = mc.id 
-	       WHERE pi.product_id = $1;`
+	       LEFT JOIN categories c ON pi.category_id = c.id 
+	       LEFT JOIN departments d ON pi.department_id = d.id
+	       LEFT JOIN sub_categories sc ON pi.sub_category_id = sc.id
+	       WHERE pi.admin_id = $1
+	       ORDER BY pi.created_at DESC`
 
-	// Internal struct for scanning DB result (no []string field)
+	// Internal struct for scanning DB result
 	type productItemDB struct {
-		Name             string `gorm:"column:sub_category_name"`
-		ID               uint   `gorm:"column:id"`
-		ProductID        uint   `gorm:"column:product_id"`
-		CategoryID       uint   `gorm:"column:category_id"`
-		CategoryName     string `gorm:"column:category_name"`
-		MainCategoryName string `gorm:"column:main_category_name"`
+		Name                string    `gorm:"column:sub_category_name"`
+		ID                  uint      `gorm:"column:id"`
+		CategoryID          uint      `gorm:"column:category_id"`
+		DepartmentID        uint      `gorm:"column:department_id"`
+		SubCategoryID       uint      `gorm:"column:sub_category_id"`
+		CategoryName        string    `gorm:"column:category_name"`
+		DepartmentName      string    `gorm:"column:department_name"`
+		SubCategoryNameRef  string    `gorm:"column:sub_category_name_ref"`
+		SubCategoryImageURL string    `gorm:"column:sub_category_image_url"`
+		ProductItemImages   string    `gorm:"column:product_item_images"` // Store as string first
+		DynamicFields       []byte    `gorm:"column:dynamic_fields"`
+		CreatedAt           time.Time `gorm:"column:created_at"`
+		UpdatedAt           time.Time `gorm:"column:updated_at"`
 	}
 	var dbItems []productItemDB
-	err = c.DB.Raw(query, productID).Scan(&dbItems).Error
+	err = c.DB.Raw(query, adminID).Scan(&dbItems).Error
 	if err != nil {
 		return
 	}
 
-	// Map to response.ProductItems and fill images
+	// Map to response.ProductItems
 	for _, dbItem := range dbItems {
+		// Parse product_item_images from PostgreSQL array format
+		var images []string
+		if dbItem.ProductItemImages != "" {
+			// Remove curly braces and parse comma-separated values
+			imageStr := dbItem.ProductItemImages
+			if len(imageStr) > 2 && imageStr[0] == '{' && imageStr[len(imageStr)-1] == '}' {
+				imageStr = imageStr[1 : len(imageStr)-1]
+				if imageStr != "" {
+					images = []string{}
+					for _, img := range parsePostgresArray(imageStr) {
+						images = append(images, img)
+					}
+				}
+			}
+		}
+		if images == nil {
+			images = []string{}
+		}
+
 		item := response.ProductItems{
-			ID:               dbItem.ID,
-			Name:             dbItem.Name,
-			ProductID:        dbItem.ProductID,
-			CategoryName:     dbItem.CategoryName,
-			MainCategoryName: dbItem.MainCategoryName,
+			ID:                  dbItem.ID,
+			Name:                dbItem.Name,
+			CategoryName:        dbItem.CategoryName,
+			MainCategoryName:    dbItem.DepartmentName,
+			SubCategoryImageURL: dbItem.SubCategoryImageURL,
+			CategoryID:          dbItem.CategoryID,
+			DepartmentID:        dbItem.DepartmentID,
+			SubCategoryID:       dbItem.SubCategoryID,
+			ProductItemImages:   images,
+			CreatedAt:           dbItem.CreatedAt,
+			UpdatedAt:           dbItem.UpdatedAt,
 		}
-		images, imgErr := c.FindAllProductItemImages(ctx, dbItem.ID)
-		if imgErr != nil {
-			item.ProductItemImages = []string{}
-		} else {
-			item.ProductItemImages = images
+
+		// Unmarshal DynamicFields if present
+		if len(dbItem.DynamicFields) > 0 {
+			var dynamicFields map[string]interface{}
+			if err := json.Unmarshal(dbItem.DynamicFields, &dynamicFields); err == nil {
+				item.DynamicFields = dynamicFields
+			}
 		}
+
 		productItems = append(productItems, item)
 	}
 	return
+}
+
+// Helper function to parse PostgreSQL array format
+func parsePostgresArray(s string) []string {
+	if s == "" {
+		return []string{}
+	}
+	var result []string
+	var current string
+	inQuotes := false
+
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c == '"' {
+			inQuotes = !inQuotes
+		} else if c == ',' && !inQuotes {
+			if current != "" {
+				result = append(result, current)
+				current = ""
+			}
+		} else {
+			current += string(c)
+		}
+	}
+	if current != "" {
+		result = append(result, current)
+	}
+	return result
 }
 
 // Find all variation and value of a product item

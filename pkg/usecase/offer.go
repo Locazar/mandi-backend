@@ -208,7 +208,7 @@ func (c *offerUseCase) SaveProductOffer(ctx context.Context, offerProduct domain
 
 	fmt.Printf("offerProduct received in usecase: %+v\n", offerProduct)
 	// check the any offer is already exist for the given product
-	offerProductData, err := c.offerRepo.FindOfferProductByProductID(ctx, offerProduct.ProductID)
+	offerProductData, err := c.offerRepo.FindOfferProductByProductID(ctx, offerProduct.ProductItemID)
 	if err != nil {
 		return utils.PrependMessageToError(err, "failed to check product have already offer exist")
 	}

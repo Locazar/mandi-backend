@@ -27,6 +27,8 @@ type ProductItem struct {
 	SubCategoryName   string                 `json:"sub_category_name" binding:"required"`
 	DynamicFields     map[string]interface{} `json:"dynamic_fields" binding:"required"`
 	ProductItemImages []string               `json:"product_item_images " binding:"omitempty,dive,required"`
+	DepartmentID      uint                   `json:"department_id" binding:"required"`
+	CategoryID        uint                   `json:"category_id" binding:"required"`
 }
 
 type Variation struct {

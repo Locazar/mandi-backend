@@ -64,7 +64,7 @@ func (c *offerDatabase) FindAllOffers(ctx context.Context,
 	limit := pagination.Count
 	offset := (pagination.PageNumber - 1) * limit
 
-	query := `SELECT id, name, description, discount_rate, start_date, end_date 
+	query := `SELECT id, name, description, discount_rate, image, start_date, end_date 
 	 FROM offers LIMIT $1 OFFSET $2`
 	err = c.DB.Raw(query, limit, offset).Scan(&offers).Error
 
@@ -199,7 +199,7 @@ func (c *offerDatabase) SaveOfferProduct(ctx context.Context,
 	offerProduct domain.OfferProduct) (productOfferId uint, err error) {
 
 	query := `INSERT INTO offer_products (offer_id, product_id) VALUES ($1,$2)  RETURNING id`
-	err = c.DB.Raw(query, offerProduct.OfferID, offerProduct.ProductID).Scan(&productOfferId).Error
+	err = c.DB.Raw(query, offerProduct.OfferID, offerProduct.ProductItemID).Scan(&productOfferId).Error
 
 	return
 }

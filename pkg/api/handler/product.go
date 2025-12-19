@@ -594,6 +594,7 @@ func (c *ProductHandler) UpdateProduct(ctx *gin.Context) {
 //	@Failure		400	{object}	response.Response{}	"invalid input"
 //	@Failure		409	{object}	response.Response{}	"Product have already this configured product items exist"
 func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
+
 	subCategoryIDStr := ctx.PostForm("sub_category_id")
 	fmt.Printf("SubCategoryID from form: %s\n", subCategoryIDStr)
 	var subCategoryID uint
@@ -606,11 +607,37 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 		}
 	}
 
-	productID, err := request.GetParamAsUint(ctx, "product_id")
+	categoryIDStr := ctx.PostForm("category_id")
+	var categoryID uint
+	if categoryIDStr != "" {
+		if n, err := strconv.Atoi(categoryIDStr); err == nil {
+			categoryID = uint(n)
+		} else {
+			response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid category_id", err, nil)
+			return
+		}
+	}
+
+	departmentIDStr := ctx.PostForm("department_id")
+	var departmentID uint
+	if departmentIDStr != "" {
+		if n, err := strconv.Atoi(departmentIDStr); err == nil {
+			departmentID = uint(n)
+		} else {
+			response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid department_id", err, nil)
+			return
+		}
+	}
+
+	tokenString := ctx.GetHeader("Authorization")
+	fmt.Printf("tokenString: %v\n", tokenString)
+
+	adminID := p.tokenService.DecodeTokenData(tokenString)
+
 	subCategoryName := ctx.PostForm("sub_category_name")
 	dynamicFieldsStr := ctx.PostForm("dynamic_fields")
 	files := ctx.Request.MultipartForm.File["images[]"]
-	fmt.Printf("Product ID from param: %d\n", productID)
+	fmt.Printf("Admin ID from token: %s\n", adminID)
 	fmt.Printf("SubCategory Name from form: %s\n", subCategoryName)
 	fmt.Printf("Dynamic Fields from form: %s\n", dynamicFieldsStr)
 	fmt.Printf("Image Files from form: %+v\n", files)
@@ -634,6 +661,8 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 		SubCategoryName:   subCategoryName,
 		SubCategoryID:     subCategoryID,
 		DynamicFields:     dynamicFields,
+		CategoryID:        categoryID,
+		DepartmentID:      departmentID,
 		ProductItemImages: imagePaths,
 	}
 
@@ -644,7 +673,7 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 	// 	return
 	// }
 
-	err = p.productUseCase.SaveProductItem(ctx, productItem, productID)
+	err := p.productUseCase.SaveProductItem(ctx, productItem, adminID)
 
 	if err != nil {
 
@@ -751,13 +780,11 @@ func (p *ProductHandler) GetAllProductItemsUser() func(ctx *gin.Context) {
 func (p *ProductHandler) getAllProductItems() func(ctx *gin.Context) {
 
 	return func(ctx *gin.Context) {
+		tokenString := ctx.GetHeader("Authorization")
+		fmt.Printf("tokenString: %v\n", tokenString)
 
-		productID, err := request.GetParamAsUint(ctx, "product_id")
-		if err != nil {
-			response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
-		}
-
-		productItems, err := p.productUseCase.FindAllProductItems(ctx, productID)
+		adminID := p.tokenService.DecodeTokenData(tokenString)
+		productItems, err := p.productUseCase.FindAllProductItems(ctx, adminID)
 
 		if err != nil {
 			response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get all product items", err, nil)

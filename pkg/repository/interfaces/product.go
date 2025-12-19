@@ -42,11 +42,11 @@ type ProductRepository interface {
 
 	// product items
 	FindProductItemByID(ctx context.Context, productItemID uint) (domain.ProductItem, error)
-	FindAllProductItems(ctx context.Context, productID uint) ([]response.ProductItems, error)
+	FindAllProductItems(ctx context.Context, adminID string) ([]response.ProductItems, error)
 	FindVariationCountForProduct(ctx context.Context, productID uint) (variationCount uint, err error) // to check the product config already exist
 	FindAllProductItemIDsByProductIDAndVariationOptionID(ctx context.Context, productID, variationOptionID uint) ([]uint, error)
 	SaveProductConfiguration(ctx context.Context, productItemID, variationOptionID uint) error
-	SaveProductItem(ctx context.Context, productItem request.ProductItem, productID uint) (productItemID uint, err error)
+	SaveProductItem(ctx context.Context, productItem request.ProductItem, adminID string) (productItemID uint, err error)
 	// product item image
 	FindAllProductItemImages(ctx context.Context, productItemID uint) (images []string, err error)
 	SaveProductItemImage(ctx context.Context, productItemId uint, image domain.ProductItemImage) error

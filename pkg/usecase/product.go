@@ -305,8 +305,8 @@ func (c *productUseCase) SaveProduct(ctx context.Context, product request.Produc
 }
 
 // for add new productItem for a specific product
-func (c *productUseCase) SaveProductItem(ctx context.Context, productItem request.ProductItem, productID uint) error {
-	_, err := c.productRepo.SaveProductItem(ctx, productItem, productID)
+func (c *productUseCase) SaveProductItem(ctx context.Context, productItem request.ProductItem, adminID string) error {
+	_, err := c.productRepo.SaveProductItem(ctx, productItem, adminID)
 	if err != nil {
 		return utils.PrependMessageToError(err, "failed to save product item")
 	}
@@ -351,9 +351,9 @@ func (c *productUseCase) isProductVariationCombinationExist(productID uint, vari
 }
 
 // for get all productItem for a specific product
-func (c *productUseCase) FindAllProductItems(ctx context.Context, productID uint) ([]response.ProductItems, error) {
+func (c *productUseCase) FindAllProductItems(ctx context.Context, adminId string) ([]response.ProductItems, error) {
 
-	productItems, err := c.productRepo.FindAllProductItems(ctx, productID)
+	productItems, err := c.productRepo.FindAllProductItems(ctx, adminId)
 	if err != nil {
 		return productItems, err
 	}

@@ -8,21 +8,23 @@ import (
 
 // response for product
 type Product struct {
-	ID               uint       `json:"product_id"`
-	CategoryID       uint       `json:"category_id"`
-	Price            uint       `json:"price"`
-	DiscountPrice    uint       `json:"discount_price"`
-	Name             string     `json:"product_name"`
-	Description      string     `json:"description" `
-	CategoryName     string     `json:"category_name"`
-	MainCategoryName string     `json:"main_category_name"`
-	BrandID          uint       `json:"brand_id"`
-	BrandName        string     `json:"brand_name"`
-	Image            string     `json:"image"`
-	CreatedAt        time.Time  `json:"created_at"`
-	UpdatedAt        time.Time  `json:"updated_at"`
-	LocationID       *uuid.UUID `json:"location_id,omitempty"`
-	Stock            int        `json:"stock"`
+	ID               uint           `json:"product_id"`
+	CategoryID       uint           `json:"category_id"`
+	Price            uint           `json:"price"`
+	DiscountPrice    uint           `json:"discount_price"`
+	Name             string         `json:"product_name"`
+	Description      string         `json:"description" `
+	CategoryName     string         `json:"category_name"`
+	CategoryImageURL string         `json:"category_image_url"`
+	MainCategoryName string         `json:"main_category_name"`
+	BrandID          uint           `json:"brand_id"`
+	BrandName        string         `json:"brand_name"`
+	Image            string         `json:"image"`
+	CreatedAt        time.Time      `json:"created_at"`
+	UpdatedAt        time.Time      `json:"updated_at"`
+	LocationID       *uuid.UUID     `json:"location_id,omitempty"`
+	Stock            int            `json:"stock"`
+	ProductItems     []ProductItems `json:"product_items"`
 }
 
 // for a specific category representation
@@ -82,15 +84,19 @@ type VariationOption struct {
 
 // for response a specific products all product items
 type ProductItems struct {
-	ID                uint                   `json:"product_item_id"`
-	Name              string                 `json:"product_name"`
-	ProductID         uint                   `json:"product_id"`
-	CategoryName      string                 `json:"category_name"`
-	MainCategoryName  string                 `json:"main_category_name"`
-	ProductItemImages []string               `json:"product_item_images"`
-	DynamicFields     map[string]interface{} `json:"dynamic_fields"`
-	CreatedAt         time.Time              `json:"created_at"`
-	UpdatedAt         time.Time              `json:"updated_at"`
+	ID                  uint                   `json:"product_item_id"`
+	Name                string                 `json:"product_name"`
+	ProductID           uint                   `json:"product_id"`
+	CategoryID          uint                   `json:"category_id"`
+	DepartmentID        uint                   `json:"department_id"`
+	SubCategoryID       uint                   `json:"sub_category_id"`
+	CategoryName        string                 `json:"category_name"`
+	MainCategoryName    string                 `json:"main_category_name"`
+	SubCategoryImageURL string                 `json:"sub_category_image_url"`
+	ProductItemImages   []string               `json:"product_item_images"`
+	DynamicFields       map[string]interface{} `json:"dynamic_fields"`
+	CreatedAt           time.Time              `json:"created_at"`
+	UpdatedAt           time.Time              `json:"updated_at"`
 }
 
 type ProductVariationValue struct {

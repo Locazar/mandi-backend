@@ -25,8 +25,8 @@ type ProductUseCase interface {
 	SaveProduct(ctx context.Context, product request.Product, adminID string) (productID uint, err error)
 	UpdateProduct(ctx context.Context, product domain.Product) error
 
-	SaveProductItem(ctx context.Context, productItem request.ProductItem, productID uint) error
-	FindAllProductItems(ctx context.Context, productID uint) ([]response.ProductItems, error)
+	SaveProductItem(ctx context.Context, productItem request.ProductItem, adminID string) error
+	FindAllProductItems(ctx context.Context, adminId string) ([]response.ProductItems, error)
 	SearchProducts(ctx context.Context, keyword string, categoryID, brandID, locationID *string, limit, offset int) (products []response.Product, err error)
 	GetProductNameSuggestions(ctx context.Context, prefix string) (suggestions []string, err error)
 	GetProductFilters(ctx context.Context) (filters response.ProductFilters, err error)
