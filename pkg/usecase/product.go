@@ -458,7 +458,7 @@ func (s *productUseCase) GetProductFilters(ctx context.Context) (response.Produc
 	var filters response.ProductFilters
 
 	// Fetch distinct categories
-	categoryQuery := `SELECT DISTINCT c.category_id, c.name FROM categories c JOIN products p ON c.category_id = p.category_id ORDER BY c.name`
+	categoryQuery := `SELECT DISTINCT c.category_id, c.name FROM categories c JOIN products_items pi ON c.category_id = pi.category_id ORDER BY c.name`
 	catRows, err := s.DB.Query(ctx, categoryQuery)
 	if err != nil {
 		return filters, err
@@ -481,7 +481,7 @@ func (s *productUseCase) GetProductFilters(ctx context.Context) (response.Produc
 	}
 
 	// Fetch distinct brands
-	brandQuery := `SELECT DISTINCT b.brand_id, b.name FROM brands b JOIN products p ON b.brand_id = p.brand_id ORDER BY b.name`
+	brandQuery := `SELECT DISTINCT b.brand_id, b.name FROM brands b JOIN products_items pi ON b.brand_id = pi.brand_id ORDER BY b.name`
 	brandRows, err := s.DB.Query(ctx, brandQuery)
 	if err != nil {
 		return filters, err
@@ -967,28 +967,26 @@ func (s *productUseCase) GetNearbyProductsByPincode(ctx context.Context, pincode
 
 	query := `
         SELECT
-            p.product_id, p.name, p.description, p.brand_id, p.category_id,
-            p.price, p.discount_price,
+            pi.id,
+            p.name,
+            p.description,
+            p.category_id,
             c.name AS category_name,
-            mc.name AS main_category_name,
-            b.name AS brand_name,
+            sc.name AS sub_category_name,
             p.image,
-            p.created_at, p.updated_at
-        FROM products p
-        JOIN locations l ON p.location_id = l.location_id
-        LEFT JOIN categories c ON p.category_id = c.category_id
-        LEFT JOIN categories mc ON c.parent_id = mc.category_id -- assuming main category is parent
-        LEFT JOIN brands b ON p.brand_id = b.brand_id
-        WHERE l.geog IS NOT NULL
-          AND (
-            SELECT geog FROM locations WHERE pincode = $1 LIMIT 1
-          ) IS NOT NULL
-          AND ST_DWithin(l.geog, (SELECT geog FROM locations WHERE pincode = $1 LIMIT 1), $2)
-        ORDER BY ST_Distance(l.geog, (SELECT geog FROM locations WHERE pincode = $1 LIMIT 1))
-        LIMIT $3 OFFSET $4
+            pi.created_at,
+            pi.updated_at
+        FROM product_items pi
+        INNER JOIN products p ON pi.id = p.id
+        LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN sub_categories sc ON pi.sub_category_id = sc.id
+        WHERE pi.dynamic_fields IS NOT NULL
+          AND pi.dynamic_fields->>'pincode' = $1
+        ORDER BY pi.created_at DESC
+        LIMIT $2 OFFSET $3
     `
 
-	rows, err := s.DB.Query(ctx, query, pincode, DefaultRadiusMeters, limit, offset)
+	rows, err := s.DB.Query(ctx, query, pincode, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -1001,30 +999,16 @@ func (s *productUseCase) GetNearbyProductsByPincode(ctx context.Context, pincode
 			&p.ID,
 			&p.Name,
 			&p.Description,
-			&p.BrandID,
 			&p.CategoryID,
-			&p.Price,
-			&p.DiscountPrice,
 			&p.CategoryName,
 			&p.MainCategoryName,
-			&p.BrandName,
 			&p.Image,
 			&p.CreatedAt,
 			&p.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
-		products = append(products, response.Product{
-			ID:            p.ID,
-			Name:          p.Name,
-			Description:   p.Description,
-			BrandID:       p.BrandID,
-			CategoryID:    p.CategoryID,
-			Price:         p.Price,
-			DiscountPrice: p.DiscountPrice,
-			Stock:         p.Stock,
-			LocationID:    p.LocationID,
-		})
+		products = append(products, p)
 	}
 
 	return products, nil

@@ -61,6 +61,8 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 			product.GET("/suggestions", productHandler.GetProductSearchSuggestions)
 			product.GET("/filters", productHandler.GetProductSearchFilters)
 			product.GET("/locations", productHandler.GetProductSearchLocations)
+			product.GET("/radius", productHandler.GetProductsByRadius)
+			product.GET("/nearby", productHandler.GetNearbyProductsByPincode)
 		}
 
 		// 	// cart
@@ -194,7 +196,6 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 			location.GET("/cities/:city_id/areas", productHandler.GetAreasByCity)
 			location.GET("/areas/:area_id/pincodes", productHandler.GetPincodesByArea)
 			location.GET("/pincodes/:pincode_id/location", productHandler.GetLocationByPincode)
-			location.GET("/nearby", productHandler.GetNearbyProductsByPincode)
 		}
 
 		notification := api.Group("/notifications")
@@ -208,6 +209,18 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 		feedback := api.Group("/feedback")
 		{
 			feedback.POST("/shop", orderHandler.SubmitShoppingFeedback)
+		}
+
+		department := api.Group("/departments")
+		{
+			department.GET("/", productHandler.GetAllDepartments)
+			department.GET("/:department_id/categories", productHandler.GetAllCategoriesByDepartmentID)
+		}
+
+		subcategory := api.Group("/subcategories")
+		{
+			subcategory.GET("/", productHandler.GetAllSubCategories)
+			subcategory.GET("/:category_id/subcategories", productHandler.GetAllSubCategoriesByCategoryID)
 		}
 
 		// Job search

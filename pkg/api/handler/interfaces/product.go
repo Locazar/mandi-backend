@@ -45,6 +45,7 @@ type ProductHandler interface {
 	GetProductSearchFilters(ctx *gin.Context)
 	GetProductSearchLocations(ctx *gin.Context)
 	GetProductItemByID(ctx *gin.Context)
+	GetProductsByRadius(ctx *gin.Context)
 
 	// department
 	SaveDepartment(ctx *gin.Context)

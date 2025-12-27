@@ -937,6 +937,7 @@ func (h *ProductHandler) GetProductSearchSuggestions(c *gin.Context) {
 //	@Success		200	{object}	response.Response{}	"Successfully retrieved product search filters"
 //	@Failure		500	{object}	response.Response{}	"Failed to retrieve product search filters"
 func (h *ProductHandler) GetProductSearchFilters(c *gin.Context) {
+	// userID := h.tokenService.DecodeTokenData(c.GetHeader("Authorization"))
 	filters, err := h.productUseCase.GetProductFilters(c)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

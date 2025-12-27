@@ -6,13 +6,13 @@ import "time"
 type User struct {
 	ID          uint      `json:"id" copier:"must"`
 	GoogleImage string    `json:"google_profile_image"`
-	FirstName   string    `json:"first_name" copier:"must"`
-	LastName    string    `json:"last_name" copier:"must"`
-	Age         uint      `json:"age" copier:"must"`
-	Email       string    `json:"email" copier:"must"`
-	Phone       string    `json:"phone" copier:"must"`
+	FirstName   string    `json:"first_name"`
+	LastName    string    `json:"last_name"`
+	Age         uint      `json:"age"`
+	Email       string    `json:"email"`
+	Phone       string    `json:"phone"`
 	Verified    bool      `json:"verified"`
-	BlockStatus bool      `json:"block_status" copier:"must"`
+	BlockStatus bool      `json:"block_status"`
 	CreatedAt   time.Time `json:"created_at" gorm:"not null"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }

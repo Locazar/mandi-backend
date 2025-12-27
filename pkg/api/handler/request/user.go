@@ -3,8 +3,10 @@ package request
 import "mime/multipart"
 
 type UserSignUp struct {
-	Email string `json:"email"`
-	Phone string `json:"phone"`
+	Email     string `json:"email"`
+	Phone     string `json:"phone"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
 }
 
 // for address add address
