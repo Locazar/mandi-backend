@@ -501,3 +501,113 @@ func (c *UserHandler) GetSellerByRadius(ctx *gin.Context) {
 
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully found sellers in the given radius", sellers)
 }
+
+func (c *UserHandler) GetProductItemsByDepartment(ctx *gin.Context) {
+	// Route may provide department_id or document_id depending on routes setup.
+	idStr := ctx.Param("department_id")
+	if idStr == "" {
+		idStr = ctx.Param("document_id")
+	}
+
+	if idStr == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid document ID", fmt.Errorf("missing id param"), nil)
+		return
+	}
+
+	documentID, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid document ID", err, nil)
+		return
+	}
+
+	products, err := c.userUseCase.GetProductItemsByDepartment(ctx, uint(documentID))
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get product items by document", err, nil)
+		return
+	}
+
+	// Ensure we return an empty array instead of null when no products found
+	if products == nil {
+		products = []response.ProductItems{}
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved product items by document", products)
+}
+
+func (c *UserHandler) GetProductItemsByCategory(ctx *gin.Context) {
+	idStr := ctx.Param("category_id")
+	if idStr == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid category ID", fmt.Errorf("missing id param"), nil)
+		return
+	}
+
+	categoryID, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid category ID", err, nil)
+		return
+	}
+
+	products, err := c.userUseCase.GetProductItemsByCategory(ctx, uint(categoryID))
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get product items by category", err, nil)
+		return
+	}
+
+	if products == nil {
+		products = []response.ProductItems{}
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved product items by category", products)
+}
+
+func (c *UserHandler) GetProductItemsBySubCategory(ctx *gin.Context) {
+	idStr := ctx.Param("sub_category_id")
+	if idStr == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid sub-category ID", fmt.Errorf("missing id param"), nil)
+		return
+	}
+
+	subCategoryID, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid sub-category ID", err, nil)
+		return
+	}
+
+	products, err := c.userUseCase.GetProductItemsBySubCategory(ctx, uint(subCategoryID))
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get product items by sub-category", err, nil)
+		return
+	}
+
+	if products == nil {
+		products = []response.ProductItems{}
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved product items by sub-category", products)
+}
+
+func (c *UserHandler) GetProductItemsByShop(ctx *gin.Context) {
+	idStr := ctx.Param("admin_id")
+	if idStr == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid admin ID", fmt.Errorf("missing id param"), nil)
+		return
+	}
+
+	adminID, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid admin ID", err, nil)
+		return
+	}
+
+	products, err := c.userUseCase.GetProductItemsByShop(ctx, uint(adminID))
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get product items by shop", err, nil)
+		return
+	}
+
+	if products == nil {
+		products = []response.ProductItems{}
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved product items by shop", products)
+}

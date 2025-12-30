@@ -326,16 +326,18 @@ func (c *userDatabase) RemoveWishListItem(ctx context.Context, userID, productIt
 	return err
 }
 
-func (c *userDatabase) FindSellersByRadius(ctx context.Context, reqData request.SellerRadiusRequest) (sellers []response.Admin, err error) {
+func (c *userDatabase) FindSellersByRadius(ctx context.Context, reqData request.SellerRadiusRequest) (sellers []response.Shop, err error) {
 	query := `
 		SELECT * FROM (
-	 SELECT a.id, a.shop_name, a.email, a.mobile, a.latitude, a.longitude,
+	 SELECT a.id, a.shop_name, a.email, a.phone, a.latitude, a.longitude,
+		a.owner_name, a.shop_image_url, a.address_line1, a.address_line2, a.city, a.country, a.state, a.pincode,
+		a.shop_verification_status, a.created_at, a.updated_at,
 			(6371 * acos(
 					cos(radians($1)) * cos(radians(a.latitude)) *
 					cos(radians(a.longitude) - radians($2)) +
 					sin(radians($1)) * sin(radians(a.latitude))
 			)) AS distance_km
-		FROM admins a
+		FROM shop_details a
 		WHERE a.latitude IS NOT NULL AND a.longitude IS NOT NULL
 	) AS subquery
 	WHERE distance_km <= $3

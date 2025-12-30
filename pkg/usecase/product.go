@@ -3,7 +3,9 @@ package usecase
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -397,7 +399,7 @@ func SafeIntToUint64(i int) (uint64, error) {
 	return uint64(i), nil
 }
 
-func (c *productUseCase) SearchProducts(ctx context.Context, keyword string, categoryID *string, brandID *string, locationID *string, limit, offset int) ([]response.Product, error) {
+func (c *productUseCase) SearchProducts(ctx context.Context, keyword string, categoryID *string, brandID *string, locationID *string, limit, offset int) ([]response.ProductItems, error) {
 	// Assuming request.Pagination looks like:
 	// In your function:
 	// Assuming request.Pagination looks like:
@@ -420,18 +422,7 @@ func (c *productUseCase) SearchProducts(ctx context.Context, keyword string, cat
 		return nil, utils.PrependMessageToError(err, "failed to search products")
 	}
 
-	// convert from []response.Product to []domain.Product
-	domainProducts := make([]response.Product, 0, len(resProducts))
-	for _, p := range resProducts {
-		domainProducts = append(domainProducts, response.Product{
-			ID:          p.ID,
-			Name:        p.Name,
-			Description: p.Description,
-			// map other fields...
-		})
-	}
-
-	return domainProducts, nil
+	return resProducts, nil
 }
 
 func (s *productUseCase) GetProductNameSuggestions(ctx context.Context, prefix string) ([]string, error) {
@@ -962,69 +953,146 @@ func (s *productUseCase) GetLocationByPincode(ctx context.Context, pincodeID str
 
 const DefaultRadiusMeters = 5000 // or get from config/env
 
-func (s *productUseCase) GetNearbyProductsByPincode(ctx context.Context, pincode string, limit, offset int) ([]response.Product, error) {
-	const DefaultRadiusMeters = 5000
+func (s *productUseCase) GetNearbyProductsByPincode(ctx context.Context, pincode string, limit, offset int) ([]response.ProductItems, error) {
+	const DefaultRadiusKm = 50
 
-	query := `
-        SELECT
-            p.product_id, p.name, p.description, p.brand_id, p.category_id,
-            p.price, p.discount_price,
-            c.name AS category_name,
-            mc.name AS main_category_name,
-            b.name AS brand_name,
-            p.image,
-            p.created_at, p.updated_at
-        FROM products p
-        JOIN locations l ON p.location_id = l.location_id
-        LEFT JOIN categories c ON p.category_id = c.category_id
-        LEFT JOIN categories mc ON c.parent_id = mc.category_id -- assuming main category is parent
-        LEFT JOIN brands b ON p.brand_id = b.brand_id
-        WHERE l.geog IS NOT NULL
-          AND (
-            SELECT geog FROM locations WHERE pincode = $1 LIMIT 1
-          ) IS NOT NULL
-          AND ST_DWithin(l.geog, (SELECT geog FROM locations WHERE pincode = $1 LIMIT 1), $2)
-        ORDER BY ST_Distance(l.geog, (SELECT geog FROM locations WHERE pincode = $1 LIMIT 1))
-        LIMIT $3 OFFSET $4
-    `
+	fmt.Printf("GetNearbyProductsByPincode - pincode: %s, radius: %d, limit: %d, offset: %d\n", pincode, DefaultRadiusKm, limit, offset)
 
-	rows, err := s.DB.Query(ctx, query, pincode, DefaultRadiusMeters, limit, offset)
+	// First check if pincode exists in shop_details
+	checkQuery := `SELECT latitude, longitude FROM shop_details WHERE pincode = $1 LIMIT 1`
+	var targetLat, targetLng interface{}
+	row := s.DB.QueryRow(ctx, checkQuery, pincode)
+	err := row.Scan(&targetLat, &targetLng)
 	if err != nil {
+		fmt.Printf("GetNearbyProductsByPincode - No shop found for pincode %s: %v\n", pincode, err)
+		// Log some available pincodes for debugging
+		availableQuery := `SELECT DISTINCT pincode FROM shop_details WHERE pincode IS NOT NULL LIMIT 5`
+		availRows, _ := s.DB.Query(ctx, availableQuery)
+		defer availRows.Close()
+		fmt.Println("Available pincodes in shop_details:")
+		for availRows.Next() {
+			var p string
+			availRows.Scan(&p)
+			fmt.Printf("  - %s\n", p)
+		}
+		return []response.ProductItems{}, nil
+	}
+	fmt.Printf("GetNearbyProductsByPincode - Target location found: lat=%v, lng=%v\n", targetLat, targetLng)
+
+	// Get the target location coordinates from shop_details table using pincode
+	query := `
+		WITH target_location AS (
+			SELECT latitude, longitude FROM shop_details WHERE pincode = $1 LIMIT 1
+		)
+		SELECT pi.id, pi.sub_category_name, pi.category_id, pi.department_id, pi.sub_category_id,
+			pi.product_item_images, pi.dynamic_fields, pi.created_at, pi.updated_at,
+			c.name AS category_name,
+			d.name AS main_category_name,
+			sc.name AS sub_category_name_ref,
+			sc.image_url AS sub_category_image_url
+		FROM product_items pi
+		LEFT JOIN categories c ON pi.category_id = c.id
+		LEFT JOIN departments d ON pi.department_id = d.id
+		LEFT JOIN sub_categories sc ON pi.sub_category_id = sc.id
+		LEFT JOIN shop_details sd ON sd.admin_id::text = pi.admin_id::text
+		WHERE sd.latitude IS NOT NULL
+		  AND sd.longitude IS NOT NULL
+		  AND (SELECT latitude FROM target_location) IS NOT NULL
+		  AND (
+			(6371 * acos(
+				cos(radians((SELECT latitude FROM target_location))) * 
+				cos(radians(sd.latitude)) *
+				cos(radians(sd.longitude) - radians((SELECT longitude FROM target_location))) +
+				sin(radians((SELECT latitude FROM target_location))) * 
+				sin(radians(sd.latitude))
+			)) <= $2
+		  )
+		ORDER BY (6371 * acos(
+			cos(radians((SELECT latitude FROM target_location))) * 
+			cos(radians(sd.latitude)) *
+			cos(radians(sd.longitude) - radians((SELECT longitude FROM target_location))) +
+			sin(radians((SELECT latitude FROM target_location))) * 
+			sin(radians(sd.latitude))
+		))
+		LIMIT $3 OFFSET $4
+	`
+
+	rows, err := s.DB.Query(ctx, query, pincode, DefaultRadiusKm, limit, offset)
+	if err != nil {
+		fmt.Printf("GetNearbyProductsByPincode - Query error: %v\n", err)
 		return nil, err
 	}
 	defer rows.Close()
 
-	var products []response.Product
+	var products []response.ProductItems
 	for rows.Next() {
-		var p response.Product
+		var id uint
+		var name string
+		var categoryID uint
+		var deptID uint
+		var subCatID uint
+		var images string
+		var dynamicFields []byte
+		var createdAt time.Time
+		var updatedAt time.Time
+		var categoryName string
+		var deptName string
+		var subCatName string
+		var subCatImageURL string
+
 		if err := rows.Scan(
-			&p.ID,
-			&p.Name,
-			&p.Description,
-			&p.BrandID,
-			&p.CategoryID,
-			&p.Price,
-			&p.DiscountPrice,
-			&p.CategoryName,
-			&p.MainCategoryName,
-			&p.BrandName,
-			&p.Image,
-			&p.CreatedAt,
-			&p.UpdatedAt,
+			&id,
+			&name,
+			&categoryID,
+			&deptID,
+			&subCatID,
+			&images,
+			&dynamicFields,
+			&createdAt,
+			&updatedAt,
+			&categoryName,
+			&deptName,
+			&subCatName,
+			&subCatImageURL,
 		); err != nil {
 			return nil, err
 		}
-		products = append(products, response.Product{
-			ID:            p.ID,
-			Name:          p.Name,
-			Description:   p.Description,
-			BrandID:       p.BrandID,
-			CategoryID:    p.CategoryID,
-			Price:         p.Price,
-			DiscountPrice: p.DiscountPrice,
-			Stock:         p.Stock,
-			LocationID:    p.LocationID,
+
+		var dynamicFieldsMap map[string]interface{}
+		if len(dynamicFields) > 0 {
+			if err := json.Unmarshal(dynamicFields, &dynamicFieldsMap); err != nil {
+				return nil, utils.PrependMessageToError(err, "failed to unmarshal dynamicFields")
+			}
+		}
+
+		// Convert images string to []string (try JSON unmarshal, fallback to comma split)
+		var imagesSlice []string
+		if err := json.Unmarshal([]byte(images), &imagesSlice); err != nil {
+			// fallback: treat as comma-separated string
+			if images != "" {
+				imagesSlice = append(imagesSlice, images)
+			}
+		}
+
+		products = append(products, response.ProductItems{
+			ID:                  id,
+			Name:                name,
+			CategoryID:          categoryID,
+			CategoryName:        categoryName,
+			DepartmentID:        deptID,
+			SubCategoryID:       subCatID,
+			SubCategoryImageURL: subCatImageURL,
+			DynamicFields:       dynamicFieldsMap,
+			ProductItemImages:   imagesSlice,
+			MainCategoryName:    deptName,
+			CreatedAt:           createdAt,
+			UpdatedAt:           updatedAt,
 		})
+	}
+
+	fmt.Printf("GetNearbyProductsByPincode - Total products found: %d\n", len(products))
+	if len(products) == 0 {
+		return []response.ProductItems{}, nil
 	}
 
 	return products, nil
@@ -1032,71 +1100,137 @@ func (s *productUseCase) GetNearbyProductsByPincode(ctx context.Context, pincode
 
 // services/product_service.go
 
-func (c *productUseCase) GetProductsByRadius(ctx context.Context, latitude int, longitude int, radiusMeters int, limit, offset int) ([]response.Product, error) {
+func (c *productUseCase) GetProductsByRadius(ctx context.Context, latitude int, longitude int, radiusMeters int, limit, offset int) ([]response.ProductItems, error) {
 	// default radius if not provided
 	if radiusMeters <= 0 {
 		radiusMeters = DefaultRadiusMeters
 	}
 
+	fmt.Printf("[DEBUG] GetProductsByRadius called with lat=%d, lng=%d, radiusMeters=%d, limit=%d, offset=%d\n", latitude, longitude, radiusMeters, limit, offset)
+
 	query := `
 		SELECT * FROM (
-    SELECT p.id, p.name, p.description, p.brand_id, p.category_id, p.price, p.discount_price,
-           c.name, b.name, p.image, p.created_at, p.updated_at,
-           (6371 * acos(
-                cos(radians($1)) * cos(radians(p.latitude)) *
-                cos(radians(p.longitude) - radians($2)) +
-                sin(radians($1)) * sin(radians(p.latitude))
-           )) AS distance_km
-		FROM products p
-		JOIN categories c ON p.category_id = c.category_id
-		JOIN brands b ON p.brand_id = b.id
-		WHERE p.latitude IS NOT NULL AND p.longitude IS NOT NULL
-	) AS subquery
-	WHERE distance_km <= $3
-	ORDER BY distance_km;
+			SELECT pi.id, pi.sub_category_name, pi.category_id, pi.department_id, pi.sub_category_id,
+				pi.product_item_images, pi.dynamic_fields, pi.created_at, pi.updated_at,
+				c.name AS category_name,
+				d.name AS main_category_name,
+				sc.image_url AS sub_category_image_url,
+				(6371 * acos(
+					cos(radians($1)) * cos(radians(sd.latitude)) *
+					cos(radians(sd.longitude) - radians($2)) +
+					sin(radians($1)) * sin(radians(sd.latitude))
+				)) AS distance_km
+			FROM product_items pi
+			LEFT JOIN categories c ON pi.category_id = c.id
+			LEFT JOIN departments d ON pi.department_id = d.id
+			LEFT JOIN sub_categories sc ON pi.sub_category_id = sc.id
+			JOIN shop_details sd ON sd.admin_id::text = pi.admin_id::text
+			WHERE sd.latitude IS NOT NULL AND sd.longitude IS NOT NULL
+		) AS subquery
+		WHERE distance_km <= $3
+		ORDER BY distance_km
+		LIMIT $4 OFFSET $5;
 	`
 
-	fmt.Printf("Executing GetProductsByRadius with lat: %d, long: %d, radiusMeters: %d\n", latitude, longitude, radiusMeters)
-	rows, err := c.DB.Query(ctx, query, latitude, longitude, float64(radiusMeters)/1000)
-	fmt.Println("Query executed, checking for errors...")
+	fmt.Printf("[DEBUG] Executing SQL: %s\n", query)
+	fmt.Printf("[DEBUG] SQL params: lat=%d, lng=%d, radius_km=%.2f, limit=%d, offset=%d\n", latitude, longitude, float64(radiusMeters)/1000, limit, offset)
+	type productItemDB struct {
+		Name                string    `gorm:"column:sub_category_name"`
+		ID                  uint      `gorm:"column:id"`
+		CategoryID          uint      `gorm:"column:category_id"`
+		DepartmentID        uint      `gorm:"column:department_id"`
+		SubCategoryID       uint      `gorm:"column:sub_category_id"`
+		CategoryName        string    `gorm:"column:category_name"`
+		DepartmentName      string    `gorm:"column:department_name"`
+		SubCategoryNameRef  string    `gorm:"column:sub_category_name_ref"`
+		SubCategoryImageURL string    `gorm:"column:sub_category_image_url"`
+		ProductItemImages   string    `gorm:"column:product_item_images"`
+		DynamicFields       []byte    `gorm:"column:dynamic_fields"`
+		OfferProducts       []byte    `gorm:"column:offer_products"`
+		CreatedAt           time.Time `gorm:"column:created_at"`
+		UpdatedAt           time.Time `gorm:"column:updated_at"`
+	}
+
+	rows, err := c.DB.Query(ctx, query, latitude, longitude, float64(radiusMeters)/1000, limit, offset)
 	if err != nil {
+		fmt.Printf("[ERROR] Query failed: %v\n", err)
 		return nil, utils.PrependMessageToError(err, "failed to get products by radius")
 	}
-	fmt.Printf("Rows returned: %+v\n", rows)
 	defer rows.Close()
 
-	var products []response.Product
+	var products []response.ProductItems
+	count := 0
 	for rows.Next() {
-		var p response.Product
+		var id uint
+		var name string
+		var categoryID uint
+		var deptID uint
+		var subCatID uint
+		var images string
+		var dynamicFields []byte
+		var createdAt time.Time
+		var updatedAt time.Time
+		var categoryName string
+		var mainCategoryName string
+		var subCatImageURL string
+		var distanceKm float64
+
 		if err := rows.Scan(
-			&p.ID,
-			&p.Name,
-			&p.Description,
-			&p.BrandID,
-			&p.CategoryID,
-			&p.Price,
-			&p.DiscountPrice,
-			&p.CategoryName,
-			&p.BrandName,
-			&p.Image,
-			&p.CreatedAt,
-			&p.UpdatedAt,
+			&id,
+			&name,
+			&categoryID,
+			&deptID,
+			&subCatID,
+			&images,
+			&dynamicFields,
+			&createdAt,
+			&updatedAt,
+			&categoryName,
+			&mainCategoryName,
+			&subCatImageURL,
+			&distanceKm,
 		); err != nil {
+			fmt.Printf("[ERROR] Row scan failed: %v\n", err)
 			return nil, utils.PrependMessageToError(err, "failed to scan product row")
 		}
-		products = append(products, response.Product{
-			ID:            p.ID,
-			Name:          p.Name,
-			Description:   p.Description,
-			BrandID:       p.BrandID,
-			CategoryID:    p.CategoryID,
-			Price:         p.Price,
-			DiscountPrice: p.DiscountPrice,
-			Stock:         p.Stock,
-			LocationID:    p.LocationID,
-		})
-	}
 
+		var dynamicFieldsMap map[string]interface{}
+		if len(dynamicFields) > 0 {
+			if err := json.Unmarshal(dynamicFields, &dynamicFieldsMap); err != nil {
+				return nil, utils.PrependMessageToError(err, "failed to unmarshal dynamicFields")
+			}
+		}
+
+		// Convert images string to []string (try JSON unmarshal, fallback to comma split)
+		var imagesSlice []string
+		if err := json.Unmarshal([]byte(images), &imagesSlice); err != nil {
+			// fallback: treat as comma-separated string
+			if images != "" {
+				imagesSlice = append(imagesSlice, images)
+			}
+		}
+
+		products = append(products, response.ProductItems{
+			ID:                  id,
+			Name:                name,
+			CategoryID:          categoryID,
+			DepartmentID:        deptID,
+			SubCategoryID:       subCatID,
+			ProductItemImages:   imagesSlice,
+			DynamicFields:       dynamicFieldsMap,
+			CategoryName:        categoryName,
+			MainCategoryName:    mainCategoryName,
+			SubCategoryImageURL: subCatImageURL,
+			CreatedAt:           createdAt,
+			UpdatedAt:           updatedAt,
+			// Optionally: DistanceKm: distanceKm,
+		})
+		count++
+	}
+	fmt.Printf("[DEBUG] GetProductsByRadius - products found: %d\n", count)
+	if count == 0 {
+		fmt.Println("[DEBUG] No products found for given lat/lng and radius.")
+	}
 	return products, nil
 }
 

@@ -27,7 +27,7 @@ type ProductUseCase interface {
 
 	SaveProductItem(ctx context.Context, productItem request.ProductItem, adminID string) error
 	FindAllProductItems(ctx context.Context, adminId string) ([]response.ProductItems, error)
-	SearchProducts(ctx context.Context, keyword string, categoryID, brandID, locationID *string, limit, offset int) (products []response.Product, err error)
+	SearchProducts(ctx context.Context, keyword string, categoryID, brandID, locationID *string, limit, offset int) (products []response.ProductItems, err error)
 	GetProductNameSuggestions(ctx context.Context, prefix string) (suggestions []string, err error)
 	GetProductFilters(ctx context.Context) (filters response.ProductFilters, err error)
 	GetProductLocations(ctx context.Context) (locations []response.Location, err error)
@@ -47,8 +47,8 @@ type ProductUseCase interface {
 	GetAreasByCity(ctx context.Context, cityID string) (areas []string, err error)
 	GetPincodesByArea(ctx context.Context, areaID string) (pincodes []string, err error)
 	GetLocationByPincode(ctx context.Context, pincodeID string) (location response.Location, err error)
-	GetNearbyProductsByPincode(ctx context.Context, pincode string, limit, offset int) (products []response.Product, err error)
-	GetProductsByRadius(ctx context.Context, latitude int, longitude, radius int, limit, offset int) ([]response.Product, error)
+	GetNearbyProductsByPincode(ctx context.Context, pincode string, limit, offset int) (products []response.ProductItems, err error)
+	GetProductsByRadius(ctx context.Context, latitude int, longitude, radius int, limit, offset int) ([]response.ProductItems, error)
 
 	// department
 	SaveDepartment(ctx context.Context, departmentName string) error
