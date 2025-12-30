@@ -47,4 +47,6 @@ type AdminHandler interface {
 	GetAllProductDetails(ctx *gin.Context)
 	UploadShopById(ctx *gin.Context)
 	GetShopProfileImageById(ctx *gin.Context)
+	// Logout
+	UserLogout(ctx *gin.Context)
 }

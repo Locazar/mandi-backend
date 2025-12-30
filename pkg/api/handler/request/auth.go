@@ -13,3 +13,11 @@ type RefreshToken struct {
 type OTPLoginEmail struct {
 	Email string `json:"email" binding:"required,email"`
 }
+
+type RefreshSession struct {
+	TokenID      string `json:"token_id"`
+	UserID       uint   `json:"user_id"`
+	UserType     string `json:"user_type"`
+	RefreshToken string `json:"refresh_token"`
+	ExpireAt     string `json:"expire_at"`
+}

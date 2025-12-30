@@ -6,6 +6,7 @@ type TokenService interface {
 	GenerateToken(req GenerateTokenRequest) (GenerateTokenResponse, error)
 	VerifyToken(req VerifyTokenRequest) (VerifyTokenResponse, error)
 	DecodeTokenData(tokenString string) string
+	DecodeTokenDataToGetData(tokenString string) (string, UserType, error)
 }
 
 type UserType string

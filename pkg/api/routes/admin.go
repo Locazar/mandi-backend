@@ -28,6 +28,9 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		}
 
 		auth.POST("/renew-access-token", authHandler.AdminRenewAccessToken())
+
+		// Admin logout route
+		auth.POST("/logout", authHandler.AdminLogout)
 	}
 
 	// Profile endpoint (accessible without full authentication)
@@ -131,6 +134,13 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			productItem.GET("", productHandler.GetAllProductItemsAdmin())
 			productItem.POST("", productHandler.SaveProductItem)
 			productItem.GET("/:product_item_id", productHandler.GetProductItemByID)
+
+			productView := productItem.Group("/:product_item_id/view")
+			{
+				productView.POST("/", productHandler.IncrementProductItemViewCount)
+				productView.GET("/", productHandler.GetProductItemViewCount)
+			}
+
 		}
 		// 	// order
 		order := api.Group("/orders")
@@ -164,16 +174,18 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			offer.POST("/", middleware.TrimSpaces(), offerHandler.SaveOffer) // add a new offer
 			offer.GET("/", offerHandler.GetAllOffers)                        // get all offers
 			offer.DELETE("/:offer_id", offerHandler.RemoveOffer)
+			offer.POST("/shop", middleware.TrimSpaces(), offerHandler.ApplyOfferToShop)
 
 			offer.GET("/category", offerHandler.GetAllCategoryOffers)                        // to get all offers of categories
 			offer.POST("/category", middleware.TrimSpaces(), offerHandler.SaveCategoryOffer) // add offer for categories
 			offer.PATCH("/category", offerHandler.ChangeCategoryOffer)
 			offer.DELETE("/category/:offer_category_id", offerHandler.RemoveCategoryOffer)
 
-			offer.GET("/products", offerHandler.GetAllProductsOffers)                       // to get all offers of products
-			offer.POST("/products", middleware.TrimSpaces(), offerHandler.SaveProductOffer) // add offer for products
+			offer.GET("/products", offerHandler.GetAllProductsOffers)                                // to get all offers of products
+			offer.POST("/products_item", middleware.TrimSpaces(), offerHandler.SaveProductItemOffer) // add offer for products
 			offer.PATCH("/products", offerHandler.ChangeProductOffer)
 			offer.DELETE("/products/:offer_product_id", offerHandler.RemoveProductOffer)
+			offer.GET("/active", offerHandler.GetActiveOffers)
 		}
 
 		// coupons

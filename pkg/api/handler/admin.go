@@ -26,6 +26,12 @@ type adminHandler struct {
 	adminUseCase usecaseInterface.AdminUseCase
 }
 
+// UserLogout implements the UserLogout method required by the AdminHandler interface.
+func (a *adminHandler) UserLogout(ctx *gin.Context) {
+	// Implementation goes here, or just a stub if not needed yet
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully logged out", nil)
+}
+
 func NewAdminHandler(adminUsecase usecaseInterface.AdminUseCase) interfaces.AdminHandler {
 	return &adminHandler{
 		adminUseCase: adminUsecase,

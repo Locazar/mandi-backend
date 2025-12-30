@@ -27,7 +27,8 @@ func ConnectDatabase(cfg config.Config) (*gorm.DB, error) {
 	err = db.AutoMigrate(
 
 		//auth
-		domain.RefreshSession{},
+		domain.AdminRefreshSession{},
+		domain.UserRefreshSession{},
 		domain.OtpSession{},
 		//user
 		domain.User{},
@@ -83,6 +84,7 @@ func ConnectDatabase(cfg config.Config) (*gorm.DB, error) {
 
 		//Shop Details
 		domain.ShopDetails{},
+		domain.ShopOffer{},
 
 		//Payment Methods
 		domain.PaymentMethod{},

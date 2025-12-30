@@ -345,3 +345,15 @@ func (c *userDatabase) FindSellersByRadius(ctx context.Context, reqData request.
 
 	return sellers, err
 }
+
+func (c *userDatabase) DeleteRefreshSessionByUserID(ctx context.Context, userId string, userType string) error {
+	if userType == "admin" {
+		query := `DELETE FROM admin_refresh_sessions WHERE user_id = $1 AND user_type = $2`
+		err := c.DB.Exec(query, userId, userType).Error
+		return err
+	} else {
+		query := `DELETE FROM user_refresh_sessions WHERE user_id = $1 AND user_type = $2`
+		err := c.DB.Exec(query, userId, userType).Error
+		return err
+	}
+}

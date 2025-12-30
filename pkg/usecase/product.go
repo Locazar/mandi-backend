@@ -1290,3 +1290,19 @@ func (c *productUseCase) GetProductItemByID(ctx context.Context, productItemID u
 	}
 	return productItem, nil
 }
+
+func (c *productUseCase) IncrementProductItemViewCount(ctx context.Context, productItemID uint, adminID string) error {
+	err := c.productRepo.IncrementProductItemViewCount(ctx, productItemID, adminID)
+	if err != nil {
+		return utils.PrependMessageToError(err, "failed to increment product item view count")
+	}
+	return nil
+}
+
+func (c *productUseCase) GetProductItemViewCount(ctx context.Context, productItemID uint, adminID string) (uint, error) {
+	count, err := c.productRepo.GetProductItemViewCount(ctx, productItemID, adminID)
+	if err != nil {
+		return 0, utils.PrependMessageToError(err, "failed to get product item view count")
+	}
+	return count, nil
+}

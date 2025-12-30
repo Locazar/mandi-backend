@@ -76,4 +76,6 @@ type ProductUseCase interface {
 	UpdateCategoryImage(ctx context.Context, imageID uint, image request.CategoryImage) error
 	DeleteCategoryImage(ctx context.Context, imageID uint) error
 	GetProductItemByID(ctx context.Context, productItemID uint) (response.ProductItems, error)
+	IncrementProductItemViewCount(ctx context.Context, productItemID uint, adminID string) error
+	GetProductItemViewCount(ctx context.Context, productItemID uint, adminID string) (uint, error)
 }

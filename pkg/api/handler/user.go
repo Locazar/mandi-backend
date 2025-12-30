@@ -37,12 +37,12 @@ func NewUserHandler(userUsecase usecaseInterface.UserUseCase) *UserHandler {
 // // @tags User Logout
 // // @Router /logout [post]
 // // @Success 200 "successfully logged out"
-// func (u *UserHandler) UserLogout(ctx *gin.Context) {
+func (u *UserHandler) UserLogout(ctx *gin.Context) {
 
-// 	ctx.SetCookie("user-auth", "", -1, "", "", false, true)
+	ctx.SetCookie("user-auth", "", -1, "", "", false, true)
 
-// 	response.SuccessResponse(ctx, http.StatusOK, "Successfully logged out", nil)
-// }
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully logged out", nil)
+}
 
 // // CheckOutCart godoc
 // // @summary api for cart checkout

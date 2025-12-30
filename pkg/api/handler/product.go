@@ -1977,3 +1977,43 @@ func (p *ProductHandler) GetProductItemByID(ctx *gin.Context) {
 
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully get product item", productItem)
 }
+
+func (p *ProductHandler) IncrementProductItemViewCount(ctx *gin.Context) {
+	productItemID, err := request.GetParamAsUint(ctx, "product_item_id")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+		return
+	}
+
+	tokenString := ctx.GetHeader("Authorization")
+	adminId := p.tokenService.DecodeTokenData(tokenString)
+
+	err = p.productUseCase.IncrementProductItemViewCount(ctx, productItemID, adminId)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to increment view count", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully incremented view count", nil)
+}
+
+func (p *ProductHandler) GetProductItemViewCount(ctx *gin.Context) {
+	productItemID, err := request.GetParamAsUint(ctx, "product_item_id")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+		return
+	}
+
+	tokenString := ctx.GetHeader("Authorization")
+	adminId := p.tokenService.DecodeTokenData(tokenString)
+
+	viewCount, err := p.productUseCase.GetProductItemViewCount(ctx, productItemID, adminId)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get view count", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved view count", map[string]interface{}{
+		"product_item_id": productItemID,
+		"view_count":      viewCount,
+	})
+}

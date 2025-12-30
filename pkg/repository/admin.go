@@ -546,3 +546,9 @@ func (c *adminDatabase) GetShopProfileImageById(ctx context.Context, shopId stri
 	}
 	return shopProfileImage, nil
 }
+
+func (c *adminDatabase) DeleteRefreshSessionByUserID(ctx context.Context, adminId string) error {
+	query := `DELETE FROM refresh_sessions WHERE user_id = $1`
+	err := c.DB.Exec(query, adminId).Error
+	return err
+}

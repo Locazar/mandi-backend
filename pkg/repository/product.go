@@ -301,18 +301,16 @@ func (c *productDatabase) FindAllProducts(ctx context.Context, pagination reques
 
 // helper method to get product items by product ID (internal use)
 func (c *productDatabase) findProductItemsByProductID(ctx context.Context, productID uint) (productItems []response.ProductItems, err error) {
-	query := `SELECT pi.sub_category_name, pi.id, pi.product_id, p.category_id, 
+	query := `SELECT pi.sub_category_name, pi.id, pi.product_id, pi.category_id, 
 		   sc.name AS category_name, mc.name AS main_category_name
 	       FROM product_items pi 
-	       LEFT JOIN products p ON p.id = pi.product_id 
-	       LEFT JOIN categories sc ON p.category_id = sc.id 
-	       LEFT JOIN categories mc ON p.category_id = mc.id 
+	       LEFT JOIN categories sc ON pi.category_id = sc.id 
+	       LEFT JOIN categories mc ON pi.category_id = mc.id 
 	       WHERE pi.product_id = $1`
 
 	type productItemDB struct {
 		Name             string `gorm:"column:sub_category_name"`
 		ID               uint   `gorm:"column:id"`
-		ProductID        uint   `gorm:"column:product_id"`
 		CategoryID       uint   `gorm:"column:category_id"`
 		CategoryName     string `gorm:"column:category_name"`
 		MainCategoryName string `gorm:"column:main_category_name"`
@@ -327,7 +325,6 @@ func (c *productDatabase) findProductItemsByProductID(ctx context.Context, produ
 		item := response.ProductItems{
 			ID:               dbItem.ID,
 			Name:             dbItem.Name,
-			ProductID:        dbItem.ProductID,
 			CategoryName:     dbItem.CategoryName,
 			MainCategoryName: dbItem.MainCategoryName,
 		}
@@ -408,15 +405,34 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context,
 	adminID string) (productItems []response.ProductItems, err error) {
 
 	query := `SELECT pi.sub_category_name, pi.id, pi.category_id, pi.department_id, pi.sub_category_id,
-		   pi.product_item_images, pi.dynamic_fields, pi.created_at, pi.updated_at,
-		   c.name AS category_name, d.name AS department_name, sc.name AS sub_category_name_ref,
-		   sc.image_url AS sub_category_image_url
-	       FROM product_items pi 
-	       LEFT JOIN categories c ON pi.category_id = c.id 
-	       LEFT JOIN departments d ON pi.department_id = d.id
-	       LEFT JOIN sub_categories sc ON pi.sub_category_id = sc.id
-	       WHERE pi.admin_id = $1
-	       ORDER BY pi.created_at DESC`
+				pi.product_item_images, pi.dynamic_fields, pi.created_at, pi.updated_at,
+				c.name AS category_name, d.name AS department_name, sc.name AS sub_category_name_ref,
+				sc.image_url AS sub_category_image_url,
+				(
+					SELECT COALESCE(json_agg(json_build_object(
+						'offer_product_id', op2.id,
+						'product_name', pi2.sub_category_name,
+						'offer_id', o2.id,
+						'offer_name', o2.name,
+						'discount_rate', o2.discount_rate,
+						'description', o2.description,
+						'start_date', o2.start_date,
+						'end_date', o2.end_date,
+						'image', o2.image,
+						'thumbnail', o2.thumbnail
+					)), '[]')
+					FROM offer_products op2
+										LEFT JOIN product_items pi2 ON pi2.id = op2.product_item_id
+					INNER JOIN offers o2 ON o2.id = op2.offer_id
+
+					WHERE op2.product_item_id = pi.id
+					) AS offer_products
+			FROM product_items pi 
+			LEFT JOIN categories c ON pi.category_id = c.id 
+			LEFT JOIN departments d ON pi.department_id = d.id
+			LEFT JOIN sub_categories sc ON pi.sub_category_id = sc.id
+			WHERE pi.admin_id = $1
+			ORDER BY pi.created_at DESC`
 
 	// Internal struct for scanning DB result
 	type productItemDB struct {
@@ -429,8 +445,9 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context,
 		DepartmentName      string    `gorm:"column:department_name"`
 		SubCategoryNameRef  string    `gorm:"column:sub_category_name_ref"`
 		SubCategoryImageURL string    `gorm:"column:sub_category_image_url"`
-		ProductItemImages   string    `gorm:"column:product_item_images"` // Store as string first
+		ProductItemImages   string    `gorm:"column:product_item_images"` // Store as string
 		DynamicFields       []byte    `gorm:"column:dynamic_fields"`
+		OfferProducts       []byte    `gorm:"column:offer_products"`
 		CreatedAt           time.Time `gorm:"column:created_at"`
 		UpdatedAt           time.Time `gorm:"column:updated_at"`
 	}
@@ -473,6 +490,24 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context,
 			ProductItemImages:   images,
 			CreatedAt:           dbItem.CreatedAt,
 			UpdatedAt:           dbItem.UpdatedAt,
+		}
+
+		// Unmarshal offer_products if present
+		if len(dbItem.OfferProducts) > 0 {
+			var offerProducts []response.OfferProduct
+			if err := json.Unmarshal(dbItem.OfferProducts, &offerProducts); err == nil {
+				item.OfferProducts = offerProducts // Make sure OfferProducts in response.ProductItems is []response.OfferProduct
+				if len(offerProducts) > 0 {
+					var offerNames []string
+					for _, op := range offerProducts {
+						offerNames = append(offerNames, op.OfferName)
+					}
+					// If you want to keep offerNames, assign to a []string field, not item.Offer
+					// For example, if item has OfferNames []string, use:
+					// item.OfferNames = offerNames
+					// Otherwise, remove this assignment to avoid the type error.
+				}
+			}
 		}
 
 		// Unmarshal DynamicFields if present
@@ -734,25 +769,25 @@ func (c *productDatabase) DeleteCategoryImage(ctx context.Context, imageID uint)
 
 func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID uint) (productItem response.ProductItems, err error) {
 	// First, get product item details (excluding images)
-	query := `SELECT pi.id, pi.sub_category_name, pi.product_id, p.category_id, 
+	query := `SELECT pi.id, pi.sub_category_name, pi.category_id, pi.product_item_images, 
 	           sc.name AS category_name, mc.name AS main_category_name, 
 	           pi.dynamic_fields, pi.created_at, pi.updated_at
 	       FROM product_items pi 
-	       LEFT JOIN products p ON p.id = pi.product_id 
-	       LEFT JOIN categories sc ON p.category_id = sc.id 
-	       LEFT JOIN categories mc ON p.category_id = mc.id 
+	       LEFT JOIN categories sc ON pi.category_id = sc.id 
+	       LEFT JOIN categories mc ON pi.category_id = mc.id 
 	       WHERE pi.id = $1;`
 
 	var dbItem struct {
-		ID               uint
-		SubCategoryName  string
-		ProductID        uint
-		CategoryID       uint
-		CategoryName     string
-		MainCategoryName string
-		DynamicFields    []byte
-		CreatedAt        time.Time
-		UpdatedAt        time.Time
+		ID                uint
+		SubCategoryName   string
+		ProductID         uint
+		CategoryID        uint
+		CategoryName      string
+		MainCategoryName  string
+		ProductItemImages []string
+		DynamicFields     []byte
+		CreatedAt         time.Time
+		UpdatedAt         time.Time
 	}
 
 	err = c.DB.Raw(query, productItemID).Scan(&dbItem).Error
@@ -762,9 +797,9 @@ func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID 
 
 	productItem.ID = dbItem.ID
 	productItem.Name = dbItem.SubCategoryName
-	productItem.ProductID = dbItem.ProductID
 	productItem.CategoryName = dbItem.CategoryName
 	productItem.MainCategoryName = dbItem.MainCategoryName
+	productItem.ProductItemImages = dbItem.ProductItemImages
 	productItem.CreatedAt = dbItem.CreatedAt
 	productItem.UpdatedAt = dbItem.UpdatedAt
 
@@ -778,11 +813,28 @@ func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID 
 
 	// Unmarshal DynamicFields JSONB to map
 	var dynamicFields map[string]interface{}
-	err = json.Unmarshal(dbItem.DynamicFields, &dynamicFields)
-	if err != nil {
-		return
+	if len(dbItem.DynamicFields) > 0 {
+		err = json.Unmarshal(dbItem.DynamicFields, &dynamicFields)
+		if err != nil {
+			return
+		}
+		productItem.DynamicFields = dynamicFields
+	} else {
+		productItem.DynamicFields = make(map[string]interface{})
 	}
-	productItem.DynamicFields = dynamicFields
 
+	return
+}
+
+func (c *productDatabase) IncrementProductItemViewCount(ctx context.Context, productItemID uint, adminID string) error {
+	query := `INSERT INTO product_item_views (product_item_id, admin_id, view_count, last_viewed_at) 
+	          VALUES ($1, $2, 1, CURRENT_TIMESTAMP)
+	          ON CONFLICT (product_item_id, admin_id) 
+	          DO UPDATE SET view_count = product_item_views.view_count + 1, last_viewed_at = CURRENT_TIMESTAMP`
+	return c.DB.Exec(query, productItemID, adminID).Error
+}
+func (c *productDatabase) GetProductItemViewCount(ctx context.Context, productItemID uint, adminID string) (viewCount uint, err error) {
+	query := `SELECT view_count FROM product_item_views WHERE product_item_id = $1 AND admin_id = $2`
+	err = c.DB.Raw(query, productItemID, adminID).Scan(&viewCount).Error
 	return
 }
