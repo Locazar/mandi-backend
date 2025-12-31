@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,6 +19,12 @@ import (
 
 type productDatabase struct {
 	DB *gorm.DB
+}
+
+// DeleteProductItem deletes a product item by its ID.
+func (c *productDatabase) DeleteProductItem(ctx context.Context, productItemID uint) error {
+	query := `DELETE FROM product_items WHERE id = $1`
+	return c.DB.Exec(query, productItemID).Error
 }
 
 func NewProductRepository(db *gorm.DB) interfaces.ProductRepository {
@@ -273,7 +280,7 @@ func (c *productDatabase) UpdateProduct(ctx context.Context, product domain.Prod
 }
 
 // get all products from database
-func (c *productDatabase) FindAllProducts(ctx context.Context, pagination request.Pagination) (products []response.Product, err error) {
+func (c *productDatabase) FindAllProducts(ctx context.Context, pagination request.Pagination, search string) (products []response.Product, err error) {
 
 	limit := pagination.Count
 	offset := (pagination.PageNumber - 1) * limit
@@ -402,13 +409,14 @@ VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`
 	return productItemID, err
 }
 
-// for get all products items for a product filtered by admin_id
+// for get all products items for a product filtered by admin_id and additional filters
 func (c *productDatabase) FindAllProductItems(ctx context.Context,
-	adminID string) (productItems []response.ProductItems, err error) {
+	adminID string, keyword string, categoryID *string, departmentID *string, subCategoryID *string, pagination *request.Pagination) (productItems []response.ProductItems, err error) {
 
 	query := `SELECT pi.sub_category_name, pi.id, pi.category_id, pi.department_id, pi.sub_category_id,
 				pi.product_item_images, pi.dynamic_fields, pi.created_at, pi.updated_at,
 				c.name AS category_name, d.name AS department_name, sc.name AS sub_category_name_ref,
+			(SELECT MAX(o3.discount_rate) FROM offer_products op3 INNER JOIN offers o3 ON o3.id = op3.offer_id WHERE op3.product_item_id = pi.id) AS discount_rate,
 				sc.image_url AS sub_category_image_url,
 				(
 					SELECT COALESCE(json_agg(json_build_object(
@@ -424,38 +432,63 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context,
 						'thumbnail', o2.thumbnail
 					)), '[]')
 					FROM offer_products op2
-										LEFT JOIN product_items pi2 ON pi2.id = op2.product_item_id
+					LEFT JOIN product_items pi2 ON pi2.id = op2.product_item_id
 					INNER JOIN offers o2 ON o2.id = op2.offer_id
-
-					WHERE op2.product_item_id = pi.id
-					) AS offer_products
+					WHERE op2.product_item_id = pi.id AND o2.start_date <= CURRENT_TIMESTAMP AND o2.end_date >= CURRENT_TIMESTAMP
+				) AS offer_products
 			FROM product_items pi 
 			LEFT JOIN categories c ON pi.category_id = c.id 
 			LEFT JOIN departments d ON pi.department_id = d.id
 			LEFT JOIN sub_categories sc ON pi.sub_category_id = sc.id
-			-- compare jsonb admin_id to string parameter by casting to text
-			WHERE pi.admin_id::text = $1
-			ORDER BY pi.created_at DESC`
+			WHERE pi.admin_id::text = @adminID`
+	// Add filters dynamically
+	params := map[string]interface{}{
+		"adminID": adminID,
+	}
+	if keyword != "" {
+		query += " AND (pi.sub_category_name ILIKE @keyword OR c.name ILIKE @keyword OR sc.name ILIKE @keyword)"
+		params["keyword"] = "%" + keyword + "%"
+	}
+	if categoryID != nil && *categoryID != "" {
+		query += " AND pi.category_id = @categoryID"
+		params["categoryID"] = *categoryID
+	}
+	if departmentID != nil && *departmentID != "" {
+		query += " AND pi.department_id = @departmentID"
+		params["departmentID"] = *departmentID
+	}
+	if subCategoryID != nil && *subCategoryID != "" {
+		query += " AND pi.sub_category_id = @subCategoryID"
+		params["subCategoryID"] = *subCategoryID
+	}
+	if pagination != nil {
+		query += " ORDER BY pi.created_at DESC LIMIT @limit OFFSET @offset"
+		params["limit"] = pagination.Count
+		params["offset"] = (pagination.PageNumber - 1) * pagination.Count
+	} else {
+		query += " ORDER BY pi.created_at DESC"
+	}
 
 	// Internal struct for scanning DB result
 	type productItemDB struct {
-		Name                string    `gorm:"column:sub_category_name"`
-		ID                  uint      `gorm:"column:id"`
-		CategoryID          uint      `gorm:"column:category_id"`
-		DepartmentID        uint      `gorm:"column:department_id"`
-		SubCategoryID       uint      `gorm:"column:sub_category_id"`
-		CategoryName        string    `gorm:"column:category_name"`
-		DepartmentName      string    `gorm:"column:department_name"`
-		SubCategoryNameRef  string    `gorm:"column:sub_category_name_ref"`
-		SubCategoryImageURL string    `gorm:"column:sub_category_image_url"`
-		ProductItemImages   string    `gorm:"column:product_item_images"` // Store as string
-		DynamicFields       []byte    `gorm:"column:dynamic_fields"`
-		OfferProducts       []byte    `gorm:"column:offer_products"`
-		CreatedAt           time.Time `gorm:"column:created_at"`
-		UpdatedAt           time.Time `gorm:"column:updated_at"`
+		Name                string        `gorm:"column:sub_category_name"`
+		ID                  uint          `gorm:"column:id"`
+		CategoryID          uint          `gorm:"column:category_id"`
+		DepartmentID        uint          `gorm:"column:department_id"`
+		SubCategoryID       uint          `gorm:"column:sub_category_id"`
+		CategoryName        string        `gorm:"column:category_name"`
+		DepartmentName      string        `gorm:"column:department_name"`
+		SubCategoryNameRef  string        `gorm:"column:sub_category_name_ref"`
+		SubCategoryImageURL string        `gorm:"column:sub_category_image_url"`
+		ProductItemImages   string        `gorm:"column:product_item_images"` // Store as string
+		DynamicFields       []byte        `gorm:"column:dynamic_fields"`
+		OfferProducts       []byte        `gorm:"column:offer_products"`
+		CreatedAt           time.Time     `gorm:"column:created_at"`
+		UpdatedAt           time.Time     `gorm:"column:updated_at"`
+		DiscountRate        sql.NullInt64 `gorm:"column:discount_rate"`
 	}
 	var dbItems []productItemDB
-	err = c.DB.Raw(query, adminID).Scan(&dbItems).Error
+	err = c.DB.Raw(query, params).Scan(&dbItems).Error
 	if err != nil {
 		return
 	}

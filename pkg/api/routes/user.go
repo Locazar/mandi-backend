@@ -51,7 +51,7 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 
 		product := api.Group("/products")
 		{
-			product.GET("/", productHandler.GetAllProductsUser())
+			product.GET("/", productHandler.GetAllProductsUser)
 
 			productItem := product.Group("/:product_id/items")
 			{

@@ -36,13 +36,14 @@ type ProductRepository interface {
 	IsProductNameExistForOtherProduct(ctx context.Context, name string, productID uint) (bool, error)
 	IsProductNameExist(ctx context.Context, productName string) (exist bool, err error)
 
-	FindAllProducts(ctx context.Context, pagination request.Pagination) ([]response.Product, error)
+	FindAllProducts(ctx context.Context, pagination request.Pagination, search string) ([]response.Product, error)
 	SaveProduct(ctx context.Context, product domain.Product, adminID string) (productID uint, err error)
 	UpdateProduct(ctx context.Context, product domain.Product) error
 
 	// product items
 	FindProductItemByID(ctx context.Context, productItemID uint) (domain.ProductItem, error)
-	FindAllProductItems(ctx context.Context, adminID string) ([]response.ProductItems, error)
+	FindAllProductItems(ctx context.Context, adminID string, keyword string, categoryID, brandID, locationID *string, pagination *request.Pagination) ([]response.ProductItems, error)
+	DeleteProductItem(ctx context.Context, productItemID uint) error
 	// GetProductItemsByDepartment returns product items associated with a department id
 	GetProductItemsByDepartment(ctx context.Context, departmentID uint) ([]response.ProductItems, error)
 	GetProductItemsByCategory(ctx context.Context, categoryID uint) ([]response.ProductItems, error)

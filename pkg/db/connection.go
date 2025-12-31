@@ -99,29 +99,30 @@ func ConnectDatabase(cfg config.Config) (*gorm.DB, error) {
 	)
 
 	if err != nil {
-		log.Printf("failed to migrate database models")
-		return nil, err
+		log.Printf("Warning: failed to migrate database models: %v. Continuing with existing schema.", err)
+		// Don't return error - continue with existing database schema
 	}
 
 	// setup the triggers
 	if err := SetUpDBTriggers(db); err != nil {
-		log.Printf("failed to setup database triggers")
-		return nil, err
+		log.Printf("Warning: failed to setup database triggers: %v. Continuing without triggers.", err)
+		// Don't return error - continue without triggers
 	}
 
 	if err := saveAdmin(db, cfg.AdminEmail, cfg.AdminPassword); err != nil {
-		return nil, err
+		log.Printf("Warning: failed to save admin: %v. Continuing without admin setup.", err)
+		// Don't return error - continue without admin setup
 	}
 
 	if err := saveOrderStatuses(db); err != nil {
-		return nil, err
+		log.Printf("Warning: failed to save order statuses: %v. Continuing.", err)
 	}
 	if err := savePaymentMethods(db); err != nil {
-		return nil, err
+		log.Printf("Warning: failed to save payment methods: %v. Continuing.", err)
 	}
 
 	if err := SeedCountries(db); err != nil {
-		return nil, err
+		log.Printf("Warning: failed to seed countries: %v. Continuing.", err)
 	}
 
 	return db, err

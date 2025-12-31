@@ -13,8 +13,8 @@ type ProductHandler interface {
 	GetAllCategoriesByDepartmentID(ctx *gin.Context)
 	GetAllSubCategoriesByCategoryID(ctx *gin.Context)
 
-	GetAllProductsAdmin() func(ctx *gin.Context)
-	GetAllProductsUser() func(ctx *gin.Context)
+	GetAllProductsAdmin(ctx *gin.Context)
+	GetAllProductsUser(ctx *gin.Context)
 	GetProductByID(ctx *gin.Context)
 
 	SaveProduct(ctx *gin.Context)
@@ -45,6 +45,7 @@ type ProductHandler interface {
 	GetProductSearchFilters(ctx *gin.Context)
 	GetProductSearchLocations(ctx *gin.Context)
 	GetProductItemByID(ctx *gin.Context)
+	DeleteProductItem(ctx *gin.Context)
 
 	// department
 	SaveDepartment(ctx *gin.Context)

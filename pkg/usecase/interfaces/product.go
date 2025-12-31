@@ -20,13 +20,14 @@ type ProductUseCase interface {
 	FindAllVariationsAndItsValues(ctx context.Context, categoryID uint) ([]response.Variation, error)
 
 	// products
-	FindAllProducts(ctx context.Context, pagination request.Pagination) (products []response.Product, err error)
+	FindAllProducts(ctx context.Context, pagination request.Pagination, search string) (products []response.Product, err error)
 	FindProductByID(ctx context.Context, productID uint) (product domain.Product, err error)
 	SaveProduct(ctx context.Context, product request.Product, adminID string) (productID uint, err error)
 	UpdateProduct(ctx context.Context, product domain.Product) error
 
 	SaveProductItem(ctx context.Context, productItem request.ProductItem, adminID string) error
-	FindAllProductItems(ctx context.Context, adminId string) ([]response.ProductItems, error)
+	FindAllProductItems(ctx context.Context, adminId string, keyword string, categoryID, brandID, locationID *string, pagination *request.Pagination) ([]response.ProductItems, error)
+	DeleteProductItem(ctx context.Context, productItemID uint) error
 	SearchProducts(ctx context.Context, keyword string, categoryID, brandID, locationID *string, limit, offset int) (products []response.ProductItems, err error)
 	GetProductNameSuggestions(ctx context.Context, prefix string) (suggestions []string, err error)
 	GetProductFilters(ctx context.Context) (filters response.ProductFilters, err error)

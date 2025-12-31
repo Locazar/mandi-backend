@@ -254,8 +254,8 @@ func (c *productUseCase) FindAllVariationsAndItsValues(ctx context.Context, cate
 }
 
 // to get all product
-func (c *productUseCase) FindAllProducts(ctx context.Context, pagination request.Pagination) ([]response.Product, error) {
-	responseProducts, err := c.productRepo.FindAllProducts(ctx, pagination)
+func (c *productUseCase) FindAllProducts(ctx context.Context, pagination request.Pagination, search string) ([]response.Product, error) {
+	responseProducts, err := c.productRepo.FindAllProducts(ctx, pagination, search)
 	fmt.Printf("%+v\n", responseProducts)
 	if err != nil {
 		return nil, utils.PrependMessageToError(err, "failed to get product details from database")
@@ -353,14 +353,22 @@ func (c *productUseCase) isProductVariationCombinationExist(productID uint, vari
 }
 
 // for get all productItem for a specific product
-func (c *productUseCase) FindAllProductItems(ctx context.Context, adminId string) ([]response.ProductItems, error) {
+func (c *productUseCase) FindAllProductItems(ctx context.Context, adminId string, keyword string, categoryID, brandID, locationID *string, pagination *request.Pagination) ([]response.ProductItems, error) {
 
-	productItems, err := c.productRepo.FindAllProductItems(ctx, adminId)
+	productItems, err := c.productRepo.FindAllProductItems(ctx, adminId, keyword, categoryID, brandID, locationID, pagination)
 	if err != nil {
 		return productItems, err
 	}
 
 	return productItems, nil
+}
+
+func (c *productUseCase) DeleteProductItem(ctx context.Context, productItemID uint) error {
+	err := c.productRepo.DeleteProductItem(ctx, productItemID)
+	if err != nil {
+		return utils.PrependMessageToError(err, "failed to delete product item")
+	}
+	return nil
 }
 
 func (c *productUseCase) UpdateProduct(ctx context.Context, updateDetails domain.Product) error {

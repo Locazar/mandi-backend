@@ -457,13 +457,14 @@ func (p *ProductHandler) SaveProductJSON(ctx *gin.Context, adminID string) {
 //	@Description	API for admin to get all products
 //	@ID				GetAllProductsAdmin
 //	@Tags			Admin Products
-//	@Param			page_number	query	int	false	"Page Number"
-//	@Param			count		query	int	false	"Count"
+//	@Param			page_number	query	int		false	"Page Number"
+//	@Param			count		query	int		false	"Count"
+//	@Param			search		query	string	false	"Search term to filter products by name"
 //	@Router			/admin/products [get]
 //	@Success		200	{object}	response.Response{}	"Successfully found all products"
 //	@Failure		500	{object}	response.Response{}	"Failed to Get all products"
-func (p *ProductHandler) GetAllProductsAdmin() func(ctx *gin.Context) {
-	return p.getAllProducts()
+func (p *ProductHandler) GetAllProductsAdmin(ctx *gin.Context) {
+	p.getAllProducts()(ctx)
 }
 
 // GetAllProductsUser godoc
@@ -473,13 +474,14 @@ func (p *ProductHandler) GetAllProductsAdmin() func(ctx *gin.Context) {
 //	@Description	API for user to get all products
 //	@ID				GetAllProductsUser
 //	@Tags			User Products
-//	@Param			page_number	query	int	false	"Page Number"
-//	@Param			count		query	int	false	"Count"
+//	@Param			page_number	query	int		false	"Page Number"
+//	@Param			count		query	int		false	"Count"
+//	@Param			search		query	string	false	"Search term to filter products by name"
 //	@Router			/products [get]
 //	@Success		200	{object}	response.Response{}	"Successfully found all products"
 //	@Failure		500	{object}	response.Response{}	"Failed to get all products"
-func (p *ProductHandler) GetAllProductsUser() func(ctx *gin.Context) {
-	return p.getAllProducts()
+func (p *ProductHandler) GetAllProductsUser(ctx *gin.Context) {
+	p.getAllProducts()(ctx)
 }
 
 // Get products is common for user and admin so this function is to get the common Get all products func for them
@@ -488,8 +490,9 @@ func (p *ProductHandler) getAllProducts() func(ctx *gin.Context) {
 	return func(ctx *gin.Context) {
 
 		pagination := request.GetPagination(ctx)
+		search := ctx.Query("search") // Get optional search parameter
 
-		products, err := p.productUseCase.FindAllProducts(ctx, pagination)
+		products, err := p.productUseCase.FindAllProducts(ctx, pagination, search)
 
 		if err != nil {
 			response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to Get all products", err, nil)
@@ -784,7 +787,57 @@ func (p *ProductHandler) getAllProductItems() func(ctx *gin.Context) {
 		fmt.Printf("tokenString: %v\n", tokenString)
 
 		adminID := p.tokenService.DecodeTokenData(tokenString)
-		productItems, err := p.productUseCase.FindAllProductItems(ctx, adminID)
+
+		// Parse optional query params
+		keyword := ctx.Query("q")
+		var catIDPtr, brandIDPtr, locIDPtr *string
+		if cid := ctx.Query("category_id"); cid != "" {
+			if _, err := strconv.ParseUint(cid, 10, 64); err == nil {
+				s := cid
+				catIDPtr = &s
+			}
+		}
+		if bid := ctx.Query("brand_id"); bid != "" {
+			if _, err := strconv.ParseUint(bid, 10, 64); err == nil {
+				s := bid
+				brandIDPtr = &s
+			}
+		}
+		if lid := ctx.Query("location_id"); lid != "" {
+			if _, err := strconv.ParseUint(lid, 10, 64); err == nil {
+				s := lid
+				locIDPtr = &s
+			}
+		}
+
+		var pagination *request.Pagination
+		limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "0"))
+		offset, _ := strconv.Atoi(ctx.DefaultQuery("offset", "0"))
+		if limit > 0 {
+			if limit <= 0 {
+				limit = 20
+			}
+			if offset < 0 {
+				offset = 0
+			}
+			pageNumberInt := (offset / limit) + 1
+			pageNumber, err := SafeIntToUint64(pageNumberInt)
+			if err != nil {
+				response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid pagination", err, nil)
+				return
+			}
+			limitUint64, err := SafeIntToUint64(limit)
+			if err != nil {
+				response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid limit", err, nil)
+				return
+			}
+			pagination = &request.Pagination{
+				PageNumber: pageNumber,
+				Count:      limitUint64,
+			}
+		}
+
+		productItems, err := p.productUseCase.FindAllProductItems(ctx, adminID, keyword, catIDPtr, brandIDPtr, locIDPtr, pagination)
 
 		if err != nil {
 			response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get all product items", err, nil)
@@ -2045,4 +2098,34 @@ func (p *ProductHandler) GetProductItemViewCount(ctx *gin.Context) {
 		"product_item_id": productItemID,
 		"view_count":      viewCount,
 	})
+}
+
+// DeleteProductItem godoc
+//
+//	@Summary		Delete a product item
+//	@Security		BearerAuth
+//	@Description	API for admin to delete a product item by ID
+//	@ID				DeleteProductItem
+//	@Tags			Admin Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			product_item_id	path	int	true	"Product Item ID"
+//	@Success		200				{object}	response.Response{}	"Successfully deleted product item"
+//	@Failure		400				{object}	response.Response{}	"Bad request"
+//	@Failure		500				{object}	response.Response{}	"Internal server error"
+//	@Router			/items/{product_item_id} [delete]
+func (p *ProductHandler) DeleteProductItem(ctx *gin.Context) {
+	productItemID, err := request.GetParamAsUint(ctx, "product_item_id")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+		return
+	}
+
+	err = p.productUseCase.DeleteProductItem(ctx, productItemID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to delete product item", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully deleted product item", nil)
 }

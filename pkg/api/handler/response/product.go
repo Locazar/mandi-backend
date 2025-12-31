@@ -95,6 +95,7 @@ type ProductItems struct {
 	ProductItemImages   []string               `json:"product_item_images"`
 	DynamicFields       map[string]interface{} `json:"dynamic_fields"`
 	OfferProducts       []OfferProduct         `json:"offer_products,omitempty"`
+	DiscountRate        *uint                  `json:"discount_rate,omitempty"`
 	CreatedAt           time.Time              `json:"created_at"`
 	UpdatedAt           time.Time              `json:"updated_at"`
 }
@@ -117,14 +118,16 @@ type OfferCategory struct {
 }
 
 type OfferProduct struct {
-	OfferProductID uint   `json:"offer_product_id"`
-	ProductItemID  uint   `json:"product_item_id"`
-	ProductName    string `json:"product_name"`
-	DiscountRate   uint   `json:"discount_rate"`
-	OfferID        uint   `json:"offer_id"`
-	Thumbnail      string `json:"thumbnail"`
-	Image          string `json:"image"`
-	OfferName      string `json:"offer_name"`
+	OfferProductID uint      `json:"offer_product_id"`
+	ProductName    string    `json:"product_name"`
+	OfferID        uint      `json:"offer_id"`
+	OfferName      string    `json:"offer_name"`
+	DiscountRate   uint      `json:"discount_rate"`
+	Description    string    `json:"description"`
+	StartDate      time.Time `json:"start_date"`
+	EndDate        time.Time `json:"end_date"`
+	Image          string    `json:"image"`
+	Thumbnail      string    `json:"thumbnail"`
 }
 
 type Offer struct {
