@@ -135,6 +135,7 @@ type Offer struct {
 	StartDate    time.Time `json:"start_date" gorm:"not null" binding:"required"`
 	EndDate      time.Time `json:"end_date" gorm:"not null" binding:"required"`
 	Image        string    `json:"image_url" gorm:"not null" binding:"required"`
+	Thumbnail    string    `json:"thumbnail_url" binding:"required"`
 	CreatedAt    time.Time `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt    time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 	Sort_Order   int       `json:"sort_order" gorm:"not null;default:0"`
@@ -164,4 +165,15 @@ type SubCategoryDetails struct {
 	ID                  uint   `json:"id"`
 	SubCategoryID       uint   `json:"sub_category_id"`
 	SubCategoryImageUrl string `json:"sub_category_image_url"`
+}
+
+type ProductView struct {
+	ID            uint      `json:"id" gorm:"primaryKey;not null"`
+	ProductItemID uint      `json:"product_item_id" gorm:"not null"`
+	ShopID        uint      `json:"shop_id" gorm:"not null"`
+	AdminID       string    `json:"admin_id" gorm:"type:jsonb;not null"`
+	ViewedAt      time.Time `json:"viewed_at" gorm:"not null;autoCreateTime"`
+	ViewCount     uint      `json:"view_count" gorm:"not null;default:1"`
+	CreatedAt     time.Time `json:"created_at" gorm:"not null;autoCreateTime"`
+	UpdatedAt     time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }

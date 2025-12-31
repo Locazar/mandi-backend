@@ -43,3 +43,14 @@ type ShopDetails struct {
 	CreatedAt time.Time `json:"created_at" gorm:";autoCreateTime"`
 	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }
+
+type ShopOffer struct {
+	ID        uint      `json:"id" gorm:"primaryKey;not null"`
+	ShopID    uint      `json:"shop_id" gorm:"not null"`
+	OfferID   uint      `json:"offer_id" gorm:"not null"`
+	AdminID   string    `json:"admin_id" gorm:"not null"`
+	StartDate time.Time `json:"start_date" gorm:"not null"`
+	EndDate   time.Time `json:"end_date" gorm:"not null"`
+	CreatedAt time.Time `json:"created_at" gorm:"not null;autoCreateTime"`
+	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+}

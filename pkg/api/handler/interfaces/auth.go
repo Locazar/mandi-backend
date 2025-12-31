@@ -21,4 +21,5 @@ type AuthHandler interface {
 	//admin side
 	AdminLogin(ctx *gin.Context)
 	AdminRenewAccessToken() gin.HandlerFunc
+	AdminLogout(ctx *gin.Context)
 }

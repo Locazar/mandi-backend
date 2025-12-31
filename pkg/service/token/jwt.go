@@ -36,6 +36,7 @@ type jwtClaims struct {
 	TokenID   string
 	UserID    string
 	ExpiresAt time.Time
+	UsedFor   UserType
 	// jwt.RegisteredClaims
 }
 
@@ -54,6 +55,7 @@ func (c *jwtAuth) GenerateToken(req GenerateTokenRequest) (GenerateTokenResponse
 		// RegisteredClaims: jwt.RegisteredClaims{
 		// 	ExpiresAt: jwt.NewNumericDate(req.ExpirationDate),
 		// },
+		UsedFor:   req.UsedFor,
 		ExpiresAt: req.ExpireAt,
 	}
 
@@ -121,17 +123,13 @@ func (c *jwtAuth) VerifyToken(req VerifyTokenRequest) (VerifyTokenResponse, erro
 		UserID:  uint(userID),
 	}
 	return response, nil
-	return response, nil
 }
 
 func (c *jwtAuth) DecodeTokenData(tokenString string) string {
-	fmt.Printf("Decoding token data for tokenString: %s\n", tokenString)
 	// Remove Bearer prefix if present
 	if len(tokenString) > 7 && tokenString[:7] == "Bearer " {
 		tokenString = tokenString[7:]
 	}
-
-	fmt.Printf("Token string after removing Bearer prefix (if any): %s\n", tokenString)
 
 	// Try with admin secret key first
 	token, err := jwt.ParseWithClaims(tokenString, &jwtClaims{}, func(t *jwt.Token) (interface{}, error) {
@@ -141,18 +139,14 @@ func (c *jwtAuth) DecodeTokenData(tokenString string) string {
 		return []byte(c.adminSecretKey), nil
 	})
 
-	fmt.Printf("Parsed token with admin key: %+v, err: %v\n", token, err)
-
-	// If admin key fails, try with user secret key
 	if err != nil {
+		// If admin key fails, try with user secret key
 		token, err = jwt.ParseWithClaims(tokenString, &jwtClaims{}, func(t *jwt.Token) (interface{}, error) {
 			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, ErrInvalidToken
 			}
 			return []byte(c.userSecretKey), nil
 		})
-
-		fmt.Printf("Parsed token with user key: %+v, err: %v\n", token, err)
 	}
 
 	if err != nil {
@@ -162,8 +156,41 @@ func (c *jwtAuth) DecodeTokenData(tokenString string) string {
 	if !ok {
 		return ""
 	}
-	fmt.Printf("Decoded claims: %+v\n", claims)
 	return claims.UserID
+}
+
+func (c *jwtAuth) DecodeTokenDataToGetData(tokenString string) (string, UserType, error) {
+	// Remove Bearer prefix if present
+	if len(tokenString) > 7 && tokenString[:7] == "Bearer " {
+		tokenString = tokenString[7:]
+	}
+
+	// Try with admin secret key first
+	token, err := jwt.ParseWithClaims(tokenString, &jwtClaims{}, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, ErrInvalidToken
+		}
+		return []byte(c.adminSecretKey), nil
+	})
+
+	if err != nil {
+		// If admin key fails, try with user secret key
+		token, err = jwt.ParseWithClaims(tokenString, &jwtClaims{}, func(t *jwt.Token) (interface{}, error) {
+			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, ErrInvalidToken
+			}
+			return []byte(c.userSecretKey), nil
+		})
+	}
+
+	if err != nil {
+		return "", "", err
+	}
+	claims, ok := token.Claims.(*jwtClaims)
+	if !ok {
+		return "", "", ErrFailedToParseToken
+	}
+	return claims.UserID, claims.UsedFor, nil
 }
 
 // Validate claims

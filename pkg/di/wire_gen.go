@@ -14,6 +14,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/db"
 	"github.com/rohit221990/mandi-backend/pkg/repository"
 	"github.com/rohit221990/mandi-backend/pkg/service/cloud"
+	"github.com/rohit221990/mandi-backend/pkg/service/graphics"
 	"github.com/rohit221990/mandi-backend/pkg/service/otp"
 	"github.com/rohit221990/mandi-backend/pkg/service/token"
 	"github.com/rohit221990/mandi-backend/pkg/usecase"
@@ -32,7 +33,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	adminRepository := repository.NewAdminRepository(gormDB)
 	otpAuth := otp.NewOtpAuth(cfg)
 	authUseCase := usecase.NewAuthUseCase(authRepository, tokenService, userRepository, adminRepository, otpAuth)
-	authHandler := handler.NewAuthHandler(authUseCase, cfg)
+	authHandler := handler.NewAuthHandler(authUseCase, cfg, tokenService)
 	middlewareMiddleware := middleware.NewMiddleware(tokenService)
 	adminUseCase := usecase.NewAdminUseCase(adminRepository, userRepository, authRepository, otpAuth, tokenService)
 	adminHandler := handler.NewAdminHandler(adminUseCase)
@@ -58,8 +59,9 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	couponUseCase := usecase.NewCouponUseCase(couponRepository, cartRepository)
 	couponHandler := handler.NewCouponHandler(couponUseCase)
 	offerRepository := repository.NewOfferRepository(gormDB)
-	offerUseCase := usecase.NewOfferUseCase(offerRepository, gormDB)
-	offerHandler := handler.NewOfferHandler(offerUseCase)
+	graphicsService := graphics.NewGraphicsService("./uploads/offers")
+	offerUseCase := usecase.NewOfferUseCase(offerRepository, gormDB, graphicsService)
+	offerHandler := handler.NewOfferHandler(offerUseCase, tokenService)
 	stockRepository := repository.NewStockRepository(gormDB)
 	stockUseCase := usecase.NewStockUseCase(stockRepository)
 	stockHandler := handler.NewStockHandler(stockUseCase)

@@ -10,20 +10,23 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	repo "github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
+	graphicsInterface "github.com/rohit221990/mandi-backend/pkg/service/graphics/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
 	"gorm.io/gorm"
 )
 
 type offerUseCase struct {
-	offerRepo repo.OfferRepository
-	DB        DBQuerier
+	offerRepo       repo.OfferRepository
+	DB              DBQuerier
+	graphicsService graphicsInterface.GraphicsService
 }
 
-func NewOfferUseCase(offerRepo repo.OfferRepository, db *gorm.DB) interfaces.OfferUseCase {
+func NewOfferUseCase(offerRepo repo.OfferRepository, db *gorm.DB, graphicsService graphicsInterface.GraphicsService) interfaces.OfferUseCase {
 	return &offerUseCase{
-		offerRepo: offerRepo,
-		DB:        &GormDBAdapter{db: db},
+		offerRepo:       offerRepo,
+		DB:              &GormDBAdapter{db: db},
+		graphicsService: graphicsService,
 	}
 }
 
@@ -42,7 +45,33 @@ func (c *offerUseCase) SaveOffer(ctx context.Context, offer request.Offer) error
 		return ErrInvalidOfferEndDate
 	}
 
-	err = c.offerRepo.SaveOffer(ctx, offer)
+	// Generate unique filename for the offer image
+	imageUUID := uuid.New().String()
+	mainImageFilename := fmt.Sprintf("offer_%s.png", imageUUID)
+	thumbnailFilename := fmt.Sprintf("offer_thumb_%s.png", imageUUID)
+
+	// Initialize image URLs
+	var mainImageURL, thumbnailURL string
+
+	// Generate offer image and thumbnail
+	if c.graphicsService != nil {
+		mainImageURL, err = c.graphicsService.GenerateOfferImage(offer, mainImageFilename)
+		if err != nil {
+			return utils.PrependMessageToError(err, "failed to generate offer image")
+		}
+
+		thumbnailURL, err = c.graphicsService.GenerateThumbnail(offer, thumbnailFilename)
+		if err != nil {
+			return utils.PrependMessageToError(err, "failed to generate offer thumbnail")
+		}
+	} else {
+		// Fallback URLs if graphics service is not available
+		mainImageURL = fmt.Sprintf("uploads/offers/%s", mainImageFilename)
+		thumbnailURL = fmt.Sprintf("uploads/offers/thumbnail/%s", thumbnailFilename)
+	}
+
+	// Save offer with generated image URLs
+	err = c.offerRepo.SaveOfferWithImages(ctx, offer, mainImageURL, thumbnailURL)
 	if err != nil {
 		return utils.PrependMessageToError(err, "failed to save offer")
 	}
@@ -204,7 +233,7 @@ func (c *offerUseCase) ChangeCategoryOffer(ctx context.Context, categoryOfferID,
 }
 
 // offer on products
-func (c *offerUseCase) SaveProductOffer(ctx context.Context, offerProduct domain.OfferProduct) error {
+func (c *offerUseCase) SaveProductItemOffer(ctx context.Context, offerProduct domain.OfferProduct) error {
 
 	fmt.Printf("offerProduct received in usecase: %+v\n", offerProduct)
 	// check the any offer is already exist for the given product
@@ -226,15 +255,10 @@ func (c *offerUseCase) SaveProductOffer(ctx context.Context, offerProduct domain
 		}
 		fmt.Printf("Saved product offer ID: %d\n", productOfferID)
 		// update the discount price of products
-		err = repo.UpdateProductsDiscountByProductOfferID(ctx, productOfferID)
-		if err != nil {
-			return utils.PrependMessageToError(err, "failed to calculate product discount price for offer")
-		}
-		// update the discount price of products
-		err = repo.UpdateProductItemsDiscountByProductOfferID(ctx, productOfferID)
-		if err != nil {
-			return utils.PrependMessageToError(err, "failed to calculate product items discount price for offer")
-		}
+		// err = repo.ApplyOfferToProductItem(ctx, productOfferID)
+		// if err != nil {
+		// 	return utils.PrependMessageToError(err, "failed to calculate product discount price for offer")
+		// }
 		return nil
 	})
 	if err != nil {
@@ -289,7 +313,7 @@ func (c *offerUseCase) ChangeProductOffer(ctx context.Context, productOfferID, o
 			return utils.PrependMessageToError(err, "failed to update product offer")
 		}
 		// calculate products after removed offer by category offer wise
-		err = repo.UpdateProductsDiscountByProductOfferID(ctx, productOfferID)
+		err = repo.ApplyOfferToProductItem(ctx, productOfferID)
 		if err != nil {
 			return utils.PrependMessageToError(err, "failed to re calculate products discount by product offer")
 		}
@@ -361,6 +385,24 @@ func (s *offerUseCase) GetOffersByCategory(ctx context.Context, categoryID uuid.
 			return nil, err
 		}
 		offers = append(offers, o)
+	}
+	return offers, nil
+}
+
+func (c *offerUseCase) ApplyOfferToShop(ctx context.Context, adminID string, body request.ApplyOfferToShop) error {
+
+	err := c.offerRepo.ApplyOfferToShop(ctx, adminID, body)
+	if err != nil {
+		return utils.PrependMessageToError(err, "failed to apply offer to shop")
+	}
+	return nil
+}
+
+func (c *offerUseCase) FindActiveOffers(ctx context.Context) ([]domain.Offer, error) {
+
+	offers, err := c.offerRepo.FindActiveOffers(ctx)
+	if err != nil {
+		return nil, utils.PrependMessageToError(err, "failed to find active offers")
 	}
 	return offers, nil
 }

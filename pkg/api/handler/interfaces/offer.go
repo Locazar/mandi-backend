@@ -8,6 +8,7 @@ type OfferHandler interface {
 	SaveOffer(ctx *gin.Context)
 	RemoveOffer(ctx *gin.Context)
 	GetAllOffers(ctx *gin.Context)
+	GetActiveOffers(ctx *gin.Context)
 
 	// category offer
 	GetAllCategoryOffers(ctx *gin.Context)
@@ -17,7 +18,10 @@ type OfferHandler interface {
 
 	// product offer
 	GetAllProductsOffers(ctx *gin.Context)
-	SaveProductOffer(ctx *gin.Context)
+	SaveProductItemOffer(ctx *gin.Context)
 	RemoveProductOffer(ctx *gin.Context)
 	ChangeProductOffer(ctx *gin.Context)
+
+	//Shop offer
+	ApplyOfferToShop(ctx *gin.Context)
 }

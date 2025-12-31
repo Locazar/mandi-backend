@@ -64,7 +64,7 @@ func (c *offerDatabase) FindAllOffers(ctx context.Context,
 	limit := pagination.Count
 	offset := (pagination.PageNumber - 1) * limit
 
-	query := `SELECT id, name, description, discount_rate, image, start_date, end_date 
+	query := `SELECT id, name, description, discount_rate, image, thumbnail, start_date, end_date 
 	 FROM offers LIMIT $1 OFFSET $2`
 	err = c.DB.Raw(query, limit, offset).Scan(&offers).Error
 
@@ -74,9 +74,19 @@ func (c *offerDatabase) FindAllOffers(ctx context.Context,
 // save a new offer
 func (c *offerDatabase) SaveOffer(ctx context.Context, offer request.Offer) error {
 
-	query := `INSERT INTO offers (name, description, discount_rate, start_date, end_date) 
-	VALUES ($1, $2, $3, $4, $5)`
-	err := c.DB.Exec(query, offer.Name, offer.Description, offer.DiscountRate, offer.StartDate, offer.EndDate).Error
+	query := `INSERT INTO offers (name, description, discount_rate, start_date, end_date, offer_type, created_at, updated_at) 
+	VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())`
+	err := c.DB.Exec(query, offer.Name, offer.Description, offer.DiscountRate, offer.StartDate, offer.EndDate, offer.Type).Error
+
+	return err
+}
+
+// save a new offer with image URLs
+func (c *offerDatabase) SaveOfferWithImages(ctx context.Context, offer request.Offer, imageURL, thumbnailURL string) error {
+
+	query := `INSERT INTO offers (name, description, discount_rate, start_date, end_date, offer_type, image, thumbnail, created_at, updated_at) 
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())`
+	err := c.DB.Exec(query, offer.Name, offer.Description, offer.DiscountRate, offer.StartDate, offer.EndDate, offer.Type, imageURL, thumbnailURL).Error
 
 	return err
 }
@@ -174,10 +184,10 @@ func (c *offerDatabase) UpdateCategoryOffer(ctx context.Context, categoryOfferID
 
 // find product_offer with product_id
 func (c *offerDatabase) FindOfferProductByProductID(ctx context.Context,
-	productID uint) (offerProduct domain.OfferProduct, err error) {
+	productItemID uint) (offerProduct domain.OfferProduct, err error) {
 
-	query := `SELECT * FROM offer_products WHERE product_id = ?`
-	err = c.DB.Raw(query, productID).Scan(&offerProduct).Error
+	query := `SELECT * FROM offer_products WHERE product_item_id = ?`
+	err = c.DB.Raw(query, productItemID).Scan(&offerProduct).Error
 
 	return
 }
@@ -198,7 +208,7 @@ func (c *offerDatabase) FindAllOfferProducts(ctx context.Context,
 func (c *offerDatabase) SaveOfferProduct(ctx context.Context,
 	offerProduct domain.OfferProduct) (productOfferId uint, err error) {
 
-	query := `INSERT INTO offer_products (offer_id, product_id) VALUES ($1,$2)  RETURNING id`
+	query := `INSERT INTO offer_products (offer_id, product_item_id) VALUES ($1,$2)  RETURNING id`
 	err = c.DB.Raw(query, offerProduct.OfferID, offerProduct.ProductItemID).Scan(&productOfferId).Error
 
 	return
@@ -275,15 +285,11 @@ func (c *offerDatabase) RemoveProductItemsDiscountByCategoryOfferID(ctx context.
 }
 
 // Recalculate all product discount price by check given product offer id
-func (c *offerDatabase) UpdateProductsDiscountByProductOfferID(ctx context.Context, productOfferID uint) error {
+func (c *offerDatabase) ApplyOfferToProductItem(ctx context.Context, productOfferID uint) error {
 
-	fmt.Printf("Updating product discount for product offer id: %d\n", productOfferID)
-	query := `UPDATE products p SET discount_price = (p.price * (100 - o.discount_rate))/100 
-	FROM offer_products op
-	INNER JOIN  offers o ON op.offer_id = o.id 
-	WHERE p.id = op.product_id AND op.id = $1`
+	fmt.Printf("insert offer om product item: %d\n", productOfferID)
+	query := `insert into offer_products (offer_id, product_id)`
 	err := c.DB.Exec(query, productOfferID).Error
-
 	return err
 }
 
@@ -323,4 +329,27 @@ func (c *offerDatabase) RemoveProductItemsDiscountByProductOfferID(ctx context.C
 	err := c.DB.Exec(query, productOfferID).Error
 
 	return err
+}
+
+func (c *offerDatabase) ApplyOfferToShop(ctx context.Context, adminID string, body request.ApplyOfferToShop) error {
+	// First, get the shop ID using admin ID
+	var shopID uint
+	shopQuery := `SELECT id FROM shop_details WHERE admin_id = $1`
+	err := c.DB.Raw(shopQuery, adminID).Scan(&shopID).Error
+	if err != nil {
+		return fmt.Errorf("failed to find shop for admin ID %s: %w", adminID, err)
+	}
+
+	// Insert into shop_offers with shop_id
+	query := `INSERT INTO shop_offers (offer_id, shop_id, admin_id, start_date, end_date, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`
+	err = c.DB.Exec(query, body.OfferID, shopID, adminID, body.StartDate.Time, body.EndDate.Time).Error
+	return err
+}
+
+// FindActiveOffers returns offers that are active based on start and end date
+func (c *offerDatabase) FindActiveOffers(ctx context.Context) ([]domain.Offer, error) {
+	var offers []domain.Offer
+	query := `SELECT * FROM offers WHERE is_active = true AND start_date <= NOW() AND end_date >= NOW()`
+	err := c.DB.Raw(query).Scan(&offers).Error
+	return offers, err
 }

@@ -42,6 +42,7 @@ type AdminUseCase interface {
 	UploadAdminDocumentOtpVerify(ctx context.Context, otp string, documentType string, documentValue string) error
 	GetAllProductDetails(ctx context.Context) (products []any, err error)
 	GetShopProfileImageById(ctx context.Context, shopId string) (string, error)
+	UserLogout(ctx context.Context, adminId string) error
 }
 
 // GetCategory(ctx context.Context) (helper.Category, any)

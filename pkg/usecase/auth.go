@@ -240,11 +240,12 @@ func (c *authUseCase) GenerateRefreshToken(ctx context.Context, tokenParams serv
 		return "", err
 	}
 
-	err = c.authRepo.SaveRefreshSession(ctx, domain.RefreshSession{
+	err = c.authRepo.SaveRefreshSession(ctx, request.RefreshSession{
 		UserID:       tokenParams.UserID,
 		TokenID:      tokenRes.TokenID,
+		UserType:     string(tokenReq.UsedFor),
 		RefreshToken: tokenRes.TokenString,
-		ExpireAt:     expireAt,
+		ExpireAt:     expireAt.Format(time.RFC3339),
 	})
 	if err != nil {
 		return "", err
@@ -253,7 +254,7 @@ func (c *authUseCase) GenerateRefreshToken(ctx context.Context, tokenParams serv
 	return tokenRes.TokenString, nil
 }
 
-func (c *authUseCase) VerifyAndGetRefreshTokenSession(ctx context.Context, refreshToken string, usedFor token.UserType) (domain.RefreshSession, error) {
+func (c *authUseCase) VerifyAndGetRefreshTokenSession(ctx context.Context, refreshToken string, usedFor token.UserType) (request.RefreshSession, error) {
 
 	verifyReq := token.VerifyTokenRequest{
 		TokenString: refreshToken,
@@ -261,10 +262,10 @@ func (c *authUseCase) VerifyAndGetRefreshTokenSession(ctx context.Context, refre
 	}
 	verifyRes, err := c.tokenService.VerifyToken(verifyReq)
 	if err != nil {
-		return domain.RefreshSession{}, utils.PrependMessageToError(ErrInvalidRefreshToken, err.Error())
+		return request.RefreshSession{}, utils.PrependMessageToError(ErrInvalidRefreshToken, err.Error())
 	}
 
-	refreshSession, err := c.authRepo.FindRefreshSessionByTokenID(ctx, verifyRes.TokenID)
+	refreshSession, err := c.authRepo.FindRefreshSessionByTokenID(ctx, verifyRes.TokenID, string(usedFor))
 	if err != nil {
 		return refreshSession, err
 	}
@@ -273,13 +274,17 @@ func (c *authUseCase) VerifyAndGetRefreshTokenSession(ctx context.Context, refre
 		return refreshSession, ErrRefreshSessionNotExist
 	}
 
-	if time.Since(refreshSession.ExpireAt) > 0 {
-		return domain.RefreshSession{}, ErrRefreshSessionExpired
+	expireAt, err := time.Parse(time.RFC3339, refreshSession.ExpireAt)
+	if err != nil {
+		return request.RefreshSession{}, fmt.Errorf("failed to parse refresh session expire time: %v", err)
+	}
+	if time.Since(expireAt) > 0 {
+		return request.RefreshSession{}, ErrRefreshSessionExpired
 	}
 
-	if refreshSession.IsBlocked {
-		return domain.RefreshSession{}, ErrRefreshSessionBlocked
-	}
+	// if refreshSession.IsBlocked {
+	// 	return request.RefreshSession{}, ErrRefreshSessionBlocked
+	// }
 
 	return refreshSession, nil
 }
@@ -458,4 +463,9 @@ func (c *authUseCase) LoginOtpVerifyEmail(ctx context.Context, otpVerifyDetails 
 	}
 
 	return otpSession.UserID, nil
+}
+
+func (c *authUseCase) UserLogout(ctx context.Context, adminID string, userType string) error {
+	err := c.userRepo.DeleteRefreshSessionByUserID(ctx, adminID, userType)
+	return err
 }

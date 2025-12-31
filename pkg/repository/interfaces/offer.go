@@ -16,12 +16,16 @@ type OfferRepository interface {
 	FindOfferByName(ctx context.Context, offerName string) (domain.Offer, error)
 	FindAllOffers(ctx context.Context, pagination request.Pagination) ([]domain.Offer, error)
 	SaveOffer(ctx context.Context, offer request.Offer) error
+	SaveOfferWithImages(ctx context.Context, offer request.Offer, imageURL, thumbnailURL string) error
 	DeleteOffer(ctx context.Context, offerID uint) error
+
+	// Get active offers based on start and end date
+	FindActiveOffers(ctx context.Context) ([]domain.Offer, error)
 
 	// to calculate the discount price and update
 	UpdateProductsDiscountByCategoryOfferID(ctx context.Context, categoryOfferID uint) error
 	UpdateProductItemsDiscountByCategoryOfferID(ctx context.Context, categoryOfferID uint) error
-	UpdateProductsDiscountByProductOfferID(ctx context.Context, productOfferID uint) error
+	ApplyOfferToProductItem(ctx context.Context, productOfferID uint) error
 	UpdateProductItemsDiscountByProductOfferID(ctx context.Context, productOfferID uint) error
 
 	// to remove the discount product price
@@ -48,4 +52,5 @@ type OfferRepository interface {
 
 	DeleteAllProductOffersByOfferID(ctx context.Context, offerID uint) error
 	DeleteAllCategoryOffersByOfferID(ctx context.Context, offerID uint) error
+	ApplyOfferToShop(ctx context.Context, adminID string, body request.ApplyOfferToShop) error
 }

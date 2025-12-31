@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 
+	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
 	"gorm.io/gorm"
@@ -18,17 +19,27 @@ func NewAuthRepository(db *gorm.DB) interfaces.AuthRepository {
 	}
 }
 
-func (c *authDatabase) SaveRefreshSession(ctx context.Context, refreshSession domain.RefreshSession) error {
-	query := `INSERT INTO refresh_sessions (token_id, user_id, refresh_token, expire_at) 
-VALUES ($1, $2, $3, $4)`
-	err := c.DB.Exec(query, refreshSession.TokenID, refreshSession.UserID, refreshSession.RefreshToken, refreshSession.ExpireAt).Error
-
-	return err
+func (c *authDatabase) SaveRefreshSession(ctx context.Context, refreshSession request.RefreshSession) error {
+	if refreshSession.UserType == "admin" {
+		query := `INSERT INTO admin_refresh_sessions (token_id, user_id, refresh_token, expire_at, user_type) 
+VALUES ($1, $2, $3, $4, $5)`
+		err := c.DB.Exec(query, refreshSession.TokenID, refreshSession.UserID, refreshSession.RefreshToken, refreshSession.ExpireAt, refreshSession.UserType).Error
+		return err
+	} else {
+		query := `INSERT INTO user_refresh_sessions (token_id, user_id, refresh_token, expire_at, user_type) 
+VALUES ($1, $2, $3, $4, $5)`
+		err := c.DB.Exec(query, refreshSession.TokenID, refreshSession.UserID, refreshSession.RefreshToken, refreshSession.ExpireAt, refreshSession.UserType).Error
+		return err
+	}
 }
-func (c *authDatabase) FindRefreshSessionByTokenID(ctx context.Context, tokenID string) (refreshSession domain.RefreshSession, err error) {
-	query := `SELECT * FROM refresh_sessions WHERE token_id = $1`
-
-	err = c.DB.Raw(query, tokenID).Scan(&refreshSession).Error
+func (c *authDatabase) FindRefreshSessionByTokenID(ctx context.Context, tokenID string, userType string) (refreshSession request.RefreshSession, err error) {
+	if userType == "admin" {
+		query := `SELECT * FROM admin_refresh_sessions WHERE token_id = $1`
+		err = c.DB.Raw(query, tokenID).Scan(&refreshSession).Error
+	} else {
+		query := `SELECT * FROM user_refresh_sessions WHERE token_id = $1`
+		err = c.DB.Raw(query, tokenID).Scan(&refreshSession).Error
+	}
 
 	return
 }

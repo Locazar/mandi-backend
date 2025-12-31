@@ -65,6 +65,12 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 			product.GET("/nearby", productHandler.GetNearbyProductsByPincode)
 		}
 
+		// product items
+		productItems := api.Group("/product-items")
+		{
+			productItems.GET("/:productItem_id", productHandler.GetProductItemByID)
+		}
+
 		// 	// cart
 		cart := api.Group("/carts")
 		{
@@ -158,6 +164,24 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 		{
 			category.GET("/", productHandler.GetAllCategories)
 			category.GET("/:category_id/products", productHandler.GetProductsByCategory)
+			category.GET("/:category_id/product-items", userHandler.GetProductItemsByCategory)
+		}
+
+		document := api.Group("/departments")
+		{
+			document.GET("/:department_id/products", userHandler.GetProductItemsByDepartment)
+		}
+
+		// Sub-categories product items
+		subCategory := api.Group("/sub-categories")
+		{
+			subCategory.GET("/:sub_category_id/product-items", userHandler.GetProductItemsBySubCategory)
+		}
+
+		// Shops (by admin id) product items
+		shops := api.Group("/shops")
+		{
+			shops.GET("/:admin_id/products", userHandler.GetProductItemsByShop)
 		}
 
 		// Shop by Brand
@@ -172,6 +196,7 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 		{
 			offer.GET("/", offerHandle.GetAllOffers)                 // get all offers
 			offer.GET("/category", offerHandle.GetAllCategoryOffers) // to get all offers of categories
+			offer.GET("/active", offerHandle.GetActiveOffers)        // get active offers
 
 		}
 

@@ -259,7 +259,7 @@ func (u *userUserCase) UploadProfileImage(ctx context.Context, userID string, fi
 	return image_path, nil
 }
 
-func (c *userUserCase) GetSellersByRadius(ctx context.Context, reqData request.SellerRadiusRequest) (sellers []response.Admin, err error) {
+func (c *userUserCase) GetSellersByRadius(ctx context.Context, reqData request.SellerRadiusRequest) (sellers []response.Shop, err error) {
 	sellers, err = c.userRepo.FindSellersByRadius(ctx, reqData)
 
 	if err != nil {
@@ -269,4 +269,20 @@ func (c *userUserCase) GetSellersByRadius(ctx context.Context, reqData request.S
 	log.Printf("successfully got sellers within %v km radius", reqData.RadiusKm)
 
 	return sellers, nil
+}
+
+func (c *userUserCase) GetProductItemsByDepartment(ctx context.Context, documentID uint) ([]response.ProductItems, error) {
+	return c.productRepo.GetProductItemsByDepartment(ctx, documentID)
+}
+
+func (c *userUserCase) GetProductItemsByCategory(ctx context.Context, categoryID uint) ([]response.ProductItems, error) {
+	return c.productRepo.GetProductItemsByCategory(ctx, categoryID)
+}
+
+func (c *userUserCase) GetProductItemsBySubCategory(ctx context.Context, subCategoryID uint) ([]response.ProductItems, error) {
+	return c.productRepo.GetProductItemsBySubCategory(ctx, subCategoryID)
+}
+
+func (c *userUserCase) GetProductItemsByShop(ctx context.Context, adminID uint) ([]response.ProductItems, error) {
+	return c.productRepo.GetProductItemsByShop(ctx, adminID)
 }

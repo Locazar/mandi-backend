@@ -4,7 +4,17 @@ import (
 	"time"
 )
 
-type RefreshSession struct {
+type AdminRefreshSession struct {
+	TokenID      string    `json:"token_id" gorm:"primaryKey;not null"`
+	UserID       uint      `json:"user_id"`
+	AdminID      uint      `json:"admin_id"`
+	UserType     string    `json:"user_type"`
+	RefreshToken string    `json:"refresh_token" gorm:"not null"`
+	ExpireAt     time.Time `json:"expire_at" gorm:"not null"`
+	IsBlocked    bool      `json:"is_blocked" gorm:"not null;default:false"`
+}
+
+type UserRefreshSession struct {
 	TokenID      string    `json:"token_id" gorm:"primaryKey;not null"`
 	UserID       uint      `json:"user_id"`
 	AdminID      uint      `json:"admin_id"`

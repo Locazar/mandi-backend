@@ -23,14 +23,16 @@ const (
 )
 
 type AuthHandler struct {
-	authUseCase usecaseInterface.AuthUseCase
-	config      config.Config
+	authUseCase  usecaseInterface.AuthUseCase
+	config       config.Config
+	tokenService token.TokenService
 }
 
-func NewAuthHandler(authUsecase usecaseInterface.AuthUseCase, config config.Config) interfaces.AuthHandler {
+func NewAuthHandler(authUsecase usecaseInterface.AuthUseCase, config config.Config, tokenService token.TokenService) interfaces.AuthHandler {
 	return &AuthHandler{
-		authUseCase: authUsecase,
-		config:      config,
+		authUseCase:  authUsecase,
+		config:       config,
+		tokenService: tokenService,
 	}
 }
 
@@ -566,4 +568,33 @@ func (c *AuthHandler) UserLoginOtpVerifyEmail(ctx *gin.Context) {
 	}
 
 	c.setupTokenAndResponse(ctx, token.User, userID)
+}
+
+func (c *AuthHandler) AdminLogout(ctx *gin.Context) {
+	// Get token from Authorization header
+	authHeader := ctx.GetHeader("Authorization")
+	if authHeader == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Authorization header is required", nil, nil)
+		return
+	}
+
+	// Decode token to get user data
+	// Fix: DecodeTokenDataToGetData does not return any values, so just call it without assignment.
+	userID, userType, err := c.tokenService.DecodeTokenDataToGetData(authHeader)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Invalid token", err, nil)
+		return
+	}
+
+	// If you need userID and userType, you should implement or use a method that returns them.
+	// For demonstration, we'll just proceed with logout logic.
+
+	// TODO: Replace "0" and "" with actual userID and userType if needed.
+	err = c.authUseCase.UserLogout(ctx, userID, string(userType))
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to logout admin", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully logged out", nil)
 }

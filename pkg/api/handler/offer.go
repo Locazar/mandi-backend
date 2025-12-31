@@ -11,17 +11,20 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
+	"github.com/rohit221990/mandi-backend/pkg/service/token"
 	"github.com/rohit221990/mandi-backend/pkg/usecase"
 	usecaseInterface "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 )
 
 type offerHandler struct {
 	offerUseCase usecaseInterface.OfferUseCase
+	tokenService token.TokenService
 }
 
-func NewOfferHandler(offerUseCase usecaseInterface.OfferUseCase) interfaces.OfferHandler {
+func NewOfferHandler(offerUseCase usecaseInterface.OfferUseCase, tokenService token.TokenService) interfaces.OfferHandler {
 	return &offerHandler{
 		offerUseCase: offerUseCase,
+		tokenService: tokenService,
 	}
 }
 
@@ -252,18 +255,18 @@ func (c *offerHandler) ChangeCategoryOffer(ctx *gin.Context) {
 	response.SuccessResponse(ctx, 200, "Successfully offer changed for given category offer")
 }
 
-// SaveProductOffer godoc
+// SaveProductItemOffer godoc
 //
 //	@Summary		Add product offer (Admin)
 //	@Security		BearerAuth
 //	@Description	API for admin to add an offer for product
-//	@Id				SaveProductOffer
+//	@Id				SaveProductItemOffer
 //	@Tags			Admin Offers
 //	@Param			input	body	request.OfferProduct{}	true	"input field"
 //	@Router			/admin/offers/products [post]
 //	@Success		200	{object}	response.Response{}	"successfully offer added for product"
 //	@Failure		400	{object}	response.Response{}	"invalid input"
-func (c *offerHandler) SaveProductOffer(ctx *gin.Context) {
+func (c *offerHandler) SaveProductItemOffer(ctx *gin.Context) {
 
 	var body request.OfferProduct
 	if err := ctx.ShouldBindJSON(&body); err != nil {
@@ -278,7 +281,7 @@ func (c *offerHandler) SaveProductOffer(ctx *gin.Context) {
 
 	fmt.Printf("offerProduct after copying: %+v\n", offerProduct)
 
-	err := c.offerUseCase.SaveProductOffer(ctx, offerProduct)
+	err := c.offerUseCase.SaveProductItemOffer(ctx, offerProduct)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to add offer for given product", err, nil)
 		return
@@ -374,4 +377,39 @@ func (c *offerHandler) ChangeProductOffer(ctx *gin.Context) {
 	}
 
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully offer changed for  given product offer")
+}
+
+func (c *offerHandler) ApplyOfferToShop(ctx *gin.Context) {
+	var body request.ApplyOfferToShop
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	tokenStr := ctx.GetHeader("Authorization")
+	if tokenStr == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Authorization header missing", errors.New("authorization header missing"), nil)
+		return
+	}
+	adminId := c.tokenService.DecodeTokenData(tokenStr)
+	err := c.offerUseCase.ApplyOfferToShop(ctx, adminId, body)
+
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to apply offer to shop", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully offer applied to shop", nil)
+}
+
+// GetActiveOffers returns currently active offers based on start and end date
+func (c *offerHandler) GetActiveOffers(ctx *gin.Context) {
+	offers, err := c.offerUseCase.FindActiveOffers(ctx)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get active offers", err, nil)
+		return
+	}
+	if offers == nil || len(offers) == 0 {
+		response.SuccessResponse(ctx, http.StatusOK, "No active offers found", offers)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully found active offers", offers)
 }

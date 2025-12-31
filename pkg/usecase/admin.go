@@ -200,11 +200,12 @@ func (c *adminUseCase) GenerateRefreshToken(ctx context.Context, tokenParams ser
 		return "", err
 	}
 
-	err = c.authRepo.SaveRefreshSession(ctx, domain.RefreshSession{
+	err = c.authRepo.SaveRefreshSession(ctx, request.RefreshSession{
 		UserID:       tokenParams.UserID,
+		UserType:     string(tokenParams.UserType),
 		TokenID:      tokenRes.TokenID,
 		RefreshToken: tokenRes.TokenString,
-		ExpireAt:     expireAt,
+		ExpireAt:     expireAt.Format(time.RFC3339),
 	})
 	if err != nil {
 		return "", err
@@ -448,4 +449,12 @@ func (c *adminUseCase) GetShopProfileImageById(ctx context.Context, shopId strin
 		return "", fmt.Errorf("failed to get shop profile image by id \nerror:%v", err.Error())
 	}
 	return shopProfileImage, nil
+}
+
+func (c *adminUseCase) UserLogout(ctx context.Context, adminId string) error {
+	err := c.adminRepo.DeleteRefreshSessionByUserID(ctx, adminId)
+	if err != nil {
+		return fmt.Errorf("failed to logout user \nerror:%v", err.Error())
+	}
+	return nil
 }

@@ -86,7 +86,6 @@ type VariationOption struct {
 type ProductItems struct {
 	ID                  uint                   `json:"product_item_id"`
 	Name                string                 `json:"product_name"`
-	ProductID           uint                   `json:"product_id"`
 	CategoryID          uint                   `json:"category_id"`
 	DepartmentID        uint                   `json:"department_id"`
 	SubCategoryID       uint                   `json:"sub_category_id"`
@@ -95,6 +94,7 @@ type ProductItems struct {
 	SubCategoryImageURL string                 `json:"sub_category_image_url"`
 	ProductItemImages   []string               `json:"product_item_images"`
 	DynamicFields       map[string]interface{} `json:"dynamic_fields"`
+	OfferProducts       []OfferProduct         `json:"offer_products,omitempty"`
 	CreatedAt           time.Time              `json:"created_at"`
 	UpdatedAt           time.Time              `json:"updated_at"`
 }
@@ -118,11 +118,27 @@ type OfferCategory struct {
 
 type OfferProduct struct {
 	OfferProductID uint   `json:"offer_product_id"`
-	ProductID      uint   `json:"product_id"`
+	ProductItemID  uint   `json:"product_item_id"`
 	ProductName    string `json:"product_name"`
 	DiscountRate   uint   `json:"discount_rate"`
 	OfferID        uint   `json:"offer_id"`
+	Thumbnail      string `json:"thumbnail"`
+	Image          string `json:"image"`
 	OfferName      string `json:"offer_name"`
+}
+
+type Offer struct {
+	ID           uint      `json:"offer_id"`
+	Name         string    `json:"offer_name"`
+	Description  string    `json:"description"`
+	DiscountRate uint      `json:"discount_rate"`
+	OfferType    string    `json:"offer_type"`
+	StartDate    time.Time `json:"start_date"`
+	EndDate      time.Time `json:"end_date"`
+	Image        string    `json:"image_url"`
+	thumbnail    string    `json:"thumbnail_url"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 type ProductFilters struct {

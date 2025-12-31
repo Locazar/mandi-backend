@@ -67,4 +67,6 @@ type ProductHandler interface {
 	GetCategoryImageByID(ctx *gin.Context)
 	UpdateCategoryImage(ctx *gin.Context)
 	DeleteCategoryImage(ctx *gin.Context)
+	IncrementProductItemViewCount(ctx *gin.Context)
+	GetProductItemViewCount(ctx *gin.Context)
 }

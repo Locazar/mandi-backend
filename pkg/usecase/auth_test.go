@@ -60,7 +60,7 @@ type userRepoAdapter struct {
 	*mockrepo.MockUserRepository
 }
 
-func (u *userRepoAdapter) FindSellersByRadius(ctx context.Context, req request.SellerRadiusRequest) ([]response.Admin, error) {
+func (u *userRepoAdapter) FindSellersByRadius(ctx context.Context, req request.SellerRadiusRequest) ([]response.Shop, error) {
 	// Not used in these tests; return empty result.
 	return nil, nil
 }

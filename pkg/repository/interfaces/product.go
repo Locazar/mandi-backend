@@ -43,6 +43,11 @@ type ProductRepository interface {
 	// product items
 	FindProductItemByID(ctx context.Context, productItemID uint) (domain.ProductItem, error)
 	FindAllProductItems(ctx context.Context, adminID string) ([]response.ProductItems, error)
+	// GetProductItemsByDepartment returns product items associated with a department id
+	GetProductItemsByDepartment(ctx context.Context, departmentID uint) ([]response.ProductItems, error)
+	GetProductItemsByCategory(ctx context.Context, categoryID uint) ([]response.ProductItems, error)
+	GetProductItemsBySubCategory(ctx context.Context, subCategoryID uint) ([]response.ProductItems, error)
+	GetProductItemsByShop(ctx context.Context, adminID uint) ([]response.ProductItems, error)
 	FindVariationCountForProduct(ctx context.Context, productID uint) (variationCount uint, err error) // to check the product config already exist
 	FindAllProductItemIDsByProductIDAndVariationOptionID(ctx context.Context, productID, variationOptionID uint) ([]uint, error)
 	SaveProductConfiguration(ctx context.Context, productItemID, variationOptionID uint) error
@@ -51,7 +56,7 @@ type ProductRepository interface {
 	FindAllProductItemImages(ctx context.Context, productItemID uint) (images []string, err error)
 	SaveProductItemImage(ctx context.Context, productItemId uint, image domain.ProductItemImage) error
 
-	SearchProducts(ctx context.Context, keyword string, categoryID, brandID, locationID *string, pagination request.Pagination) (products []response.Product, err error)
+	SearchProducts(ctx context.Context, keyword string, categoryID, brandID, locationID *string, pagination request.Pagination) (products []response.ProductItems, err error)
 
 	// department
 	SaveDepartment(ctx context.Context, departmentName string) error
@@ -81,4 +86,6 @@ type ProductRepository interface {
 	UpdateCategoryImage(ctx context.Context, image domain.CategoryImage) error
 	DeleteCategoryImage(ctx context.Context, imageID uint) error
 	GetProductItemByID(ctx context.Context, productItemID uint) (response.ProductItems, error)
+	IncrementProductItemViewCount(ctx context.Context, productItemID uint, adminID string) error
+	GetProductItemViewCount(ctx context.Context, productItemID uint, adminID string) (uint, error)
 }
