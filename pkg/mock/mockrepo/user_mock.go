@@ -21,7 +21,7 @@ type MockUserRepository struct {
 }
 
 // FindSellersByRadius implements interfaces.UserRepository.
-func (m *MockUserRepository) FindSellersByRadius(ctx context.Context, reqData request.SellerRadiusRequest) (sellers []response.Admin, err error) {
+func (m *MockUserRepository) FindSellersByRadius(ctx context.Context, reqData request.SellerRadiusRequest) (sellers []response.Shop, err error) {
 	panic("unimplemented")
 }
 

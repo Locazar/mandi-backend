@@ -840,35 +840,43 @@ func (h *ProductHandler) SearchProducts(c *gin.Context) {
 
 	keyword := c.Query("q")
 
-	var categoryID, brandID, locationID *uuid.UUID
+	// Parse numeric filter IDs (category_id, brand_id, location_id) as unsigned integers.
+	// The DB uses numeric IDs for these fields; parsing as UUIDs caused type mismatches.
+	var catIDPtr, brandIDPtr, locIDPtr *string
 	if cid := c.Query("category_id"); cid != "" {
-		id, err := uuid.Parse(cid)
-		if err == nil {
-			categoryID = &id
+		if _, err := strconv.ParseUint(cid, 10, 64); err == nil {
+			s := cid
+			catIDPtr = &s
 		}
 	}
 	if bid := c.Query("brand_id"); bid != "" {
-		id, err := uuid.Parse(bid)
-		if err == nil {
-			brandID = &id
+		if _, err := strconv.ParseUint(bid, 10, 64); err == nil {
+			s := bid
+			brandIDPtr = &s
 		}
 	}
 	if lid := c.Query("location_id"); lid != "" {
-		id, err := uuid.Parse(lid)
-		if err == nil {
-			locationID = &id
+		if _, err := strconv.ParseUint(lid, 10, 64); err == nil {
+			s := lid
+			locIDPtr = &s
 		}
 	}
 
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 
-	catIDPtr := uuidToStringPtr(categoryID)
-	brandIDPtr := uuidToStringPtr(brandID)
-	locIDPtr := uuidToStringPtr(locationID)
+	// Convert limit/offset into pageNumber for request.Pagination
+	if limit <= 0 {
+		limit = 20
+	}
+	if offset < 0 {
+		offset = 0
+	}
 
-	// Assuming request.Pagination looks like:
-	pageNumber, err := SafeIntToUint64(offset)
+	// pageNumber is 1-based: pageNumber = (offset / limit) + 1
+	pageNumberInt := (offset / limit) + 1
+
+	pageNumber, err := SafeIntToUint64(pageNumberInt)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -1354,10 +1362,8 @@ func (h *ProductHandler) GetLocationByPincode(c *gin.Context) {
 //	@Router			/products/nearby [get]
 func (h *ProductHandler) GetNearbyProductsByPincode(c *gin.Context) {
 	pincode := c.Query("pincode")
-	if pincode == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "query parameter pincode is required"})
-		return
-	}
+	latStr := c.Query("lat")
+	lngStr := c.Query("lng")
 
 	radiusKmStr := c.DefaultQuery("radius_km", "10")
 	radiusKm, err := strconv.ParseFloat(radiusKmStr, 64)
@@ -1365,18 +1371,41 @@ func (h *ProductHandler) GetNearbyProductsByPincode(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid radius_km"})
 		return
 	}
-
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 
-	products, err := h.productUseCase.GetNearbyProductsByPincode(c, pincode, limit, offset)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	// If latitude and longitude are provided, use them for search
+	if latStr != "" && lngStr != "" {
+		latitude, err := strconv.ParseFloat(latStr, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid latitude"})
+			return
+		}
+		longitude, err := strconv.ParseFloat(lngStr, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid longitude"})
+			return
+		}
+		// Call radius-based search
+		products, err := h.productUseCase.GetProductsByRadius(c, int(latitude), int(longitude), int(radiusKm*1000), limit, offset)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"products": products})
+		return
+	} else if pincode != "" {
+		products, err := h.productUseCase.GetNearbyProductsByPincode(c, pincode, limit, offset)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"products": products})
+		return
+	} else {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "query parameter pincode or latitude/longitude is required"})
 		return
 	}
-
-	c.JSON(http.StatusOK, gin.H{"products": products})
-
 }
 
 // GetProductsByRadius godoc

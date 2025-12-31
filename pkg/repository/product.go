@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
+	"strconv"
 	"time"
 
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
@@ -431,7 +433,8 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context,
 			LEFT JOIN categories c ON pi.category_id = c.id 
 			LEFT JOIN departments d ON pi.department_id = d.id
 			LEFT JOIN sub_categories sc ON pi.sub_category_id = sc.id
-			WHERE pi.admin_id = $1
+			-- compare jsonb admin_id to string parameter by casting to text
+			WHERE pi.admin_id::text = $1
 			ORDER BY pi.created_at DESC`
 
 	// Internal struct for scanning DB result
@@ -585,46 +588,149 @@ func (c *productDatabase) FindAllProductItemImages(ctx context.Context, productI
 }
 
 // SearchProducts implements interfaces.ProductRepository.
-func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, categoryID, brandID, locationID *string, pagination request.Pagination) (products []response.Product, err error) {
+func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, categoryID, brandID, locationID *string, pagination request.Pagination) (products []response.ProductItems, err error) {
+	pageNumber := pagination.PageNumber
+	if pageNumber < 1 {
+		pageNumber = 1
+	}
+	offset := int64((pageNumber - 1) * pagination.Count)
+	limit := int64(pagination.Count)
 
-	limit := pagination.Count
-	offset := (pagination.PageNumber - 1) * limit
-
-	baseQuery := `SELECT DISTINCT p.id, p.name, p.description, p.price, p.discount_price, 
-	p.image, p.category_id, sc.name AS category_name, 
-	mc.name AS main_category_name, p.brand_id, b.name AS brand_name,
-	p.created_at, p.updated_at
-	FROM products p
-	LEFT JOIN categories sc ON p.category_id = sc.id
-	LEFT JOIN categories mc ON sc.category_id = mc.id
-	LEFT JOIN brands b ON b.id = p.brand_id
-	LEFT JOIN product_items pi ON pi.product_id = p.id
-	WHERE (p.name ILIKE $1 OR p.description ILIKE $1)`
-
+	baseQuery := `SELECT pi.sub_category_name, pi.id, pi.category_id, pi.department_id, pi.sub_category_id,
+			pi.product_item_images, pi.dynamic_fields, pi.created_at, pi.updated_at,
+			c.name AS category_name, d.name AS department_name, sc.name AS sub_category_name_ref,
+			sc.image_url AS sub_category_image_url,
+			(
+				SELECT COALESCE(json_agg(json_build_object(
+					'offer_product_id', op2.id,
+					'product_name', pi2.sub_category_name,
+					'offer_id', o2.id,
+					'offer_name', o2.name,
+					'discount_rate', o2.discount_rate,
+					'description', o2.description,
+					'start_date', o2.start_date,
+					'end_date', o2.end_date,
+					'image', o2.image,
+					'thumbnail', o2.thumbnail
+				)), '[]')
+				FROM offer_products op2
+				LEFT JOIN product_items pi2 ON pi2.id = op2.product_item_id
+				INNER JOIN offers o2 ON o2.id = op2.offer_id
+				WHERE op2.product_item_id = pi.id
+			) AS offer_products
+		FROM product_items pi
+		LEFT JOIN categories c ON pi.category_id = c.id
+		LEFT JOIN departments d ON pi.department_id = d.id
+		LEFT JOIN sub_categories sc ON pi.sub_category_id = sc.id
+		WHERE (pi.sub_category_name ILIKE $1 OR pi.dynamic_fields::text ILIKE $1 OR c.name::text ILIKE $1 OR sc.name::text ILIKE $1)`
 	params := []interface{}{"%" + keyword + "%"}
 	paramIndex := 2
 	if categoryID != nil {
-		baseQuery += fmt.Sprintf(" AND p.category_id = $%d", paramIndex)
-		params = append(params, *categoryID)
-		paramIndex++
-	}
-	if brandID != nil {
-		baseQuery += fmt.Sprintf(" AND p.brand_id = $%d", paramIndex)
-		params = append(params, *brandID)
-		paramIndex++
-	}
-	if locationID != nil {
-		baseQuery += fmt.Sprintf(" AND s.location_id = $%d", paramIndex)
-		params = append(params, *locationID)
-		paramIndex++
+		// categoryID is passed as a string (from handler). Parse to uint to match DB column type.
+		if cid, err := strconv.ParseUint(*categoryID, 10, 64); err == nil {
+			baseQuery += fmt.Sprintf(" AND pi.category_id = $%d", paramIndex)
+			params = append(params, cid)
+			paramIndex++
+		}
 	}
 
-	baseQuery += " ORDER BY p.created_at DESC LIMIT $" + fmt.Sprint(paramIndex) + " OFFSET $" + fmt.Sprint(paramIndex+1)
+	baseQuery += " ORDER BY pi.created_at DESC LIMIT $" + fmt.Sprint(paramIndex) + " OFFSET $" + fmt.Sprint(paramIndex+1)
+	// Append limit and offset as integers
 	params = append(params, limit, offset)
 
-	err = c.DB.Raw(baseQuery, params...).Scan(&products).Error
+	// Log the final SQL and parameters for debugging
+	fmt.Printf("SearchProducts SQL: %s\n", baseQuery)
+	fmt.Printf("SearchProducts Params: %#v\n", params)
 
-	fmt.Printf("Executed Query: %s\n", err) // Debugging line
+	// Scan into internal DB struct to correctly parse JSONB and array columns
+	type productItemDB struct {
+		Name                string    `gorm:"column:sub_category_name"`
+		ID                  uint      `gorm:"column:id"`
+		CategoryID          uint      `gorm:"column:category_id"`
+		DepartmentID        uint      `gorm:"column:department_id"`
+		SubCategoryID       uint      `gorm:"column:sub_category_id"`
+		CategoryName        string    `gorm:"column:category_name"`
+		DepartmentName      string    `gorm:"column:department_name"`
+		SubCategoryNameRef  string    `gorm:"column:sub_category_name_ref"`
+		SubCategoryImageURL string    `gorm:"column:sub_category_image_url"`
+		ProductItemImages   string    `gorm:"column:product_item_images"`
+		DynamicFields       []byte    `gorm:"column:dynamic_fields"`
+		OfferProducts       []byte    `gorm:"column:offer_products"`
+		CreatedAt           time.Time `gorm:"column:created_at"`
+		UpdatedAt           time.Time `gorm:"column:updated_at"`
+	}
+
+	var dbItems []productItemDB
+	err = c.DB.Raw(baseQuery, params...).Scan(&dbItems).Error
+	if err != nil {
+		fmt.Printf("Executed Query Error: %v\n", err) // Debugging line
+		return
+	}
+
+	// Map to response.ProductItems
+	for _, dbItem := range dbItems {
+		// Parse product_item_images (Postgres array format stored as string)
+		var images []string
+		if dbItem.ProductItemImages != "" {
+			imageStr := dbItem.ProductItemImages
+			if len(imageStr) > 2 && imageStr[0] == '{' && imageStr[len(imageStr)-1] == '}' {
+				imageStr = imageStr[1 : len(imageStr)-1]
+				if imageStr != "" {
+					images = []string{}
+					for _, img := range parsePostgresArray(imageStr) {
+						images = append(images, img)
+					}
+				}
+			}
+		}
+		if images == nil {
+			images = []string{}
+		}
+
+		item := response.ProductItems{
+			ID:                  dbItem.ID,
+			Name:                dbItem.Name,
+			CategoryName:        dbItem.CategoryName,
+			MainCategoryName:    dbItem.DepartmentName,
+			SubCategoryImageURL: dbItem.SubCategoryImageURL,
+			CategoryID:          dbItem.CategoryID,
+			DepartmentID:        dbItem.DepartmentID,
+			SubCategoryID:       dbItem.SubCategoryID,
+			ProductItemImages:   images,
+			CreatedAt:           dbItem.CreatedAt,
+			UpdatedAt:           dbItem.UpdatedAt,
+		}
+
+		// Unmarshal offer_products if present. Handle both raw JSON bytes and JSON-as-string.
+		if len(dbItem.OfferProducts) > 0 {
+			var offerProducts []response.OfferProduct
+			if err := json.Unmarshal(dbItem.OfferProducts, &offerProducts); err != nil {
+				// try interpreting as string containing JSON
+				rawStr := string(dbItem.OfferProducts)
+				if rawStr != "" {
+					if err2 := json.Unmarshal([]byte(rawStr), &offerProducts); err2 != nil {
+						fmt.Printf("SearchProducts: failed to unmarshal offer_products: %v %v\n", err, err2)
+					} else {
+						item.OfferProducts = offerProducts
+					}
+				}
+			} else {
+				item.OfferProducts = offerProducts
+			}
+		}
+
+		// Unmarshal DynamicFields if present
+		if len(dbItem.DynamicFields) > 0 {
+			var dynamicFields map[string]interface{}
+			if err := json.Unmarshal(dbItem.DynamicFields, &dynamicFields); err == nil {
+				item.DynamicFields = dynamicFields
+			}
+		} else {
+			item.DynamicFields = make(map[string]interface{})
+		}
+
+		products = append(products, item)
+	}
 
 	return
 }
@@ -836,5 +942,564 @@ func (c *productDatabase) IncrementProductItemViewCount(ctx context.Context, pro
 func (c *productDatabase) GetProductItemViewCount(ctx context.Context, productItemID uint, adminID string) (viewCount uint, err error) {
 	query := `SELECT view_count FROM product_item_views WHERE product_item_id = $1 AND admin_id = $2`
 	err = c.DB.Raw(query, productItemID, adminID).Scan(&viewCount).Error
+	return
+}
+
+func (c *productDatabase) FindProductItemsByDocument(ctx context.Context, documentID uint) (productItems []response.ProductItems, err error) {
+	query := `SELECT pi.sub_category_name, pi.id, pi.category_id, 
+	           sc.name AS category_name, mc.name AS main_category_name,
+	           pi.product_item_images, pi.dynamic_fields, pi.created_at, pi.updated_at
+	       FROM product_items pi 
+	       LEFT JOIN categories sc ON pi.category_id = sc.id 
+	       LEFT JOIN categories mc ON pi.category_id = mc.id 
+	       INNER JOIN document_product_items dpi ON pi.id = dpi.product_item_id
+	       WHERE dpi.document_id = $1;`
+
+	type productItemDB struct {
+		Name              string    `gorm:"column:sub_category_name"`
+		ID                uint      `gorm:"column:id"`
+		CategoryID        uint      `gorm:"column:category_id"`
+		CategoryName      string    `gorm:"column:category_name"`
+		MainCategoryName  string    `gorm:"column:main_category_name"`
+		ProductItemImages string    `gorm:"column:product_item_images"`
+		DynamicFields     []byte    `gorm:"column:dynamic_fields"`
+		CreatedAt         time.Time `gorm:"column:created_at"`
+		UpdatedAt         time.Time `gorm:"column:updated_at"`
+	}
+
+	var dbItems []productItemDB
+	err = c.DB.Raw(query, documentID).Scan(&dbItems).Error
+	if err != nil {
+		return
+	}
+
+	// Map to response.ProductItems
+	for _, dbItem := range dbItems {
+		// Parse product_item_images from PostgreSQL array format
+		var images []string
+		if dbItem.ProductItemImages != "" {
+			imageStr := dbItem.ProductItemImages
+			if len(imageStr) > 2 && imageStr[0] == '{' && imageStr[len(imageStr)-1] == '}' {
+				imageStr = imageStr[1 : len(imageStr)-1]
+				if imageStr != "" {
+					images = []string{}
+					for _, img := range parsePostgresArray(imageStr) {
+						images = append(images, img)
+					}
+				}
+			}
+		}
+		if images == nil {
+			images = []string{}
+		}
+
+		item := response.ProductItems{
+			ID:                dbItem.ID,
+			Name:              dbItem.Name,
+			CategoryName:      dbItem.CategoryName,
+			MainCategoryName:  dbItem.MainCategoryName,
+			ProductItemImages: images,
+			CreatedAt:         dbItem.CreatedAt,
+			UpdatedAt:         dbItem.UpdatedAt,
+		}
+
+		// Unmarshal DynamicFields if present
+		if len(dbItem.DynamicFields) > 0 {
+			var dynamicFields map[string]interface{}
+			if err := json.Unmarshal(dbItem.DynamicFields, &dynamicFields); err == nil {
+				item.DynamicFields = dynamicFields
+			}
+		} else {
+			item.DynamicFields = make(map[string]interface{})
+		}
+
+		productItems = append(productItems, item)
+	}
+
+	return
+}
+
+// GetProductItemsByDepartment returns product items for the department id provided.
+// It joins shop_details to map the document/shop id to the admin_id stored on product_items.
+func (c *productDatabase) GetProductItemsByDepartment(ctx context.Context, departmentID uint) (productItems []response.ProductItems, err error) {
+	query := `SELECT pi.sub_category_name, pi.id, pi.category_id, pi.department_id, pi.sub_category_id,
+				pi.product_item_images, pi.dynamic_fields, pi.created_at, pi.updated_at,
+				c.name AS category_name, d.name AS department_name, sc.name AS sub_category_name_ref,
+				sc.image_url AS sub_category_image_url,
+				(
+					SELECT COALESCE(json_agg(json_build_object(
+						'offer_product_id', op2.id,
+						'product_name', pi2.sub_category_name,
+						'offer_id', o2.id,
+						'offer_name', o2.name,
+						'discount_rate', o2.discount_rate,
+						'description', o2.description,
+						'start_date', o2.start_date,
+						'end_date', o2.end_date,
+						'image', o2.image,
+						'thumbnail', o2.thumbnail
+					)), '[]')
+					FROM offer_products op2
+					LEFT JOIN product_items pi2 ON pi2.id = op2.product_item_id
+					INNER JOIN offers o2 ON o2.id = op2.offer_id
+
+					WHERE op2.product_item_id = pi.id
+				) AS offer_products
+			FROM product_items pi
+			LEFT JOIN categories c ON pi.category_id = c.id
+			LEFT JOIN departments d ON pi.department_id = d.id
+			LEFT JOIN sub_categories sc ON pi.sub_category_id = sc.id
+			WHERE pi.department_id = $1
+			ORDER BY pi.created_at DESC`
+
+	// Internal struct mirrors FindAllProductItems scanning for reuse
+	type productItemDB struct {
+		Name                string    `gorm:"column:sub_category_name"`
+		ID                  uint      `gorm:"column:id"`
+		CategoryID          uint      `gorm:"column:category_id"`
+		DepartmentID        uint      `gorm:"column:department_id"`
+		SubCategoryID       uint      `gorm:"column:sub_category_id"`
+		CategoryName        string    `gorm:"column:category_name"`
+		DepartmentName      string    `gorm:"column:department_name"`
+		SubCategoryNameRef  string    `gorm:"column:sub_category_name_ref"`
+		SubCategoryImageURL string    `gorm:"column:sub_category_image_url"`
+		ProductItemImages   string    `gorm:"column:product_item_images"`
+		DynamicFields       []byte    `gorm:"column:dynamic_fields"`
+		OfferProducts       []byte    `gorm:"column:offer_products"`
+		CreatedAt           time.Time `gorm:"column:created_at"`
+		UpdatedAt           time.Time `gorm:"column:updated_at"`
+	}
+
+	var dbItems []productItemDB
+	err = c.DB.Raw(query, departmentID).Scan(&dbItems).Error
+	if err != nil {
+		return
+	}
+
+	for _, dbItem := range dbItems {
+		// reuse the same parsing/mapping logic as FindAllProductItems
+		var images []string
+		if dbItem.ProductItemImages != "" {
+			imageStr := dbItem.ProductItemImages
+			if len(imageStr) > 2 && imageStr[0] == '{' && imageStr[len(imageStr)-1] == '}' {
+				imageStr = imageStr[1 : len(imageStr)-1]
+				if imageStr != "" {
+					images = []string{}
+					for _, img := range parsePostgresArray(imageStr) {
+						images = append(images, img)
+					}
+				}
+			}
+		}
+		if images == nil {
+			images = []string{}
+		}
+
+		item := response.ProductItems{
+			ID:                  dbItem.ID,
+			Name:                dbItem.Name,
+			CategoryName:        dbItem.CategoryName,
+			MainCategoryName:    dbItem.DepartmentName,
+			SubCategoryImageURL: dbItem.SubCategoryImageURL,
+			CategoryID:          dbItem.CategoryID,
+			DepartmentID:        dbItem.DepartmentID,
+			SubCategoryID:       dbItem.SubCategoryID,
+			ProductItemImages:   images,
+			CreatedAt:           dbItem.CreatedAt,
+			UpdatedAt:           dbItem.UpdatedAt,
+		}
+
+		if len(dbItem.OfferProducts) > 0 {
+			var offerProducts []response.OfferProduct
+			if err := json.Unmarshal(dbItem.OfferProducts, &offerProducts); err != nil {
+				rawStr := string(dbItem.OfferProducts)
+				if rawStr != "" {
+					if err2 := json.Unmarshal([]byte(rawStr), &offerProducts); err2 == nil {
+						item.OfferProducts = offerProducts
+					}
+				}
+			} else {
+				item.OfferProducts = offerProducts
+			}
+		}
+
+		if len(dbItem.DynamicFields) > 0 {
+			var dynamicFields map[string]interface{}
+			if err := json.Unmarshal(dbItem.DynamicFields, &dynamicFields); err == nil {
+				item.DynamicFields = dynamicFields
+			}
+		} else {
+			item.DynamicFields = make(map[string]interface{})
+		}
+
+		productItems = append(productItems, item)
+	}
+
+	return
+}
+
+// GetProductItemsByCategory returns product items for the category id provided.
+func (c *productDatabase) GetProductItemsByCategory(ctx context.Context, categoryID uint) (productItems []response.ProductItems, err error) {
+	query := `SELECT pi.sub_category_name, pi.id, pi.category_id, pi.department_id, pi.sub_category_id,
+				pi.product_item_images, pi.dynamic_fields, pi.created_at, pi.updated_at,
+				c.name AS category_name, d.name AS department_name, sc.name AS sub_category_name_ref,
+				sc.image_url AS sub_category_image_url,
+				(
+					SELECT COALESCE(json_agg(json_build_object(
+						'offer_product_id', op2.id,
+						'product_name', pi2.sub_category_name,
+						'offer_id', o2.id,
+						'offer_name', o2.name,
+						'discount_rate', o2.discount_rate,
+						'description', o2.description,
+						'start_date', o2.start_date,
+						'end_date', o2.end_date,
+						'image', o2.image,
+						'thumbnail', o2.thumbnail
+					)), '[]')
+					FROM offer_products op2
+					LEFT JOIN product_items pi2 ON pi2.id = op2.product_item_id
+					INNER JOIN offers o2 ON o2.id = op2.offer_id
+
+					WHERE op2.product_item_id = pi.id
+				) AS offer_products
+			FROM product_items pi
+			LEFT JOIN categories c ON pi.category_id = c.id
+			LEFT JOIN departments d ON pi.department_id = d.id
+			LEFT JOIN sub_categories sc ON pi.sub_category_id = sc.id
+			WHERE pi.category_id = $1
+			ORDER BY pi.created_at DESC`
+
+	type productItemDB struct {
+		Name                string    `gorm:"column:sub_category_name"`
+		ID                  uint      `gorm:"column:id"`
+		CategoryID          uint      `gorm:"column:category_id"`
+		DepartmentID        uint      `gorm:"column:department_id"`
+		SubCategoryID       uint      `gorm:"column:sub_category_id"`
+		CategoryName        string    `gorm:"column:category_name"`
+		DepartmentName      string    `gorm:"column:department_name"`
+		SubCategoryNameRef  string    `gorm:"column:sub_category_name_ref"`
+		SubCategoryImageURL string    `gorm:"column:sub_category_image_url"`
+		ProductItemImages   string    `gorm:"column:product_item_images"`
+		DynamicFields       []byte    `gorm:"column:dynamic_fields"`
+		OfferProducts       []byte    `gorm:"column:offer_products"`
+		CreatedAt           time.Time `gorm:"column:created_at"`
+		UpdatedAt           time.Time `gorm:"column:updated_at"`
+	}
+
+	var dbItems []productItemDB
+	err = c.DB.Raw(query, categoryID).Scan(&dbItems).Error
+	if err != nil {
+		return
+	}
+
+	for _, dbItem := range dbItems {
+		var images []string
+		if dbItem.ProductItemImages != "" {
+			imageStr := dbItem.ProductItemImages
+			if len(imageStr) > 2 && imageStr[0] == '{' && imageStr[len(imageStr)-1] == '}' {
+				imageStr = imageStr[1 : len(imageStr)-1]
+				if imageStr != "" {
+					images = []string{}
+					for _, img := range parsePostgresArray(imageStr) {
+						images = append(images, img)
+					}
+				}
+			}
+		}
+		if images == nil {
+			images = []string{}
+		}
+
+		item := response.ProductItems{
+			ID:                  dbItem.ID,
+			Name:                dbItem.Name,
+			CategoryName:        dbItem.CategoryName,
+			MainCategoryName:    dbItem.DepartmentName,
+			SubCategoryImageURL: dbItem.SubCategoryImageURL,
+			CategoryID:          dbItem.CategoryID,
+			DepartmentID:        dbItem.DepartmentID,
+			SubCategoryID:       dbItem.SubCategoryID,
+			ProductItemImages:   images,
+			CreatedAt:           dbItem.CreatedAt,
+			UpdatedAt:           dbItem.UpdatedAt,
+		}
+
+		if len(dbItem.OfferProducts) > 0 {
+			var offerProducts []response.OfferProduct
+			if err := json.Unmarshal(dbItem.OfferProducts, &offerProducts); err != nil {
+				rawStr := string(dbItem.OfferProducts)
+				if rawStr != "" {
+					if err2 := json.Unmarshal([]byte(rawStr), &offerProducts); err2 == nil {
+						item.OfferProducts = offerProducts
+					}
+				}
+			} else {
+				item.OfferProducts = offerProducts
+			}
+		}
+
+		if len(dbItem.DynamicFields) > 0 {
+			var dynamicFields map[string]interface{}
+			if err := json.Unmarshal(dbItem.DynamicFields, &dynamicFields); err == nil {
+				item.DynamicFields = dynamicFields
+			}
+		} else {
+			item.DynamicFields = make(map[string]interface{})
+		}
+
+		productItems = append(productItems, item)
+	}
+
+	return
+}
+
+// GetProductItemsBySubCategory returns product items for the sub-category id provided.
+func (c *productDatabase) GetProductItemsBySubCategory(ctx context.Context, subCategoryID uint) (productItems []response.ProductItems, err error) {
+	query := `SELECT pi.sub_category_name, pi.id, pi.category_id, pi.department_id, pi.sub_category_id,
+				pi.product_item_images, pi.dynamic_fields, pi.created_at, pi.updated_at,
+				c.name AS category_name, d.name AS department_name, sc.name AS sub_category_name_ref,
+				sc.image_url AS sub_category_image_url,
+				(
+					SELECT COALESCE(json_agg(json_build_object(
+						'offer_product_id', op2.id,
+						'product_name', pi2.sub_category_name,
+						'offer_id', o2.id,
+						'offer_name', o2.name,
+						'discount_rate', o2.discount_rate,
+						'description', o2.description,
+						'start_date', o2.start_date,
+						'end_date', o2.end_date,
+						'image', o2.image,
+						'thumbnail', o2.thumbnail
+					)), '[]')
+					FROM offer_products op2
+					LEFT JOIN product_items pi2 ON pi2.id = op2.product_item_id
+					INNER JOIN offers o2 ON o2.id = op2.offer_id
+
+					WHERE op2.product_item_id = pi.id
+				) AS offer_products
+			FROM product_items pi
+			LEFT JOIN categories c ON pi.category_id = c.id
+			LEFT JOIN departments d ON pi.department_id = d.id
+			LEFT JOIN sub_categories sc ON pi.sub_category_id = sc.id
+			WHERE pi.sub_category_id = $1
+			ORDER BY pi.created_at DESC`
+
+	type productItemDB struct {
+		Name                string    `gorm:"column:sub_category_name"`
+		ID                  uint      `gorm:"column:id"`
+		CategoryID          uint      `gorm:"column:category_id"`
+		DepartmentID        uint      `gorm:"column:department_id"`
+		SubCategoryID       uint      `gorm:"column:sub_category_id"`
+		CategoryName        string    `gorm:"column:category_name"`
+		DepartmentName      string    `gorm:"column:department_name"`
+		SubCategoryNameRef  string    `gorm:"column:sub_category_name_ref"`
+		SubCategoryImageURL string    `gorm:"column:sub_category_image_url"`
+		ProductItemImages   string    `gorm:"column:product_item_images"`
+		DynamicFields       []byte    `gorm:"column:dynamic_fields"`
+		OfferProducts       []byte    `gorm:"column:offer_products"`
+		CreatedAt           time.Time `gorm:"column:created_at"`
+		UpdatedAt           time.Time `gorm:"column:updated_at"`
+	}
+
+	var dbItems []productItemDB
+	err = c.DB.Raw(query, subCategoryID).Scan(&dbItems).Error
+	if err != nil {
+		return
+	}
+
+	for _, dbItem := range dbItems {
+		var images []string
+		if dbItem.ProductItemImages != "" {
+			imageStr := dbItem.ProductItemImages
+			if len(imageStr) > 2 && imageStr[0] == '{' && imageStr[len(imageStr)-1] == '}' {
+				imageStr = imageStr[1 : len(imageStr)-1]
+				if imageStr != "" {
+					images = []string{}
+					for _, img := range parsePostgresArray(imageStr) {
+						images = append(images, img)
+					}
+				}
+			}
+		}
+		if images == nil {
+			images = []string{}
+		}
+
+		item := response.ProductItems{
+			ID:                  dbItem.ID,
+			Name:                dbItem.Name,
+			CategoryName:        dbItem.CategoryName,
+			MainCategoryName:    dbItem.DepartmentName,
+			SubCategoryImageURL: dbItem.SubCategoryImageURL,
+			CategoryID:          dbItem.CategoryID,
+			DepartmentID:        dbItem.DepartmentID,
+			SubCategoryID:       dbItem.SubCategoryID,
+			ProductItemImages:   images,
+			CreatedAt:           dbItem.CreatedAt,
+			UpdatedAt:           dbItem.UpdatedAt,
+		}
+
+		if len(dbItem.OfferProducts) > 0 {
+			var offerProducts []response.OfferProduct
+			if err := json.Unmarshal(dbItem.OfferProducts, &offerProducts); err != nil {
+				rawStr := string(dbItem.OfferProducts)
+				if rawStr != "" {
+					if err2 := json.Unmarshal([]byte(rawStr), &offerProducts); err2 == nil {
+						item.OfferProducts = offerProducts
+					}
+				}
+			} else {
+				item.OfferProducts = offerProducts
+			}
+		}
+
+		if len(dbItem.DynamicFields) > 0 {
+			var dynamicFields map[string]interface{}
+			if err := json.Unmarshal(dbItem.DynamicFields, &dynamicFields); err == nil {
+				item.DynamicFields = dynamicFields
+			}
+		} else {
+			item.DynamicFields = make(map[string]interface{})
+		}
+
+		productItems = append(productItems, item)
+	}
+
+	return
+}
+
+// GetProductItemsByShop returns product items for the shop owned by the provided admin id.
+// It joins shop_details to find the shop id for the admin and matches product_items.admin_id to shop id.
+func (c *productDatabase) GetProductItemsByShop(ctx context.Context, adminID uint) (productItems []response.ProductItems, err error) {
+	query := `SELECT pi.sub_category_name, pi.id, pi.category_id, pi.department_id, pi.sub_category_id,
+				pi.product_item_images, pi.dynamic_fields, pi.created_at, pi.updated_at,
+				c.name AS category_name, d.name AS department_name, sc.name AS sub_category_name_ref,
+				sc.image_url AS sub_category_image_url,
+				(
+					SELECT COALESCE(json_agg(json_build_object(
+						'offer_product_id', op2.id,
+						'product_name', pi2.sub_category_name,
+						'offer_id', o2.id,
+						'offer_name', o2.name,
+						'discount_rate', o2.discount_rate,
+						'description', o2.description,
+						'start_date', o2.start_date,
+						'end_date', o2.end_date,
+						'image', o2.image,
+						'thumbnail', o2.thumbnail
+					)), '[]')
+					FROM offer_products op2
+					LEFT JOIN product_items pi2 ON pi2.id = op2.product_item_id
+					INNER JOIN offers o2 ON o2.id = op2.offer_id
+
+					WHERE op2.product_item_id = pi.id
+				) AS offer_products
+			FROM product_items pi
+			LEFT JOIN categories c ON pi.category_id = c.id
+			LEFT JOIN departments d ON pi.department_id = d.id
+			LEFT JOIN sub_categories sc ON pi.sub_category_id = sc.id
+			-- Match product_items.admin_id robustly against provided admin id.
+			-- product_items.admin_id is jsonb and may store either an admin id or a shop id.
+			WHERE (
+				-- direct jsonb equality: admin_id = to_jsonb($1)
+				pi.admin_id = to_jsonb($1)
+				-- or textual match of jsonb value
+				OR pi.admin_id::text = to_jsonb($1)::text
+				-- or the admin owns a shop whose id matches the product_items.admin_id
+				OR EXISTS (
+					SELECT 1 FROM shop_details sd WHERE sd.admin_id = $1 AND sd.id::text = pi.admin_id::text
+				)
+			)
+			ORDER BY pi.created_at DESC`
+
+	type productItemDB struct {
+		Name                string    `gorm:"column:sub_category_name"`
+		ID                  uint      `gorm:"column:id"`
+		CategoryID          uint      `gorm:"column:category_id"`
+		DepartmentID        uint      `gorm:"column:department_id"`
+		SubCategoryID       uint      `gorm:"column:sub_category_id"`
+		CategoryName        string    `gorm:"column:category_name"`
+		DepartmentName      string    `gorm:"column:department_name"`
+		SubCategoryNameRef  string    `gorm:"column:sub_category_name_ref"`
+		SubCategoryImageURL string    `gorm:"column:sub_category_image_url"`
+		ProductItemImages   string    `gorm:"column:product_item_images"`
+		DynamicFields       []byte    `gorm:"column:dynamic_fields"`
+		OfferProducts       []byte    `gorm:"column:offer_products"`
+		CreatedAt           time.Time `gorm:"column:created_at"`
+		UpdatedAt           time.Time `gorm:"column:updated_at"`
+	}
+
+	// Log SQL and parameter to aid debugging when API returns no rows
+	log.Printf("GetProductItemsByShop SQL: %s", query)
+	log.Printf("GetProductItemsByShop adminID param: %d", adminID)
+
+	var dbItems []productItemDB
+	err = c.DB.Raw(query, adminID).Scan(&dbItems).Error
+	if err != nil {
+		return
+	}
+
+	log.Printf("GetProductItemsByShop rows returned: %d", len(dbItems))
+
+	for _, dbItem := range dbItems {
+		var images []string
+		if dbItem.ProductItemImages != "" {
+			imageStr := dbItem.ProductItemImages
+			if len(imageStr) > 2 && imageStr[0] == '{' && imageStr[len(imageStr)-1] == '}' {
+				imageStr = imageStr[1 : len(imageStr)-1]
+				if imageStr != "" {
+					images = []string{}
+					for _, img := range parsePostgresArray(imageStr) {
+						images = append(images, img)
+					}
+				}
+			}
+		}
+		if images == nil {
+			images = []string{}
+		}
+
+		item := response.ProductItems{
+			ID:                  dbItem.ID,
+			Name:                dbItem.Name,
+			CategoryName:        dbItem.CategoryName,
+			MainCategoryName:    dbItem.DepartmentName,
+			SubCategoryImageURL: dbItem.SubCategoryImageURL,
+			CategoryID:          dbItem.CategoryID,
+			DepartmentID:        dbItem.DepartmentID,
+			SubCategoryID:       dbItem.SubCategoryID,
+			ProductItemImages:   images,
+			CreatedAt:           dbItem.CreatedAt,
+			UpdatedAt:           dbItem.UpdatedAt,
+		}
+
+		if len(dbItem.OfferProducts) > 0 {
+			var offerProducts []response.OfferProduct
+			if err := json.Unmarshal(dbItem.OfferProducts, &offerProducts); err != nil {
+				rawStr := string(dbItem.OfferProducts)
+				if rawStr != "" {
+					if err2 := json.Unmarshal([]byte(rawStr), &offerProducts); err2 == nil {
+						item.OfferProducts = offerProducts
+					}
+				}
+			} else {
+				item.OfferProducts = offerProducts
+			}
+		}
+
+		if len(dbItem.DynamicFields) > 0 {
+			var dynamicFields map[string]interface{}
+			if err := json.Unmarshal(dbItem.DynamicFields, &dynamicFields); err == nil {
+				item.DynamicFields = dynamicFields
+			}
+		} else {
+			item.DynamicFields = make(map[string]interface{})
+		}
+
+		productItems = append(productItems, item)
+	}
+
 	return
 }

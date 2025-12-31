@@ -61,6 +61,7 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 			product.GET("/suggestions", productHandler.GetProductSearchSuggestions)
 			product.GET("/filters", productHandler.GetProductSearchFilters)
 			product.GET("/locations", productHandler.GetProductSearchLocations)
+			product.GET("/nearby", productHandler.GetNearbyProductsByPincode)
 		}
 
 		// product items
@@ -162,6 +163,24 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 		{
 			category.GET("/", productHandler.GetAllCategories)
 			category.GET("/:category_id/products", productHandler.GetProductsByCategory)
+			category.GET("/:category_id/product-items", userHandler.GetProductItemsByCategory)
+		}
+
+		document := api.Group("/departments")
+		{
+			document.GET("/:department_id/products", userHandler.GetProductItemsByDepartment)
+		}
+
+		// Sub-categories product items
+		subCategory := api.Group("/sub-categories")
+		{
+			subCategory.GET("/:sub_category_id/product-items", userHandler.GetProductItemsBySubCategory)
+		}
+
+		// Shops (by admin id) product items
+		shops := api.Group("/shops")
+		{
+			shops.GET("/:admin_id/products", userHandler.GetProductItemsByShop)
 		}
 
 		// Shop by Brand
@@ -201,7 +220,6 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 			location.GET("/cities/:city_id/areas", productHandler.GetAreasByCity)
 			location.GET("/areas/:area_id/pincodes", productHandler.GetPincodesByArea)
 			location.GET("/pincodes/:pincode_id/location", productHandler.GetLocationByPincode)
-			location.GET("/nearby", productHandler.GetNearbyProductsByPincode)
 		}
 
 		notification := api.Group("/notifications")

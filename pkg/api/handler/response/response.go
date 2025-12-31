@@ -18,11 +18,20 @@ func SuccessResponse(ctx *gin.Context, statusCode int, message string, data ...i
 
 	log.Printf("\033[0;32m%s\033[0m\n", message)
 
+	var out interface{}
+	if len(data) == 0 {
+		out = nil
+	} else if len(data) == 1 {
+		out = data[0]
+	} else {
+		out = data
+	}
+
 	response := Response{
 		Status:  true,
 		Message: message,
 		Error:   nil,
-		Data:    data,
+		Data:    out,
 	}
 	ctx.JSON(statusCode, response)
 }
