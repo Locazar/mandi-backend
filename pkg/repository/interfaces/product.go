@@ -42,7 +42,7 @@ type ProductRepository interface {
 
 	// product items
 	FindProductItemByID(ctx context.Context, productItemID uint) (domain.ProductItem, error)
-	FindAllProductItems(ctx context.Context, adminID string, keyword string, categoryID, brandID, locationID *string, pagination *request.Pagination) ([]response.ProductItems, error)
+	FindAllProductItems(ctx context.Context, adminID string, keyword string, categoryID, brandID, locationID *string, sortby string, pagination *request.Pagination) ([]response.ProductItems, error)
 	DeleteProductItem(ctx context.Context, productItemID uint) error
 	// GetProductItemsByDepartment returns product items associated with a department id
 	GetProductItemsByDepartment(ctx context.Context, departmentID uint) ([]response.ProductItems, error)

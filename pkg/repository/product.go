@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
@@ -79,11 +80,11 @@ func (c *productDatabase) IsSubCategoryNameExist(ctx context.Context, name strin
 }
 
 // Save Category as sub category
-func (c *productDatabase) SaveSubCategory(ctx context.Context, body request.SubCategory, departmentID string, categoryID string) (err error) {
+func (c *productDatabase) SaveSubCategory(ctx context.Context, body request.SubCategory, brandID string, categoryID string) (err error) {
 
-	print("department id in repo", departmentID, "category id in repo", categoryID)
+	print("department id in repo", brandID, "category id in repo", categoryID)
 	query := `INSERT INTO sub_categories (department_id, category_id, name) VALUES ($1, $2, $3)`
-	err = c.DB.Exec(query, departmentID, categoryID, body.Name).Error
+	err = c.DB.Exec(query, brandID, categoryID, body.Name).Error
 
 	return err
 }
@@ -285,14 +286,59 @@ func (c *productDatabase) FindAllProducts(ctx context.Context, pagination reques
 	limit := pagination.Count
 	offset := (pagination.PageNumber - 1) * limit
 
-	query := `SELECT p.*, c.name AS category_name, c.image_url AS category_image_url 
-	FROM products p 
-	LEFT JOIN categories c ON p.category_id = c.id 
+	query := `SELECT p.*, c.name AS category_name, c.image_url AS category_image_url
+	FROM products p
+	LEFT JOIN categories c ON p.category_id = c.id
 	ORDER BY p.created_at DESC LIMIT $1 OFFSET $2`
 
-	err = c.DB.Raw(query, limit, offset).Scan(&products).Error
+	// Temporary struct for scanning (without ProductItems slice)
+	type productDB struct {
+		ID               uint       `gorm:"column:id"`
+		CategoryID       uint       `gorm:"column:category_id"`
+		Price            uint       `gorm:"column:price"`
+		DiscountPrice    uint       `gorm:"column:discount_price"`
+		Name             string     `gorm:"column:name"`
+		Description      string     `gorm:"column:description"`
+		CategoryName     string     `gorm:"column:category_name"`
+		CategoryImageURL string     `gorm:"column:category_image_url"`
+		MainCategoryName string     `gorm:"column:main_category_name"`
+		BrandID          uint       `gorm:"column:brand_id"`
+		BrandName        string     `gorm:"column:brand_name"`
+		Image            string     `gorm:"column:image"`
+		CreatedAt        time.Time  `gorm:"column:created_at"`
+		UpdatedAt        time.Time  `gorm:"column:updated_at"`
+		LocationID       *uuid.UUID `gorm:"column:location_id"`
+		Stock            int        `gorm:"column:stock"`
+	}
+
+	var dbProducts []productDB
+	err = c.DB.Raw(query, limit, offset).Scan(&dbProducts).Error
 	if err != nil {
 		return nil, err
+	}
+
+	// Map to response.Product
+	products = make([]response.Product, len(dbProducts))
+	for i, dbProd := range dbProducts {
+		products[i] = response.Product{
+			ID:               dbProd.ID,
+			CategoryID:       dbProd.CategoryID,
+			Price:            dbProd.Price,
+			DiscountPrice:    dbProd.DiscountPrice,
+			Name:             dbProd.Name,
+			Description:      dbProd.Description,
+			CategoryName:     dbProd.CategoryName,
+			CategoryImageURL: dbProd.CategoryImageURL,
+			MainCategoryName: dbProd.MainCategoryName,
+			BrandID:          dbProd.BrandID,
+			BrandName:        dbProd.BrandName,
+			Image:            dbProd.Image,
+			CreatedAt:        dbProd.CreatedAt,
+			UpdatedAt:        dbProd.UpdatedAt,
+			LocationID:       dbProd.LocationID,
+			Stock:            dbProd.Stock,
+			ProductItems:     []response.ProductItems{}, // Initialize empty, will be populated below
+		}
 	}
 
 	// Fetch product items for each product
@@ -310,12 +356,12 @@ func (c *productDatabase) FindAllProducts(ctx context.Context, pagination reques
 
 // helper method to get product items by product ID (internal use)
 func (c *productDatabase) findProductItemsByProductID(ctx context.Context, productID uint) (productItems []response.ProductItems, err error) {
-	query := `SELECT pi.sub_category_name, pi.id, pi.product_id, pi.category_id, 
+	query := `SELECT pi.sub_category_name, pi.id, pi.category_id, 
 		   sc.name AS category_name, mc.name AS main_category_name
 	       FROM product_items pi 
 	       LEFT JOIN categories sc ON pi.category_id = sc.id 
 	       LEFT JOIN categories mc ON pi.category_id = mc.id 
-	       WHERE pi.product_id = $1`
+	       WHERE pi.id = $1`
 
 	type productItemDB struct {
 		Name             string `gorm:"column:sub_category_name"`
@@ -411,13 +457,16 @@ VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`
 
 // for get all products items for a product filtered by admin_id and additional filters
 func (c *productDatabase) FindAllProductItems(ctx context.Context,
-	adminID string, keyword string, categoryID *string, departmentID *string, subCategoryID *string, pagination *request.Pagination) (productItems []response.ProductItems, err error) {
+	adminID string, keyword string, categoryID *string, brandID *string, locationID *string, sortby string, pagination *request.Pagination) (productItems []response.ProductItems, err error) {
+
+	log.Printf("FindAllProductItems called with adminID: %s", adminID)
 
 	query := `SELECT pi.sub_category_name, pi.id, pi.category_id, pi.department_id, pi.sub_category_id,
 				pi.product_item_images, pi.dynamic_fields, pi.created_at, pi.updated_at,
 				c.name AS category_name, d.name AS department_name, sc.name AS sub_category_name_ref,
 			(SELECT MAX(o3.discount_rate) FROM offer_products op3 INNER JOIN offers o3 ON o3.id = op3.offer_id WHERE op3.product_item_id = pi.id) AS discount_rate,
 				sc.image_url AS sub_category_image_url,
+				(SELECT COALESCE(SUM(view_count), 0) FROM product_item_views WHERE product_item_id = pi.id) AS view_count,
 				(
 					SELECT COALESCE(json_agg(json_build_object(
 						'offer_product_id', op2.id,
@@ -440,7 +489,7 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context,
 			LEFT JOIN categories c ON pi.category_id = c.id 
 			LEFT JOIN departments d ON pi.department_id = d.id
 			LEFT JOIN sub_categories sc ON pi.sub_category_id = sc.id
-			WHERE pi.admin_id::text = @adminID`
+			WHERE (pi.admin_id ->> 'id' = @adminID OR pi.admin_id #>> '{}' = @adminID)`
 	// Add filters dynamically
 	params := map[string]interface{}{
 		"adminID": adminID,
@@ -453,20 +502,33 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context,
 		query += " AND pi.category_id = @categoryID"
 		params["categoryID"] = *categoryID
 	}
-	if departmentID != nil && *departmentID != "" {
-		query += " AND pi.department_id = @departmentID"
-		params["departmentID"] = *departmentID
+	if brandID != nil && *brandID != "" {
+		query += " AND pi.brand_id = @brandID"
+		params["brandID"] = *brandID
 	}
-	if subCategoryID != nil && *subCategoryID != "" {
-		query += " AND pi.sub_category_id = @subCategoryID"
-		params["subCategoryID"] = *subCategoryID
+	if locationID != nil && *locationID != "" {
+		query += " AND pi.location_id = @locationID"
+		params["locationID"] = *locationID
+	}
+	orderBy := "pi.created_at"
+	if sortby != "" {
+		switch sortby {
+		case "created_at":
+			orderBy = "pi.created_at"
+		case "updated_at":
+			orderBy = "pi.updated_at"
+		case "name":
+			orderBy = "pi.sub_category_name"
+		case "views":
+			orderBy = "view_count"
+		}
 	}
 	if pagination != nil {
-		query += " ORDER BY pi.created_at DESC LIMIT @limit OFFSET @offset"
+		query += " ORDER BY " + orderBy + " DESC LIMIT @limit OFFSET @offset"
 		params["limit"] = pagination.Count
 		params["offset"] = (pagination.PageNumber - 1) * pagination.Count
 	} else {
-		query += " ORDER BY pi.created_at DESC"
+		query += " ORDER BY " + orderBy + " DESC"
 	}
 
 	// Internal struct for scanning DB result
@@ -486,11 +548,18 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context,
 		CreatedAt           time.Time     `gorm:"column:created_at"`
 		UpdatedAt           time.Time     `gorm:"column:updated_at"`
 		DiscountRate        sql.NullInt64 `gorm:"column:discount_rate"`
+		ViewCount           uint          `gorm:"column:view_count"`
 	}
 	var dbItems []productItemDB
+	log.Printf("Query: %s, Params: %v", query, params)
 	err = c.DB.Raw(query, params).Scan(&dbItems).Error
 	if err != nil {
 		return
+	}
+
+	log.Printf("Number of dbItems scanned: %d", len(dbItems))
+	if len(dbItems) > 0 {
+		log.Printf("First dbItem: %+v", dbItems[0])
 	}
 
 	// Map to response.ProductItems
@@ -526,6 +595,7 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context,
 			ProductItemImages:   images,
 			CreatedAt:           dbItem.CreatedAt,
 			UpdatedAt:           dbItem.UpdatedAt,
+			ViewCount:           dbItem.ViewCount,
 		}
 
 		// Unmarshal offer_products if present
@@ -556,6 +626,7 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context,
 
 		productItems = append(productItems, item)
 	}
+	fmt.Printf("Retrieved %d product items\n", len(productItems)) // Debugging line
 	return
 }
 
@@ -633,6 +704,7 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 			pi.product_item_images, pi.dynamic_fields, pi.created_at, pi.updated_at,
 			c.name AS category_name, d.name AS department_name, sc.name AS sub_category_name_ref,
 			sc.image_url AS sub_category_image_url,
+			(SELECT COALESCE(SUM(view_count), 0) FROM product_item_views WHERE product_item_id = pi.id) AS view_count,
 			(
 				SELECT COALESCE(json_agg(json_build_object(
 					'offer_product_id', op2.id,
@@ -691,6 +763,7 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 		OfferProducts       []byte    `gorm:"column:offer_products"`
 		CreatedAt           time.Time `gorm:"column:created_at"`
 		UpdatedAt           time.Time `gorm:"column:updated_at"`
+		ViewCount           uint      `gorm:"column:view_count"`
 	}
 
 	var dbItems []productItemDB
@@ -732,6 +805,7 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 			ProductItemImages:   images,
 			CreatedAt:           dbItem.CreatedAt,
 			UpdatedAt:           dbItem.UpdatedAt,
+			ViewCount:           dbItem.ViewCount,
 		}
 
 		// Unmarshal offer_products if present. Handle both raw JSON bytes and JSON-as-string.
@@ -783,10 +857,10 @@ func (c *productDatabase) GetAllDepartments(ctx context.Context) (departments []
 	return
 }
 
-func (c *productDatabase) GetDepartmentByID(ctx context.Context, departmentID uint) (department response.Department, err error) {
+func (c *productDatabase) GetDepartmentByID(ctx context.Context, brandID uint) (department response.Department, err error) {
 
 	query := `SELECT id, name, image_url FROM departments WHERE id = $1`
-	err = c.DB.Raw(query, departmentID).Scan(&department).Error
+	err = c.DB.Raw(query, brandID).Scan(&department).Error
 
 	return
 }
@@ -799,10 +873,10 @@ func (c *productDatabase) GetAllSubCategories(ctx context.Context) (subCategorie
 	return
 }
 
-func (c *productDatabase) GetAllCategoriesByDepartmentID(ctx context.Context, departmentID uint) (categories []response.Category, err error) {
+func (c *productDatabase) GetAllCategoriesByDepartmentID(ctx context.Context, brandID uint) (categories []response.Category, err error) {
 
 	query := `SELECT id, name, image_url FROM categories WHERE department_id = $1`
-	err = c.DB.Raw(query, departmentID).Scan(&categories).Error
+	err = c.DB.Raw(query, brandID).Scan(&categories).Error
 
 	return
 }
@@ -816,18 +890,18 @@ func (c *productDatabase) GetAllSubCategoriesByCategoryID(ctx context.Context, c
 }
 
 // SaveSubTypeAttribute saves a new sub type attribute for a subcategory
-func (c *productDatabase) SaveSubTypeAttribute(ctx context.Context, subCategoryID uint, attribute domain.SubTypeAttributes) error {
-	attribute.SubCategoryID = subCategoryID
+func (c *productDatabase) SaveSubTypeAttribute(ctx context.Context, locationID uint, attribute domain.SubTypeAttributes) error {
+	attribute.SubCategoryID = locationID
 	return c.DB.Create(&attribute).Error
 }
 
 // GetAllSubTypeAttributes retrieves all sub type attributes for a subcategory
-func (c *productDatabase) GetAllSubTypeAttributes(ctx context.Context, subCategoryID uint) (attributes []response.SubTypeAttribute, err error) {
+func (c *productDatabase) GetAllSubTypeAttributes(ctx context.Context, locationID uint) (attributes []response.SubTypeAttribute, err error) {
 	query := `SELECT id, sub_category_id, field_name, field_type, is_required, sort_order 
 	          FROM sub_type_attributes 
 	          WHERE sub_category_id = $1 
 	          ORDER BY sort_order ASC`
-	err = c.DB.Raw(query, subCategoryID).Scan(&attributes).Error
+	err = c.DB.Raw(query, locationID).Scan(&attributes).Error
 	return
 }
 
@@ -981,7 +1055,8 @@ func (c *productDatabase) GetProductItemViewCount(ctx context.Context, productIt
 func (c *productDatabase) FindProductItemsByDocument(ctx context.Context, documentID uint) (productItems []response.ProductItems, err error) {
 	query := `SELECT pi.sub_category_name, pi.id, pi.category_id, 
 	           sc.name AS category_name, mc.name AS main_category_name,
-	           pi.product_item_images, pi.dynamic_fields, pi.created_at, pi.updated_at
+	           pi.product_item_images, pi.dynamic_fields, pi.created_at, pi.updated_at,
+	           (SELECT COALESCE(SUM(view_count), 0) FROM product_item_views WHERE product_item_id = pi.id) AS view_count
 	       FROM product_items pi 
 	       LEFT JOIN categories sc ON pi.category_id = sc.id 
 	       LEFT JOIN categories mc ON pi.category_id = mc.id 
@@ -998,6 +1073,7 @@ func (c *productDatabase) FindProductItemsByDocument(ctx context.Context, docume
 		DynamicFields     []byte    `gorm:"column:dynamic_fields"`
 		CreatedAt         time.Time `gorm:"column:created_at"`
 		UpdatedAt         time.Time `gorm:"column:updated_at"`
+		ViewCount         uint      `gorm:"column:view_count"`
 	}
 
 	var dbItems []productItemDB
@@ -1034,6 +1110,7 @@ func (c *productDatabase) FindProductItemsByDocument(ctx context.Context, docume
 			ProductItemImages: images,
 			CreatedAt:         dbItem.CreatedAt,
 			UpdatedAt:         dbItem.UpdatedAt,
+			ViewCount:         dbItem.ViewCount,
 		}
 
 		// Unmarshal DynamicFields if present
@@ -1054,11 +1131,12 @@ func (c *productDatabase) FindProductItemsByDocument(ctx context.Context, docume
 
 // GetProductItemsByDepartment returns product items for the department id provided.
 // It joins shop_details to map the document/shop id to the admin_id stored on product_items.
-func (c *productDatabase) GetProductItemsByDepartment(ctx context.Context, departmentID uint) (productItems []response.ProductItems, err error) {
+func (c *productDatabase) GetProductItemsByDepartment(ctx context.Context, brandID uint) (productItems []response.ProductItems, err error) {
 	query := `SELECT pi.sub_category_name, pi.id, pi.category_id, pi.department_id, pi.sub_category_id,
 				pi.product_item_images, pi.dynamic_fields, pi.created_at, pi.updated_at,
 				c.name AS category_name, d.name AS department_name, sc.name AS sub_category_name_ref,
 				sc.image_url AS sub_category_image_url,
+				(SELECT COALESCE(SUM(view_count), 0) FROM product_item_views WHERE product_item_id = pi.id) AS view_count,
 				(
 					SELECT COALESCE(json_agg(json_build_object(
 						'offer_product_id', op2.id,
@@ -1087,24 +1165,26 @@ func (c *productDatabase) GetProductItemsByDepartment(ctx context.Context, depar
 
 	// Internal struct mirrors FindAllProductItems scanning for reuse
 	type productItemDB struct {
-		Name                string    `gorm:"column:sub_category_name"`
-		ID                  uint      `gorm:"column:id"`
-		CategoryID          uint      `gorm:"column:category_id"`
-		DepartmentID        uint      `gorm:"column:department_id"`
-		SubCategoryID       uint      `gorm:"column:sub_category_id"`
-		CategoryName        string    `gorm:"column:category_name"`
-		DepartmentName      string    `gorm:"column:department_name"`
-		SubCategoryNameRef  string    `gorm:"column:sub_category_name_ref"`
-		SubCategoryImageURL string    `gorm:"column:sub_category_image_url"`
-		ProductItemImages   string    `gorm:"column:product_item_images"`
-		DynamicFields       []byte    `gorm:"column:dynamic_fields"`
-		OfferProducts       []byte    `gorm:"column:offer_products"`
-		CreatedAt           time.Time `gorm:"column:created_at"`
-		UpdatedAt           time.Time `gorm:"column:updated_at"`
+		Name                string        `gorm:"column:sub_category_name"`
+		ID                  uint          `gorm:"column:id"`
+		CategoryID          uint          `gorm:"column:category_id"`
+		DepartmentID        uint          `gorm:"column:department_id"`
+		SubCategoryID       uint          `gorm:"column:sub_category_id"`
+		CategoryName        string        `gorm:"column:category_name"`
+		DepartmentName      string        `gorm:"column:department_name"`
+		SubCategoryNameRef  string        `gorm:"column:sub_category_name_ref"`
+		SubCategoryImageURL string        `gorm:"column:sub_category_image_url"`
+		ProductItemImages   string        `gorm:"column:product_item_images"`
+		DynamicFields       []byte        `gorm:"column:dynamic_fields"`
+		OfferProducts       []byte        `gorm:"column:offer_products"`
+		DiscountRate        sql.NullInt64 `gorm:"column:discount_rate"`
+		CreatedAt           time.Time     `gorm:"column:created_at"`
+		UpdatedAt           time.Time     `gorm:"column:updated_at"`
+		ViewCount           uint          `gorm:"column:view_count"`
 	}
 
 	var dbItems []productItemDB
-	err = c.DB.Raw(query, departmentID).Scan(&dbItems).Error
+	err = c.DB.Raw(query, brandID).Scan(&dbItems).Error
 	if err != nil {
 		return
 	}
@@ -1128,6 +1208,23 @@ func (c *productDatabase) GetProductItemsByDepartment(ctx context.Context, depar
 			images = []string{}
 		}
 
+		var offerProducts []response.OfferProduct
+		if len(dbItem.OfferProducts) > 0 {
+			if err := json.Unmarshal(dbItem.OfferProducts, &offerProducts); err != nil {
+				rawStr := string(dbItem.OfferProducts)
+				if rawStr != "" {
+					_ = json.Unmarshal([]byte(rawStr), &offerProducts)
+				}
+			}
+		}
+
+		var discountRatePtr *uint
+		if dbItem.DiscountRate.Valid {
+			val := uint(dbItem.DiscountRate.Int64)
+			discountRatePtr = &val
+		} else {
+			discountRatePtr = nil
+		}
 		item := response.ProductItems{
 			ID:                  dbItem.ID,
 			Name:                dbItem.Name,
@@ -1138,22 +1235,11 @@ func (c *productDatabase) GetProductItemsByDepartment(ctx context.Context, depar
 			DepartmentID:        dbItem.DepartmentID,
 			SubCategoryID:       dbItem.SubCategoryID,
 			ProductItemImages:   images,
+			OfferProducts:       offerProducts,
+			DiscountRate:        discountRatePtr,
 			CreatedAt:           dbItem.CreatedAt,
 			UpdatedAt:           dbItem.UpdatedAt,
-		}
-
-		if len(dbItem.OfferProducts) > 0 {
-			var offerProducts []response.OfferProduct
-			if err := json.Unmarshal(dbItem.OfferProducts, &offerProducts); err != nil {
-				rawStr := string(dbItem.OfferProducts)
-				if rawStr != "" {
-					if err2 := json.Unmarshal([]byte(rawStr), &offerProducts); err2 == nil {
-						item.OfferProducts = offerProducts
-					}
-				}
-			} else {
-				item.OfferProducts = offerProducts
-			}
+			ViewCount:           dbItem.ViewCount,
 		}
 
 		if len(dbItem.DynamicFields) > 0 {
@@ -1177,6 +1263,7 @@ func (c *productDatabase) GetProductItemsByCategory(ctx context.Context, categor
 				pi.product_item_images, pi.dynamic_fields, pi.created_at, pi.updated_at,
 				c.name AS category_name, d.name AS department_name, sc.name AS sub_category_name_ref,
 				sc.image_url AS sub_category_image_url,
+				(SELECT COALESCE(SUM(view_count), 0) FROM product_item_views WHERE product_item_id = pi.id) AS view_count,
 				(
 					SELECT COALESCE(json_agg(json_build_object(
 						'offer_product_id', op2.id,
@@ -1218,6 +1305,7 @@ func (c *productDatabase) GetProductItemsByCategory(ctx context.Context, categor
 		OfferProducts       []byte    `gorm:"column:offer_products"`
 		CreatedAt           time.Time `gorm:"column:created_at"`
 		UpdatedAt           time.Time `gorm:"column:updated_at"`
+		ViewCount           uint      `gorm:"column:view_count"`
 	}
 
 	var dbItems []productItemDB
@@ -1288,11 +1376,12 @@ func (c *productDatabase) GetProductItemsByCategory(ctx context.Context, categor
 }
 
 // GetProductItemsBySubCategory returns product items for the sub-category id provided.
-func (c *productDatabase) GetProductItemsBySubCategory(ctx context.Context, subCategoryID uint) (productItems []response.ProductItems, err error) {
+func (c *productDatabase) GetProductItemsBySubCategory(ctx context.Context, locationID uint) (productItems []response.ProductItems, err error) {
 	query := `SELECT pi.sub_category_name, pi.id, pi.category_id, pi.department_id, pi.sub_category_id,
 				pi.product_item_images, pi.dynamic_fields, pi.created_at, pi.updated_at,
 				c.name AS category_name, d.name AS department_name, sc.name AS sub_category_name_ref,
 				sc.image_url AS sub_category_image_url,
+				(SELECT COALESCE(SUM(view_count), 0) FROM product_item_views WHERE product_item_id = pi.id) AS view_count,
 				(
 					SELECT COALESCE(json_agg(json_build_object(
 						'offer_product_id', op2.id,
@@ -1334,10 +1423,11 @@ func (c *productDatabase) GetProductItemsBySubCategory(ctx context.Context, subC
 		OfferProducts       []byte    `gorm:"column:offer_products"`
 		CreatedAt           time.Time `gorm:"column:created_at"`
 		UpdatedAt           time.Time `gorm:"column:updated_at"`
+		ViewCount           uint      `gorm:"column:view_count"`
 	}
 
 	var dbItems []productItemDB
-	err = c.DB.Raw(query, subCategoryID).Scan(&dbItems).Error
+	err = c.DB.Raw(query, locationID).Scan(&dbItems).Error
 	if err != nil {
 		return
 	}
@@ -1410,6 +1500,7 @@ func (c *productDatabase) GetProductItemsByShop(ctx context.Context, adminID uin
 				pi.product_item_images, pi.dynamic_fields, pi.created_at, pi.updated_at,
 				c.name AS category_name, d.name AS department_name, sc.name AS sub_category_name_ref,
 				sc.image_url AS sub_category_image_url,
+				(SELECT COALESCE(SUM(view_count), 0) FROM product_item_views WHERE product_item_id = pi.id) AS view_count,
 				(
 					SELECT COALESCE(json_agg(json_build_object(
 						'offer_product_id', op2.id,
@@ -1427,7 +1518,7 @@ func (c *productDatabase) GetProductItemsByShop(ctx context.Context, adminID uin
 					LEFT JOIN product_items pi2 ON pi2.id = op2.product_item_id
 					INNER JOIN offers o2 ON o2.id = op2.offer_id
 
-					WHERE op2.product_item_id = pi.id
+					WHERE op2.product_item_id = pi.id AND o2.start_date <= CURRENT_TIMESTAMP AND o2.end_date >= CURRENT_TIMESTAMP
 				) AS offer_products
 			FROM product_items pi
 			LEFT JOIN categories c ON pi.category_id = c.id
@@ -1462,6 +1553,7 @@ func (c *productDatabase) GetProductItemsByShop(ctx context.Context, adminID uin
 		OfferProducts       []byte    `gorm:"column:offer_products"`
 		CreatedAt           time.Time `gorm:"column:created_at"`
 		UpdatedAt           time.Time `gorm:"column:updated_at"`
+		ViewCount           uint      `gorm:"column:view_count"`
 	}
 
 	// Log SQL and parameter to aid debugging when API returns no rows
@@ -1506,6 +1598,7 @@ func (c *productDatabase) GetProductItemsByShop(ctx context.Context, adminID uin
 			ProductItemImages:   images,
 			CreatedAt:           dbItem.CreatedAt,
 			UpdatedAt:           dbItem.UpdatedAt,
+			ViewCount:           dbItem.ViewCount,
 		}
 
 		if len(dbItem.OfferProducts) > 0 {

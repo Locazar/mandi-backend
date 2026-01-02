@@ -122,7 +122,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		// product
 		product := api.Group("/products")
 		{
-			product.GET("/", productHandler.GetAllProductsAdmin)
+			// product.GET("/", productHandler.GetAllProductsAdmin)
 			product.GET("/:product_id", productHandler.GetProductByID)
 			product.POST("/", middleware.TrimSpaces(), productHandler.SaveProduct)
 			product.PUT("/", middleware.TrimSpaces(), productHandler.UpdateProduct)
@@ -132,13 +132,13 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		productItem := api.Group("/items")
 		{
 			productItem.GET("", productHandler.GetAllProductItemsAdmin())
+			productItem.GET("/shop/:shop_id", productHandler.GetProductItemsByShopID())
 			productItem.POST("", productHandler.SaveProductItem)
 			productItem.GET("/:product_item_id", productHandler.GetProductItemByID)
 			productItem.DELETE("/:product_item_id", productHandler.DeleteProductItem)
 
 			productView := productItem.Group("/:product_item_id/view")
 			{
-				productView.POST("/", productHandler.IncrementProductItemViewCount)
 				productView.GET("/", productHandler.GetProductItemViewCount)
 			}
 

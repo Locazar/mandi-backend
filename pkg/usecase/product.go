@@ -353,13 +353,14 @@ func (c *productUseCase) isProductVariationCombinationExist(productID uint, vari
 }
 
 // for get all productItem for a specific product
-func (c *productUseCase) FindAllProductItems(ctx context.Context, adminId string, keyword string, categoryID, brandID, locationID *string, pagination *request.Pagination) ([]response.ProductItems, error) {
+func (c *productUseCase) FindAllProductItems(ctx context.Context, adminId string, keyword string, categoryID, brandID, locationID *string, sortby string, pagination *request.Pagination) ([]response.ProductItems, error) {
 
-	productItems, err := c.productRepo.FindAllProductItems(ctx, adminId, keyword, categoryID, brandID, locationID, pagination)
+	productItems, err := c.productRepo.FindAllProductItems(ctx, adminId, keyword, categoryID, brandID, locationID, sortby, pagination)
 	if err != nil {
 		return productItems, err
 	}
 
+	fmt.Printf("Retrieved %d product items in usecase\n", len(productItems)) // Debugging line
 	return productItems, nil
 }
 

@@ -94,10 +94,11 @@ type ProductItems struct {
 	SubCategoryImageURL string                 `json:"sub_category_image_url"`
 	ProductItemImages   []string               `json:"product_item_images"`
 	DynamicFields       map[string]interface{} `json:"dynamic_fields"`
-	OfferProducts       []OfferProduct         `json:"offer_products,omitempty"`
+	OfferProducts       []OfferProduct         `json:"offer_products"`
 	DiscountRate        *uint                  `json:"discount_rate,omitempty"`
 	CreatedAt           time.Time              `json:"created_at"`
 	UpdatedAt           time.Time              `json:"updated_at"`
+	ViewCount           uint                   `json:"view_count"`
 }
 
 type ProductVariationValue struct {

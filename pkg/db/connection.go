@@ -96,6 +96,7 @@ func ConnectDatabase(cfg config.Config) (*gorm.DB, error) {
 		domain.SubTypeAttributes{},
 		domain.SubTypeAttributeOptions{},
 		domain.SubCategoryDetails{},
+		domain.ProductItemView{},
 	)
 
 	if err != nil {

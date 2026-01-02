@@ -167,7 +167,7 @@ type SubCategoryDetails struct {
 	SubCategoryImageUrl string `json:"sub_category_image_url"`
 }
 
-type ProductView struct {
+type ProductItemView struct {
 	ID            uint      `json:"id" gorm:"primaryKey;not null"`
 	ProductItemID uint      `json:"product_item_id" gorm:"not null"`
 	ShopID        uint      `json:"shop_id" gorm:"not null"`

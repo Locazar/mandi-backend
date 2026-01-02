@@ -51,23 +51,23 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 
 		product := api.Group("/products")
 		{
-			product.GET("/", productHandler.GetAllProductsUser)
+			// product.GET("/", productHandler.GetAllProductsUser)
 
 			productItem := product.Group("/:product_id/items")
 			{
 				productItem.GET("/", productHandler.GetAllProductItemsUser())
+				productItem.GET("/:product_item_id", productHandler.GetProductItemByID)
 			}
 			product.GET("/search", productHandler.SearchProducts)
 			product.GET("/suggestions", productHandler.GetProductSearchSuggestions)
 			product.GET("/filters", productHandler.GetProductSearchFilters)
 			product.GET("/locations", productHandler.GetProductSearchLocations)
 			product.GET("/nearby", productHandler.GetNearbyProductsByPincode)
-		}
 
-		// product items
-		productItems := api.Group("/product-items")
-		{
-			productItems.GET("/:productItem_id", productHandler.GetProductItemByID)
+			productViewed := product.Group("/viewed-products")
+			{
+				productViewed.GET("/:product_item_id/view-count", productHandler.GetProductItemViewCount)
+			}
 		}
 
 		// 	// cart
@@ -233,6 +233,12 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 		feedback := api.Group("/feedback")
 		{
 			feedback.POST("/shop", orderHandler.SubmitShoppingFeedback)
+		}
+
+		viewedProducts := api.Group("/viewed-products")
+		{
+			viewedProducts.POST("/:product_item_id", productHandler.IncrementProductItemViewCount)
+			viewedProducts.GET("/:product_item_id/view-count", productHandler.GetProductItemViewCount)
 		}
 
 		// Job search
