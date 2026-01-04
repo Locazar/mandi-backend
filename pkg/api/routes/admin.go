@@ -123,6 +123,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		product := api.Group("/products")
 		{
 			// product.GET("/", productHandler.GetAllProductsAdmin)
+			product.GET("/filters", productHandler.FindProductItemFilters)
 			product.GET("/:product_id", productHandler.GetProductByID)
 			product.POST("/", middleware.TrimSpaces(), productHandler.SaveProduct)
 			product.PUT("/", middleware.TrimSpaces(), productHandler.UpdateProduct)

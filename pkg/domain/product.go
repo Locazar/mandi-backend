@@ -177,3 +177,11 @@ type ProductItemView struct {
 	CreatedAt     time.Time `json:"created_at" gorm:"not null;autoCreateTime"`
 	UpdatedAt     time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }
+
+type ProductItemFilterType struct {
+	ID         uint      `json:"id" gorm:"primaryKey;not null"`
+	FilterName string    `json:"filter_name" gorm:"not null"`
+	ShopID     uint      `json:"shop_id"`
+	CreatedAt  time.Time `json:"created_at" gorm:"not null;autoCreateTime"`
+	UpdatedAt  time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+}

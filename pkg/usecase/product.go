@@ -353,9 +353,9 @@ func (c *productUseCase) isProductVariationCombinationExist(productID uint, vari
 }
 
 // for get all productItem for a specific product
-func (c *productUseCase) FindAllProductItems(ctx context.Context, adminId string, keyword string, categoryID, brandID, locationID *string, sortby string, pagination *request.Pagination) ([]response.ProductItems, error) {
+func (c *productUseCase) FindAllProductItems(ctx context.Context, adminId string, keyword string, categoryID, brandID, locationID *string, offer string, sortby string, pagination *request.Pagination) ([]response.ProductItems, error) {
 
-	productItems, err := c.productRepo.FindAllProductItems(ctx, adminId, keyword, categoryID, brandID, locationID, sortby, pagination)
+	productItems, err := c.productRepo.FindAllProductItems(ctx, adminId, keyword, categoryID, brandID, locationID, offer, sortby, pagination)
 	if err != nil {
 		return productItems, err
 	}
@@ -1448,4 +1448,12 @@ func (c *productUseCase) GetProductItemViewCount(ctx context.Context, productIte
 		return 0, utils.PrependMessageToError(err, "failed to get product item view count")
 	}
 	return count, nil
+}
+
+func (s *productUseCase) FindProductItemFilters(ctx context.Context) ([]domain.ProductItemFilterType, error) {
+	filters, err := s.productRepo.FindProductItemFilters(ctx)
+	if err != nil {
+		return nil, utils.PrependMessageToError(err, "failed to find product item filters")
+	}
+	return filters, nil
 }

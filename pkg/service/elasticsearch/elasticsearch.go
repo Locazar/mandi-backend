@@ -32,9 +32,7 @@ func (es *ElasticService) IndexProduct(ctx context.Context, product domain.Produ
 		"id":          product.ID,
 		"name":        product.Name,
 		"description": product.Description,
-		"price":       product.Price,
 		"category_id": product.CategoryID,
-		"brand_id":    product.BrandID,
 	}
 	data, err := json.Marshal(body)
 	if err != nil {
@@ -57,6 +55,42 @@ func (es *ElasticService) IndexProduct(ctx context.Context, product domain.Produ
 	}
 
 	log.Printf("Product %d indexed successfully", product.ID)
+	return nil
+}
+
+// IndexProductItem indexes a product item in Elasticsearch
+func (es *ElasticService) IndexProductItem(ctx context.Context, productItem domain.ProductItem) error {
+	body := map[string]interface{}{
+		"id":                  productItem.ID,
+		"sub_category_name":   productItem.SubCategoryName,
+		"category_id":         productItem.CategoryID,
+		"department_id":       productItem.DepartmentID,
+		"sub_category_id":     productItem.SubCategoryID,
+		"admin_id":            productItem.AdminID,
+		"dynamic_fields":      productItem.DynamicFields,
+		"product_item_images": productItem.ProductItemImages,
+	}
+	data, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+
+	res, err := es.Client.Index(
+		"product_items",
+		bytes.NewReader(data),
+		es.Client.Index.WithDocumentID(fmt.Sprintf("%d", productItem.ID)),
+		es.Client.Index.WithContext(ctx),
+	)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	if res.IsError() {
+		return fmt.Errorf("error indexing product item: %s", res.String())
+	}
+
+	log.Printf("Product item %d indexed successfully", productItem.ID)
 	return nil
 }
 
@@ -147,14 +181,79 @@ func (es *ElasticService) SearchProducts(ctx context.Context, keyword string, ca
 			ID:          uint(source["id"].(float64)),
 			Name:        source["name"].(string),
 			Description: source["description"].(string),
-			Price:       uint(source["price"].(float64)),
-			CategoryID:  uint(source["category_id"].(float64)),
-			BrandID:     func() *uint { id := uint(source["brand_id"].(float64)); return &id }(),
-		}
+			CategoryID:  uint(source["category_id"].(float64))}
 		products = append(products, product)
 	}
 
 	return products, nil
+}
+
+// SearchProductItems searches for product items in Elasticsearch and returns IDs
+func (es *ElasticService) SearchProductItems(ctx context.Context, keyword string, categoryID *string, limit, offset int) ([]uint, error) {
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{
+						"multi_match": map[string]interface{}{
+							"query":  keyword,
+							"fields": []string{"sub_category_name"},
+						},
+					},
+				},
+				"filter": []map[string]interface{}{},
+			},
+		},
+		"sort": []map[string]interface{}{
+			{"_score": map[string]string{"order": "desc"}},
+		},
+		"size": limit,
+		"from": offset,
+	}
+
+	filters := query["query"].(map[string]interface{})["bool"].(map[string]interface{})["filter"].([]map[string]interface{})
+
+	if categoryID != nil {
+		filters = append(filters, map[string]interface{}{
+			"term": map[string]interface{}{
+				"category_id": *categoryID,
+			},
+		})
+	}
+
+	data, err := json.Marshal(query)
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := es.Client.Search(
+		es.Client.Search.WithContext(ctx),
+		es.Client.Search.WithIndex("product_items"),
+		es.Client.Search.WithBody(bytes.NewReader(data)),
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	if res.IsError() {
+		return nil, fmt.Errorf("error searching product items: %s", res.String())
+	}
+
+	var result map[string]interface{}
+	if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
+		return nil, err
+	}
+
+	hits := result["hits"].(map[string]interface{})["hits"].([]interface{})
+	ids := make([]uint, 0, len(hits))
+	for _, hit := range hits {
+		source := hit.(map[string]interface{})["_source"].(map[string]interface{})
+		id := uint(source["id"].(float64))
+		ids = append(ids, id)
+	}
+
+	return ids, nil
 }
 
 // IndexDepartment indexes a department in Elasticsearch
@@ -675,16 +774,13 @@ func (es *ElasticService) BulkIndexProducts(ctx context.Context, products []doma
 		body.WriteString(string(metaData) + "\n")
 
 		doc := map[string]interface{}{
-			"id":             product.ID,
-			"name":           product.Name,
-			"description":    product.Description,
-			"price":          product.Price,
-			"discount_price": product.DiscountPrice,
-			"category_id":    product.CategoryID,
-			"department_id":  product.DepartmentID,
-			"brand_id":       product.BrandID,
-			"shop_id":        product.ShopID,
-			"image":          product.Image,
+			"id":            product.ID,
+			"name":          product.Name,
+			"description":   product.Description,
+			"category_id":   product.CategoryID,
+			"department_id": product.DepartmentID,
+			"shop_id":       product.ShopID,
+			"image":         product.Image,
 		}
 		docData, _ := json.Marshal(doc)
 		body.WriteString(string(docData) + "\n")

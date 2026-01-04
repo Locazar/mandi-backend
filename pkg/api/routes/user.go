@@ -57,6 +57,7 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 			{
 				productItem.GET("/", productHandler.GetAllProductItemsUser())
 				productItem.GET("/:product_item_id", productHandler.GetProductItemByID)
+				productItem.GET("/:product_item_id/filters", productHandler.FindProductItemFilters)
 			}
 			product.GET("/search", productHandler.SearchProducts)
 			product.GET("/suggestions", productHandler.GetProductSearchSuggestions)
@@ -168,6 +169,7 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 
 		document := api.Group("/departments")
 		{
+			document.GET("/", productHandler.GetAllDepartments)
 			document.GET("/:department_id/products", userHandler.GetProductItemsByDepartment)
 		}
 

@@ -842,7 +842,10 @@ func (p *ProductHandler) getAllProductItems() func(ctx *gin.Context) {
 			}
 		}
 
-		productItems, err := p.productUseCase.FindAllProductItems(ctx, adminID, keyword, catIDPtr, brandIDPtr, locIDPtr, sortby, pagination)
+		// Define offer with a default value
+		offer := ctx.Query("offer")
+
+		productItems, err := p.productUseCase.FindAllProductItems(ctx, adminID, keyword, catIDPtr, brandIDPtr, locIDPtr, offer, sortby, pagination)
 
 		if err != nil {
 			response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get all product items", err, nil)
@@ -879,6 +882,10 @@ func (p *ProductHandler) GetProductItemsByShopID() func(ctx *gin.Context) {
 		// Parse optional query params
 		keyword := ctx.Query("q")
 		var catIDPtr, brandIDPtr, locIDPtr *string
+		var offer *string
+		if offerStr := ctx.Query("offer"); offerStr != "" {
+			offer = &offerStr
+		}
 		if cid := ctx.Query("category_id"); cid != "" {
 			if _, err := strconv.ParseUint(cid, 10, 64); err == nil {
 				s := cid
@@ -930,7 +937,11 @@ func (p *ProductHandler) GetProductItemsByShopID() func(ctx *gin.Context) {
 			}
 		}
 
-		productItems, err := p.productUseCase.FindAllProductItems(ctx, shopID, keyword, catIDPtr, brandIDPtr, locIDPtr, sortby, pagination)
+		var offerVal string
+		if offer != nil {
+			offerVal = *offer
+		}
+		productItems, err := p.productUseCase.FindAllProductItems(ctx, shopID, keyword, catIDPtr, brandIDPtr, locIDPtr, offerVal, sortby, pagination)
 
 		fmt.Printf("Product items for shop %s: %+v\n", shopID, productItems)
 
@@ -2230,4 +2241,27 @@ func (p *ProductHandler) DeleteProductItem(ctx *gin.Context) {
 	}
 
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully deleted product item", nil)
+}
+
+// FindProductItemFilters godoc
+//
+//	@Summary		Find product item filters
+//	@Description	API endpoint to retrieve available filters for product items based on provided criteria.
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Success		200				{object}	response.Response{}	"Successfully retrieved product item filters"
+
+func (p *ProductHandler) FindProductItemFilters(ctx *gin.Context) {
+	filters, err := p.productUseCase.FindProductItemFilters(ctx)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get product item filters", err, nil)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, response.Response{
+		Status:  true,
+		Message: "Successfully retrieved product item filters",
+		Data:    filters,
+	})
 }

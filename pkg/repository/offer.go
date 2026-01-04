@@ -186,7 +186,7 @@ func (c *offerDatabase) UpdateCategoryOffer(ctx context.Context, categoryOfferID
 func (c *offerDatabase) FindOfferProductByProductID(ctx context.Context,
 	productItemID uint) (offerProduct domain.OfferProduct, err error) {
 
-	query := `SELECT * FROM offer_products WHERE product_item_id = ?`
+	query := `SELECT op.*, o.start_date, o.end_date FROM offer_products op INNER JOIN offers o ON op.offer_id = o.id WHERE op.product_item_id = ? AND op.is_active = true AND o.start_date <= CURRENT_TIMESTAMP AND o.end_date >= CURRENT_TIMESTAMP`
 	err = c.DB.Raw(query, productItemID).Scan(&offerProduct).Error
 
 	return
@@ -207,6 +207,17 @@ func (c *offerDatabase) FindAllOfferProducts(ctx context.Context,
 // save a offer for product
 func (c *offerDatabase) SaveOfferProduct(ctx context.Context,
 	offerProduct domain.OfferProduct) (productOfferId uint, err error) {
+
+	// Check if an offer already exists for this product_item_id
+	var existingID uint
+	checkQuery := `SELECT id FROM offer_products WHERE product_item_id = $1 LIMIT 1`
+	err = c.DB.Raw(checkQuery, offerProduct.ProductItemID).Scan(&existingID).Error
+	if err == nil && existingID != 0 {
+		return 0, fmt.Errorf("an offer already exists for this product item")
+	}
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return 0, err
+	}
 
 	query := `INSERT INTO offer_products (offer_id, product_item_id) VALUES ($1,$2)  RETURNING id`
 	err = c.DB.Raw(query, offerProduct.OfferID, offerProduct.ProductItemID).Scan(&productOfferId).Error

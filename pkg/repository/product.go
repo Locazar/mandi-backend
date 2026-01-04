@@ -15,11 +15,13 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
+	"github.com/rohit221990/mandi-backend/pkg/service/elasticsearch"
 	"gorm.io/gorm"
 )
 
 type productDatabase struct {
-	DB *gorm.DB
+	DB            *gorm.DB
+	ElasticClient *elasticsearch.ElasticService
 }
 
 // DeleteProductItem deletes a product item by its ID.
@@ -452,14 +454,69 @@ VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`
 
 	err = c.DB.Raw(query, adminID, productItem.SubCategoryName, dynamicFieldsJSON, productItem.ProductItemImages, productItem.CategoryID, productItem.DepartmentID, productItem.SubCategoryID, createdAt, createdAt).Scan(&productItemID).Error
 
+	if err == nil && c.ElasticClient != nil {
+		domainItem := domain.ProductItem{
+			ID:                productItemID,
+			SubCategoryName:   productItem.SubCategoryName,
+			CategoryID:        productItem.CategoryID,
+			DepartmentID:      productItem.DepartmentID,
+			SubCategoryID:     productItem.SubCategoryID,
+			AdminID:           adminID,
+			DynamicFields:     string(dynamicFieldsJSON),
+			ProductItemImages: productItem.ProductItemImages,
+		}
+		go c.ElasticClient.IndexProductItem(ctx, domainItem) // index asynchronously
+	}
+
 	return productItemID, err
 }
 
 // for get all products items for a product filtered by admin_id and additional filters
 func (c *productDatabase) FindAllProductItems(ctx context.Context,
-	adminID string, keyword string, categoryID *string, brandID *string, locationID *string, sortby string, pagination *request.Pagination) (productItems []response.ProductItems, err error) {
+	adminID string, keyword string, categoryID *string, brandID *string, locationID *string, offer string, sortby string, pagination *request.Pagination) (productItems []response.ProductItems, err error) {
 
-	log.Printf("FindAllProductItems called with adminID: %s", adminID)
+	log.Printf("FindAllProductItems called with adminID: %s, offer: %s", adminID, offer)
+
+	var ids []uint
+	if keyword != "" && c.ElasticClient != nil {
+		limit := 100
+		offset := 0
+		if pagination != nil {
+			limit = int(pagination.Count)
+			offset = int((pagination.PageNumber - 1) * pagination.Count)
+		}
+		var err error
+		ids, err = c.ElasticClient.SearchProductItems(ctx, keyword, categoryID, limit, offset)
+		if err != nil {
+			log.Printf("ES search failed, falling back to PG: %v", err)
+		} else if len(ids) == 0 {
+			return []response.ProductItems{}, nil
+		}
+	}
+
+	// Define offerSubquery conditionally
+	var offerSubquery string
+	if offer == "false" {
+		offerSubquery = "'[]'::json"
+	} else {
+		offerSubquery = `COALESCE(json_agg(json_build_object(
+			'offer_product_id', op2.id,
+			'product_name', pi2.sub_category_name,
+			'offer_id', o2.id,
+			'offer_name', o2.name,
+			'discount_rate', o2.discount_rate,
+			'description', o2.description,
+			'start_date', o2.start_date,
+			'end_date', o2.end_date,
+			'image', o2.image,
+			'thumbnail', o2.thumbnail
+		)), '[]')
+		FROM offer_products op2
+		LEFT JOIN product_items pi2 ON pi2.id = op2.product_item_id
+		INNER JOIN offers o2 ON o2.id = op2.offer_id
+		WHERE op2.product_item_id = pi.id AND o2.start_date <= CURRENT_TIMESTAMP AND o2.end_date >= CURRENT_TIMESTAMP`
+	}
+	log.Printf("offerSubquery: %s", offerSubquery)
 
 	query := `SELECT pi.sub_category_name, pi.id, pi.category_id, pi.department_id, pi.sub_category_id,
 				pi.product_item_images, pi.dynamic_fields, pi.created_at, pi.updated_at,
@@ -467,38 +524,32 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context,
 			(SELECT MAX(o3.discount_rate) FROM offer_products op3 INNER JOIN offers o3 ON o3.id = op3.offer_id WHERE op3.product_item_id = pi.id) AS discount_rate,
 				sc.image_url AS sub_category_image_url,
 				(SELECT COALESCE(SUM(view_count), 0) FROM product_item_views WHERE product_item_id = pi.id) AS view_count,
-				(
-					SELECT COALESCE(json_agg(json_build_object(
-						'offer_product_id', op2.id,
-						'product_name', pi2.sub_category_name,
-						'offer_id', o2.id,
-						'offer_name', o2.name,
-						'discount_rate', o2.discount_rate,
-						'description', o2.description,
-						'start_date', o2.start_date,
-						'end_date', o2.end_date,
-						'image', o2.image,
-						'thumbnail', o2.thumbnail
-					)), '[]')
-					FROM offer_products op2
-					LEFT JOIN product_items pi2 ON pi2.id = op2.product_item_id
-					INNER JOIN offers o2 ON o2.id = op2.offer_id
-					WHERE op2.product_item_id = pi.id AND o2.start_date <= CURRENT_TIMESTAMP AND o2.end_date >= CURRENT_TIMESTAMP
-				) AS offer_products
+				(SELECT ` + offerSubquery + `) AS offer_products
 			FROM product_items pi 
 			LEFT JOIN categories c ON pi.category_id = c.id 
 			LEFT JOIN departments d ON pi.department_id = d.id
 			LEFT JOIN sub_categories sc ON pi.sub_category_id = sc.id
 			WHERE (pi.admin_id ->> 'id' = @adminID OR pi.admin_id #>> '{}' = @adminID)`
+	// Add offer filter
+	if offer == "true" {
+		query += " AND EXISTS (SELECT 1 FROM offer_products op INNER JOIN offers o ON o.id = op.offer_id WHERE op.product_item_id = pi.id AND o.start_date <= CURRENT_TIMESTAMP AND o.end_date >= CURRENT_TIMESTAMP)"
+	} else if offer == "false" {
+		query += " AND NOT EXISTS (SELECT 1 FROM offer_products op INNER JOIN offers o ON o.id = op.offer_id WHERE op.product_item_id = pi.id AND o.start_date <= CURRENT_TIMESTAMP AND o.end_date >= CURRENT_TIMESTAMP)"
+	}
+	fmt.Printf("Final query: %s", query)
 	// Add filters dynamically
 	params := map[string]interface{}{
 		"adminID": adminID,
 	}
-	if keyword != "" {
+	if len(ids) > 0 {
+		params["ids"] = ids
+		query += " AND pi.id = ANY(@ids)"
+	}
+	if keyword != "" && len(ids) == 0 {
 		query += " AND (pi.sub_category_name ILIKE @keyword OR c.name ILIKE @keyword OR sc.name ILIKE @keyword)"
 		params["keyword"] = "%" + keyword + "%"
 	}
-	if categoryID != nil && *categoryID != "" {
+	if categoryID != nil && *categoryID != "" && len(ids) == 0 {
 		query += " AND pi.category_id = @categoryID"
 		params["categoryID"] = *categoryID
 	}
@@ -982,25 +1033,26 @@ func (c *productDatabase) DeleteCategoryImage(ctx context.Context, imageID uint)
 
 func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID uint) (productItem response.ProductItems, err error) {
 	// First, get product item details (excluding images)
-	query := `SELECT pi.id, pi.sub_category_name, pi.category_id, pi.product_item_images, 
+	query := `SELECT pi.id, pi.sub_category_name, pi.category_id, 
 	           sc.name AS category_name, mc.name AS main_category_name, 
-	           pi.dynamic_fields, pi.created_at, pi.updated_at
+	           pi.dynamic_fields, pi.created_at, pi.updated_at,
+	           (SELECT COALESCE(SUM(view_count), 0) FROM product_item_views WHERE product_item_id = pi.id) AS view_count
 	       FROM product_items pi 
 	       LEFT JOIN categories sc ON pi.category_id = sc.id 
 	       LEFT JOIN categories mc ON pi.category_id = mc.id 
 	       WHERE pi.id = $1;`
 
 	var dbItem struct {
-		ID                uint
-		SubCategoryName   string
-		ProductID         uint
-		CategoryID        uint
-		CategoryName      string
-		MainCategoryName  string
-		ProductItemImages []string
-		DynamicFields     []byte
-		CreatedAt         time.Time
-		UpdatedAt         time.Time
+		ID               uint
+		SubCategoryName  string
+		ProductID        uint
+		CategoryID       uint
+		CategoryName     string
+		MainCategoryName string
+		DynamicFields    []byte
+		CreatedAt        time.Time
+		UpdatedAt        time.Time
+		ViewCount        uint
 	}
 
 	err = c.DB.Raw(query, productItemID).Scan(&dbItem).Error
@@ -1012,9 +1064,9 @@ func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID 
 	productItem.Name = dbItem.SubCategoryName
 	productItem.CategoryName = dbItem.CategoryName
 	productItem.MainCategoryName = dbItem.MainCategoryName
-	productItem.ProductItemImages = dbItem.ProductItemImages
 	productItem.CreatedAt = dbItem.CreatedAt
 	productItem.UpdatedAt = dbItem.UpdatedAt
+	productItem.ViewCount = dbItem.ViewCount
 
 	// Fetch images from product_images table
 	images, imgErr := c.FindAllProductItemImages(ctx, dbItem.ID)
@@ -1040,15 +1092,38 @@ func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID 
 }
 
 func (c *productDatabase) IncrementProductItemViewCount(ctx context.Context, productItemID uint, adminID string) error {
-	query := `INSERT INTO product_item_views (product_item_id, admin_id, view_count, last_viewed_at) 
-	          VALUES ($1, $2, 1, CURRENT_TIMESTAMP)
-	          ON CONFLICT (product_item_id, admin_id) 
-	          DO UPDATE SET view_count = product_item_views.view_count + 1, last_viewed_at = CURRENT_TIMESTAMP`
-	return c.DB.Exec(query, productItemID, adminID).Error
+	// Get shop ID using admin ID
+	var shopID string
+	shopQuery := `SELECT id FROM shop_details WHERE admin_id = $1`
+	err := c.DB.Raw(shopQuery, adminID).Scan(&shopID).Error
+	if err != nil {
+		return err
+	}
+
+	// First, try to update existing record
+	updateQuery := `UPDATE product_item_views SET view_count = view_count + 1, viewed_at = CURRENT_TIMESTAMP WHERE product_item_id = $1 AND shop_id = $2`
+	result := c.DB.Exec(updateQuery, productItemID, shopID)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		// No existing record, insert new one
+		insertQuery := `INSERT INTO product_item_views (product_item_id, shop_id, admin_id, view_count, created_at, viewed_at) VALUES ($1, $2, $3, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+		return c.DB.Exec(insertQuery, productItemID, shopID, adminID).Error
+	}
+	return nil
 }
 func (c *productDatabase) GetProductItemViewCount(ctx context.Context, productItemID uint, adminID string) (viewCount uint, err error) {
-	query := `SELECT view_count FROM product_item_views WHERE product_item_id = $1 AND admin_id = $2`
-	err = c.DB.Raw(query, productItemID, adminID).Scan(&viewCount).Error
+	// Get shop ID using admin ID
+	var shopID string
+	shopQuery := `SELECT id FROM shop_details WHERE admin_id = $1`
+	err = c.DB.Raw(shopQuery, adminID).Scan(&shopID).Error
+	if err != nil {
+		return 0, err
+	}
+
+	query := `SELECT view_count FROM product_item_views WHERE product_item_id = $1 AND shop_id = $2`
+	err = c.DB.Raw(query, productItemID, shopID).Scan(&viewCount).Error
 	return
 }
 
@@ -1627,5 +1702,13 @@ func (c *productDatabase) GetProductItemsByShop(ctx context.Context, adminID uin
 		productItems = append(productItems, item)
 	}
 
+	return
+}
+
+func (c *productDatabase) FindProductItemFilters(ctx context.Context) (filters []domain.ProductItemFilterType, err error) {
+	// Implementation goes here
+	query := `SELECT * FROM product_item_filter_types ORDER BY id ASC`
+
+	err = c.DB.Raw(query).Scan(&filters).Error
 	return
 }

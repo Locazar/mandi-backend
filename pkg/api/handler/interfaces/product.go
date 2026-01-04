@@ -24,6 +24,7 @@ type ProductHandler interface {
 	GetAllProductItemsAdmin() func(ctx *gin.Context)
 	GetAllProductItemsUser() func(ctx *gin.Context)
 	GetProductItemsByShopID() func(ctx *gin.Context)
+	FindProductItemFilters(ctx *gin.Context)
 	SearchProducts(ctx *gin.Context)
 	GetProductsByCategory(ctx *gin.Context)
 	GetAllBrands(ctx *gin.Context)
