@@ -224,3 +224,41 @@ type Department struct {
 	Name     string `json:"department_name"`
 	ImageUrl string `json:"image_url"`
 }
+
+type PromotionCategory struct {
+	ID        uint      `json:"id"`
+	Name      string    `json:"name"`
+	ShopID    uint      `json:"shop_id"`
+	IsActive  bool      `json:"is_active"`
+	IconPath  string    `json:"icon_path"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type PromotionsType struct {
+	ID                    uint      `json:"id"`
+	Name                  string    `json:"name"`
+	IsActive              bool      `json:"is_active"`
+	ShopID                string    `json:"shop_id"`
+	PromotionCategoryID   uint      `json:"promotion_category_id"`
+	CategoryName          string    `json:"category_name"`
+	PromotionOfferDetails string    `json:"offer_details"`
+	Type                  string    `json:"type"`
+	IconPath              string    `json:"icon_path"`
+	CreatedAt             time.Time `json:"created_at"`
+	UpdatedAt             time.Time `json:"updated_at"`
+}
+
+type Promotion struct {
+	ID                  uint              `json:"id"`
+	PromotionCategoryID uint              `json:"promotion_category_id"`
+	PromotionTypeID     uint              `json:"promotion_type_id"`
+	OfferDetails        string            `json:"offer_details"`
+	ShopID              uint              `json:"shop_id"`
+	IsActive            bool              `json:"is_active"`
+	CreatedAt           time.Time         `json:"created_at"`
+	UpdatedAt           time.Time         `json:"updated_at"`
+	PromotionCategory   PromotionCategory `json:"promotion_category" gorm:"foreignKey:PromotionCategoryID"`
+	PromotionType       PromotionsType    `json:"type" gorm:"foreignKey:PromotionTypeID"`
+	IconPath            string            `json:"icon_path"`
+}

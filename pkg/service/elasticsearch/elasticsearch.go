@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strconv"
 
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
@@ -197,7 +198,7 @@ func (es *ElasticService) SearchProductItems(ctx context.Context, keyword string
 					{
 						"multi_match": map[string]interface{}{
 							"query":  keyword,
-							"fields": []string{"sub_category_name"},
+							"fields": []string{"sub_category_name", "dynamic_fields"},
 						},
 					},
 				},
@@ -214,11 +215,13 @@ func (es *ElasticService) SearchProductItems(ctx context.Context, keyword string
 	filters := query["query"].(map[string]interface{})["bool"].(map[string]interface{})["filter"].([]map[string]interface{})
 
 	if categoryID != nil {
-		filters = append(filters, map[string]interface{}{
-			"term": map[string]interface{}{
-				"category_id": *categoryID,
-			},
-		})
+		if cid, err := strconv.ParseUint(*categoryID, 10, 64); err == nil {
+			filters = append(filters, map[string]interface{}{
+				"term": map[string]interface{}{
+					"category_id": cid,
+				},
+			})
+		}
 	}
 
 	data, err := json.Marshal(query)

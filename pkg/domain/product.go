@@ -128,7 +128,7 @@ type ProductImage struct {
 // offer
 type Offer struct {
 	ID           uint      `json:"id" gorm:"primaryKey;not null" swaggerignore:"true"`
-	Name         string    `json:"offer_name" gorm:"not null;unique" binding:"required"`
+	Name         string    `json:"offer_name" gorm:"not null" binding:"required"`
 	Description  string    `json:"description" gorm:"not null" binding:"required,min=6,max=50"`
 	DiscountRate uint      `json:"discount_rate" gorm:"not null" binding:"required,numeric,min=1,max=100"`
 	OfferType    string    `json:"offer_type" gorm:"not null" binding:"required"` // percentage,fixed
@@ -184,4 +184,41 @@ type ProductItemFilterType struct {
 	ShopID     uint      `json:"shop_id"`
 	CreatedAt  time.Time `json:"created_at" gorm:"not null;autoCreateTime"`
 	UpdatedAt  time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+}
+
+type PromotionsType struct {
+	ID                    uint      `json:"id"`
+	Name                  string    `json:"name"`
+	Is_Active             bool      `json:"is_active"`
+	ShopID                string    `json:"shop_id"`
+	PromotionCategoryID   uint      `json:"promotion_category_id"`
+	PromotionOfferDetails string    `json:"offer_details" gorm:"type:jsonb;not null"`
+	Icon_Path             string    `json:"icon_path"`
+	CreatedAt             time.Time `json:"created_at" gorm:"not null;autoCreateTime"`
+	UpdatedAt             time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+}
+
+type PromotionCategory struct {
+	ID        uint      `json:"id" gorm:"primaryKey;not null"`
+	Name      string    `json:"name" gorm:"not null"`
+	ShopID    uint      `json:"shop_id"`
+	Is_Active bool      `json:"is_active" gorm:"not null;default:true"`
+	Icon_Path string    `json:"icon_path"`
+	CreatedAt time.Time `json:"created_at" gorm:"not null;autoCreateTime"`
+	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+}
+
+type Promotion struct {
+	ID                  uint      `json:"id" gorm:"primaryKey;not null"`
+	PromotionCategoryID uint      `json:"promotion_category_id"`
+	PromotionTypeID     uint      `json:"promotion_type_id"`
+	OfferDetails        string    `json:"offer_details" gorm:"type:jsonb;not null"`
+	ShopID              string    `json:"shop_id"`
+	IsActive            bool      `json:"is_active" gorm:"not null;default:true"`
+	CreatedAt           time.Time `json:"created_at" gorm:"not null;autoCreateTime"`
+	UpdatedAt           time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+
+	// Relations
+	PromotionCategory PromotionCategory `json:"promotion_category" gorm:"foreignKey:PromotionCategoryID"`
+	PromotionType     PromotionsType    `json:"promotion_type" gorm:"foreignKey:PromotionTypeID"`
 }

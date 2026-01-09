@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -30,9 +31,10 @@ func (c *productDatabase) DeleteProductItem(ctx context.Context, productItemID u
 	return c.DB.Exec(query, productItemID).Error
 }
 
-func NewProductRepository(db *gorm.DB) interfaces.ProductRepository {
+func NewProductRepository(db *gorm.DB, elasticClient *elasticsearch.ElasticService) interfaces.ProductRepository {
 	return &productDatabase{
-		DB: db,
+		DB:            db,
+		ElasticClient: elasticClient,
 	}
 }
 
@@ -40,7 +42,7 @@ func (c *productDatabase) Transactions(ctx context.Context, trxFn func(repo inte
 
 	trx := c.DB.Begin()
 
-	repo := NewProductRepository(trx)
+	repo := NewProductRepository(trx, c.ElasticClient)
 
 	if err := trxFn(repo); err != nil {
 		trx.Rollback()
@@ -514,7 +516,7 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context,
 		FROM offer_products op2
 		LEFT JOIN product_items pi2 ON pi2.id = op2.product_item_id
 		INNER JOIN offers o2 ON o2.id = op2.offer_id
-		WHERE op2.product_item_id = pi.id AND o2.start_date <= CURRENT_TIMESTAMP AND o2.end_date >= CURRENT_TIMESTAMP`
+		WHERE op2.product_item_id = pi.id`
 	}
 	log.Printf("offerSubquery: %s", offerSubquery)
 
@@ -532,9 +534,9 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context,
 			WHERE (pi.admin_id ->> 'id' = @adminID OR pi.admin_id #>> '{}' = @adminID)`
 	// Add offer filter
 	if offer == "true" {
-		query += " AND EXISTS (SELECT 1 FROM offer_products op INNER JOIN offers o ON o.id = op.offer_id WHERE op.product_item_id = pi.id AND o.start_date <= CURRENT_TIMESTAMP AND o.end_date >= CURRENT_TIMESTAMP)"
+		query += " AND EXISTS (SELECT 1 FROM offer_products op WHERE op.product_item_id = pi.id)"
 	} else if offer == "false" {
-		query += " AND NOT EXISTS (SELECT 1 FROM offer_products op INNER JOIN offers o ON o.id = op.offer_id WHERE op.product_item_id = pi.id AND o.start_date <= CURRENT_TIMESTAMP AND o.end_date >= CURRENT_TIMESTAMP)"
+		query += " AND NOT EXISTS (SELECT 1 FROM offer_products op WHERE op.product_item_id = pi.id)"
 	}
 	fmt.Printf("Final query: %s", query)
 	// Add filters dynamically
@@ -748,9 +750,21 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 	if pageNumber < 1 {
 		pageNumber = 1
 	}
-	offset := int64((pageNumber - 1) * pagination.Count)
-	limit := int64(pagination.Count)
+	offset := int((pageNumber - 1) * pagination.Count)
+	limit := int(pagination.Count)
 
+	var ids []uint
+	if keyword != "" && c.ElasticClient != nil {
+		// Use Elasticsearch for search
+		ids, err = c.ElasticClient.SearchProductItems(ctx, keyword, categoryID, limit, offset)
+		if err != nil {
+			log.Printf("ES search failed, falling back to PG: %v", err)
+		} else if len(ids) == 0 {
+			return []response.ProductItems{}, nil
+		}
+	}
+
+	// Build the base query
 	baseQuery := `SELECT pi.sub_category_name, pi.id, pi.category_id, pi.department_id, pi.sub_category_id,
 			pi.product_item_images, pi.dynamic_fields, pi.created_at, pi.updated_at,
 			c.name AS category_name, d.name AS department_name, sc.name AS sub_category_name_ref,
@@ -777,22 +791,38 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 		FROM product_items pi
 		LEFT JOIN categories c ON pi.category_id = c.id
 		LEFT JOIN departments d ON pi.department_id = d.id
-		LEFT JOIN sub_categories sc ON pi.sub_category_id = sc.id
-		WHERE (pi.sub_category_name ILIKE $1 OR pi.dynamic_fields::text ILIKE $1 OR c.name::text ILIKE $1 OR sc.name::text ILIKE $1)`
-	params := []interface{}{"%" + keyword + "%"}
-	paramIndex := 2
-	if categoryID != nil {
-		// categoryID is passed as a string (from handler). Parse to uint to match DB column type.
-		if cid, err := strconv.ParseUint(*categoryID, 10, 64); err == nil {
-			baseQuery += fmt.Sprintf(" AND pi.category_id = $%d", paramIndex)
-			params = append(params, cid)
+		LEFT JOIN sub_categories sc ON pi.sub_category_id = sc.id`
+
+	params := []interface{}{}
+	paramIndex := 1
+
+	// If we have IDs from Elasticsearch, filter by them
+	if len(ids) > 0 {
+		placeholders := make([]string, len(ids))
+		for i, id := range ids {
+			placeholders[i] = fmt.Sprintf("$%d", paramIndex)
+			params = append(params, id)
 			paramIndex++
 		}
-	}
+		baseQuery += " WHERE pi.id IN (" + strings.Join(placeholders, ",") + ")"
+		baseQuery += " ORDER BY pi.created_at DESC"
+	} else {
+		// Fallback to original search logic
+		whereClause := " WHERE (pi.sub_category_name ILIKE $1 OR pi.dynamic_fields::text ILIKE $1 OR c.name::text ILIKE $1 OR sc.name::text ILIKE $1)"
+		params = append(params, "%"+keyword+"%")
+		paramIndex = 2
 
-	baseQuery += " ORDER BY pi.created_at DESC LIMIT $" + fmt.Sprint(paramIndex) + " OFFSET $" + fmt.Sprint(paramIndex+1)
-	// Append limit and offset as integers
-	params = append(params, limit, offset)
+		if categoryID != nil {
+			if cid, err := strconv.ParseUint(*categoryID, 10, 64); err == nil {
+				whereClause += fmt.Sprintf(" AND pi.category_id = $%d", paramIndex)
+				params = append(params, cid)
+				paramIndex++
+			}
+		}
+
+		baseQuery += whereClause + " ORDER BY pi.created_at DESC LIMIT $" + fmt.Sprint(paramIndex) + " OFFSET $" + fmt.Sprint(paramIndex+1)
+		params = append(params, limit, offset)
+	}
 
 	// Log the final SQL and parameters for debugging
 	fmt.Printf("SearchProducts SQL: %s\n", baseQuery)
@@ -1086,6 +1116,52 @@ func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID 
 		productItem.DynamicFields = dynamicFields
 	} else {
 		productItem.DynamicFields = make(map[string]interface{})
+	}
+
+	// Fetch offers for this product item
+	offerQuery := `SELECT op.id as offer_product_id, pi.sub_category_name as product_name,
+	                  o.id as offer_id, o.name as offer_name, o.discount_rate, o.description,
+	                  o.start_date, o.end_date, o.image, o.thumbnail
+	               FROM offer_products op
+	               INNER JOIN offers o ON o.id = op.offer_id
+	               LEFT JOIN product_items pi ON pi.id = op.product_item_id
+	               WHERE op.product_item_id = $1`
+
+	var offerRows []struct {
+		OfferProductID uint      `gorm:"column:offer_product_id"`
+		ProductName    string    `gorm:"column:product_name"`
+		OfferID        uint      `gorm:"column:offer_id"`
+		OfferName      string    `gorm:"column:offer_name"`
+		DiscountRate   uint      `gorm:"column:discount_rate"`
+		Description    string    `gorm:"column:description"`
+		StartDate      time.Time `gorm:"column:start_date"`
+		EndDate        time.Time `gorm:"column:end_date"`
+		Image          string    `gorm:"column:image"`
+		Thumbnail      string    `gorm:"column:thumbnail"`
+	}
+
+	err = c.DB.Raw(offerQuery, productItemID).Scan(&offerRows).Error
+	if err != nil {
+		// If there's an error fetching offers, continue without them
+		productItem.OfferProducts = []response.OfferProduct{}
+	} else {
+		// Convert to response format
+		offerProducts := make([]response.OfferProduct, len(offerRows))
+		for i, row := range offerRows {
+			offerProducts[i] = response.OfferProduct{
+				OfferProductID: row.OfferProductID,
+				ProductName:    row.ProductName,
+				OfferID:        row.OfferID,
+				OfferName:      row.OfferName,
+				DiscountRate:   row.DiscountRate,
+				Description:    row.Description,
+				StartDate:      row.StartDate,
+				EndDate:        row.EndDate,
+				Image:          row.Image,
+				Thumbnail:      row.Thumbnail,
+			}
+		}
+		productItem.OfferProducts = offerProducts
 	}
 
 	return

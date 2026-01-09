@@ -27,6 +27,8 @@ services:
       - .env
     environment:
       - DB_HOST=postgresdb
+    volumes:
+      - ./uploads:/app/uploads
     depends_on:
       - postgresdb
     restart: always

@@ -39,6 +39,8 @@ type Config struct {
 	AwsBucketName  string `mapstructure:"AWS_BUCKET_NAME"`
 
 	SharedUploadsPath string `mapstructure:"SHARED_UPLOADS_PATH"`
+
+	ElasticsearchURL string `mapstructure:"ELASTICSEARCH_URL"`
 }
 
 var firbaseConfig = map[string]interface{}{
@@ -65,6 +67,7 @@ var envsNames = []string{
 	"GOAUTH_CLIENT_ID", "GOAUTH_CLIENT_SECRET", "GOAUTH_CALL_BACK_URL", //goath
 	"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_REGION", "AWS_BUCKET_NAME", // aws s3
 	"SHARED_UPLOADS_PATH", // shared uploads directory
+	"ELASTICSEARCH_URL",   // elasticsearch
 }
 
 func LoadConfig() (config Config, err error) {

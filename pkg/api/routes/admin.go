@@ -11,6 +11,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 	paymentHandler handlerInterface.PaymentHandler, orderHandler handlerInterface.OrderHandler,
 	couponHandler handlerInterface.CouponHandler, offerHandler handlerInterface.OfferHandler,
 	stockHandler handlerInterface.StockHandler, branHandler handlerInterface.BrandHandler,
+	promotionHandler handlerInterface.PromotionHandler,
 
 ) {
 
@@ -252,6 +253,31 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		notification := api.Group("/notifications")
 		{
 			notification.GET("/sendToUsersInRadius", adminHandler.SendNotificationToUsersInRadius)
+		}
+
+		// Promotion Categories and Types
+		promotion := api.Group("/promotions")
+		{
+			// Promotion Categories
+			categories := promotion.Group("/categories")
+			{
+				categories.GET("/", promotionHandler.GetAllPromotionCategories)
+				categories.GET("/:category_id", promotionHandler.GetPromotionCategoryByID)
+			}
+
+			// Promotion Types
+			types := promotion.Group("/types")
+			{
+				types.GET("/", promotionHandler.GetAllPromotionTypes)
+				types.GET("/category/:category_id", promotionHandler.GetPromotionTypesByCategoryID)
+				types.GET("/:type_id", promotionHandler.GetPromotionTypeByID)
+			}
+
+			// Promotions (instances)
+			promotion.POST("/", promotionHandler.CreatePromotion)
+			promotion.GET("/", promotionHandler.GetAllPromotions)
+			promotion.GET("/:promotion_id", promotionHandler.GetPromotionByID)
+			promotion.DELETE("/:promotion_id", promotionHandler.DeletePromotion)
 		}
 
 		identity := api.Group("/identity-document")

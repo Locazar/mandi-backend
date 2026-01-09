@@ -843,7 +843,7 @@ func (p *ProductHandler) getAllProductItems() func(ctx *gin.Context) {
 		}
 
 		// Define offer with a default value
-		offer := ctx.Query("offer")
+		offer := ctx.Query("offers")
 
 		productItems, err := p.productUseCase.FindAllProductItems(ctx, adminID, keyword, catIDPtr, brandIDPtr, locIDPtr, offer, sortby, pagination)
 
@@ -883,7 +883,7 @@ func (p *ProductHandler) GetProductItemsByShopID() func(ctx *gin.Context) {
 		keyword := ctx.Query("q")
 		var catIDPtr, brandIDPtr, locIDPtr *string
 		var offer *string
-		if offerStr := ctx.Query("offer"); offerStr != "" {
+		if offerStr := ctx.Query("offers"); offerStr != "" {
 			offer = &offerStr
 		}
 		if cid := ctx.Query("category_id"); cid != "" {

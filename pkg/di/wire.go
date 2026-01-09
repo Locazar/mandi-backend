@@ -12,6 +12,8 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/db"
 	"github.com/rohit221990/mandi-backend/pkg/repository"
 	"github.com/rohit221990/mandi-backend/pkg/service/cloud"
+	elasticsearch "github.com/rohit221990/mandi-backend/pkg/service/elasticsearch"
+	"github.com/rohit221990/mandi-backend/pkg/service/graphics"
 	"github.com/rohit221990/mandi-backend/pkg/service/otp"
 	"github.com/rohit221990/mandi-backend/pkg/service/token"
 	"github.com/rohit221990/mandi-backend/pkg/usecase"
@@ -24,6 +26,12 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		token.NewTokenService,
 		otp.NewOtpAuth,
 		cloud.NewAWSCloudService,
+
+		// elasticsearch
+		elasticsearch.NewElasticService,
+
+		// graphics
+		graphics.NewGraphicsService,
 
 		// repository
 
@@ -39,6 +47,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		repository.NewOfferRepository,
 		repository.NewStockRepository,
 		repository.NewBrandDatabaseRepository,
+		repository.NewPromotionRepository,
 
 		//usecase
 		usecase.NewAuthUseCase,
@@ -52,6 +61,8 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		usecase.NewOfferUseCase,
 		usecase.NewStockUseCase,
 		usecase.NewBrandUseCase,
+		usecase.NewNotificationUseCase,
+		usecase.NewPromotionUseCase,
 		// handler
 		handler.NewAuthHandler,
 		handler.NewAdminHandler,
@@ -64,6 +75,8 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		handler.NewOfferHandler,
 		handler.NewStockHandler,
 		handler.NewBrandHandler,
+		handler.NewNotificationHandler,
+		handler.NewPromotionHandler,
 
 		http.NewServerHTTP,
 	)

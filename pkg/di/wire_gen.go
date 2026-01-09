@@ -14,6 +14,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/db"
 	"github.com/rohit221990/mandi-backend/pkg/repository"
 	"github.com/rohit221990/mandi-backend/pkg/service/cloud"
+	elasticsearch "github.com/rohit221990/mandi-backend/pkg/service/elasticsearch"
 	"github.com/rohit221990/mandi-backend/pkg/service/graphics"
 	"github.com/rohit221990/mandi-backend/pkg/service/otp"
 	"github.com/rohit221990/mandi-backend/pkg/service/token"
@@ -27,6 +28,13 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	if err != nil {
 		return nil, err
 	}
+	var elasticService *elasticsearch.ElasticService
+	if cfg.ElasticsearchURL != "" {
+		elasticService, err = elasticsearch.NewElasticService(cfg.ElasticsearchURL)
+		if err != nil {
+			return nil, err
+		}
+	}
 	authRepository := repository.NewAuthRepository(gormDB)
 	tokenService := token.NewTokenService(cfg)
 	userRepository := repository.NewUserRepository(gormDB)
@@ -38,7 +46,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	adminUseCase := usecase.NewAdminUseCase(adminRepository, userRepository, authRepository, otpAuth, tokenService)
 	adminHandler := handler.NewAdminHandler(adminUseCase)
 	cartRepository := repository.NewCartRepository(gormDB)
-	productRepository := repository.NewProductRepository(gormDB)
+	productRepository := repository.NewProductRepository(gormDB, elasticService)
 	cloudService, err := cloud.NewAWSCloudService(cfg)
 	if err != nil {
 		return nil, err
@@ -68,9 +76,12 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	brandRepository := repository.NewBrandDatabaseRepository(gormDB)
 	brandUseCase := usecase.NewBrandUseCase(brandRepository)
 	brandHandler := handler.NewBrandHandler(brandUseCase)
+	promotionRepository := repository.NewPromotionRepository(gormDB)
+	promotionUseCase := usecase.NewPromotionUseCase(promotionRepository)
+	promotionHandler := handler.NewPromotionHandler(promotionUseCase)
 	notificationRepository := repository.NewNotificationRepository(gormDB)
 	notificationUseCase := usecase.NewNotificationUseCase(notificationRepository)
 	notificationHandler := handler.NewNotificationHandler(notificationUseCase)
-	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler)
+	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler)
 	return serverHTTP, nil
 }

@@ -91,13 +91,16 @@ func ConnectDatabase(cfg config.Config) (*gorm.DB, error) {
 
 		// department
 		domain.Department{},
-		domain.SubCategory{},	
+		domain.SubCategory{},
 
 		domain.SubTypeAttributes{},
 		domain.SubTypeAttributeOptions{},
 		domain.SubCategoryDetails{},
 		domain.ProductItemView{},
 		domain.ProductItemFilterType{},
+		domain.PromotionsType{},
+		domain.PromotionCategory{},
+		domain.Promotion{},
 	)
 
 	if err != nil {
