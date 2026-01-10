@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/rohit221990/mandi-backend/pkg/domain"
 )
 
 // response for product
@@ -261,4 +262,9 @@ type Promotion struct {
 	PromotionCategory   PromotionCategory `json:"promotion_category" gorm:"foreignKey:PromotionCategoryID"`
 	PromotionType       PromotionsType    `json:"type" gorm:"foreignKey:PromotionTypeID"`
 	IconPath            string            `json:"icon_path"`
+}
+
+type ProductItemFiltersResponse struct {
+	Filters    []domain.ProductItemFilterType `json:"filters"`
+	Categories []string                       `json:"categories"`
 }

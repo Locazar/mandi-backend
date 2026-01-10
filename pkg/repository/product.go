@@ -1781,10 +1781,64 @@ func (c *productDatabase) GetProductItemsByShop(ctx context.Context, adminID uin
 	return
 }
 
-func (c *productDatabase) FindProductItemFilters(ctx context.Context) (filters []domain.ProductItemFilterType, err error) {
-	// Implementation goes here
-	query := `SELECT * FROM product_item_filter_types ORDER BY id ASC`
+func (c *productDatabase) FindProductItemFilters(ctx context.Context, adminID string) ([]domain.ProductItemFilterType, error) {
+	var shopID uint
+	shopQuery := `SELECT id FROM shop_details WHERE admin_id = $1`
+	err := c.DB.Raw(shopQuery, adminID).Scan(&shopID).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch shop ID for admin %s: %v", adminID, err)
+	}
 
+	var filters []domain.ProductItemFilterType
+	query := `SELECT id, filter_name, shop_id FROM product_item_filter_types ORDER BY id ASC`
 	err = c.DB.Raw(query).Scan(&filters).Error
-	return
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch product item filters: %v", err)
+	}
+
+	// Get products for the admin
+	var products []struct {
+		CategoryID uint `json:"category_id"`
+	}
+	productQuery := `SELECT category_id FROM product_items WHERE admin_id = $1`
+	err = c.DB.Raw(productQuery, adminID).Scan(&products).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch products: %v", err)
+	}
+
+	// Get unique category IDs
+	categoryIDMap := make(map[uint]bool)
+	for _, p := range products {
+		categoryIDMap[p.CategoryID] = true
+	}
+
+	// Get category names and ids
+	var categories []struct {
+		ID   uint
+		Name string
+	}
+	if len(categoryIDMap) > 0 {
+		categoryIDs := make([]uint, 0, len(categoryIDMap))
+		for id := range categoryIDMap {
+			categoryIDs = append(categoryIDs, id)
+		}
+		categoryQuery := `SELECT id, name FROM categories WHERE id IN (?)`
+		err = c.DB.Raw(categoryQuery, categoryIDs).Scan(&categories).Error
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch categories: %v", err)
+		}
+	}
+
+	// Append categories as filter types
+	for _, cat := range categories {
+		filters = append(filters, domain.ProductItemFilterType{
+			ID:         cat.ID,
+			FilterName: cat.Name,
+			ShopID:     shopID,
+		})
+	}
+
+	fmt.Printf("Fetched %d product item filters for admin %s\n", len(filters), adminID)
+
+	return filters, nil
 }

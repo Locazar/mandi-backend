@@ -2253,7 +2253,10 @@ func (p *ProductHandler) DeleteProductItem(ctx *gin.Context) {
 //	@Success		200				{object}	response.Response{}	"Successfully retrieved product item filters"
 
 func (p *ProductHandler) FindProductItemFilters(ctx *gin.Context) {
-	filters, err := p.productUseCase.FindProductItemFilters(ctx)
+	tokenString := ctx.GetHeader("Authorization")
+	adminID := p.tokenService.DecodeTokenData(tokenString)
+
+	filters, err := p.productUseCase.FindProductItemFilters(ctx, adminID)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get product item filters", err, nil)
 		return

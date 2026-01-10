@@ -1450,8 +1450,8 @@ func (c *productUseCase) GetProductItemViewCount(ctx context.Context, productIte
 	return count, nil
 }
 
-func (s *productUseCase) FindProductItemFilters(ctx context.Context) ([]domain.ProductItemFilterType, error) {
-	filters, err := s.productRepo.FindProductItemFilters(ctx)
+func (s *productUseCase) FindProductItemFilters(ctx context.Context, adminID string) ([]domain.ProductItemFilterType, error) {
+	filters, err := s.productRepo.FindProductItemFilters(ctx, adminID)
 	if err != nil {
 		return nil, utils.PrependMessageToError(err, "failed to find product item filters")
 	}
