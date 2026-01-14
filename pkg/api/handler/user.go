@@ -158,8 +158,18 @@ func (u *UserHandler) SaveAddress(ctx *gin.Context) {
 	userID := utils.GetUserIdFromContext(ctx)
 
 	var address domain.Address
-
-	copier.Copy(&address, &body)
+	address.Name = body.Name
+	address.PhoneNumber = body.PhoneNumber
+	address.House = &body.House
+	address.AddressLine1 = body.House
+	address.AddressLine2 = body.Name
+	address.Area = body.Area
+	address.LandMark = body.LandMark
+	address.City = body.City
+	address.Pincode = body.Pincode
+	address.CountryID = body.CountryID
+	address.Latitude = body.Latitude
+	address.Longitude = body.Longitude
 
 	// check is default is null
 	if body.IsDefault == nil {

@@ -53,10 +53,12 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 		{
 			product.GET("/", productHandler.GetAllProductsUser())
 
-			productItem := product.Group("/:product_id/items")
+			productItem := product.Group("/items")
 			{
+				product.GET("/:product_item_id", productHandler.GetProductItemByID)
 				productItem.GET("/", productHandler.GetAllProductItemsUser())
 			}
+
 			product.GET("/search", productHandler.SearchProducts)
 			product.GET("/suggestions", productHandler.GetProductSearchSuggestions)
 			product.GET("/filters", productHandler.GetProductSearchFilters)
@@ -239,13 +241,16 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 		department := api.Group("/departments")
 		{
 			department.GET("/", productHandler.GetAllDepartments)
-			department.GET("/:department_id/categories", productHandler.GetAllCategoriesByDepartmentID)
-		}
 
-		subcategory := api.Group("/subcategories")
-		{
-			subcategory.GET("/", productHandler.GetAllSubCategories)
-			subcategory.GET("/:category_id/subcategories", productHandler.GetAllSubCategoriesByCategoryID)
+			category := department.Group("/:department_id/categories")
+			{
+				category.GET("/", productHandler.GetAllCategoriesByDepartmentID)
+				subCategory := category.Group("/:category_id/sub-categories")
+				{
+					subCategory.GET("/", productHandler.GetAllSubCategories)
+					subCategory.GET("/:category_id/subcategories", productHandler.GetAllSubCategoriesByCategoryID)
+				}
+			}
 		}
 
 		// Job search
@@ -273,5 +278,4 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 		// 	jobCategories.GET("/search", userHandler.SearchJobsInCategory)
 		// }
 	}
-
 }

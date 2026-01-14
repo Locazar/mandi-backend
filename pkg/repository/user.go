@@ -175,7 +175,7 @@ func (c *userDatabase) IsAddressAlreadyExistForUser(ctx context.Context, address
 	INNER JOIN user_addresses urs ON adrs.id = urs.address_id 
 	WHERE adrs.name = $1 AND adrs.house = $2 AND adrs.land_mark = $3 
 	AND adrs.pincode = $4 AND adrs.country_id = $5  AND urs.user_id = $6`
-	err = c.DB.Raw(query, address.AddtessLine1, address.AddtessLine2, address.LandMark, address.Pincode, address.CountryID, userID).Scan(&exist).Error
+	err = c.DB.Raw(query, address.AddressLine1, address.AddressLine2, address.LandMark, address.Pincode, address.CountryID, userID).Scan(&exist).Error
 	if err != nil {
 		return exist, fmt.Errorf("filed to check address already exist for user with user_id %d", userID)
 	}
@@ -210,31 +210,29 @@ func (c *userDatabase) FindCountryByID(ctx context.Context, countryID uint) (dom
 // save address
 func (c *userDatabase) SaveAddress(ctx context.Context, address domain.Address) (addressID uint, err error) {
 	address.CountryID = 1 // hardcoded !!!! should change
-	query := `INSERT INTO addresses (address_line1, address_line2, area, land_mark, city, pincode, country_id, latitude, longitude, created_at) 
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`
+	query := `INSERT INTO addresses (user_id, area, land_mark, city, pincode, country_id, latitude, longitude, created_at, name, phone_number, house, address_line1, address_line2) 
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`
 
 	createdAt := time.Now()
 
-	if c.DB.Raw(query, address.AddtessLine1, address.AddtessLine2, address.Area, address.LandMark, address.City,
-		address.Pincode, address.CountryID, address.Latitude, address.Longitude, createdAt,
-	).Scan(&address).Error != nil {
-		return addressID, errors.New("filed to insert address on database")
+	if c.DB.Raw(query, address.UserID, address.Area, address.LandMark, address.City, address.Pincode, address.CountryID,
+		address.Latitude, address.Longitude, createdAt, address.Name, address.PhoneNumber, address.House, address.AddressLine1, address.AddressLine2,
+	).Scan(&addressID).Error != nil {
+		return addressID, errors.New("failed to insert address on database")
 	}
-	return address.ID, nil
+	return addressID, nil
 }
 
 // update address
 func (c *userDatabase) UpdateAddress(ctx context.Context, address domain.Address) error {
 
 	// address.CountryID = 1 // hardcoded !!!! should change
-	query := `UPDATE addresses SET address_line1=$1, address_line2=$2, area=$3, land_mark=$4, 
-	city=$5, pincode=$6,country_id=$7, latitude=$8, longitude=$9, updated_at = $10 WHERE id=$11`
+	query := `UPDATE addresses SET area=$1, land_mark=$2, city=$3, pincode=$4, country_id=$5, latitude=$6, longitude=$7, updated_at=$8, name=$9, phone_number=$10, house=$11, address_line1=$12, address_line2=$13 WHERE id=$14`
 
 	updatedAt := time.Now()
-	if c.DB.Raw(query, address.AddtessLine1, address.AddtessLine2,
-		address.Area, address.LandMark, address.City, address.Pincode,
-		address.CountryID, address.Latitude, address.Longitude, updatedAt, address.ID).Scan(&address).Error != nil {
-		return errors.New("filed to update the address for edit address")
+	if c.DB.Raw(query, address.Area, address.LandMark, address.City, address.Pincode, address.CountryID,
+		address.Latitude, address.Longitude, updatedAt, address.Name, address.PhoneNumber, address.House, address.AddressLine1, address.AddressLine2, address.ID).Scan(&address).Error != nil {
+		return errors.New("failed to update the address for edit address")
 	}
 	return nil
 }

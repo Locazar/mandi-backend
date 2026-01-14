@@ -13,7 +13,7 @@ type UserSignUp struct {
 type Address struct {
 	Name        string  `json:"name" binding:"required,min=2,max=50"`
 	PhoneNumber string  `json:"phone_number" binding:"required,min=10,max=10"`
-	House       string  `json:"house" binding:"required"`
+	House       string  `json:"house" binding:"omitempty"`
 	Area        string  `json:"area"`
 	LandMark    string  `json:"land_mark" binding:"required"`
 	City        string  `json:"city"`
@@ -27,7 +27,7 @@ type EditAddress struct {
 	ID          uint    `json:"address_id" binding:"required"`
 	Name        string  `json:"name" binding:"required,min=2,max=50"`
 	PhoneNumber string  `json:"phone_number" binding:"required,min=10,max=10"`
-	House       string  `json:"house" binding:"required"`
+	House       string  `json:"house" binding:"omitempty"`
 	Area        string  `json:"area"`
 	LandMark    string  `json:"land_mark" binding:"required"`
 	City        string  `json:"city"`

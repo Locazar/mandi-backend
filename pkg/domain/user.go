@@ -25,15 +25,18 @@ type UserAddress struct {
 }
 
 type Address struct {
-	ID           uint   `json:"id" gorm:"primaryKey;unique"`
-	UserID       uint   `json:"user_id" gorm:"not null"`
-	AddtessLine1 string `json:"address_line1" gorm:"not null" binding:"required"`
-	AddtessLine2 string `json:"address_line2" gorm:"not null" binding:"omitempty"`
-	Area         string `json:"area" gorm:"not null"`
-	LandMark     string `json:"land_mark" gorm:"not null" binding:"omitempty"`
-	City         string `json:"city" gorm:"not null"`
-	Pincode      uint   `json:"pincode" gorm:"not null" binding:"required,numeric,min=6,max=6"`
-	CountryID    uint   `json:"country_id" gorm:"not null" binding:"required,numeric"`
+	ID           uint    `json:"id" gorm:"primaryKey;unique"`
+	UserID       uint    `json:"user_id" gorm:"not null"`
+	Name         string  `json:"name" gorm:"not null"`
+	PhoneNumber  string  `json:"phone_number" gorm:"not null"`
+	House        *string `json:"house" gorm:"column:house"`
+	AddressLine1 string  `json:"address_line1" gorm:"not null" binding:"required"`
+	AddressLine2 string  `json:"address_line2" gorm:"not null" binding:"omitempty"`
+	Area         string  `json:"area" gorm:"not null"`
+	LandMark     string  `json:"land_mark" gorm:"not null" binding:"omitempty"`
+	City         string  `json:"city" gorm:"not null"`
+	Pincode      uint    `json:"pincode" gorm:"not null" binding:"required,numeric,min=6,max=6"`
+	CountryID    uint    `json:"country_id" gorm:"not null" binding:"required,numeric"`
 	Country      Country
 	Latitude     float64   `json:"latitude" gorm:"type:decimal(10,7);"`
 	Longitude    float64   `json:"longitude" gorm:"type:decimal(10,7);"`
