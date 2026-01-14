@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"errors"
+	"log"
 	"net/http"
 	"strings"
 
@@ -45,6 +46,9 @@ func (c *middleware) authorize(tokenUser token.UserType) gin.HandlerFunc {
 
 		authType := authFields[0]
 		accessToken := authFields[1]
+
+		log.Printf("Authorization header: %s", authorizationValues)
+		log.Printf("Access token: %s", accessToken)
 
 		if !strings.EqualFold(authType, authorizationType) {
 			err := errors.New("invalid authorization type")

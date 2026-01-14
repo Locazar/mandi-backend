@@ -534,9 +534,9 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context,
 			WHERE (pi.admin_id ->> 'id' = @adminID OR pi.admin_id #>> '{}' = @adminID)`
 	// Add offer filter
 	if offer == "true" {
-		query += " AND EXISTS (SELECT 1 FROM offer_products op WHERE op.product_item_id = pi.id)"
+		query += " AND EXISTS (SELECT 1 FROM offer_products op INNER JOIN offers o ON o.id = op.offer_id WHERE op.product_item_id = pi.id and NOW() BETWEEN o.start_date AND o.end_date)"
 	} else if offer == "false" {
-		query += " AND NOT EXISTS (SELECT 1 FROM offer_products op WHERE op.product_item_id = pi.id)"
+		query += " AND NOT EXISTS (SELECT 1 FROM offer_products op INNER JOIN offers o ON o.id = op.offer_id WHERE op.product_item_id = pi.id)"
 	}
 	fmt.Printf("Final query: %s", query)
 	// Add filters dynamically

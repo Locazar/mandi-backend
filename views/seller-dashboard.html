@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seller Dashboard</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f8f9fa;
+        }
+        .carousel-item img {
+            height: 400px;
+            object-fit: cover;
+        }
+        .dashboard-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .dashboard-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .animated-counter {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #28a745;
+            animation: countUp 2s ease-out;
+        }
+        @keyframes countUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .video-section {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .fade-in {
+            animation: fadeIn 1s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        /* Pure CSS Carousel */
+        .carousel {
+            position: relative;
+            width: 100%;
+            height: 400px;
+            overflow: hidden;
+        }
+        .carousel input[type="radio"] {
+            display: none;
+        }
+        .carousel-slides {
+            position: absolute;
+            width: 500%;
+            height: 100%;
+            display: flex;
+            transition: transform 0.5s ease;
+        }
+        .slide {
+            width: 20%;
+            position: relative;
+        }
+        .slide img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .caption {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: white;
+            background: rgba(0,0,0,0.5);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .carousel-nav {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+        }
+        .nav-btn {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.5);
+            margin: 0 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .nav-btn:hover {
+            background: rgba(255,255,255,0.8);
+        }
+        .prev-btn, .next-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0,0,0,0.5);
+            color: white;
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+            font-size: 20px;
+            transition: background 0.3s;
+        }
+        .prev-btn:hover, .next-btn:hover {
+            background: rgba(0,0,0,0.8);
+        }
+        .prev-btn { left: 10px; }
+        .next-btn { right: 10px; }
+        #slide1:checked ~ .carousel-slides { transform: translateX(0); }
+        #slide2:checked ~ .carousel-slides { transform: translateX(-20%); }
+        #slide3:checked ~ .carousel-slides { transform: translateX(-40%); }
+        #slide4:checked ~ .carousel-slides { transform: translateX(-60%); }
+        #slide5:checked ~ .carousel-slides { transform: translateX(-80%); }
+        #slide1:checked ~ .carousel-nav .nav-btn:nth-child(1),
+        #slide2:checked ~ .carousel-nav .nav-btn:nth-child(2),
+        #slide3:checked ~ .carousel-nav .nav-btn:nth-child(3),
+        #slide4:checked ~ .carousel-nav .nav-btn:nth-child(4),
+        #slide5:checked ~ .carousel-nav .nav-btn:nth-child(5) {
+            background: white;
+        }
+    </style>
+    </style>
+</head>
+<body>
+    <!-- Banner Carousel (Pure CSS) -->
+    <div class="carousel">
+        <input type="radio" name="carousel" id="slide1" checked>
+        <input type="radio" name="carousel" id="slide2">
+        <input type="radio" name="carousel" id="slide3">
+        <input type="radio" name="carousel" id="slide4">
+        <input type="radio" name="carousel" id="slide5">
+
+        <div class="carousel-slides">
+            <div class="slide">
+                <img src="/uploads/promotions/loyalty/welcome.jpg" alt="Welcome Banner">
+                <div class="caption">
+                    <h5>Welcome to Your Seller Dashboard</h5>
+                    <p>Manage your products and boost your sales!</p>
+                </div>
+            </div>
+            <div class="slide">
+                <img src="/uploads/promotions/value_add/Bogo.png" alt="BOGO Offers">
+                <div class="caption">
+                    <h5>Buy One Get One Offers</h5>
+                    <p>Create amazing BOGO deals for your customers.</p>
+                </div>
+            </div>
+            <div class="slide">
+                <img src="/uploads/promotions/price_based/Clearance.png" alt="Clearance Sales">
+                <div class="caption">
+                    <h5>Clearance Sales</h5>
+                    <p>Clear out inventory with special discounts.</p>
+                </div>
+            </div>
+            <div class="slide">
+                <img src="/uploads/promotions/loyalty/loyalty.jpg" alt="Loyalty Programs">
+                <div class="caption">
+                    <h5>Loyalty Programs</h5>
+                    <p>Build customer loyalty with rewards.</p>
+                </div>
+            </div>
+            <div class="slide">
+                <img src="/uploads/promotions/value_add/Bundle.png" alt="Bundle Deals">
+                <div class="caption">
+                    <h5>Bundle Deals</h5>
+                    <p>Offer product bundles for better value.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="carousel-nav">
+            <label for="slide1" class="nav-btn"></label>
+            <label for="slide2" class="nav-btn"></label>
+            <label for="slide3" class="nav-btn"></label>
+            <label for="slide4" class="nav-btn"></label>
+            <label for="slide5" class="nav-btn"></label>
+        </div>
+
+        <label for="slide1" class="prev-btn">‹</label>
+        <label for="slide2" class="next-btn">›</label>
+        <label for="slide2" class="prev-btn">‹</label>
+        <label for="slide3" class="next-btn">›</label>
+        <label for="slide3" class="prev-btn">‹</label>
+        <label for="slide4" class="next-btn">›</label>
+        <label for="slide4" class="prev-btn">‹</label>
+        <label for="slide5" class="next-btn">›</label>
+        <label for="slide5" class="prev-btn">‹</label>
+        <label for="slide1" class="next-btn">›</label>
+    </div>
+
+    <!-- Dashboard Content -->
+    <div class="container mt-5">
+        <h2 class="text-center mb-4 fade-in">Seller Dashboard</h2>
+        <div class="row">
+            <div class="col-md-3">
+                <div class="card dashboard-card text-center">
+                    <div class="card-body">
+                        <i class="fas fa-shopping-cart fa-3x text-primary mb-3"></i>
+                        <h5 class="card-title">Total Orders</h5>
+                        <p class="card-text animated-counter" id="totalOrders">0</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card dashboard-card text-center">
+                    <div class="card-body">
+                        <i class="fas fa-dollar-sign fa-3x text-success mb-3"></i>
+                        <h5 class="card-title">Total Revenue</h5>
+                        <p class="card-text animated-counter" id="totalRevenue">$0</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card dashboard-card text-center">
+                    <div class="card-body">
+                        <i class="fas fa-users fa-3x text-info mb-3"></i>
+                        <h5 class="card-title">Active Customers</h5>
+                        <p class="card-text animated-counter" id="activeCustomers">0</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card dashboard-card text-center">
+                    <div class="card-body">
+                        <i class="fas fa-star fa-3x text-warning mb-3"></i>
+                        <h5 class="card-title">Average Rating</h5>
+                        <p class="card-text animated-counter" id="averageRating">0</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Video Section to Boost Sales -->
+        <div class="row mt-5">
+            <div class="col-md-12">
+                <div class="video-section fade-in">
+                    <h3 class="text-center mb-4">Boost Your Sales with This Video</h3>
+                    <div class="text-center">
+                        <p>Watch this inspiring video on sales strategies:</p>
+                        <a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ" target="_blank" class="btn btn-primary btn-lg">
+                            <i class="fab fa-youtube"></i> Watch Sales Boost Video
+                        </a>
+                    </div>
+                    <p class="mt-3 text-center">Click the link above to learn effective strategies to increase your sales and grow your business!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Animate counters
+        function animateCounter(element, target) {
+            let current = 0;
+            const increment = target / 100;
+            const timer = setInterval(() => {
+                current += increment;
+                if (current >= target) {
+                    current = target;
+                    clearInterval(timer);
+                }
+                if (element.id === 'totalRevenue') {
+                    element.textContent = '$' + Math.floor(current);
+                } else if (element.id === 'averageRating') {
+                    element.textContent = (current / 10).toFixed(1);
+                } else {
+                    element.textContent = Math.floor(current);
+                }
+            }, 20);
+        }
+
+        // Simulate loading data (replace with actual API calls)
+        document.addEventListener('DOMContentLoaded', function() {
+            animateCounter(document.getElementById('totalOrders'), 1250);
+            animateCounter(document.getElementById('totalRevenue'), 50000);
+            animateCounter(document.getElementById('activeCustomers'), 850);
+            animateCounter(document.getElementById('averageRating'), 47); // 4.7 rating
+        });
+    </script>
+</body>
+</html>
