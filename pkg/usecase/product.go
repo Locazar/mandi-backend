@@ -458,7 +458,7 @@ func (s *productUseCase) GetProductFilters(ctx context.Context) (response.Produc
 	var filters response.ProductFilters
 
 	// Fetch distinct categories
-	categoryQuery := `SELECT DISTINCT c.category_id, c.name FROM categories c JOIN products p ON c.category_id = p.category_id ORDER BY c.name`
+	categoryQuery := `SELECT DISTINCT c.category_id, c.name FROM categories c JOIN products_items pi ON c.category_id = pi.category_id ORDER BY c.name`
 	catRows, err := s.DB.Query(ctx, categoryQuery)
 	if err != nil {
 		return filters, err
@@ -481,7 +481,7 @@ func (s *productUseCase) GetProductFilters(ctx context.Context) (response.Produc
 	}
 
 	// Fetch distinct brands
-	brandQuery := `SELECT DISTINCT b.brand_id, b.name FROM brands b JOIN products p ON b.brand_id = p.brand_id ORDER BY b.name`
+	brandQuery := `SELECT DISTINCT b.brand_id, b.name FROM brands b JOIN products_items pi ON b.brand_id = pi.brand_id ORDER BY b.name`
 	brandRows, err := s.DB.Query(ctx, brandQuery)
 	if err != nil {
 		return filters, err
@@ -969,7 +969,7 @@ func (s *productUseCase) GetNearbyProductsByPincode(ctx context.Context, pincode
 
 	// First check if pincode exists in shop_details
 	checkQuery := `SELECT latitude, longitude FROM shop_details WHERE pincode = $1 LIMIT 1`
-	var targetLat, targetLng interface{}
+	var targetLat, targetLng float64
 	row := s.DB.QueryRow(ctx, checkQuery, pincode)
 	err := row.Scan(&targetLat, &targetLng)
 	if err != nil {
@@ -988,48 +988,51 @@ func (s *productUseCase) GetNearbyProductsByPincode(ctx context.Context, pincode
 	}
 	fmt.Printf("GetNearbyProductsByPincode - Target location found: lat=%v, lng=%v\n", targetLat, targetLng)
 
-	// Get the target location coordinates from shop_details table using pincode
+	// Get products from shops within radius
 	query := `
-		WITH target_location AS (
-			SELECT latitude, longitude FROM shop_details WHERE pincode = $1 LIMIT 1
-		)
-		SELECT pi.id, pi.sub_category_name, pi.category_id, pi.department_id, pi.sub_category_id,
-			pi.product_item_images, pi.dynamic_fields, pi.created_at, pi.updated_at,
+		SELECT DISTINCT
+			pi.id, 
+			pi.sub_category_name, 
+			pi.category_id, 
+			pi.department_id, 
+			pi.sub_category_id,
+			pi.product_item_images, 
+			pi.dynamic_fields, 
+			pi.created_at, 
+			pi.updated_at,
 			c.name AS category_name,
 			d.name AS main_category_name,
 			sc.name AS sub_category_name_ref,
-			sc.image_url AS sub_category_image_url
+			sc.image_url AS sub_category_image_url,
+			(6371 * acos(
+				cos(radians($1)) * 
+				cos(radians(sd.latitude)) *
+				cos(radians(sd.longitude) - radians($2)) +
+				sin(radians($1)) * 
+				sin(radians(sd.latitude))
+			)) AS distance_km
 		FROM product_items pi
+		INNER JOIN shop_details sd ON pi.shop_id = sd.id
 		LEFT JOIN categories c ON pi.category_id = c.id
 		LEFT JOIN departments d ON pi.department_id = d.id
 		LEFT JOIN sub_categories sc ON pi.sub_category_id = sc.id
-		LEFT JOIN shop_details sd ON sd.admin_id::text = pi.admin_id::text
 		WHERE sd.latitude IS NOT NULL
 		  AND sd.longitude IS NOT NULL
-		  AND (SELECT latitude FROM target_location) IS NOT NULL
-		  AND (
-			(6371 * acos(
-				cos(radians((SELECT latitude FROM target_location))) * 
+		  AND (6371 * acos(
+				cos(radians($1)) * 
 				cos(radians(sd.latitude)) *
-				cos(radians(sd.longitude) - radians((SELECT longitude FROM target_location))) +
-				sin(radians((SELECT latitude FROM target_location))) * 
+				cos(radians(sd.longitude) - radians($2)) +
+				sin(radians($1)) * 
 				sin(radians(sd.latitude))
-			)) <= $2
-		  )
-		ORDER BY (6371 * acos(
-			cos(radians((SELECT latitude FROM target_location))) * 
-			cos(radians(sd.latitude)) *
-			cos(radians(sd.longitude) - radians((SELECT longitude FROM target_location))) +
-			sin(radians((SELECT latitude FROM target_location))) * 
-			sin(radians(sd.latitude))
-		))
-		LIMIT $3 OFFSET $4
+			)) <= $3
+		ORDER BY distance_km ASC, pi.created_at DESC
+		LIMIT $4 OFFSET $5
 	`
 
-	rows, err := s.DB.Query(ctx, query, pincode, DefaultRadiusKm, limit, offset)
+	rows, err := s.DB.Query(ctx, query, targetLat, targetLng, DefaultRadiusKm, limit, offset)
 	if err != nil {
 		fmt.Printf("GetNearbyProductsByPincode - Query error: %v\n", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
 	defer rows.Close()
 
@@ -1048,6 +1051,7 @@ func (s *productUseCase) GetNearbyProductsByPincode(ctx context.Context, pincode
 		var deptName string
 		var subCatName string
 		var subCatImageURL string
+		var distance sql.NullFloat64
 
 		if err := rows.Scan(
 			&id,
@@ -1063,8 +1067,10 @@ func (s *productUseCase) GetNearbyProductsByPincode(ctx context.Context, pincode
 			&deptName,
 			&subCatName,
 			&subCatImageURL,
+			&distance,
 		); err != nil {
-			return nil, err
+			fmt.Printf("GetNearbyProductsByPincode - Scan error: %v\n", err)
+			return nil, fmt.Errorf("failed to scan product row: %w", err)
 		}
 
 		var dynamicFieldsMap map[string]interface{}
@@ -1102,6 +1108,10 @@ func (s *productUseCase) GetNearbyProductsByPincode(ctx context.Context, pincode
 	fmt.Printf("GetNearbyProductsByPincode - Total products found: %d\n", len(products))
 	if len(products) == 0 {
 		return []response.ProductItems{}, nil
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating rows: %w", err)
 	}
 
 	return products, nil

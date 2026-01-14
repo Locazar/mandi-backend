@@ -53,16 +53,19 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 		{
 			// product.GET("/", productHandler.GetAllProductsUser)
 
-			productItem := product.Group("/:product_id/items")
+			productItem := product.Group("/items")
 			{
+				product.GET("/:product_item_id", productHandler.GetProductItemByID)
 				productItem.GET("/", productHandler.GetAllProductItemsUser())
 				productItem.GET("/:product_item_id", productHandler.GetProductItemByID)
 				productItem.GET("/:product_item_id/filters", productHandler.FindProductItemFilters)
 			}
+
 			product.GET("/search", productHandler.SearchProducts)
 			product.GET("/suggestions", productHandler.GetProductSearchSuggestions)
 			product.GET("/filters", productHandler.GetProductSearchFilters)
 			product.GET("/locations", productHandler.GetProductSearchLocations)
+			product.GET("/radius", productHandler.GetProductsByRadius)
 			product.GET("/nearby", productHandler.GetNearbyProductsByPincode)
 
 			productViewed := product.Group("/viewed-products")
@@ -243,6 +246,21 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 			viewedProducts.GET("/:product_item_id/view-count", productHandler.GetProductItemViewCount)
 		}
 
+		department := api.Group("/departments")
+		{
+			department.GET("/", productHandler.GetAllDepartments)
+
+			category := department.Group("/:department_id/categories")
+			{
+				category.GET("/", productHandler.GetAllCategoriesByDepartmentID)
+				subCategory := category.Group("/:category_id/sub-categories")
+				{
+					subCategory.GET("/", productHandler.GetAllSubCategories)
+					subCategory.GET("/:category_id/subcategories", productHandler.GetAllSubCategoriesByCategoryID)
+				}
+			}
+		}
+
 		// Job search
 		// jobs := api.Group("/jobs")
 		// {
@@ -268,5 +286,4 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 		// 	jobCategories.GET("/search", userHandler.SearchJobsInCategory)
 		// }
 	}
-
 }

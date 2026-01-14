@@ -31,6 +31,7 @@ func (c *twilioOtp) SentOtp(phoneNumber string) (string, error) {
 	params.SetTo(phoneNumber)
 	params.SetChannel("sms")
 
+	fmt.Println("Sending OTP to phone number:", c.serviceID, phoneNumber)
 	resp, err := c.client.VerifyV2.CreateVerification(c.serviceID, params)
 	if err != nil {
 		return "", err

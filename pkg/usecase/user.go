@@ -8,7 +8,6 @@ import (
 	"mime/multipart"
 
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
-	"github.com/jinzhu/copier"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
@@ -108,6 +107,9 @@ func (c *userUserCase) SaveAddress(ctx context.Context, userID uint, address dom
 		return errors.New("invalid country id")
 	}
 
+	// Set the user ID on the address before saving
+	address.UserID = userID
+
 	// save the address on database
 	addressID, err := c.userRepo.SaveAddress(ctx, address)
 	if err != nil {
@@ -140,7 +142,16 @@ func (c *userUserCase) UpdateAddress(ctx context.Context, addressBody request.Ed
 	}
 
 	var address domain.Address
-	copier.Copy(&address, &addressBody)
+	address.ID = addressBody.ID
+	address.AddressLine1 = addressBody.House
+	address.AddressLine2 = addressBody.Name
+	address.Area = addressBody.Area
+	address.LandMark = addressBody.LandMark
+	address.City = addressBody.City
+	address.Pincode = addressBody.Pincode
+	address.CountryID = addressBody.CountryID
+	address.Latitude = addressBody.Latitude
+	address.Longitude = addressBody.Longitude
 
 	if err := c.userRepo.UpdateAddress(ctx, address); err != nil {
 		return err
