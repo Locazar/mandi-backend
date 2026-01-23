@@ -43,6 +43,23 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		productDetails.GET("/details", adminHandler.GetAllProductDetails)
 	}
 
+	// Web views for admin interface
+	web := api.Group("/web")
+	{
+		web.GET("/login", func(c *gin.Context) {
+			c.HTML(200, "goauth.html", nil)
+		})
+		web.GET("/payment", func(c *gin.Context) {
+			c.HTML(200, "paymentForm.html", nil)
+		})
+		web.GET("/dashboard", func(c *gin.Context) {
+			c.HTML(200, "dashboard.html", nil)
+		})
+		web.GET("/ui", func(c *gin.Context) {
+			c.HTML(200, "dashboard.html", nil)
+		})
+	}
+
 	api.Use(middleware.AuthenticateAdmin())
 	{
 
@@ -124,7 +141,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		product := api.Group("/products")
 		{
 			// product.GET("/", productHandler.GetAllProductsAdmin)
-			product.GET("/filters", productHandler.FindProductItemFilters)
+			product.GET("/filters/:shop_id", productHandler.FindProductItemFilters)
 			product.GET("/:product_id", productHandler.GetProductByID)
 			product.POST("/", middleware.TrimSpaces(), productHandler.SaveProduct)
 			product.PUT("/", middleware.TrimSpaces(), productHandler.UpdateProduct)
@@ -138,6 +155,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			productItem.POST("", productHandler.SaveProductItem)
 			productItem.GET("/:product_item_id", productHandler.GetProductItemByID)
 			productItem.DELETE("/:product_item_id", productHandler.DeleteProductItem)
+			productItem.GET("/lowViewproductitems", productHandler.GetProductItemStock)
 
 			productView := productItem.Group("/:product_item_id/view")
 			{
@@ -176,7 +194,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		{
 			offer.POST("/", middleware.TrimSpaces(), offerHandler.SaveOffer) // add a new offer
 			offer.GET("/", offerHandler.GetAllOffers)                        // get all offers
-			offer.DELETE("/:offer_id", offerHandler.RemoveOffer)
+			offer.DELETE("/:product_item_id", offerHandler.RemoveOffer)
 			offer.POST("/shop", middleware.TrimSpaces(), offerHandler.ApplyOfferToShop)
 
 			offer.GET("/category", offerHandler.GetAllCategoryOffers)                        // to get all offers of categories

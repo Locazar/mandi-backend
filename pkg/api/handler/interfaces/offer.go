@@ -24,4 +24,5 @@ type OfferHandler interface {
 
 	//Shop offer
 	ApplyOfferToShop(ctx *gin.Context)
+	GetShopOffers(ctx *gin.Context)
 }

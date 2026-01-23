@@ -27,6 +27,7 @@ type ProductItem struct {
 	DynamicFields     string    `json:"dynamic_fields" gorm:"type:jsonb;not null"`
 	AdminID           string    `json:"admin_id" gorm:"type:jsonb;not null"` // stored as JSONB in DB
 	ProductItemImages []string  `json:"product_item_images" gorm:"type:text[]"`
+	ShopID            uint      `json:"shop_id"`
 	CreatedAt         time.Time `json:"created_at" gorm:"not null"`
 	UpdatedAt         time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }
@@ -155,7 +156,6 @@ type OfferCategory struct {
 type OfferProduct struct {
 	ID            uint `json:"id" gorm:"primaryKey;not null"`
 	OfferID       uint `json:"offer_id" gorm:"not null"`
-	Offer         Offer
 	ProductItemID uint `json:"product_item_id" gorm:"not null"`
 	Sort_Order    int  `json:"sort_order" gorm:"not null;default:0"`
 	Is_Active     bool `json:"is_active" gorm:"not null;default:true"`
@@ -208,15 +208,39 @@ type PromotionCategory struct {
 	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }
 
+type PromotionOfferDetails struct {
+	OfferName              string   `json:"offer_name"`
+	Description            string   `json:"description"`
+	DiscountRate           float64  `json:"discount_rate"`
+	StartDate              string   `json:"start_date"`
+	EndDate                string   `json:"end_date"`
+	MinimumPurchaseAmount  *float64 `json:"minimum_purchase_amount,omitempty"`
+	TierQuantity           *int     `json:"tier_quantity,omitempty"`
+	BogoGetQuantity        *int     `json:"bogo_get_quantity,omitempty"`
+	BogoBuyQuantity        *int     `json:"bogo_buy_quantity,omitempty"`
+	BogoCombinationEnabled *bool    `json:"bogo_combination_enabled,omitempty"`
+	GiftDescription        *string  `json:"gift_description,omitempty"`
+}
+
 type Promotion struct {
-	ID                  uint      `json:"id" gorm:"primaryKey;not null"`
-	PromotionCategoryID uint      `json:"promotion_category_id"`
-	PromotionTypeID     uint      `json:"promotion_type_id"`
-	OfferDetails        string    `json:"offer_details" gorm:"type:jsonb;not null"`
-	ShopID              string    `json:"shop_id"`
-	IsActive            bool      `json:"is_active" gorm:"not null;default:true"`
-	CreatedAt           time.Time `json:"created_at" gorm:"not null;autoCreateTime"`
-	UpdatedAt           time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+	ID                     uint      `json:"id" gorm:"primaryKey;not null"`
+	PromotionCategoryID    uint      `json:"promotion_category_id"`
+	PromotionTypeID        uint      `json:"promotion_type_id"`
+	OfferName              string    `json:"offer_name"`
+	Description            string    `json:"description"`
+	DiscountRate           float64   `json:"discount_rate"`
+	StartDate              string    `json:"start_date"`
+	EndDate                string    `json:"end_date"`
+	MinimumPurchaseAmount  *float64  `json:"minimum_purchase_amount,omitempty"`
+	TierQuantity           *int      `json:"tier_quantity,omitempty"`
+	BogoGetQuantity        *int      `json:"bogo_get_quantity,omitempty"`
+	BogoBuyQuantity        *int      `json:"bogo_buy_quantity,omitempty"`
+	BogoCombinationEnabled *bool     `json:"bogo_combination_enabled,omitempty"`
+	GiftDescription        *string   `json:"gift_description,omitempty"`
+	ShopID                 uint      `json:"shop_id"`
+	IsActive               bool      `json:"is_active" gorm:"not null;default:true"`
+	CreatedAt              time.Time `json:"created_at" gorm:"not null;autoCreateTime"`
+	UpdatedAt              time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 
 	// Relations
 	PromotionCategory PromotionCategory `json:"promotion_category" gorm:"foreignKey:PromotionCategoryID"`

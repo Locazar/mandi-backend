@@ -137,8 +137,8 @@ func (c *adminDatabase) SaveAdmin(ctx context.Context, admin domain.Admin) error
 
 func (c *adminDatabase) FindAllUser(ctx context.Context, pagination request.Pagination) (users []response.User, err error) {
 
-	limit := pagination.Count
-	offset := (pagination.PageNumber - 1) * limit
+	limit := pagination.Limit
+	offset := pagination.Offset
 
 	query := `SELECT * FROM users ORDER BY created_at DESC LIMIT $1 OFFSET $2`
 	err = c.DB.Raw(query, limit, offset).Scan(&users).Error
@@ -149,8 +149,8 @@ func (c *adminDatabase) FindAllUser(ctx context.Context, pagination request.Pagi
 // sales report from order // !add  product wise report
 func (c *adminDatabase) CreateFullSalesReport(ctc context.Context, salesReq request.SalesReport) (salesReport []response.SalesReport, err error) {
 
-	limit := salesReq.Pagination.Count
-	offset := (salesReq.Pagination.PageNumber - 1) * limit
+	limit := salesReq.Pagination.Limit
+	offset := salesReq.Pagination.Offset
 
 	query := `SELECT u.first_name, u.email,  so.id AS shop_order_id, so.user_id, so.order_date, 
 	so.order_total_price, so.discount, os.status AS order_status, pm.payment_type FROM shop_orders so
@@ -236,8 +236,8 @@ func (c *adminDatabase) CreateAdvertisement(ctx context.Context, ad domain.Adver
 }
 
 func (c *adminDatabase) GetAllAdvertisements(ctx context.Context, pagination request.Pagination) (ads []domain.Advertisement, err error) {
-	limit := pagination.Count
-	offset := (pagination.PageNumber - 1) * limit
+	limit := pagination.Limit
+	offset := pagination.Offset
 
 	query := `SELECT * FROM advertisements ORDER BY created_at DESC LIMIT $1 OFFSET $2`
 	err = c.DB.Raw(query, limit, offset).Scan(&ads).Error
@@ -297,8 +297,8 @@ func (c *adminDatabase) CreateShop(ctx context.Context, shop domain.ShopDetails)
 }
 
 func (c *adminDatabase) GetAllShops(ctx context.Context, pagination request.Pagination) (shops []domain.ShopDetails, err error) {
-	limit := pagination.Count
-	offset := (pagination.PageNumber - 1) * limit
+	limit := pagination.Limit
+	offset := pagination.Offset
 
 	query := `SELECT * FROM shop_details ORDER BY created_at DESC LIMIT $1 OFFSET $2`
 	err = c.DB.Raw(query, limit, offset).Scan(&shops).Error

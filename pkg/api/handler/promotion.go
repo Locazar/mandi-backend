@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
+	"github.com/rohit221990/mandi-backend/pkg/domain"
 	usecaseInterface "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 )
 
@@ -144,12 +145,7 @@ func (h *PromotionHandler) GetPromotionTypeByID(ctx *gin.Context) {
 }
 
 func (h *PromotionHandler) CreatePromotion(ctx *gin.Context) {
-	var reqBody struct {
-		PromotionCategoryID string `json:"promotion_category_id" binding:"required"`
-		PromotionTypeID     string `json:"promotion_type_id" binding:"required"`
-		OfferDetails        string `json:"offer_details" binding:"required"`
-		ShopID              string `json:"shop_id" binding:"required"`
-	}
+	var reqBody request.CreatePromotionRequest
 
 	if err := ctx.ShouldBindJSON(&reqBody); err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid request body", err, nil)
@@ -157,19 +153,40 @@ func (h *PromotionHandler) CreatePromotion(ctx *gin.Context) {
 	}
 
 	// Parse string IDs to uint
+	shopID, err := strconv.ParseUint(reqBody.ShopID, 10, 32)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid shop_id", err, nil)
+		return
+	}
+
 	categoryID, err := strconv.ParseUint(reqBody.PromotionCategoryID, 10, 32)
 	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid promotion category ID", err, nil)
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid promotion_category_id", err, nil)
 		return
 	}
 
 	typeID, err := strconv.ParseUint(reqBody.PromotionTypeID, 10, 32)
 	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid promotion type ID", err, nil)
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid promotion_type_id", err, nil)
 		return
 	}
 
-	promotion, err := h.promotionUseCase.CreatePromotion(ctx, uint(categoryID), uint(typeID), reqBody.OfferDetails, reqBody.ShopID)
+	// Construct offer_details struct
+	offerDetails := domain.PromotionOfferDetails{
+		OfferName:              reqBody.OfferName,
+		Description:            reqBody.Description,
+		DiscountRate:           reqBody.DiscountRate,
+		StartDate:              reqBody.StartDate,
+		EndDate:                reqBody.EndDate,
+		MinimumPurchaseAmount:  reqBody.MinimumPurchaseAmount,
+		TierQuantity:           reqBody.TierQuantity,
+		BogoGetQuantity:        reqBody.BogoGetQuantity,
+		BogoBuyQuantity:        reqBody.BogoBuyQuantity,
+		BogoCombinationEnabled: reqBody.BogoCombinationEnabled,
+		GiftDescription:        reqBody.GiftDescription,
+	}
+
+	promotion, err := h.promotionUseCase.CreatePromotion(ctx, uint(categoryID), uint(typeID), offerDetails, uint(shopID), reqBody.IsActive)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to create promotion", err, nil)
 		return
@@ -186,6 +203,8 @@ func (h *PromotionHandler) GetAllPromotions(ctx *gin.Context) {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to retrieve promotions", err, nil)
 		return
 	}
+
+	fmt.Printf("Promotions: %+v\n", promotions)
 
 	response.SuccessResponse(ctx, http.StatusOK, "Promotions retrieved successfully", promotions)
 }

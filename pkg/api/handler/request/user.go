@@ -71,3 +71,8 @@ type SellerRadiusRequest struct {
 	RadiusKm  float64 `json:"radius_km" binding:"required"`
 	Pagination
 }
+
+type SellerPincodeRequest struct {
+	Pincode uint `json:"pincode" binding:"required"`
+	Pagination
+}

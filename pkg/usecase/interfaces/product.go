@@ -25,10 +25,11 @@ type ProductUseCase interface {
 	SaveProduct(ctx context.Context, product request.Product, adminID string) (productID uint, err error)
 	UpdateProduct(ctx context.Context, product domain.Product) error
 
-	SaveProductItem(ctx context.Context, productItem request.ProductItem, adminID string) error
-	FindAllProductItems(ctx context.Context, adminId string, keyword string, categoryID, brandID, locationID *string, offer string, sortby string, pagination *request.Pagination) ([]response.ProductItems, error)
+	SaveProductItem(ctx context.Context, productItem request.ProductItem, adminID string, shopID uint) error
+	FindAllProductItems(ctx context.Context, shopID string, keyword string, categoryID, brandID, locationID *string, offer string, sortby string, pagination *request.Pagination, filterByShopID *string) ([]response.ProductItems, error)
+	FindLowViewProductItems(ctx context.Context, shopID string, keyword string, categoryID, brandID, locationID *string, sortby string, pagination *request.Pagination, filterByShopID *string) ([]response.ProductItems, error)
 	DeleteProductItem(ctx context.Context, productItemID uint) error
-	FindProductItemFilters(ctx context.Context, adminID string) ([]domain.ProductItemFilterType, error)
+	FindProductItemFilters(ctx context.Context, adminID string, shopID uint) ([]domain.ProductItemFilterType, error)
 	SearchProducts(ctx context.Context, keyword string, categoryID, brandID, locationID *string, limit, offset int) (products []response.ProductItems, err error)
 	GetProductNameSuggestions(ctx context.Context, prefix string) (suggestions []string, err error)
 	GetProductFilters(ctx context.Context) (filters response.ProductFilters, err error)
@@ -50,7 +51,7 @@ type ProductUseCase interface {
 	GetPincodesByArea(ctx context.Context, areaID string) (pincodes []string, err error)
 	GetLocationByPincode(ctx context.Context, pincodeID string) (location response.Location, err error)
 	GetNearbyProductsByPincode(ctx context.Context, pincode string, limit, offset int) (products []response.ProductItems, err error)
-	GetProductsByRadius(ctx context.Context, latitude int, longitude, radius int, limit, offset int) ([]response.ProductItems, error)
+	GetProductsByRadius(ctx context.Context, latitude float64, longitude float64, radiusKm float64, limit, offset int) ([]response.ProductItems, error)
 
 	// department
 	SaveDepartment(ctx context.Context, departmentName string) error

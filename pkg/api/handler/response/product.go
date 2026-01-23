@@ -95,8 +95,9 @@ type ProductItems struct {
 	SubCategoryImageURL string                 `json:"sub_category_image_url"`
 	ProductItemImages   []string               `json:"product_item_images"`
 	DynamicFields       map[string]interface{} `json:"dynamic_fields"`
-	OfferProducts       []OfferProduct         `json:"offer_products"`
+	OfferProducts       []OfferProduct         `json:"offer	_products"`
 	DiscountRate        *uint                  `json:"discount_rate,omitempty"`
+	ShopID              uint                   `json:"shop_id"`
 	CreatedAt           time.Time              `json:"created_at"`
 	UpdatedAt           time.Time              `json:"updated_at"`
 	ViewCount           uint                   `json:"view_count"`
@@ -120,16 +121,18 @@ type OfferCategory struct {
 }
 
 type OfferProduct struct {
-	OfferProductID uint      `json:"offer_product_id"`
-	ProductName    string    `json:"product_name"`
-	OfferID        uint      `json:"offer_id"`
-	OfferName      string    `json:"offer_name"`
-	DiscountRate   uint      `json:"discount_rate"`
-	Description    string    `json:"description"`
-	StartDate      time.Time `json:"start_date"`
-	EndDate        time.Time `json:"end_date"`
-	Image          string    `json:"image"`
-	Thumbnail      string    `json:"thumbnail"`
+	OfferProductID    uint              `json:"offer_product_id"`
+	ProductName       string            `json:"product_name"`
+	OfferID           uint              `json:"offer_id"`
+	OfferName         string            `json:"offer_name"`
+	DiscountRate      uint              `json:"discount_rate"`
+	Description       string            `json:"description"`
+	StartDate         string            `json:"start_date"`
+	EndDate           string            `json:"end_date"`
+	Image             string            `json:"image"`
+	Thumbnail         string            `json:"thumbnail"`
+	PromotionCategory PromotionCategory `json:"promotion_category"`
+	PromotionType     PromotionsType    `json:"promotion_type"`
 }
 
 type Offer struct {
@@ -141,7 +144,7 @@ type Offer struct {
 	StartDate    time.Time `json:"start_date"`
 	EndDate      time.Time `json:"end_date"`
 	Image        string    `json:"image_url"`
-	thumbnail    string    `json:"thumbnail_url"`
+	Thumbnail    string    `json:"thumbnail_url"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }
@@ -251,20 +254,31 @@ type PromotionsType struct {
 }
 
 type Promotion struct {
-	ID                  uint              `json:"id"`
-	PromotionCategoryID uint              `json:"promotion_category_id"`
-	PromotionTypeID     uint              `json:"promotion_type_id"`
-	OfferDetails        string            `json:"offer_details"`
-	ShopID              uint              `json:"shop_id"`
-	IsActive            bool              `json:"is_active"`
-	CreatedAt           time.Time         `json:"created_at"`
-	UpdatedAt           time.Time         `json:"updated_at"`
-	PromotionCategory   PromotionCategory `json:"promotion_category" gorm:"foreignKey:PromotionCategoryID"`
-	PromotionType       PromotionsType    `json:"type" gorm:"foreignKey:PromotionTypeID"`
-	IconPath            string            `json:"icon_path"`
+	ID                     uint              `json:"id"`
+	PromotionCategoryID    uint              `json:"promotion_category_id"`
+	PromotionTypeID        uint              `json:"promotion_type_id"`
+	OfferName              string            `json:"offer_name"`
+	Description            string            `json:"description"`
+	DiscountRate           float64           `json:"discount_rate"`
+	StartDate              string            `json:"start_date"`
+	EndDate                string            `json:"end_date"`
+	MinimumPurchaseAmount  *float64          `json:"minimum_purchase_amount,omitempty"`
+	TierQuantity           *int              `json:"tier_quantity,omitempty"`
+	BogoGetQuantity        *int              `json:"bogo_get_quantity,omitempty"`
+	BogoBuyQuantity        *int              `json:"bogo_buy_quantity,omitempty"`
+	BogoCombinationEnabled *bool             `json:"bogo_combination_enabled,omitempty"`
+	GiftDescription        *string           `json:"gift_description,omitempty"`
+	ShopID                 uint              `json:"shop_id"`
+	IsActive               bool              `json:"is_active"`
+	CreatedAt              time.Time         `json:"created_at"`
+	UpdatedAt              time.Time         `json:"updated_at"`
+	PromotionCategory      PromotionCategory `json:"promotion_category" gorm:"foreignKey:PromotionCategoryID"`
+	PromotionType          PromotionsType    `json:"type" gorm:"foreignKey:PromotionTypeID"`
+	IconPath               string            `json:"icon_path"`
+	Thumbnail              string            `json:"thumbnail"`
 }
 
-type ProductItemFiltersResponse struct {
-	Filters    []domain.ProductItemFilterType `json:"filters"`
-	Categories []string                       `json:"categories"`
+type OffersAndPromotions struct {
+	Offers     []domain.Offer `json:"offers"`
+	Promotions []Promotion    `json:"promotions"`
 }

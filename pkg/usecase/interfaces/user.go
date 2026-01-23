@@ -26,6 +26,7 @@ type UserUseCase interface {
 	FindAllWishListItems(ctx context.Context, userID uint) ([]response.WishListItem, error)
 	UploadProfileImage(ctx context.Context, userID string, file *multipart.FileHeader, fileSize int64, fileName, contentType string) (string, error)
 	GetSellersByRadius(ctx context.Context, reqData request.SellerRadiusRequest) (sellers []response.Shop, err error)
+	GetSellersByPincode(ctx context.Context, reqData request.SellerPincodeRequest) (sellers []response.Shop, err error)
 	GetProductItemsByDepartment(ctx context.Context, documentID uint) ([]response.ProductItems, error)
 	GetProductItemsByCategory(ctx context.Context, categoryID uint) ([]response.ProductItems, error)
 	GetProductItemsBySubCategory(ctx context.Context, subCategoryID uint) ([]response.ProductItems, error)

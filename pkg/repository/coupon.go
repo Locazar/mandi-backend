@@ -70,8 +70,8 @@ func (c *couponDatabase) FindCouponByName(ctx context.Context, couponName string
 
 func (c *couponDatabase) FindAllCoupons(ctx context.Context, pagination request.Pagination) (coupons []domain.Coupon, err error) {
 
-	limit := pagination.Count
-	offset := (pagination.PageNumber - 1) * limit
+	limit := pagination.Limit
+	offset := pagination.Offset
 
 	query := `SELECT * FROM coupons ORDER BY created_at DESC LIMIT $1 OFFSET $2`
 	err = c.DB.Raw(query, limit, offset).Scan(&coupons).Error
@@ -142,8 +142,8 @@ func (c *couponDatabase) SaveCouponUses(ctx context.Context, couponUses domain.C
 
 func (c *couponDatabase) FindAllCouponForUser(ctx context.Context, userID uint, pagination request.Pagination) (coupons []response.UserCoupon, err error) {
 
-	limit := pagination.Count
-	offset := (pagination.PageNumber - 1) * limit
+	limit := pagination.Limit
+	offset := pagination.Offset
 
 	query := `SELECT c.coupon_id, c.coupon_code, c.coupon_name, c.expire_date, c.description, c.discount_rate, c.minimum_cart_price, 
 	c.image, c.block_status, c.coupon_id = cu.coupon_id AS used, cu.used_at FROM coupons c 

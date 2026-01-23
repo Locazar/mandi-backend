@@ -282,6 +282,18 @@ func (c *userUserCase) GetSellersByRadius(ctx context.Context, reqData request.S
 	return sellers, nil
 }
 
+func (c *userUserCase) GetSellersByPincode(ctx context.Context, reqData request.SellerPincodeRequest) (sellers []response.Shop, err error) {
+	sellers, err = c.userRepo.FindSellersByPincode(ctx, reqData)
+
+	if err != nil {
+		return sellers, fmt.Errorf("failed to get sellers by pincode \nerror:%v", err.Error())
+	}
+
+	log.Printf("successfully got sellers in pincode %v", reqData.Pincode)
+
+	return sellers, nil
+}
+
 func (c *userUserCase) GetProductItemsByDepartment(ctx context.Context, documentID uint) ([]response.ProductItems, error) {
 	return c.productRepo.GetProductItemsByDepartment(ctx, documentID)
 }

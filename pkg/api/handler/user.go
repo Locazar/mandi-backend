@@ -474,9 +474,9 @@ func (h *UserHandler) UploadProfileImage(c *gin.Context) {
 //	@Failure		500	{object}	response.Response{}	"Failed to get sellers by radius"
 func (c *UserHandler) GetSellerByRadius(ctx *gin.Context) {
 	// get latitude, longitude and radius from query params
-	latitudeStr := ctx.Query("latitude")
-	longitudeStr := ctx.Query("longitude")
-	radiusStr := ctx.Query("radius_km")
+	latitudeStr := ctx.Query("lat")
+	longitudeStr := ctx.Query("lng")
+	radiusStr := ctx.Query("radius")
 
 	latitude, err1 := strconv.ParseFloat(latitudeStr, 64)
 	longitude, err2 := strconv.ParseFloat(longitudeStr, 64)
@@ -510,6 +510,50 @@ func (c *UserHandler) GetSellerByRadius(ctx *gin.Context) {
 	}
 
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully found sellers in the given radius", sellers)
+}
+
+// GetSellerByPincode godoc
+//
+//	@Summary		Get sellers by pincode (User)
+//	@Security		BearerAuth
+//	@Description	API for user to get sellers in a specified pincode
+//	@Id				GetSellerByPincode
+//	@Tags			User Profile
+//	@Param			pincode	query	uint	true	"Pincode"
+//	@Router			/shop/search/pincode [get]
+//	@Success		200	{object}	response.Response{}	"Successfully found sellers in the given pincode"
+//	@Success		204	{object}	response.Response{}	"No sellers found in the given pincode"
+//	@Failure		400	{object}	response.Response{}	"Invalid input"
+//	@Failure		500	{object}	response.Response{}	"Failed to get sellers by pincode"
+func (c *UserHandler) GetSellerByPincode(ctx *gin.Context) {
+	// get pincode from query params
+	pincodeStr := ctx.Query("pincode")
+
+	pincode, err := strconv.ParseUint(pincodeStr, 10, 32)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid pincode", err, nil)
+		return
+	}
+
+	pagination := request.GetPagination(ctx)
+
+	reqData := request.SellerPincodeRequest{
+		Pincode:    uint(pincode),
+		Pagination: pagination,
+	}
+
+	sellers, err := c.userUseCase.GetSellersByPincode(ctx, reqData)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get sellers by pincode", err, nil)
+		return
+	}
+
+	if len(sellers) == 0 {
+		response.SuccessResponse(ctx, http.StatusNoContent, "No sellers found in the given pincode", nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully found sellers in the given pincode", sellers)
 }
 
 func (c *UserHandler) GetProductItemsByDepartment(ctx *gin.Context) {

@@ -13,7 +13,7 @@ type OfferUseCase interface {
 	// offer
 	SaveOffer(ctx context.Context, offer request.Offer) error
 	RemoveOffer(ctx context.Context, offerID uint) error
-	FindAllOffers(ctx context.Context, pagination request.Pagination) ([]domain.Offer, error)
+	FindAllOffers(ctx context.Context, pagination request.Pagination) (response.OffersAndPromotions, error)
 	FindActiveOffers(ctx context.Context) ([]domain.Offer, error)
 
 	// offer category
@@ -28,4 +28,5 @@ type OfferUseCase interface {
 	RemoveProductOffer(ctx context.Context, productOfferID uint) error
 	ChangeProductOffer(ctx context.Context, productOfferID, offerID uint) error
 	ApplyOfferToShop(ctx context.Context, adminID string, body request.ApplyOfferToShop) error
+	GetShopOffersByShopIDAndDateRange(ctx context.Context, shopID uint, startDate, endDate string) ([]domain.ShopOffer, error)
 }

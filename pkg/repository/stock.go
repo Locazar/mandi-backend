@@ -30,8 +30,8 @@ func (c *stockDatabase) Update(ctx context.Context, valuesToUpdate request.Updat
 
 func (c *stockDatabase) FindAll(ctx context.Context, pagination request.Pagination) (stocks []response.Stock, err error) {
 
-	limit := pagination.Count
-	offset := (pagination.PageNumber - 1) * limit
+	limit := pagination.Limit
+	offset := pagination.Offset
 
 	query := `SELECT pi.id AS product_item_id, p.name AS product_name
 	FROM product_items pi 

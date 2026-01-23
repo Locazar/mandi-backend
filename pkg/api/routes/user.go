@@ -160,6 +160,8 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 		shop := api.Group("/shop")
 		{
 			shop.GET("/search/radius", userHandler.GetSellerByRadius)
+			shop.GET("/search", userHandler.GetSellerByPincode)
+
 		}
 
 		// Shop by Category
@@ -168,12 +170,6 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 			category.GET("/", productHandler.GetAllCategories)
 			category.GET("/:category_id/products", productHandler.GetProductsByCategory)
 			category.GET("/:category_id/product-items", userHandler.GetProductItemsByCategory)
-		}
-
-		document := api.Group("/departments")
-		{
-			document.GET("/", productHandler.GetAllDepartments)
-			document.GET("/:department_id/products", userHandler.GetProductItemsByDepartment)
 		}
 
 		// Sub-categories product items
@@ -285,5 +281,8 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 		// 	jobCategories.GET("/locations", userHandler.GetJobCategoryLocations)
 		// 	jobCategories.GET("/search", userHandler.SearchJobsInCategory)
 		// }
+
+		// Shop offers
+		api.GET("/shop-offers", offerHandle.GetShopOffers)
 	}
 }

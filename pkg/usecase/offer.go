@@ -108,13 +108,13 @@ func (c *offerUseCase) RemoveOffer(ctx context.Context, offerID uint) error {
 	return nil
 }
 
-func (c *offerUseCase) FindAllOffers(ctx context.Context, pagination request.Pagination) ([]domain.Offer, error) {
+func (c *offerUseCase) FindAllOffers(ctx context.Context, pagination request.Pagination) (response.OffersAndPromotions, error) {
 
-	offers, err := c.offerRepo.FindAllOffers(ctx, pagination)
+	offersAndPromotions, err := c.offerRepo.FindAllOffers(ctx, pagination)
 	if err != nil {
-		return nil, utils.PrependMessageToError(err, "failed to find all offers")
+		return response.OffersAndPromotions{}, utils.PrependMessageToError(err, "failed to find all offers and promotions")
 	}
-	return offers, nil
+	return offersAndPromotions, nil
 }
 
 func (c *offerUseCase) SaveCategoryOffer(ctx context.Context, offerCategory request.OfferCategory) error {
@@ -405,4 +405,22 @@ func (c *offerUseCase) FindActiveOffers(ctx context.Context) ([]domain.Offer, er
 		return nil, utils.PrependMessageToError(err, "failed to find active offers")
 	}
 	return offers, nil
+}
+
+func (c *offerUseCase) GetShopOffersByShopIDAndDateRange(ctx context.Context, shopID uint, startDate, endDate string) ([]domain.ShopOffer, error) {
+	// Parse the dates
+	start, err := time.Parse("2006-01-02", startDate)
+	if err != nil {
+		return nil, utils.PrependMessageToError(err, "invalid start date format, use YYYY-MM-DD")
+	}
+	end, err := time.Parse("2006-01-02", endDate)
+	if err != nil {
+		return nil, utils.PrependMessageToError(err, "invalid end date format, use YYYY-MM-DD")
+	}
+
+	shopOffers, err := c.offerRepo.FindShopOffersByShopIDAndDateRange(ctx, shopID, start, end)
+	if err != nil {
+		return nil, utils.PrependMessageToError(err, "failed to find shop offers")
+	}
+	return shopOffers, nil
 }

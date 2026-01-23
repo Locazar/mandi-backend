@@ -31,12 +31,12 @@ func (r *promotionRepository) Transactions(ctx context.Context, trxFn func(repo 
 func (r *promotionRepository) FindAllPromotionCategories(ctx context.Context, pagination request.Pagination) ([]response.PromotionCategory, error) {
 	var categories []response.PromotionCategory
 
-	offset := (pagination.PageNumber - 1) * pagination.Count
+	offset := pagination.Offset
 
 	query := r.db.Model(&domain.PromotionCategory{}).
 		Select("id, name, shop_id, is_active, icon_path, created_at, updated_at").
 		Order("created_at DESC").
-		Limit(int(pagination.Count)).
+		Limit(int(pagination.Limit)).
 		Offset(int(offset))
 
 	if err := query.Find(&categories).Error; err != nil {
@@ -62,7 +62,7 @@ func (r *promotionRepository) FindPromotionCategoryByID(ctx context.Context, cat
 func (r *promotionRepository) FindAllPromotionTypes(ctx context.Context, pagination request.Pagination) ([]response.PromotionsType, error) {
 	var types []response.PromotionsType
 
-	offset := (pagination.PageNumber - 1) * pagination.Count
+	offset := pagination.Offset
 
 	query := `SELECT pt.id, pt.name, pt.is_active, pt.shop_id, pt.promotion_category_id, pt.promotion_offer_details, pt.icon_path, pt.created_at, pt.updated_at, pt.type, pc.name as category_name
 	          FROM promotions_types pt
@@ -70,7 +70,7 @@ func (r *promotionRepository) FindAllPromotionTypes(ctx context.Context, paginat
 	          ORDER BY pt.created_at DESC
 	          LIMIT ? OFFSET ?`
 
-	if err := r.db.Raw(query, pagination.Count, offset).Find(&types).Error; err != nil {
+	if err := r.db.Raw(query, pagination.Limit, offset).Find(&types).Error; err != nil {
 		return nil, fmt.Errorf("failed to find promotion types: %w", err)
 	}
 
@@ -80,7 +80,7 @@ func (r *promotionRepository) FindAllPromotionTypes(ctx context.Context, paginat
 func (r *promotionRepository) FindPromotionTypesByCategoryID(ctx context.Context, categoryID uint, pagination request.Pagination) ([]response.PromotionsType, error) {
 	var types []response.PromotionsType
 
-	offset := (pagination.PageNumber - 1) * pagination.Count
+	offset := pagination.Offset
 
 	query := `SELECT pt.id, pt.name, pt.is_active, pt.shop_id, pt.promotion_category_id, pt.promotion_offer_details, pt.icon_path, pt.created_at, pt.updated_at, pt.type, pc.name as category_name
 	          FROM promotions_types pt
@@ -89,7 +89,7 @@ func (r *promotionRepository) FindPromotionTypesByCategoryID(ctx context.Context
 	          ORDER BY pt.created_at ASC
 	          LIMIT ? OFFSET ?`
 
-	if err := r.db.Raw(query, categoryID, pagination.Count, offset).Find(&types).Error; err != nil {
+	if err := r.db.Raw(query, categoryID, pagination.Limit, offset).Find(&types).Error; err != nil {
 		return nil, fmt.Errorf("failed to find promotion types by category ID: %w", err)
 	}
 
@@ -122,7 +122,7 @@ func (r *promotionRepository) CreatePromotion(ctx context.Context, promotion dom
 	}
 
 	var createdPromotion response.Promotion
-	query := `SELECT p.id, p.promotion_category_id, p.promotion_type_id, p.offer_details, p.shop_id, p.is_active, p.created_at, p.updated_at,
+	query := `SELECT p.id, p.promotion_category_id, p.promotion_type_id, p.shop_id, p.is_active, p.created_at, p.updated_at,
 	          pc.name as promotion_category__name, pc.shop_id as promotion_category__shop_id, pc.is_active as promotion_category__is_active, pc.icon_path as promotion_category__icon_path, pc.created_at as promotion_category__created_at, pc.updated_at as promotion_category__updated_at,
 	          pt.id as promotion_type__id, pt.name as promotion_type__name, pt.is_active as promotion_type__is_active, pt.shop_id as promotion_type__shop_id, pt.promotion_category_id as promotion_type__promotion_category_id, pt.promotion_offer_details as promotion_type__promotion_offer_details, pt.type as promotion_type__type, pt.icon_path as promotion_type__icon_path, pt.created_at as promotion_type__created_at, pt.updated_at as promotion_type__updated_at
 	          FROM promotions p
@@ -140,19 +140,31 @@ func (r *promotionRepository) CreatePromotion(ctx context.Context, promotion dom
 func (r *promotionRepository) GetAllPromotions(ctx context.Context, pagination request.Pagination) ([]response.Promotion, error) {
 	var promotions []response.Promotion
 
-	offset := (pagination.PageNumber - 1) * pagination.Count
+	offset := pagination.Offset
+	limit := pagination.Limit
 
-	query := `SELECT p.id, p.promotion_category_id, p.promotion_type_id, p.offer_details, p.shop_id, p.is_active, p.created_at, p.updated_at,
-	          pc.name as promotion_category__name, pc.shop_id as promotion_category__shop_id, pc.is_active as promotion_category__is_active, pc.icon_path as promotion_category__icon_path, pc.created_at as promotion_category__created_at, pc.updated_at as promotion_category__updated_at,
-	          pt.id as promotion_type__id, pt.name as promotion_type__name, pt.is_active as promotion_type__is_active, pt.shop_id as promotion_type__shop_id, pt.promotion_category_id as promotion_type__promotion_category_id, pt.promotion_offer_details as promotion_type__promotion_offer_details, pt.type as promotion_type__type, pt.icon_path as promotion_type__icon_path, pt.created_at as promotion_type__created_at, pt.updated_at as promotion_type__updated_at
-	          FROM promotions p
-	          LEFT JOIN promotion_categories pc ON p.promotion_category_id = pc.id
-	          LEFT JOIN promotions_types pt ON p.promotion_type_id = pt.id
-	          ORDER BY p.created_at DESC
-	          LIMIT ? OFFSET ?`
+	query := r.db.
+		Preload("PromotionCategory").
+		Preload("PromotionType").
+		Where("is_active = true").
+		Where("start_date IS NOT NULL").
+		Where("end_date IS NOT NULL").
+		Where("(end_date)::timestamp >= CURRENT_TIMESTAMP").
+		Order("created_at DESC").
+		Limit(int(limit)).
+		Offset(int(offset))
 
-	if err := r.db.Raw(query, pagination.Count, offset).Find(&promotions).Error; err != nil {
+	if err := query.Find(&promotions).Error; err != nil {
 		return nil, fmt.Errorf("failed to find promotions: %w", err)
+	}
+
+	// Populate IconPath from PromotionType and dereference pointer fields
+	for i := range promotions {
+		if promotions[i].PromotionType.IconPath != "" {
+			promotions[i].IconPath = promotions[i].PromotionType.IconPath
+		}
+		// Dereference pointer fields to ensure they display correctly
+		// (omitempty will handle nil values automatically)
 	}
 
 	return promotions, nil
@@ -161,7 +173,7 @@ func (r *promotionRepository) GetAllPromotions(ctx context.Context, pagination r
 func (r *promotionRepository) GetPromotionByID(ctx context.Context, promotionID uint) (response.Promotion, error) {
 	var promotion response.Promotion
 
-	query := `SELECT p.id, p.promotion_category_id, p.promotion_type_id, p.offer_details, p.shop_id, p.is_active, p.created_at, p.updated_at,
+	query := `SELECT p.id, p.promotion_category_id, p.promotion_type_id, p.shop_id, p.is_active, p.created_at, p.updated_at,
 	          pc.name as promotion_category__name, pc.shop_id as promotion_category__shop_id, pc.is_active as promotion_category__is_active, pc.icon_path as promotion_category__icon_path, pc.created_at as promotion_category__created_at, pc.updated_at as promotion_category__updated_at,
 	          pt.id as promotion_type__id, pt.name as promotion_type__name, pt.is_active as promotion_type__is_active, pt.shop_id as promotion_type__shop_id, pt.promotion_category_id as promotion_type__promotion_category_id, pt.promotion_offer_details as promotion_type__promotion_offer_details, pt.type as promotion_type__type, pt.icon_path as promotion_type__icon_path, pt.created_at as promotion_type__created_at, pt.updated_at as promotion_type__updated_at
 	          FROM promotions p

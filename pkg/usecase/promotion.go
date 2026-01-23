@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"time"
 
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
@@ -39,13 +40,26 @@ func (u *promotionUseCase) FindPromotionTypeByID(ctx context.Context, typeID uin
 	return u.promotionRepo.FindPromotionTypeByID(ctx, typeID)
 }
 
-func (u *promotionUseCase) CreatePromotion(ctx context.Context, promotionCategoryID, promotionTypeID uint, offerDetails string, shopID string) (response.Promotion, error) {
+func (u *promotionUseCase) CreatePromotion(ctx context.Context, promotionCategoryID, promotionTypeID uint, offerDetails domain.PromotionOfferDetails, shopID uint, isActive bool) (response.Promotion, error) {
+
 	promotion := domain.Promotion{
-		PromotionCategoryID: promotionCategoryID,
-		PromotionTypeID:     promotionTypeID,
-		OfferDetails:        offerDetails,
-		ShopID:              shopID,
-		IsActive:            true,
+		PromotionCategoryID:    promotionCategoryID,
+		PromotionTypeID:        promotionTypeID,
+		OfferName:              offerDetails.OfferName,
+		Description:            offerDetails.Description,
+		DiscountRate:           offerDetails.DiscountRate,
+		StartDate:              offerDetails.StartDate,
+		EndDate:                offerDetails.EndDate,
+		MinimumPurchaseAmount:  offerDetails.MinimumPurchaseAmount,
+		TierQuantity:           offerDetails.TierQuantity,
+		BogoGetQuantity:        offerDetails.BogoGetQuantity,
+		BogoBuyQuantity:        offerDetails.BogoBuyQuantity,
+		BogoCombinationEnabled: offerDetails.BogoCombinationEnabled,
+		GiftDescription:        offerDetails.GiftDescription,
+		ShopID:                 shopID,
+		IsActive:               isActive,
+		CreatedAt:              time.Now().UTC(),
+		UpdatedAt:              time.Now().UTC(),
 	}
 
 	return u.promotionRepo.CreatePromotion(ctx, promotion)

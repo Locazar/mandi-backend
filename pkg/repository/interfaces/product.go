@@ -42,9 +42,10 @@ type ProductRepository interface {
 
 	// product items
 	FindProductItemByID(ctx context.Context, productItemID uint) (domain.ProductItem, error)
-	FindAllProductItems(ctx context.Context, adminID string, keyword string, categoryID, brandID, locationID *string, offer string, sortby string, pagination *request.Pagination) ([]response.ProductItems, error)
+	FindAllProductItems(ctx context.Context, adminID string, keyword string, categoryID, brandID, locationID *string, offer string, sortby string, pagination *request.Pagination, filterByShopID *string) ([]response.ProductItems, error)
+	FindLowViewProductItems(ctx context.Context, adminID string, keyword string, categoryID, brandID, locationID *string, sortby string, pagination *request.Pagination, filterByShopID *string) ([]response.ProductItems, error)
 	DeleteProductItem(ctx context.Context, productItemID uint) error
-	FindProductItemFilters(ctx context.Context, adminID string) ([]domain.ProductItemFilterType, error)
+	FindProductItemFilters(ctx context.Context, adminID string, shopID uint) ([]domain.ProductItemFilterType, error)
 	// GetProductItemsByDepartment returns product items associated with a department id
 	GetProductItemsByDepartment(ctx context.Context, departmentID uint) ([]response.ProductItems, error)
 	GetProductItemsByCategory(ctx context.Context, categoryID uint) ([]response.ProductItems, error)
@@ -53,7 +54,7 @@ type ProductRepository interface {
 	FindVariationCountForProduct(ctx context.Context, productID uint) (variationCount uint, err error) // to check the product config already exist
 	FindAllProductItemIDsByProductIDAndVariationOptionID(ctx context.Context, productID, variationOptionID uint) ([]uint, error)
 	SaveProductConfiguration(ctx context.Context, productItemID, variationOptionID uint) error
-	SaveProductItem(ctx context.Context, productItem request.ProductItem, adminID string) (productItemID uint, err error)
+	SaveProductItem(ctx context.Context, productItem request.ProductItem, adminID string, shopID uint) (productItemID uint, err error)
 	// product item image
 	FindAllProductItemImages(ctx context.Context, productItemID uint) (images []string, err error)
 	SaveProductItemImage(ctx context.Context, productItemId uint, image domain.ProductItemImage) error

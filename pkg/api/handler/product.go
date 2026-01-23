@@ -598,6 +598,18 @@ func (c *ProductHandler) UpdateProduct(ctx *gin.Context) {
 //	@Failure		409	{object}	response.Response{}	"Product have already this configured product items exist"
 func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 
+	shopIDStr := ctx.PostForm("shop_id")
+	fmt.Printf("ShopID from form: %s\n", shopIDStr)
+	var shopID uint
+	if shopIDStr != "" {
+		if n, err := strconv.Atoi(shopIDStr); err == nil {
+			shopID = uint(n)
+		} else {
+			response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid shop_id", err, nil)
+			return
+		}
+	}
+
 	subCategoryIDStr := ctx.PostForm("sub_category_id")
 	fmt.Printf("SubCategoryID from form: %s\n", subCategoryIDStr)
 	var subCategoryID uint
@@ -676,7 +688,7 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 	// 	return
 	// }
 
-	err := p.productUseCase.SaveProductItem(ctx, productItem, adminID)
+	err := p.productUseCase.SaveProductItem(ctx, productItem, adminID, shopID)
 
 	if err != nil {
 
@@ -825,27 +837,26 @@ func (p *ProductHandler) getAllProductItems() func(ctx *gin.Context) {
 			if offset < 0 {
 				offset = 0
 			}
-			pageNumberInt := (offset / limit) + 1
-			pageNumber, err := SafeIntToUint64(pageNumberInt)
-			if err != nil {
-				response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid pagination", err, nil)
-				return
-			}
 			limitUint64, err := SafeIntToUint64(limit)
 			if err != nil {
 				response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid limit", err, nil)
 				return
 			}
+			offsetUint64, err := SafeIntToUint64(offset)
+			if err != nil {
+				response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid offset", err, nil)
+				return
+			}
 			pagination = &request.Pagination{
-				PageNumber: pageNumber,
-				Count:      limitUint64,
+				Limit:  limitUint64,
+				Offset: offsetUint64,
 			}
 		}
 
 		// Define offer with a default value
 		offer := ctx.Query("offers")
 
-		productItems, err := p.productUseCase.FindAllProductItems(ctx, adminID, keyword, catIDPtr, brandIDPtr, locIDPtr, offer, sortby, pagination)
+		productItems, err := p.productUseCase.FindAllProductItems(ctx, adminID, keyword, catIDPtr, brandIDPtr, locIDPtr, offer, sortby, pagination, nil)
 
 		if err != nil {
 			response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get all product items", err, nil)
@@ -857,6 +868,8 @@ func (p *ProductHandler) getAllProductItems() func(ctx *gin.Context) {
 			response.SuccessResponse(ctx, http.StatusOK, "No product items found")
 			return
 		}
+
+		fmt.Printf("Product items: %+v\n", productItems)
 
 		response.SuccessResponse(ctx, http.StatusOK, "Successfully get all product items", productItems)
 	}
@@ -877,6 +890,11 @@ func (p *ProductHandler) getAllProductItems() func(ctx *gin.Context) {
 //	@Failure		400	{object}	response.Response{}	"Failed to get product items"
 func (p *ProductHandler) GetProductItemsByShopID() func(ctx *gin.Context) {
 	return func(ctx *gin.Context) {
+		tokenString := ctx.GetHeader("Authorization")
+		fmt.Printf("tokenString: %v\n", tokenString)
+
+		adminID := p.tokenService.DecodeTokenData(tokenString)
+
 		shopID := ctx.Param("shop_id")
 
 		// Parse optional query params
@@ -920,20 +938,19 @@ func (p *ProductHandler) GetProductItemsByShopID() func(ctx *gin.Context) {
 			if offset < 0 {
 				offset = 0
 			}
-			pageNumberInt := (offset / limit) + 1
-			pageNumber, err := SafeIntToUint64(pageNumberInt)
-			if err != nil {
-				response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid pagination", err, nil)
-				return
-			}
 			limitUint64, err := SafeIntToUint64(limit)
 			if err != nil {
 				response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid limit", err, nil)
 				return
 			}
+			offsetUint64, err := SafeIntToUint64(offset)
+			if err != nil {
+				response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid offset", err, nil)
+				return
+			}
 			pagination = &request.Pagination{
-				PageNumber: pageNumber,
-				Count:      limitUint64,
+				Limit:  limitUint64,
+				Offset: offsetUint64,
 			}
 		}
 
@@ -941,7 +958,7 @@ func (p *ProductHandler) GetProductItemsByShopID() func(ctx *gin.Context) {
 		if offer != nil {
 			offerVal = *offer
 		}
-		productItems, err := p.productUseCase.FindAllProductItems(ctx, shopID, keyword, catIDPtr, brandIDPtr, locIDPtr, offerVal, sortby, pagination)
+		productItems, err := p.productUseCase.FindAllProductItems(ctx, adminID, keyword, catIDPtr, brandIDPtr, locIDPtr, offerVal, sortby, pagination, &shopID)
 
 		fmt.Printf("Product items for shop %s: %+v\n", shopID, productItems)
 
@@ -956,8 +973,107 @@ func (p *ProductHandler) GetProductItemsByShopID() func(ctx *gin.Context) {
 			return
 		}
 
+		fmt.Printf("Product items for shop %s: %+v\n", shopID, productItems)
+
 		response.SuccessResponse(ctx, http.StatusOK, "Successfully get product items for shop", productItems)
 	}
+}
+
+// FindLowViewProductItems godoc
+// @Summary Find low view product items (less than 5 views in days 10-20 after creation)
+// @Description Get product items with low views for a specific shop in the 10-20 day period after creation
+// @Tags Product Items
+// @Accept json
+// @Produce json
+// @Param Authorization header string true "Bearer token"
+// @Param q query string false "Search keyword"
+// @Param category_id query string false "Category ID"
+// @Param brand_id query string false "Brand ID"
+// @Param location_id query string false "Location ID"
+// @Param sortby query string false "Sort by: created_at, updated_at, name, views"
+// @Param limit query integer false "Pagination limit"
+// @Param offset query integer false "Pagination offset"
+// @Success 200 {object} response.ProductItems "Successfully retrieved low view product items"
+// @Failure 400 {object} response.ErrorResponse "Bad request"
+// @Failure 500 {object} response.ErrorResponse "Internal server error"
+// @Router /api/admin/items/lowViewproductitems [get]
+func (p *ProductHandler) FindLowViewProductItems(ctx *gin.Context) {
+	tokenString := ctx.GetHeader("Authorization")
+	adminID := p.tokenService.DecodeTokenData(tokenString)
+
+	// Parse optional query params
+	keyword := ctx.Query("q")
+	var catIDPtr, brandIDPtr, locIDPtr *string
+
+	if cid := ctx.Query("category_id"); cid != "" {
+		if _, err := strconv.ParseUint(cid, 10, 64); err == nil {
+			s := cid
+			catIDPtr = &s
+		}
+	}
+	if bid := ctx.Query("brand_id"); bid != "" {
+		if _, err := strconv.ParseUint(bid, 10, 64); err == nil {
+			s := bid
+			brandIDPtr = &s
+		}
+	}
+	if lid := ctx.Query("location_id"); lid != "" {
+		if _, err := strconv.ParseUint(lid, 10, 64); err == nil {
+			s := lid
+			locIDPtr = &s
+		}
+	}
+
+	sortby := ctx.Query("sortby")
+	if sortby == "" {
+		sortby = ctx.Query("sortBy")
+	}
+
+	var pagination *request.Pagination
+	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "25"))
+	offset, _ := strconv.Atoi(ctx.DefaultQuery("offset", "0"))
+
+	if limit <= 0 {
+		limit = 25
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	limitUint64, err := SafeIntToUint64(limit)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid limit", err, nil)
+		return
+	}
+	offsetUint64, err := SafeIntToUint64(offset)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid offset", err, nil)
+		return
+	}
+	pagination = &request.Pagination{
+		Limit:  limitUint64,
+		Offset: offsetUint64,
+	}
+
+	// Get shopID from token/admin details
+	var shopID *string
+	if sid := ctx.Query("shop_id"); sid != "" {
+		shopID = &sid
+	}
+
+	productItems, err := p.productUseCase.FindLowViewProductItems(ctx, adminID, keyword, catIDPtr, brandIDPtr, locIDPtr, sortby, pagination, shopID)
+
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get low view product items", err, nil)
+		return
+	}
+
+	if len(productItems) == 0 {
+		response.SuccessResponse(ctx, http.StatusOK, "No low view product items found", []response.ProductItems{})
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved low view product items", productItems)
 }
 
 // Helper to convert *uuid.UUID to *string
@@ -1030,27 +1146,24 @@ func (h *ProductHandler) SearchProducts(c *gin.Context) {
 		offset = 0
 	}
 
-	// pageNumber is 1-based: pageNumber = (offset / limit) + 1
-	pageNumberInt := (offset / limit) + 1
-
-	pageNumber, err := SafeIntToUint64(pageNumberInt)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
 	limitUint64, err := SafeIntToUint64(limit)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	pagination := request.Pagination{
-		PageNumber: pageNumber,
-		Count:      limitUint64,
+	offsetUint64, err := SafeIntToUint64(offset)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
 	}
 
-	products, err := h.productUseCase.SearchProducts(c, keyword, catIDPtr, brandIDPtr, locIDPtr, int(pagination.Count), int(pagination.PageNumber))
+	pagination := request.Pagination{
+		Limit:  limitUint64,
+		Offset: offsetUint64,
+	}
+
+	products, err := h.productUseCase.SearchProducts(c, keyword, catIDPtr, brandIDPtr, locIDPtr, int(pagination.Limit), int(pagination.Offset))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -1545,7 +1658,7 @@ func (h *ProductHandler) GetNearbyProductsByPincode(c *gin.Context) {
 			return
 		}
 		// Call radius-based search
-		products, err := h.productUseCase.GetProductsByRadius(c, int(latitude), int(longitude), int(radiusKm*1000), limit, offset)
+		products, err := h.productUseCase.GetProductsByRadius(c, latitude, longitude, radiusKm, limit, offset)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -1621,7 +1734,7 @@ func (h *ProductHandler) GetProductsByRadius(c *gin.Context) {
 		return
 	}
 
-	products, err := h.productUseCase.GetProductsByRadius(c, int(lat), int(lng), int(radius), limit, offset)
+	products, err := h.productUseCase.GetProductsByRadius(c, lat, lng, radius, limit, offset)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -2171,6 +2284,7 @@ func (p *ProductHandler) GetProductItemByID(ctx *gin.Context) {
 		fmt.Printf("Failed to increment view count: %v\n", err)
 	}
 
+	fmt.Printf("Product Item: %+v\n", productItem)
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully get product item", productItem)
 }
 
@@ -2254,10 +2368,12 @@ func (p *ProductHandler) DeleteProductItem(ctx *gin.Context) {
 //	@Success		200				{object}	response.Response{}	"Successfully retrieved product item filters"
 
 func (p *ProductHandler) FindProductItemFilters(ctx *gin.Context) {
+	shopID, err := request.GetParamAsUint(ctx, "shop_id")
+
 	tokenString := ctx.GetHeader("Authorization")
 	adminID := p.tokenService.DecodeTokenData(tokenString)
 
-	filters, err := p.productUseCase.FindProductItemFilters(ctx, adminID)
+	filters, err := p.productUseCase.FindProductItemFilters(ctx, adminID, shopID)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get product item filters", err, nil)
 		return

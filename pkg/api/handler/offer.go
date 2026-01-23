@@ -78,26 +78,18 @@ func (p *offerHandler) SaveOffer(ctx *gin.Context) {
 //	@Param			page_number	query	int	false	"Page Number"
 //	@Param			count		query	int	false	"Count"
 //	@Router			/admin/offers [get]
-//	@Success		200	{object}	response.Response{}	""Successfully	found	all	offers"
-//	@Failure		500	{object}	response.Response{}	"Failed to get all offers"
+//	@Success		200	{object}	response.Response{}	"Successfully found all promotions"
+//	@Failure		500	{object}	response.Response{}	"Failed to get all promotions"
 func (c *offerHandler) GetAllOffers(ctx *gin.Context) {
-
 	pagination := request.GetPagination(ctx)
 
-	offers, err := c.offerUseCase.FindAllOffers(ctx, pagination)
+	offersAndPromotions, err := c.offerUseCase.FindAllOffers(ctx, pagination)
 	if err != nil {
-		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get all offers", err, nil)
-
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to retrieve offers", err, nil)
 		return
 	}
 
-	if offers == nil {
-		response.SuccessResponse(ctx, http.StatusOK, "No offer found", offers)
-
-		return
-	}
-
-	response.SuccessResponse(ctx, http.StatusOK, "Successfully found all offers", offers)
+	response.SuccessResponse(ctx, http.StatusOK, "Offers retrieved successfully", offersAndPromotions)
 }
 
 // RemoveOffer godoc
@@ -113,7 +105,7 @@ func (c *offerHandler) GetAllOffers(ctx *gin.Context) {
 //	@Failure		400	{object}	response.Response{}	"invalid input"
 func (c *offerHandler) RemoveOffer(ctx *gin.Context) {
 
-	offerID, err := request.GetParamAsUint(ctx, "offer_id")
+	offerID, err := request.GetParamAsUint(ctx, "product_item_id")
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
 		return
@@ -412,4 +404,42 @@ func (c *offerHandler) GetActiveOffers(ctx *gin.Context) {
 		return
 	}
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully found active offers", offers)
+}
+
+// GetShopOffers godoc
+//
+//	@Summary		Get shop offers by shop ID and date range (User)
+//	@Security		BearerAuth
+//	@Description	API for user to get shop offers within a date range
+//	@Id				GetShopOffers
+//	@Tags			User Offers
+//	@Param			shop_id		query	uint	true	"Shop ID"
+//	@Param			start_date	query	string	true	"Start Date (YYYY-MM-DD)"
+//	@Param			end_date	query	string	true	"End Date (YYYY-MM-DD)"
+//	@Router			/shop-offers [get]
+//	@Success		200	{object}	response.Response{}	"Successfully retrieved shop offers"
+//	@Failure		400	{object}	response.Response{}	"Invalid inputs"
+func (c *offerHandler) GetShopOffers(ctx *gin.Context) {
+	shopIDStr := ctx.Query("shop_id")
+	startDate := ctx.Query("start_date")
+	endDate := ctx.Query("end_date")
+
+	if shopIDStr == "" || startDate == "" || endDate == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "shop_id, start_date, and end_date are required", nil, nil)
+		return
+	}
+
+	var shopID uint
+	if _, err := fmt.Sscanf(shopIDStr, "%d", &shopID); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid shop_id", err, nil)
+		return
+	}
+
+	shopOffers, err := c.offerUseCase.GetShopOffersByShopIDAndDateRange(ctx, shopID, startDate, endDate)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get shop offers", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved shop offers", shopOffers)
 }

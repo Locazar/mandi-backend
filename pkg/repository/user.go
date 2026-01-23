@@ -339,9 +339,25 @@ func (c *userDatabase) FindSellersByRadius(ctx context.Context, reqData request.
 		WHERE a.latitude IS NOT NULL AND a.longitude IS NOT NULL
 	) AS subquery
 	WHERE distance_km <= $3
+	LIMIT $4 OFFSET $5
 	`
 
-	err = c.DB.Raw(query, reqData.Latitude, reqData.Longitude, reqData.RadiusKm).Scan(&sellers).Error
+	err = c.DB.Raw(query, reqData.Latitude, reqData.Longitude, reqData.RadiusKm, reqData.Limit, reqData.Offset).Scan(&sellers).Error
+
+	return sellers, err
+}
+
+func (c *userDatabase) FindSellersByPincode(ctx context.Context, reqData request.SellerPincodeRequest) (sellers []response.Shop, err error) {
+	query := `
+		SELECT id, shop_name, email, phone, latitude, longitude,
+		owner_name, shop_image_url, address_line1, address_line2, city, country, state, pincode,
+		shop_verification_status, created_at, updated_at
+		FROM shop_details
+		WHERE pincode = $1
+		LIMIT $2 OFFSET $3
+	`
+
+	err = c.DB.Raw(query, reqData.Pincode, reqData.Limit, reqData.Offset).Scan(&sellers).Error
 
 	return sellers, err
 }

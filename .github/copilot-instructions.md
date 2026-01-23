@@ -29,22 +29,30 @@ Developer workflows / useful commands
 - Linting: `golangci-lint run` via `make check`.
 
 Patterns & conventions specific to this repo
-- Clean Architecture: keep cross-cutting concerns in `pkg/service` and business logic in `pkg/usecase`.
-- Constructor naming: factory functions follow `NewXxx` style (e.g., `NewAuthHandler`, `NewUserUseCase`) and are referenced in `pkg/di/wire.go`.
-- Handlers accept typed handler interfaces (defined in `pkg/api/handler/interfaces`) — when adding endpoints, implement the interface and register in `pkg/di`.
-- Route grouping: `server.go` uses `engine.Group("/api")` and `routes.UserRoutes` / `routes.AdminRoutes` — follow existing route registration patterns.
-- Static assets: `views/*.html` and `uploads/` are served by the server. Use `engine.StaticFS("/uploads", http.Dir("./uploads"))` for file serving.
-- Error handling: use `pkg/utils/error.go` and domain error wrappers in `pkg/usecase/errors.go` where applicable.
+- **Clean Architecture layers**: Repository → UseCase → Handler → Server. Repositories return domain models; usecases contain business logic; handlers call usecases and format responses.
+- **Constructor naming**: `NewXxxHandler`, `NewXxxUseCase`, `NewXxxRepository` (all referenced in `pkg/di/wire.go`).
+- **Handler pattern**: Each domain (auth, user, product, promotion, etc.) has its own handler file with methods matching the interface in `pkg/api/handler/interfaces/xxx.go`. Example: `PromotionHandler` struct with field `promotionUseCase usecaseInterface.PromotionUseCase`.
+- **Response wrapping**: Use `response.SuccessResponse(ctx, statusCode, "message", data)` and `response.ErrorResponse(ctx, statusCode, "message", err, data)` for consistent JSON responses with `{success, message, error, data}` structure.
+- **Pagination**: Extract via `pagination := request.GetPagination(ctx)` (defaults: limit=25, offset=0); pass to usecase methods accepting `pagination` param.
+- **Route grouping**: `pkg/api/routes/user.go` and `pkg/api/routes/admin.go` register routes via handler methods; called from `server.go` which uses `engine.Group("/api")`.
+- **Static assets**: `views/*.html` served from root, `uploads/` directory for media. Icon path generation pattern: `fmt.Sprintf("/uploads/promotions/%s/%s.png", categoryName, typeName)` (replace spaces with underscores).
+- **Error handling**: Wrap errors with context; use `pkg/utils/error.go` utilities where needed. Pass actual error to `ErrorResponse()` for logging.
 
 Integration points & external deps
-- Postgres: configured in `pkg/db/connection.go` and initialized with SQL in `docker/postgres/initdb/`.
-- Twilio/email/third-party: implementations live under `pkg/service/otp` and `pkg/service/cloud`. New providers should implement the service interface and be registered in `pkg/di/wire.go`.
-- Token service: JWT-like token service under `pkg/service/token` used across handlers and usecases.
-- Mocking for tests: `mockgen` is used to generate mocks; helper make target `mockgen` shows example commands.
+- **Postgres**: Configured in `pkg/db/connection.go` (uses `database/sql` patterns); initialized via `docker-compose up` with SQL migrations in `docker/postgres/initdb/01-init.sql`.
+- **Authentication**: JWT tokens via `pkg/service/token/token.go`; Google OAuth via `pkg/api/handler/auth_google.go`. Admin and user tokens use separate keys (`ADMIN_AUTH_KEY`, `USER_AUTH_KEY`).
+- **Payment gateways**: Razorpay (`pkg/api/handler/payment_razorpay.go`) and Stripe (`pkg/api/handler/payment_stripe.go`) — separate implementations for different payment providers.
+- **OTP/SMS**: Twilio integration in `pkg/service/otp/` — implements OTP service interface.
+- **Cloud storage**: AWS S3 via `pkg/service/cloud/` — handles uploads for products, profiles, promotions.
+- **Search**: Elasticsearch client in `pkg/service/elasticsearch/` for product search optimization.
+- **Image processing**: Graphics service in `pkg/service/graphics/` for thumbnail generation and image manipulation.
+- **Mocking for tests**: `mockgen` generates mocks from interfaces; stored in `pkg/mock/mockrepo/`, `pkg/mock/mockservice/`, `pkg/mock/mockusecase/`.
 
 When changing DI or adding a constructor
 - Add constructor (NewXxx) in the concrete package.
 - Add the constructor to `pkg/di/wire.go` provider list and run `make wire` to regenerate `wire_gen.go`.
+- If adding a new handler: create handler struct in `pkg/api/handler/xxx.go`, define interface in `pkg/api/handler/interfaces/xxx.go`, add constructor to `wire.go`, then register routes in `pkg/api/routes/` and pass handler to `NewServerHTTP()`.
+- If adding a new usecase: create usecase struct in `pkg/usecase/xxx.go`, define interface in `pkg/usecase/interfaces/xxx.go`, add constructor to `wire.go`.
 
 Tests & mocks
 - Tests live alongside packages (`*_test.go`). Use `make test` for full run.

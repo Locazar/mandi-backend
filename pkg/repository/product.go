@@ -25,10 +25,36 @@ type productDatabase struct {
 	ElasticClient *elasticsearch.ElasticService
 }
 
-// DeleteProductItem deletes a product item by its ID.
+// DeleteProductItem deletes a product item and all its related data.
 func (c *productDatabase) DeleteProductItem(ctx context.Context, productItemID uint) error {
-	query := `DELETE FROM product_items WHERE id = $1`
-	return c.DB.Exec(query, productItemID).Error
+	// Delete all related records in cascade order to avoid foreign key constraints
+
+	// 1. Delete from offer_products (offers/promotions linked to this product)
+	if err := c.DB.Exec(`DELETE FROM offer_products WHERE product_item_id = $1`, productItemID).Error; err != nil {
+		return fmt.Errorf("failed to delete offer_products: %w", err)
+	}
+
+	// 2. Delete from product_configurations (variation configurations)
+	if err := c.DB.Exec(`DELETE FROM product_configurations WHERE product_item_id = $1`, productItemID).Error; err != nil {
+		return fmt.Errorf("failed to delete product_configurations: %w", err)
+	}
+
+	// 3. Delete from product_item_views (view count records)
+	if err := c.DB.Exec(`DELETE FROM product_item_views WHERE product_item_id = $1`, productItemID).Error; err != nil {
+		return fmt.Errorf("failed to delete product_item_views: %w", err)
+	}
+
+	// 4. Delete from product_images (product images)
+	if err := c.DB.Exec(`DELETE FROM product_images WHERE product_item_id = $1`, productItemID).Error; err != nil {
+		return fmt.Errorf("failed to delete product_images: %w", err)
+	}
+
+	if err := c.DB.Exec(`DELETE FROM product_items WHERE id = $1`, productItemID).Error; err != nil {
+		return fmt.Errorf("failed to delete product_item: %w", err)
+	}
+
+	// 5. Finally, delete the product_item itself
+	return nil
 }
 
 func NewProductRepository(db *gorm.DB, elasticClient *elasticsearch.ElasticService) interfaces.ProductRepository {
@@ -97,8 +123,8 @@ func (c *productDatabase) SaveSubCategory(ctx context.Context, body request.SubC
 func (c *productDatabase) FindAllMainCategories(ctx context.Context,
 	pagination request.Pagination) (categories []response.Category, err error) {
 
-	limit := pagination.Count
-	offset := (pagination.PageNumber - 1) * limit
+	limit := pagination.Limit
+	offset := pagination.Offset
 
 	query := `SELECT id, name FROM categories 
 	LIMIT $1 OFFSET $2`
@@ -287,8 +313,8 @@ func (c *productDatabase) UpdateProduct(ctx context.Context, product domain.Prod
 // get all products from database
 func (c *productDatabase) FindAllProducts(ctx context.Context, pagination request.Pagination, search string) (products []response.Product, err error) {
 
-	limit := pagination.Count
-	offset := (pagination.PageNumber - 1) * limit
+	limit := pagination.Limit
+	offset := pagination.Offset
 
 	query := `SELECT p.*, c.name AS category_name, c.image_url AS category_image_url
 	FROM products p
@@ -441,10 +467,10 @@ func (c *productDatabase) SaveProductConfiguration(ctx context.Context, productI
 	return err
 }
 
-func (c *productDatabase) SaveProductItem(ctx context.Context, productItem request.ProductItem, adminID string) (productItemID uint, err error) {
+func (c *productDatabase) SaveProductItem(ctx context.Context, productItem request.ProductItem, adminID string, shopID uint) (productItemID uint, err error) {
 
-	query := `INSERT INTO product_items (admin_id, sub_category_name, dynamic_fields, product_item_images, category_id, department_id, sub_category_id, created_at, updated_at) 
-VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`
+	query := `INSERT INTO product_items (admin_id, sub_category_name, dynamic_fields, product_item_images, category_id, department_id, sub_category_id, shop_id, created_at, updated_at) 
+VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`
 
 	createdAt := time.Now()
 
@@ -454,7 +480,7 @@ VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`
 		return 0, err
 	}
 
-	err = c.DB.Raw(query, adminID, productItem.SubCategoryName, dynamicFieldsJSON, productItem.ProductItemImages, productItem.CategoryID, productItem.DepartmentID, productItem.SubCategoryID, createdAt, createdAt).Scan(&productItemID).Error
+	err = c.DB.Raw(query, adminID, productItem.SubCategoryName, dynamicFieldsJSON, productItem.ProductItemImages, productItem.CategoryID, productItem.DepartmentID, productItem.SubCategoryID, shopID, createdAt, createdAt).Scan(&productItemID).Error
 
 	if err == nil && c.ElasticClient != nil {
 		domainItem := domain.ProductItem{
@@ -466,6 +492,7 @@ VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`
 			AdminID:           adminID,
 			DynamicFields:     string(dynamicFieldsJSON),
 			ProductItemImages: productItem.ProductItemImages,
+			ShopID:            shopID,
 		}
 		go c.ElasticClient.IndexProductItem(ctx, domainItem) // index asynchronously
 	}
@@ -475,17 +502,17 @@ VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`
 
 // for get all products items for a product filtered by admin_id and additional filters
 func (c *productDatabase) FindAllProductItems(ctx context.Context,
-	adminID string, keyword string, categoryID *string, brandID *string, locationID *string, offer string, sortby string, pagination *request.Pagination) (productItems []response.ProductItems, err error) {
+	adminID string, keyword string, categoryID *string, brandID *string, locationID *string, offer string, sortby string, pagination *request.Pagination, filterByShopID *string) (productItems []response.ProductItems, err error) {
 
-	log.Printf("FindAllProductItems called with adminID: %s, offer: %s", adminID, offer)
+	log.Printf("FindAllProductItems called with shopID: %s, offer: '%s'", adminID, offer)
 
 	var ids []uint
 	if keyword != "" && c.ElasticClient != nil {
 		limit := 100
 		offset := 0
 		if pagination != nil {
-			limit = int(pagination.Count)
-			offset = int((pagination.PageNumber - 1) * pagination.Count)
+			limit = int(pagination.Limit)
+			offset = int(pagination.Offset)
 		}
 		var err error
 		ids, err = c.ElasticClient.SearchProductItems(ctx, keyword, categoryID, limit, offset)
@@ -496,52 +523,92 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context,
 		}
 	}
 
+	// Default to true if offer param is not explicitly "false"
+	includeOffers := offer != "false"
+	log.Printf("includeOffers: %v", includeOffers)
+
 	// Define offerSubquery conditionally
 	var offerSubquery string
-	if offer == "false" {
-		offerSubquery = "'[]'::json"
+	if !includeOffers {
+		offerSubquery = `(SELECT '[]'::json) AS offer_products`
 	} else {
-		offerSubquery = `COALESCE(json_agg(json_build_object(
+		offerSubquery = `(SELECT COALESCE(json_agg(json_build_object(
 			'offer_product_id', op2.id,
 			'product_name', pi2.sub_category_name,
-			'offer_id', o2.id,
-			'offer_name', o2.name,
-			'discount_rate', o2.discount_rate,
-			'description', o2.description,
-			'start_date', o2.start_date,
-			'end_date', o2.end_date,
-			'image', o2.image,
-			'thumbnail', o2.thumbnail
-		)), '[]')
+			'offer_id', p2.id,
+			'offer_name', p2.offer_name,
+			'discount_rate', p2.discount_rate,
+			'description', p2.description,
+			'start_date', p2.start_date,
+			'end_date', p2.end_date,
+			'promotion_category', json_build_object(
+				'id', pc2.id,
+				'name', pc2.name,
+				'shop_id', pc2.shop_id,
+				'is_active', pc2.is_active,
+				'icon_path', pc2.icon_path,
+				'created_at', pc2.created_at,
+				'updated_at', pc2.updated_at
+			),
+			'promotion_type', json_build_object(
+				'id', pt2.id,
+				'name', pt2.name,
+				'is_active', pt2.is_active,
+				'shop_id', pt2.shop_id,
+				'promotion_category_id', pt2.promotion_category_id,
+				'type', pt2.type,
+				'icon_path', pt2.icon_path,
+				'created_at', pt2.created_at,
+				'updated_at', pt2.updated_at
+			)
+		) ORDER BY p2.created_at DESC), '[]')
 		FROM offer_products op2
 		LEFT JOIN product_items pi2 ON pi2.id = op2.product_item_id
-		INNER JOIN offers o2 ON o2.id = op2.offer_id
-		WHERE op2.product_item_id = pi.id`
+		INNER JOIN promotions p2 ON p2.id = op2.offer_id
+		LEFT JOIN promotion_categories pc2 ON p2.promotion_category_id = pc2.id
+		LEFT JOIN promotions_types pt2 ON p2.promotion_type_id = pt2.id
+		WHERE op2.product_item_id = pi.id
+		AND p2.is_active = true) AS offer_products`
 	}
+	log.Printf("Offer parameter: '%s', includeOffers: %v", offer, includeOffers)
 	log.Printf("offerSubquery: %s", offerSubquery)
 
 	query := `SELECT pi.sub_category_name, pi.id, pi.category_id, pi.department_id, pi.sub_category_id,
 				pi.product_item_images, pi.dynamic_fields, pi.created_at, pi.updated_at,
 				c.name AS category_name, d.name AS department_name, sc.name AS sub_category_name_ref,
-			(SELECT MAX(o3.discount_rate) FROM offer_products op3 INNER JOIN offers o3 ON o3.id = op3.offer_id WHERE op3.product_item_id = pi.id) AS discount_rate,
+			(SELECT MAX(p3.discount_rate) FROM offer_products op3 INNER JOIN promotions p3 ON p3.id = op3.offer_id WHERE op3.product_item_id = pi.id AND p3.is_active = true AND (p3.start_date)::timestamp <= CURRENT_TIMESTAMP AND (p3.end_date)::timestamp >= CURRENT_TIMESTAMP) AS discount_rate,
 				sc.image_url AS sub_category_image_url,
 				(SELECT COALESCE(SUM(view_count), 0) FROM product_item_views WHERE product_item_id = pi.id) AS view_count,
-				(SELECT ` + offerSubquery + `) AS offer_products
+				` + offerSubquery + `
 			FROM product_items pi 
 			LEFT JOIN categories c ON pi.category_id = c.id 
 			LEFT JOIN departments d ON pi.department_id = d.id
 			LEFT JOIN sub_categories sc ON pi.sub_category_id = sc.id
 			WHERE (pi.admin_id ->> 'id' = @adminID OR pi.admin_id #>> '{}' = @adminID)`
-	// Add offer filter
+
+	// Add offer filter - this ensures different data sets based on offer parameter
+	log.Printf("DEBUG: offer parameter value = '%s' (type: %T, length: %d)", offer, offer, len(offer))
+	log.Printf("DEBUG: offer == 'true': %v, offer == 'false': %v", offer == "true", offer == "false")
+
 	if offer == "true" {
-		query += " AND EXISTS (SELECT 1 FROM offer_products op INNER JOIN offers o ON o.id = op.offer_id WHERE op.product_item_id = pi.id and NOW() BETWEEN o.start_date AND o.end_date)"
+		// Return ONLY products WITH active, valid offers
+		log.Printf("DEBUG: Applying offer=true filter (products WITH offers)")
+		query += " AND EXISTS (SELECT 1 FROM offer_products op INNER JOIN promotions p ON p.id = op.offer_id WHERE op.product_item_id = pi.id AND p.is_active = true AND (p.end_date)::timestamp >= CURRENT_TIMESTAMP)"
 	} else if offer == "false" {
-		query += " AND NOT EXISTS (SELECT 1 FROM offer_products op INNER JOIN offers o ON o.id = op.offer_id WHERE op.product_item_id = pi.id)"
+		// Return ONLY products WITHOUT ANY offers at all (regardless of date/active status)
+		log.Printf("DEBUG: Applying offer=false filter (products WITHOUT any offers)")
+		query += " AND NOT EXISTS (SELECT 1 FROM offer_products WHERE product_item_id = pi.id)"
+	} else {
+		log.Printf("DEBUG: No offer filter applied (returning all products)")
 	}
-	fmt.Printf("Final query: %s", query)
+	// If offer is neither "true" nor "false" (empty or other values), return all products without filtering
 	// Add filters dynamically
 	params := map[string]interface{}{
 		"adminID": adminID,
+	}
+	if filterByShopID != nil && *filterByShopID != "" {
+		query += " AND pi.shop_id = @shopID"
+		params["shopID"] = *filterByShopID
 	}
 	if len(ids) > 0 {
 		params["ids"] = ids
@@ -578,8 +645,8 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context,
 	}
 	if pagination != nil {
 		query += " ORDER BY " + orderBy + " DESC LIMIT @limit OFFSET @offset"
-		params["limit"] = pagination.Count
-		params["offset"] = (pagination.PageNumber - 1) * pagination.Count
+		params["limit"] = pagination.Limit
+		params["offset"] = pagination.Offset
 	} else {
 		query += " ORDER BY " + orderBy + " DESC"
 	}
@@ -654,19 +721,15 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context,
 		// Unmarshal offer_products if present
 		if len(dbItem.OfferProducts) > 0 {
 			var offerProducts []response.OfferProduct
-			if err := json.Unmarshal(dbItem.OfferProducts, &offerProducts); err == nil {
-				item.OfferProducts = offerProducts // Make sure OfferProducts in response.ProductItems is []response.OfferProduct
-				if len(offerProducts) > 0 {
-					var offerNames []string
-					for _, op := range offerProducts {
-						offerNames = append(offerNames, op.OfferName)
-					}
-					// If you want to keep offerNames, assign to a []string field, not item.Offer
-					// For example, if item has OfferNames []string, use:
-					// item.OfferNames = offerNames
-					// Otherwise, remove this assignment to avoid the type error.
-				}
+			log.Printf("Attempting to unmarshal offer_products: %s", string(dbItem.OfferProducts))
+			if err := json.Unmarshal(dbItem.OfferProducts, &offerProducts); err != nil {
+				log.Printf("Failed to unmarshal offer_products: %v", err)
+			} else {
+				item.OfferProducts = offerProducts
+				log.Printf("Successfully unmarshaled %d offer products for product %d", len(offerProducts), dbItem.ID)
 			}
+		} else {
+			log.Printf("No offer_products data for product %d", dbItem.ID)
 		}
 
 		// Unmarshal DynamicFields if present
@@ -711,6 +774,231 @@ func parsePostgresArray(s string) []string {
 	return result
 }
 
+// FindLowViewProductItems finds products with less than 5 views in the last 10 days for a specific shop
+// Used to identify underperforming products that need promotion
+func (c *productDatabase) FindLowViewProductItems(ctx context.Context,
+	adminID string, keyword string, categoryID *string, brandID *string, locationID *string, sortby string, pagination *request.Pagination, filterByShopID *string) (productItems []response.ProductItems, err error) {
+
+	log.Printf("FindLowViewProductItems called with shopID: %s", filterByShopID)
+
+	var ids []uint
+	if keyword != "" && c.ElasticClient != nil {
+		limit := 100
+		offset := 0
+		if pagination != nil {
+			limit = int(pagination.Limit)
+			offset = int(pagination.Offset)
+		}
+		var err error
+		ids, err = c.ElasticClient.SearchProductItems(ctx, keyword, categoryID, limit, offset)
+		if err != nil {
+			log.Printf("ES search failed, falling back to PG: %v", err)
+		} else if len(ids) == 0 {
+			return []response.ProductItems{}, nil
+		}
+	}
+
+	// Subquery to get offer products
+	offerSubquery := `(SELECT COALESCE(json_agg(json_build_object(
+		'offer_product_id', op2.id,
+		'product_name', pi2.sub_category_name,
+		'offer_id', p2.id,
+		'offer_name', p2.offer_name,
+		'discount_rate', p2.discount_rate,
+		'description', p2.description,
+		'start_date', p2.start_date,
+		'end_date', p2.end_date,
+		'promotion_category', json_build_object(
+			'id', pc2.id,
+			'name', pc2.name,
+			'shop_id', pc2.shop_id,
+			'is_active', pc2.is_active,
+			'icon_path', pc2.icon_path,
+			'created_at', pc2.created_at,
+			'updated_at', pc2.updated_at
+		),
+		'promotion_type', json_build_object(
+			'id', pt2.id,
+			'name', pt2.name,
+			'is_active', pt2.is_active,
+			'shop_id', pt2.shop_id,
+			'promotion_category_id', pt2.promotion_category_id,
+			'type', pt2.type,
+			'icon_path', pt2.icon_path,
+			'created_at', pt2.created_at,
+			'updated_at', pt2.updated_at
+		)
+	) ORDER BY p2.created_at DESC), '[]')
+	FROM offer_products op2
+	LEFT JOIN product_items pi2 ON pi2.id = op2.product_item_id
+	INNER JOIN promotions p2 ON p2.id = op2.offer_id
+	LEFT JOIN promotion_categories pc2 ON p2.promotion_category_id = pc2.id
+	LEFT JOIN promotions_types pt2 ON p2.promotion_type_id = pt2.id
+	WHERE op2.product_item_id = pi.id
+	AND p2.is_active = true) AS offer_products`
+
+	query := `SELECT pi.sub_category_name, pi.id, pi.category_id, pi.department_id, pi.sub_category_id,
+				pi.product_item_images, pi.dynamic_fields, pi.created_at, pi.updated_at,
+				c.name AS category_name, d.name AS department_name, sc.name AS sub_category_name_ref,
+			(SELECT MAX(p3.discount_rate) FROM offer_products op3 INNER JOIN promotions p3 ON p3.id = op3.offer_id WHERE op3.product_item_id = pi.id AND p3.is_active = true AND (p3.start_date)::timestamp <= CURRENT_TIMESTAMP AND (p3.end_date)::timestamp >= CURRENT_TIMESTAMP) AS discount_rate,
+				sc.image_url AS sub_category_image_url,
+				(SELECT COALESCE(SUM(view_count), 0) FROM product_item_views WHERE product_item_id = pi.id AND viewed_at >= (pi.created_at + INTERVAL '10 days') AND viewed_at < (pi.created_at + INTERVAL '20 days')) AS view_count_10days,
+				` + offerSubquery + `
+			FROM product_items pi 
+			LEFT JOIN categories c ON pi.category_id = c.id 
+			LEFT JOIN departments d ON pi.department_id = d.id
+			LEFT JOIN sub_categories sc ON pi.sub_category_id = sc.id
+			WHERE (pi.admin_id ->> 'id' = @adminID OR pi.admin_id #>> '{}' = @adminID)
+			AND (SELECT COALESCE(SUM(view_count), 0) FROM product_item_views WHERE product_item_id = pi.id AND viewed_at >= (pi.created_at + INTERVAL '10 days') AND viewed_at < (pi.created_at + INTERVAL '20 days')) < 5`
+
+	// Add filters dynamically
+	params := map[string]interface{}{
+		"adminID": adminID,
+	}
+
+	if filterByShopID != nil && *filterByShopID != "" {
+		query += " AND pi.shop_id = @shopID"
+		params["shopID"] = *filterByShopID
+	}
+
+	if len(ids) > 0 {
+		params["ids"] = ids
+		query += " AND pi.id = ANY(@ids)"
+	}
+
+	if keyword != "" && len(ids) == 0 {
+		query += " AND (pi.sub_category_name ILIKE @keyword OR c.name ILIKE @keyword OR sc.name ILIKE @keyword)"
+		params["keyword"] = "%" + keyword + "%"
+	}
+
+	if categoryID != nil && *categoryID != "" && len(ids) == 0 {
+		query += " AND pi.category_id = @categoryID"
+		params["categoryID"] = *categoryID
+	}
+
+	if brandID != nil && *brandID != "" {
+		query += " AND pi.brand_id = @brandID"
+		params["brandID"] = *brandID
+	}
+
+	if locationID != nil && *locationID != "" {
+		query += " AND pi.location_id = @locationID"
+		params["locationID"] = *locationID
+	}
+
+	orderBy := "view_count_10days"
+	if sortby != "" {
+		switch sortby {
+		case "created_at":
+			orderBy = "pi.created_at"
+		case "updated_at":
+			orderBy = "pi.updated_at"
+		case "name":
+			orderBy = "pi.sub_category_name"
+		case "views":
+			orderBy = "view_count_10days"
+		}
+	}
+
+	if pagination != nil {
+		query += " ORDER BY " + orderBy + " ASC LIMIT @limit OFFSET @offset"
+		params["limit"] = pagination.Limit
+		params["offset"] = pagination.Offset
+	} else {
+		query += " ORDER BY " + orderBy + " ASC"
+	}
+
+	// Internal struct for scanning DB result
+	type productItemDB struct {
+		Name                string        `gorm:"column:sub_category_name"`
+		ID                  uint          `gorm:"column:id"`
+		CategoryID          uint          `gorm:"column:category_id"`
+		DepartmentID        uint          `gorm:"column:department_id"`
+		SubCategoryID       uint          `gorm:"column:sub_category_id"`
+		CategoryName        string        `gorm:"column:category_name"`
+		DepartmentName      string        `gorm:"column:department_name"`
+		SubCategoryNameRef  string        `gorm:"column:sub_category_name_ref"`
+		SubCategoryImageURL string        `gorm:"column:sub_category_image_url"`
+		ProductItemImages   string        `gorm:"column:product_item_images"`
+		DynamicFields       []byte        `gorm:"column:dynamic_fields"`
+		OfferProducts       []byte        `gorm:"column:offer_products"`
+		CreatedAt           time.Time     `gorm:"column:created_at"`
+		UpdatedAt           time.Time     `gorm:"column:updated_at"`
+		DiscountRate        sql.NullInt64 `gorm:"column:discount_rate"`
+		ViewCount10Days     uint          `gorm:"column:view_count_10days"`
+	}
+
+	var dbItems []productItemDB
+	log.Printf("Query: %s, Params: %v", query, params)
+	err = c.DB.Raw(query, params).Scan(&dbItems).Error
+	if err != nil {
+		return
+	}
+
+	log.Printf("Number of low-view dbItems scanned: %d", len(dbItems))
+
+	// Map to response.ProductItems
+	for _, dbItem := range dbItems {
+		// Parse product_item_images from PostgreSQL array format
+		var images []string
+		if dbItem.ProductItemImages != "" {
+			imageStr := dbItem.ProductItemImages
+			if len(imageStr) > 2 && imageStr[0] == '{' && imageStr[len(imageStr)-1] == '}' {
+				imageStr = imageStr[1 : len(imageStr)-1]
+				if imageStr != "" {
+					images = []string{}
+					for _, img := range parsePostgresArray(imageStr) {
+						images = append(images, img)
+					}
+				}
+			}
+		}
+		if images == nil {
+			images = []string{}
+		}
+
+		item := response.ProductItems{
+			ID:                  dbItem.ID,
+			Name:                dbItem.Name,
+			CategoryName:        dbItem.CategoryName,
+			MainCategoryName:    dbItem.DepartmentName,
+			SubCategoryImageURL: dbItem.SubCategoryImageURL,
+			CategoryID:          dbItem.CategoryID,
+			DepartmentID:        dbItem.DepartmentID,
+			SubCategoryID:       dbItem.SubCategoryID,
+			ProductItemImages:   images,
+			CreatedAt:           dbItem.CreatedAt,
+			UpdatedAt:           dbItem.UpdatedAt,
+			ViewCount:           dbItem.ViewCount10Days,
+		}
+
+		// Unmarshal offer_products if present
+		if len(dbItem.OfferProducts) > 0 {
+			var offerProducts []response.OfferProduct
+			log.Printf("Attempting to unmarshal offer_products for low-view product: %s", string(dbItem.OfferProducts))
+			if err := json.Unmarshal(dbItem.OfferProducts, &offerProducts); err != nil {
+				log.Printf("Failed to unmarshal offer_products: %v", err)
+			} else {
+				item.OfferProducts = offerProducts
+				log.Printf("Successfully unmarshaled %d offer products for low-view product %d", len(offerProducts), dbItem.ID)
+			}
+		}
+
+		// Unmarshal DynamicFields if present
+		if len(dbItem.DynamicFields) > 0 {
+			var dynamicFields map[string]interface{}
+			if err := json.Unmarshal(dbItem.DynamicFields, &dynamicFields); err == nil {
+				item.DynamicFields = dynamicFields
+			}
+		}
+
+		productItems = append(productItems, item)
+	}
+
+	log.Printf("Retrieved %d low-view product items\n", len(productItems))
+	return
+}
+
 // Find all variation and value of a product item
 func (c *productDatabase) FindAllVariationValuesOfProductItem(ctx context.Context,
 	productItemID uint) (productVariationsValues []response.ProductVariationValue, err error) {
@@ -746,12 +1034,8 @@ func (c *productDatabase) FindAllProductItemImages(ctx context.Context, productI
 
 // SearchProducts implements interfaces.ProductRepository.
 func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, categoryID, brandID, locationID *string, pagination request.Pagination) (products []response.ProductItems, err error) {
-	pageNumber := pagination.PageNumber
-	if pageNumber < 1 {
-		pageNumber = 1
-	}
-	offset := int((pageNumber - 1) * pagination.Count)
-	limit := int(pagination.Count)
+	limit := int(pagination.Limit)
+	offset := int(pagination.Offset)
 
 	var ids []uint
 	if keyword != "" && c.ElasticClient != nil {
@@ -774,19 +1058,20 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 				SELECT COALESCE(json_agg(json_build_object(
 					'offer_product_id', op2.id,
 					'product_name', pi2.sub_category_name,
-					'offer_id', o2.id,
-					'offer_name', o2.name,
-					'discount_rate', o2.discount_rate,
-					'description', o2.description,
-					'start_date', o2.start_date,
-					'end_date', o2.end_date,
-					'image', o2.image,
-					'thumbnail', o2.thumbnail
+					'offer_id', p2.id,
+					'offer_name', p2.offer_name,
+					'discount_rate', p2.discount_rate,
+					'description', p2.description,
+					'start_date', p2.start_date,
+					'end_date', p2.end_date
 				)), '[]')
 				FROM offer_products op2
 				LEFT JOIN product_items pi2 ON pi2.id = op2.product_item_id
-				INNER JOIN offers o2 ON o2.id = op2.offer_id
+				INNER JOIN promotions p2 ON p2.id = op2.offer_id
 				WHERE op2.product_item_id = pi.id
+				AND p2.is_active = true
+				AND (p2.start_date)::timestamp <= CURRENT_TIMESTAMP
+				AND (p2.end_date)::timestamp >= CURRENT_TIMESTAMP
 			) AS offer_products
 		FROM product_items pi
 		LEFT JOIN categories c ON pi.category_id = c.id
@@ -808,7 +1093,7 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 		baseQuery += " ORDER BY pi.created_at DESC"
 	} else {
 		// Fallback to original search logic
-		whereClause := " WHERE (pi.sub_category_name ILIKE $1 OR pi.dynamic_fields::text ILIKE $1 OR c.name::text ILIKE $1 OR sc.name::text ILIKE $1)"
+		whereClause := " WHERE (pi.sub_category_name ILIKE $1 OR pi.dynamic_fields::text ILIKE $1 OR c.name::text ILIKE $1 OR sc.name::text ILIKE $1 OR d.name::text ILIKE $1)"
 		params = append(params, "%"+keyword+"%")
 		paramIndex = 2
 
@@ -1118,26 +1403,44 @@ func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID 
 		productItem.DynamicFields = make(map[string]interface{})
 	}
 
-	// Fetch offers for this product item
+	// Fetch offers from promotions table for this product item
 	offerQuery := `SELECT op.id as offer_product_id, pi.sub_category_name as product_name,
-	                  o.id as offer_id, o.name as offer_name, o.discount_rate, o.description,
-	                  o.start_date, o.end_date, o.image, o.thumbnail
+	                  p.id as offer_id, p.offer_name, p.discount_rate, p.description,
+	                  p.start_date, p.end_date,
+	                  pc.id as promotion_category_id, pc.name as promotion_category_name, pc.shop_id as promotion_category_shop_id, pc.is_active as promotion_category_is_active, pc.icon_path as promotion_category_icon_path, pc.created_at as promotion_category_created_at, pc.updated_at as promotion_category_updated_at,
+	                  pt.id as promotion_type_id, pt.name as promotion_type_name, pt.is_active as promotion_type_is_active, pt.shop_id as promotion_type_shop_id, pt.promotion_category_id as promotion_type_promotion_category_id, pt.type as promotion_type_type, pt.icon_path as promotion_type_icon_path, pt.created_at as promotion_type_created_at, pt.updated_at as promotion_type_updated_at
 	               FROM offer_products op
-	               INNER JOIN offers o ON o.id = op.offer_id
+	               INNER JOIN promotions p ON p.id = op.offer_id
 	               LEFT JOIN product_items pi ON pi.id = op.product_item_id
-	               WHERE op.product_item_id = $1`
+	               LEFT JOIN promotion_categories pc ON p.promotion_category_id = pc.id
+	               LEFT JOIN promotions_types pt ON p.promotion_type_id = pt.id
+	               WHERE op.product_item_id = $1 AND p.is_active = true`
 
 	var offerRows []struct {
-		OfferProductID uint      `gorm:"column:offer_product_id"`
-		ProductName    string    `gorm:"column:product_name"`
-		OfferID        uint      `gorm:"column:offer_id"`
-		OfferName      string    `gorm:"column:offer_name"`
-		DiscountRate   uint      `gorm:"column:discount_rate"`
-		Description    string    `gorm:"column:description"`
-		StartDate      time.Time `gorm:"column:start_date"`
-		EndDate        time.Time `gorm:"column:end_date"`
-		Image          string    `gorm:"column:image"`
-		Thumbnail      string    `gorm:"column:thumbnail"`
+		OfferProductID                   uint      `gorm:"column:offer_product_id"`
+		ProductName                      string    `gorm:"column:product_name"`
+		OfferID                          uint      `gorm:"column:offer_id"`
+		OfferName                        string    `gorm:"column:offer_name"`
+		DiscountRate                     uint      `gorm:"column:discount_rate"`
+		Description                      string    `gorm:"column:description"`
+		StartDate                        string    `gorm:"column:start_date"`
+		EndDate                          string    `gorm:"column:end_date"`
+		PromotionCategoryID              uint      `gorm:"column:promotion_category_id"`
+		PromotionCategoryName            string    `gorm:"column:promotion_category_name"`
+		PromotionCategoryShopID          uint      `gorm:"column:promotion_category_shop_id"`
+		PromotionCategoryIsActive        bool      `gorm:"column:promotion_category_is_active"`
+		PromotionCategoryIconPath        string    `gorm:"column:promotion_category_icon_path"`
+		PromotionCategoryCreatedAt       time.Time `gorm:"column:promotion_category_created_at"`
+		PromotionCategoryUpdatedAt       time.Time `gorm:"column:promotion_category_updated_at"`
+		PromotionTypeID                  uint      `gorm:"column:promotion_type_id"`
+		PromotionTypeName                string    `gorm:"column:promotion_type_name"`
+		PromotionTypeIsActive            bool      `gorm:"column:promotion_type_is_active"`
+		PromotionTypeShopID              string    `gorm:"column:promotion_type_shop_id"`
+		PromotionTypePromotionCategoryID uint      `gorm:"column:promotion_type_promotion_category_id"`
+		PromotionTypeType                string    `gorm:"column:promotion_type_type"`
+		PromotionTypeIconPath            string    `gorm:"column:promotion_type_icon_path"`
+		PromotionTypeCreatedAt           time.Time `gorm:"column:promotion_type_created_at"`
+		PromotionTypeUpdatedAt           time.Time `gorm:"column:promotion_type_updated_at"`
 	}
 
 	err = c.DB.Raw(offerQuery, productItemID).Scan(&offerRows).Error
@@ -1157,8 +1460,26 @@ func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID 
 				Description:    row.Description,
 				StartDate:      row.StartDate,
 				EndDate:        row.EndDate,
-				Image:          row.Image,
-				Thumbnail:      row.Thumbnail,
+				PromotionCategory: response.PromotionCategory{
+					ID:        row.PromotionCategoryID,
+					Name:      row.PromotionCategoryName,
+					ShopID:    row.PromotionCategoryShopID,
+					IsActive:  row.PromotionCategoryIsActive,
+					IconPath:  row.PromotionCategoryIconPath,
+					CreatedAt: row.PromotionCategoryCreatedAt,
+					UpdatedAt: row.PromotionCategoryUpdatedAt,
+				},
+				PromotionType: response.PromotionsType{
+					ID:                  row.PromotionTypeID,
+					Name:                row.PromotionTypeName,
+					IsActive:            row.PromotionTypeIsActive,
+					ShopID:              row.PromotionTypeShopID,
+					PromotionCategoryID: row.PromotionTypePromotionCategoryID,
+					Type:                row.PromotionTypeType,
+					IconPath:            row.PromotionTypeIconPath,
+					CreatedAt:           row.PromotionTypeCreatedAt,
+					UpdatedAt:           row.PromotionTypeUpdatedAt,
+				},
 			}
 		}
 		productItem.OfferProducts = offerProducts
@@ -1781,17 +2102,16 @@ func (c *productDatabase) GetProductItemsByShop(ctx context.Context, adminID uin
 	return
 }
 
-func (c *productDatabase) FindProductItemFilters(ctx context.Context, adminID string) ([]domain.ProductItemFilterType, error) {
-	var shopID uint
-	shopQuery := `SELECT id FROM shop_details WHERE admin_id = $1`
-	err := c.DB.Raw(shopQuery, adminID).Scan(&shopID).Error
+func (c *productDatabase) FindProductItemFilters(ctx context.Context, adminID string, shopID uint) ([]domain.ProductItemFilterType, error) {
+	shopQuery := `SELECT id FROM shop_details WHERE id = $1`
+	err := c.DB.Raw(shopQuery, shopID).Scan(&shopID).Error
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch shop ID for admin %s: %v", adminID, err)
 	}
 
 	var filters []domain.ProductItemFilterType
-	query := `SELECT id, filter_name, shop_id FROM product_item_filter_types ORDER BY id ASC`
-	err = c.DB.Raw(query).Scan(&filters).Error
+	query := `SELECT id, filter_name, shop_id FROM product_item_filter_types where shop_id = $1 ORDER BY id ASC`
+	err = c.DB.Raw(query, shopID).Scan(&filters).Error
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch product item filters: %v", err)
 	}
@@ -1800,8 +2120,8 @@ func (c *productDatabase) FindProductItemFilters(ctx context.Context, adminID st
 	var products []struct {
 		CategoryID uint `json:"category_id"`
 	}
-	productQuery := `SELECT category_id FROM product_items WHERE admin_id = $1`
-	err = c.DB.Raw(productQuery, adminID).Scan(&products).Error
+	productQuery := `SELECT category_id FROM product_items WHERE shop_id = $1`
+	err = c.DB.Raw(productQuery, shopID).Scan(&products).Error
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch products: %v", err)
 	}

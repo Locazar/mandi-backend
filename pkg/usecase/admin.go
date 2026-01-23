@@ -248,7 +248,7 @@ func (c *adminUseCase) GetFullSalesReport(ctx context.Context, requestData reque
 	}
 
 	log.Printf("successfully got sales report from %v to %v of limit %v",
-		requestData.StartDate, requestData.EndDate, requestData.Pagination.Count)
+		requestData.StartDate, requestData.EndDate, requestData.Pagination.Limit)
 
 	return salesReport, nil
 }
@@ -436,10 +436,6 @@ func (c *adminUseCase) GetAllProductDetails(ctx context.Context) (products []any
 
 	// Convert to []any slice
 	products = []any{jsonData}
-	return products, nil
-	if err != nil {
-		return nil, fmt.Errorf("failed to get all product details \nerror:%v", err.Error())
-	}
 	return products, nil
 }
 

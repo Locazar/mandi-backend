@@ -2,6 +2,7 @@ package interfaces
 
 import (
 	"context"
+	"time"
 
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
@@ -14,7 +15,7 @@ type OfferRepository interface {
 	// offer
 	FindOfferByID(ctx context.Context, offerID uint) (domain.Offer, error)
 	FindOfferByName(ctx context.Context, offerName string) (domain.Offer, error)
-	FindAllOffers(ctx context.Context, pagination request.Pagination) ([]domain.Offer, error)
+	FindAllOffers(ctx context.Context, pagination request.Pagination) (response.OffersAndPromotions, error)
 	SaveOffer(ctx context.Context, offer request.Offer) error
 	SaveOfferWithImages(ctx context.Context, offer request.Offer, imageURL, thumbnailURL string) error
 	DeleteOffer(ctx context.Context, offerID uint) error
@@ -53,4 +54,5 @@ type OfferRepository interface {
 	DeleteAllProductOffersByOfferID(ctx context.Context, offerID uint) error
 	DeleteAllCategoryOffersByOfferID(ctx context.Context, offerID uint) error
 	ApplyOfferToShop(ctx context.Context, adminID string, body request.ApplyOfferToShop) error
+	FindShopOffersByShopIDAndDateRange(ctx context.Context, shopID uint, startDate, endDate time.Time) ([]domain.ShopOffer, error)
 }

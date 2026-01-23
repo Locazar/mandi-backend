@@ -49,8 +49,8 @@ func (c *OrderDatabase) FindShopOrderByShopOrderID(ctx context.Context, shopOrde
 func (c *OrderDatabase) FindAllShopOrdersByUserID(ctx context.Context, userID uint,
 	pagination request.Pagination) (shopOrders []response.ShopOrder, err error) {
 
-	limit := pagination.Count
-	offset := (pagination.PageNumber - 1) * limit
+	limit := pagination.Limit
+	offset := pagination.Offset
 
 	query := `SELECT so.user_id, so.id AS shop_order_id, so.order_date, so.order_total_price, so.discount, 
 	so.order_status_id, os.status AS order_status,so.address_id, so.payment_method_id, pm.name AS payment_method_name  
@@ -68,8 +68,8 @@ func (c *OrderDatabase) FindAllShopOrdersByUserID(ctx context.Context, userID ui
 func (c *OrderDatabase) FindAllShopOrders(ctx context.Context,
 	pagination request.Pagination) (shopOrders []response.ShopOrder, err error) {
 
-	limit := pagination.Count
-	offset := (pagination.PageNumber - 1) * limit
+	limit := pagination.Limit
+	offset := pagination.Offset
 
 	query := `SELECT so.user_id, so.id AS shop_order_id, so.order_date, so.order_total_price, so.discount, 
 	so.order_status_id, os.status AS order_status, so.address_id, so.payment_method_id, pm.name AS payment_method_name   
@@ -87,8 +87,8 @@ func (c *OrderDatabase) FindAllShopOrders(ctx context.Context,
 func (c *OrderDatabase) FindAllOrdersItemsByShopOrderID(ctx context.Context,
 	shopOrderID uint, pagination request.Pagination) (orderItems []response.OrderItem, err error) {
 
-	limit := pagination.Count
-	offset := (pagination.PageNumber - 1) * limit
+	limit := pagination.Limit
+	offset := pagination.Offset
 
 	query := `SELECT ol.product_item_id, p.name AS product_name, p.image, ol.price, so.order_date, os.status,ol.qty, 
 	(ol.price * ol.qty) AS sub_total FROM  order_lines ol 
@@ -203,8 +203,8 @@ func (c *OrderDatabase) FindOrderReturnByShopOrderID(ctx context.Context,
 func (c *OrderDatabase) FindAllOrderReturns(ctx context.Context,
 	pagination request.Pagination) (orderReturns []response.OrderReturn, err error) {
 
-	limit := pagination.Count
-	offset := (pagination.PageNumber - 1) * limit
+	limit := pagination.Limit
+	offset := pagination.Offset
 
 	query := `SELECT ors.id AS order_return_id, ors.shop_order_id, ors.request_date, ors.return_reason, 
 		os.id AS order_status_id, os.status AS order_status,ors.refund_amount, 
@@ -221,8 +221,8 @@ func (c *OrderDatabase) FindAllOrderReturns(ctx context.Context,
 func (c *OrderDatabase) FindAllPendingOrderReturns(ctx context.Context,
 	pagination request.Pagination) (pendingReturns []response.OrderReturn, err error) {
 
-	limit := pagination.Count
-	offset := (pagination.PageNumber - 1) * limit
+	limit := pagination.Limit
+	offset := pagination.Offset
 
 	returnRequested, err1 := c.FindOrderStatusByStatus(ctx, "return requested")
 	returnApproved, err2 := c.FindOrderStatusByStatus(ctx, "return approved")

@@ -39,5 +39,6 @@ type UserRepository interface {
 	SaveWishListItem(ctx context.Context, wishList domain.WishList) error
 	RemoveWishListItem(ctx context.Context, userID, productItemID uint) error
 	FindSellersByRadius(ctx context.Context, reqData request.SellerRadiusRequest) (sellers []response.Shop, err error)
+	FindSellersByPincode(ctx context.Context, reqData request.SellerPincodeRequest) (sellers []response.Shop, err error)
 	DeleteRefreshSessionByUserID(ctx context.Context, adminID string, userType string) error
 }

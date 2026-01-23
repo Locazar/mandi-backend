@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
@@ -59,16 +60,28 @@ func (c *offerDatabase) FindOfferByName(ctx context.Context, offerName string) (
 
 // findAll offers
 func (c *offerDatabase) FindAllOffers(ctx context.Context,
-	pagination request.Pagination) (offers []domain.Offer, err error) {
+	pagination request.Pagination) (response.OffersAndPromotions, error) {
 
-	limit := pagination.Count
-	offset := (pagination.PageNumber - 1) * limit
+	limit := pagination.Limit
+	offset := pagination.Offset
 
-	query := `SELECT id, name, description, discount_rate, image, thumbnail, start_date, end_date 
-	 FROM offers LIMIT $1 OFFSET $2`
-	err = c.DB.Raw(query, limit, offset).Scan(&offers).Error
+	// Fetch promotions
+	var promotions []response.Promotion
+	queryPromotions := `SELECT p.id, p.promotion_category_id, p.promotion_type_id, p.offer_details, p.shop_id, p.is_active, p.created_at, p.updated_at, pc.name as promotion_category_name, pt.name as promotion_type_name, pt.icon_path, p.offer_details->>'thumbnail' as thumbnail
+	          FROM promotions p
+	          LEFT JOIN promotion_categories pc ON p.promotion_category_id = pc.id
+	          LEFT JOIN promotions_types pt ON p.promotion_type_id = pt.id
+	          WHERE p.is_active = true AND p.offer_details->>'start_date' IS NOT NULL AND p.offer_details->>'end_date' IS NOT NULL AND p.offer_details->>'start_date' <= CURRENT_DATE::text AND p.offer_details->>'end_date' >= CURRENT_DATE::text
+	          ORDER BY p.created_at DESC
+	          LIMIT $1 OFFSET $2`
+	err := c.DB.Raw(queryPromotions, limit, offset).Scan(&promotions).Error
+	if err != nil {
+		return response.OffersAndPromotions{}, err
+	}
 
-	return
+	return response.OffersAndPromotions{
+		Promotions: promotions,
+	}, nil
 }
 
 // save a new offer
@@ -106,7 +119,7 @@ func (c *offerDatabase) UpdateOffer(ctx context.Context, offer domain.Offer) err
 // Delete all product offers related to given offer id
 func (c *offerDatabase) DeleteAllProductOffersByOfferID(ctx context.Context, offerID uint) error {
 
-	query := `DELETE FROM offer_products WHERE offer_id = $1`
+	query := `DELETE FROM offer_products WHERE product_item_id = $1`
 	err := c.DB.Exec(query, offerID).Error
 
 	return err
@@ -186,7 +199,11 @@ func (c *offerDatabase) UpdateCategoryOffer(ctx context.Context, categoryOfferID
 func (c *offerDatabase) FindOfferProductByProductID(ctx context.Context,
 	productItemID uint) (offerProduct domain.OfferProduct, err error) {
 
-	query := `SELECT op.*, o.start_date, o.end_date FROM offer_products op INNER JOIN offers o ON op.offer_id = o.id WHERE op.product_item_id = ? AND op.is_active = true AND o.start_date <= CURRENT_TIMESTAMP AND o.end_date >= CURRENT_TIMESTAMP`
+	query := `SELECT op.* FROM offer_products op 
+	INNER JOIN promotions p ON op.offer_id = p.id 
+	WHERE op.product_item_id = ? AND op.is_active = true 
+	AND (p.start_date)::timestamp <= CURRENT_TIMESTAMP 
+	AND (p.end_date)::timestamp >= CURRENT_TIMESTAMP`
 	err = c.DB.Raw(query, productItemID).Scan(&offerProduct).Error
 
 	return
@@ -207,6 +224,17 @@ func (c *offerDatabase) FindAllOfferProducts(ctx context.Context,
 // save a offer for product
 func (c *offerDatabase) SaveOfferProduct(ctx context.Context,
 	offerProduct domain.OfferProduct) (productOfferId uint, err error) {
+
+	// Check if the promotion exists
+	var promotionExists int64
+	checkOfferQuery := `SELECT COUNT(id) FROM promotions WHERE id = $1`
+	err = c.DB.Raw(checkOfferQuery, offerProduct.OfferID).Scan(&promotionExists).Error
+	if err != nil {
+		return 0, fmt.Errorf("failed to verify promotion exists: %w", err)
+	}
+	if promotionExists == 0 {
+		return 0, fmt.Errorf("promotion with ID %d does not exist", offerProduct.OfferID)
+	}
 
 	// Check if an offer already exists for this product_item_id
 	var existingID uint
@@ -363,4 +391,12 @@ func (c *offerDatabase) FindActiveOffers(ctx context.Context) ([]domain.Offer, e
 	query := `SELECT * FROM offers WHERE is_active = true AND start_date <= NOW() AND end_date >= NOW()`
 	err := c.DB.Raw(query).Scan(&offers).Error
 	return offers, err
+}
+
+// FindShopOffersByShopIDAndDateRange finds shop offers for a shop within a date range
+func (c *offerDatabase) FindShopOffersByShopIDAndDateRange(ctx context.Context, shopID uint, startDate, endDate time.Time) ([]domain.ShopOffer, error) {
+	var shopOffers []domain.ShopOffer
+	query := `SELECT * FROM shop_offers WHERE shop_id = $1 AND start_date <= $3 AND end_date >= $2`
+	err := c.DB.Raw(query, shopID, startDate, endDate).Scan(&shopOffers).Error
+	return shopOffers, err
 }
