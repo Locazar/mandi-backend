@@ -156,12 +156,10 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 			search.GET("/locations", productHandler.GetProductSearchLocations)
 		}
 
-		// Shop Search
+		// Shop Search - Unified endpoint supporting: name search, geolocation (lat+lng+radius), and pincode filtering
 		shop := api.Group("/shop")
 		{
-			shop.GET("/search/radius", userHandler.GetSellerByRadius)
-			shop.GET("/search", userHandler.GetSellerByPincode)
-
+			shop.GET("/search", userHandler.SearchShopList)
 		}
 
 		// Shop by Category
@@ -251,7 +249,7 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 				category.GET("/", productHandler.GetAllCategoriesByDepartmentID)
 				subCategory := category.Group("/:category_id/sub-categories")
 				{
-					subCategory.GET("/", productHandler.GetAllSubCategories)
+					subCategory.GET("/", productHandler.GetAllSubCategoriesByCategoryID)
 					subCategory.GET("/:category_id/subcategories", productHandler.GetAllSubCategoriesByCategoryID)
 				}
 			}

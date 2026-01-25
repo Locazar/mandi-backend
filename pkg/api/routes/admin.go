@@ -155,7 +155,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			productItem.POST("", productHandler.SaveProductItem)
 			productItem.GET("/:product_item_id", productHandler.GetProductItemByID)
 			productItem.DELETE("/:product_item_id", productHandler.DeleteProductItem)
-			productItem.GET("/lowViewproductitems", productHandler.FindLowViewProductItems)
+			// productItem.GET("/lowViewproductitems", productHandler.FindLowViewProductItems)
 
 			productView := productItem.Group("/:product_item_id/view")
 			{

@@ -76,3 +76,12 @@ type SellerPincodeRequest struct {
 	Pincode uint `json:"pincode" binding:"required"`
 	Pagination
 }
+
+type SearchShopListRequest struct {
+	Query     string  `form:"q"`
+	Latitude  float64 `form:"lat"`
+	Longitude float64 `form:"long"`
+	Radius    float64 `form:"radius"`
+	Pincode   *uint   `form:"pincode"`
+	Pagination
+}

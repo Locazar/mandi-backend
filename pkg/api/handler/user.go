@@ -556,6 +556,93 @@ func (c *UserHandler) GetSellerByPincode(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully found sellers in the given pincode", sellers)
 }
 
+// SearchShopList godoc
+//
+//	@Summary		Search shops (User)
+//	@Security		BearerAuth
+//	@Description	API for user to search shops by query, location, and radius (all optional)
+//	@Id				SearchShopList
+//	@Tags			User Profile
+//	@Param			q		query	string	false	"Search query for shop name"
+//	@Param			lat		query	float64	false	"Latitude"
+//	@Param			lng		query	float64	false	"Longitude"
+//	@Param			radius	query	float64	false	"Radius in kilometers"
+//	@Router			/shop/search [get]
+//	@Success		200	{object}	response.Response{}	"Successfully found shops"
+//	@Success		204	{object}	response.Response{}	"No shops found"
+//	@Failure		500	{object}	response.Response{}	"Failed to search shops"
+func (c *UserHandler) SearchShopList(ctx *gin.Context) {
+	// get optional query parameters
+	query := ctx.Query("q")
+	latStr := ctx.Query("lat")
+	lngStr := ctx.Query("long")
+	radiusStr := ctx.Query("radius")
+	pincodeStr := ctx.Query("pincode")
+
+	var latitude, longitude, radius float64
+	var pincode *uint
+	var err error
+
+	// parse latitude if provided
+	if latStr != "" {
+		latitude, err = strconv.ParseFloat(latStr, 64)
+		if err != nil {
+			response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid latitude", err, nil)
+			return
+		}
+	}
+
+	// parse longitude if provided
+	if lngStr != "" {
+		longitude, err = strconv.ParseFloat(lngStr, 64)
+		if err != nil {
+			response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid longitude", err, nil)
+			return
+		}
+	}
+
+	// parse radius if provided
+	if radiusStr != "" {
+		radius, err = strconv.ParseFloat(radiusStr, 64)
+		if err != nil {
+			response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid radius", err, nil)
+			return
+		}
+	}
+
+	// parse pincode if provided
+	if pincodeStr != "" {
+		if p, err := strconv.ParseUint(pincodeStr, 10, 32); err == nil {
+			pincodeVal := uint(p)
+			pincode = &pincodeVal
+		}
+	}
+
+	pagination := request.GetPagination(ctx)
+
+	reqData := request.SearchShopListRequest{
+		Query:      query,
+		Latitude:   latitude,
+		Longitude:  longitude,
+		Radius:     radius,
+		Pincode:    pincode,
+		Pagination: pagination,
+	}
+
+	shops, err := c.userUseCase.SearchShopList(ctx, reqData)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to search shops", err, nil)
+		return
+	}
+
+	if len(shops) == 0 {
+		response.SuccessResponse(ctx, http.StatusNoContent, "No shops found", nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully found shops", shops)
+}
+
 func (c *UserHandler) GetProductItemsByDepartment(ctx *gin.Context) {
 	// Route may provide department_id or document_id depending on routes setup.
 	idStr := ctx.Param("department_id")

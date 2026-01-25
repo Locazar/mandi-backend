@@ -419,7 +419,7 @@ func SafeIntToUint64(i int) (uint64, error) {
 	return uint64(i), nil
 }
 
-func (c *productUseCase) SearchProducts(ctx context.Context, keyword string, categoryID *string, brandID *string, locationID *string, limit, offset int) ([]response.ProductItems, error) {
+func (c *productUseCase) SearchProducts(ctx context.Context, keyword string, categoryID *string, brandID *string, locationID *string, latitude, longitude, radius float64, pincode *uint, limit, offset int) ([]response.ProductItems, error) {
 	limitUint64, err := SafeIntToUint64(limit)
 	if err != nil {
 		return nil, utils.PrependMessageToError(err, "invalid limit for pagination")
@@ -434,7 +434,7 @@ func (c *productUseCase) SearchProducts(ctx context.Context, keyword string, cat
 		Limit:  limitUint64,
 		Offset: offsetUint64,
 	}
-	resProducts, err := c.productRepo.SearchProducts(ctx, keyword, categoryID, brandID, locationID, pagination)
+	resProducts, err := c.productRepo.SearchProducts(ctx, keyword, categoryID, brandID, locationID, latitude, longitude, radius, pincode, pagination)
 	if err != nil {
 		return nil, utils.PrependMessageToError(err, "failed to search products")
 	}

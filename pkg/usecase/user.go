@@ -294,6 +294,18 @@ func (c *userUserCase) GetSellersByPincode(ctx context.Context, reqData request.
 	return sellers, nil
 }
 
+func (c *userUserCase) SearchShopList(ctx context.Context, reqData request.SearchShopListRequest) (shops []response.Shop, err error) {
+	shops, err = c.userRepo.SearchShopList(ctx, reqData)
+
+	if err != nil {
+		return shops, fmt.Errorf("failed to search shops \nerror:%v", err.Error())
+	}
+
+	log.Printf("successfully searched shops with query: %s, latitude: %f, longitude: %f, radius: %f", reqData.Query, reqData.Latitude, reqData.Longitude, reqData.Radius)
+
+	return shops, nil
+}
+
 func (c *userUserCase) GetProductItemsByDepartment(ctx context.Context, documentID uint) ([]response.ProductItems, error) {
 	return c.productRepo.GetProductItemsByDepartment(ctx, documentID)
 }

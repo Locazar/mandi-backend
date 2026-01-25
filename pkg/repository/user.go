@@ -362,6 +362,48 @@ func (c *userDatabase) FindSellersByPincode(ctx context.Context, reqData request
 	return sellers, err
 }
 
+func (c *userDatabase) SearchShopList(ctx context.Context, reqData request.SearchShopListRequest) (shops []response.Shop, err error) {
+	query := `
+		SELECT id, shop_name, email, phone, latitude, longitude,
+		owner_name, shop_image_url, address_line1, address_line2, city, country, state, pincode,
+		shop_verification_status, created_at, updated_at
+		FROM shop_details
+		WHERE 1=1
+	`
+
+	paramIndex := 1
+	args := []interface{}{}
+
+	// Add search query condition if provided
+	if reqData.Query != "" {
+		query += fmt.Sprintf(` AND (shop_name ILIKE $%d OR owner_name ILIKE $%d)`, paramIndex, paramIndex)
+		args = append(args, "%"+reqData.Query+"%")
+		paramIndex++
+	}
+
+	// Filter by geolocation (lat + long + radius) OR pincode, but not both
+	if reqData.Latitude != 0 && reqData.Longitude != 0 && reqData.Radius > 0 {
+		// Using Haversine formula for distance calculation (in km)
+		query += fmt.Sprintf(` AND latitude IS NOT NULL AND longitude IS NOT NULL AND (6371 * acos(cos(radians($%d)) * cos(radians(latitude)) * 
+			cos(radians(longitude) - radians($%d)) + sin(radians($%d)) * 
+			sin(radians(latitude)))) <= $%d`, paramIndex, paramIndex+1, paramIndex, paramIndex+2)
+		args = append(args, reqData.Latitude, reqData.Longitude, reqData.Radius)
+		paramIndex += 3
+	} else if reqData.Pincode != nil {
+		// Use pincode filter only if geolocation is not provided
+		query += fmt.Sprintf(` AND pincode = $%d`, paramIndex)
+		args = append(args, fmt.Sprintf("%d", *reqData.Pincode))
+		paramIndex++
+	}
+
+	query += fmt.Sprintf(` LIMIT $%d OFFSET $%d`, paramIndex, paramIndex+1)
+	args = append(args, reqData.Limit, reqData.Offset)
+
+	err = c.DB.Raw(query, args...).Scan(&shops).Error
+
+	return shops, err
+}
+
 func (c *userDatabase) DeleteRefreshSessionByUserID(ctx context.Context, userId string, userType string) error {
 	if userType == "admin" {
 		query := `DELETE FROM admin_refresh_sessions WHERE user_id = $1 AND user_type = $2`
