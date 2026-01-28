@@ -312,7 +312,7 @@ func (c *AuthHandler) AdminLogin(ctx *gin.Context) {
 		return
 	}
 
-	fmt.Printf("Admin login successful, adminID: %d\n", admin.ID)
+	fmt.Printf("Admin %d logged in successfully\n", admin.ID, shopVerification)
 	// setup token common part
 	c.setupTokenAndResponse(ctx, token.Admin, admin.ID, shopVerification)
 }

@@ -586,6 +586,11 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context,
 			LEFT JOIN sub_categories sc ON pi.sub_category_id = sc.id
 			WHERE (pi.admin_id ->> 'id' = @adminID OR pi.admin_id #>> '{}' = @adminID)`
 
+	// If sorting by views, only include products with view_count > 30
+	if sortby == "views" {
+		query += " AND (SELECT COALESCE(SUM(view_count), 0) FROM product_item_views WHERE product_item_id = pi.id) > 30"
+	}
+
 	// Add offer filter - this ensures different data sets based on offer parameter
 	log.Printf("DEBUG: offer parameter value = '%s' (type: %T, length: %d)", offer, offer, len(offer))
 	log.Printf("DEBUG: offer == 'true': %v, offer == 'false': %v", offer == "true", offer == "false")

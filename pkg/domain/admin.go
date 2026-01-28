@@ -14,7 +14,7 @@ type Admin struct {
 	State           string  `json:"state" gorm:"size:50" `
 	Country         string  `json:"country" gorm:"size:50" `
 	Pincode         string  `json:"pincode" gorm:"size:50" `
-	Mobile          string  `json:"mobile" gorm:"size:50" binding:"required,min=10,max=15"`
+	Mobile          string  `json:"mobile" gorm:"size:50"`
 	ProfileImageUrl string  `json:"profile_image_url" gorm:"size:255" binding:"omitempty"`
 	Latitude        float64 `json:"latitude" gorm:"type:decimal(10,7);"`
 	Longitude       float64 `json:"longitude" gorm:"type:decimal(10,7);"`

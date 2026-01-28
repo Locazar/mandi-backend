@@ -23,6 +23,29 @@ ON CONFLICT (iso_code) DO NOTHING;
 
 -- Create any custom functions or triggers here if needed
 
+-- Create shop_time table
+CREATE TABLE IF NOT EXISTS shop_time (
+    id SERIAL PRIMARY KEY,
+    shop_id INTEGER NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    open_time TIMESTAMP NOT NULL,
+    close_time TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create banners table
+CREATE TABLE IF NOT EXISTS banners (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description VARCHAR(500),
+    image_url VARCHAR(500),
+    link VARCHAR(500),
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Grant permissions (usually not needed with the default setup)
 -- GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO rohitjangid;
 -- GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO rohitjangid;

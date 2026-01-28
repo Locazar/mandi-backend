@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -18,13 +19,15 @@ import (
 
 type offerUseCase struct {
 	offerRepo       repo.OfferRepository
+	bannerRepo      repo.BannerRepository
 	DB              DBQuerier
 	graphicsService graphicsInterface.GraphicsService
 }
 
-func NewOfferUseCase(offerRepo repo.OfferRepository, db *gorm.DB, graphicsService graphicsInterface.GraphicsService) interfaces.OfferUseCase {
+func NewOfferUseCase(offerRepo repo.OfferRepository, bannerRepo repo.BannerRepository, db *gorm.DB, graphicsService graphicsInterface.GraphicsService) interfaces.OfferUseCase {
 	return &offerUseCase{
 		offerRepo:       offerRepo,
+		bannerRepo:      bannerRepo,
 		DB:              &GormDBAdapter{db: db},
 		graphicsService: graphicsService,
 	}
@@ -423,4 +426,91 @@ func (c *offerUseCase) GetShopOffersByShopIDAndDateRange(ctx context.Context, sh
 		return nil, utils.PrependMessageToError(err, "failed to find shop offers")
 	}
 	return shopOffers, nil
+}
+
+// GetPostLoginOffer decides which offer to show to the user after login
+func (c *offerUseCase) GetPostLoginOffer(ctx context.Context, userID uint) (response.PostLoginOfferResponse, error) {
+	// Get user login history to check if first login
+	var user domain.User
+	err := c.DB.QueryRow(ctx, "SELECT id, created_at, updated_at FROM users WHERE id = $1", userID).Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return response.PostLoginOfferResponse{ShowOffer: false}, nil
+		}
+		return response.PostLoginOfferResponse{ShowOffer: false}, err
+	}
+
+	isFirstLogin := user.CreatedAt.Equal(user.UpdatedAt) // Simple check, can be improved
+
+	// Get active campaigns
+	activeOffers, err := c.offerRepo.FindActiveOffers(ctx)
+	if err != nil {
+		return response.PostLoginOfferResponse{ShowOffer: false}, err
+	}
+
+	// For simplicity, select the first active offer or a welcome offer for first-time users
+	var selectedOffer *domain.Offer
+	if isFirstLogin && len(activeOffers) > 0 {
+		// Select first offer as welcome
+		selectedOffer = &activeOffers[0]
+	} else if len(activeOffers) > 0 {
+		// Select first active offer
+		selectedOffer = &activeOffers[0]
+	}
+
+	if selectedOffer == nil {
+		return response.PostLoginOfferResponse{
+			ShowOffer: false,
+			OfferType: "NONE",
+		}, nil
+	}
+
+	// Determine offer type based on priority (simplified logic)
+	offerType := "BOTTOM_SHEET" // default
+	if selectedOffer.DiscountRate >= 50 {
+		offerType = "FULL_SCREEN"
+	} else if selectedOffer.DiscountRate < 10 {
+		offerType = "BANNER"
+	}
+
+	// A/B testing: simple hash-based bucket
+	variant := "A"
+	if int(userID)%100 < 50 {
+		variant = "B"
+	}
+
+	return response.PostLoginOfferResponse{
+		ShowOffer:         true,
+		OfferType:         offerType,
+		OfferID:           fmt.Sprintf("OFFER_%d", selectedOffer.ID),
+		Title:             selectedOffer.Name,
+		Description:       selectedOffer.Description,
+		CTA:               "Apply Now",
+		DiscountType:      "PERCENT",
+		DiscountValue:     int(selectedOffer.DiscountRate),
+		FrequencyCapHours: 24,
+		ExperimentVariant: variant,
+	}, nil
+}
+
+// GetBanners returns active banners
+func (c *offerUseCase) GetBanners(ctx context.Context) ([]response.Banner, error) {
+	banners, err := c.bannerRepo.GetActiveBanners(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var responseBanners []response.Banner
+	for _, banner := range banners {
+		responseBanner := response.Banner{
+			ID:          banner.ID,
+			Title:       banner.Title,
+			Description: banner.Description,
+			ImageURL:    banner.ImageURL,
+			Link:        banner.Link,
+		}
+		responseBanners = append(responseBanners, responseBanner)
+	}
+
+	return responseBanners, nil
 }

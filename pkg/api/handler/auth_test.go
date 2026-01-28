@@ -15,6 +15,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/config"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
+	"github.com/rohit221990/mandi-backend/pkg/mock/mockservice"
 	"github.com/rohit221990/mandi-backend/pkg/mock/mockusecase"
 	"github.com/rohit221990/mandi-backend/pkg/service/token"
 	"github.com/rohit221990/mandi-backend/pkg/usecase"
@@ -59,7 +60,7 @@ func TestUserLogin(t *testing.T) {
 		},
 
 		"FailedToGenerateAccessTokenShouldReturnInternalServerError": {
-			loginDetails: request.Login{UserName: "userName", Password: "password"},
+			loginDetails: request.Login{Phone: "userName", Password: "password"},
 			buildStub: func(useCaseMock *mockusecase.MockAuthUseCase, loginDetails request.Login) {
 				useCaseMock.EXPECT().UserLogin(gomock.Any(), loginDetails).
 					Times(1).Return(uint(1), nil)
@@ -86,7 +87,7 @@ func TestUserLogin(t *testing.T) {
 			},
 		},
 		"SuccessfulLoginShouldSetTokenOnHeaderAndResponse": {
-			loginDetails: request.Login{UserName: "userName", Password: "password"},
+			loginDetails: request.Login{Phone: "userName", Password: "password"},
 			buildStub: func(useCaseMock *mockusecase.MockAuthUseCase, loginDetails request.Login) {
 				useCaseMock.EXPECT().UserLogin(gomock.Any(), loginDetails).
 					Times(1).Return(uint(1), nil)
@@ -121,9 +122,10 @@ func TestUserLogin(t *testing.T) {
 			t.Parallel()
 			ctl := gomock.NewController(t)
 			mockUseCase := mockusecase.NewMockAuthUseCase(ctl)
+			mockTokenService := mockservice.NewMockTokenService(ctl)
 			test.buildStub(mockUseCase, test.loginDetails)
 
-			authHandler := NewAuthHandler(mockUseCase, config.Config{})
+			authHandler := NewAuthHandler(mockUseCase, config.Config{}, mockTokenService)
 			server := gin.New()
 			url := "/login"
 			server.POST(url, authHandler.UserLogin)
@@ -220,9 +222,10 @@ func TestUserRenewRefreshToken(t *testing.T) {
 
 			ctl := gomock.NewController(t)
 			mockAuthUseCase := mockusecase.NewMockAuthUseCase(ctl)
+			mockTokenService := mockservice.NewMockTokenService(ctl)
 			test.buildStub(mockAuthUseCase)
 
-			authHandler := NewAuthHandler(mockAuthUseCase, config.Config{})
+			authHandler := NewAuthHandler(mockAuthUseCase, config.Config{}, mockTokenService)
 
 			engine := gin.New()
 			url := "/renew-access-token"

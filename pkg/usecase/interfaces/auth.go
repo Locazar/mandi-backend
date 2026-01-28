@@ -24,7 +24,7 @@ type AuthUseCase interface {
 	// token
 	GenerateAccessToken(ctx context.Context, tokenParams GenerateTokenParams) (tokenString string, err error)
 	GenerateRefreshToken(ctx context.Context, tokenParams GenerateTokenParams) (tokenString string, err error)
-	VerifyAndGetRefreshTokenSession(ctx context.Context, refreshToken string, usedFor token.UserType) (request.RefreshSession, error)
+	VerifyAndGetRefreshTokenSession(ctx context.Context, refreshToken string, usedFor token.UserType) (domain.RefreshSession, error)
 	LoginOtpVerifyEmail(ctx context.Context, otpVerifyDetails request.OTPVerify) (userID uint, err error)
 	UserLogout(ctx context.Context, userId string, userType string) error
 }

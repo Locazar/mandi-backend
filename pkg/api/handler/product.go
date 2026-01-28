@@ -2263,11 +2263,15 @@ func (p *ProductHandler) DeleteCategoryImage(ctx *gin.Context) {
 //	@Failure		500				{object}	response.Response{}	"Internal server error"
 //	@Router			/products/item/{product_item_id} [get]
 func (p *ProductHandler) GetProductItemByID(ctx *gin.Context) {
-	productItemID, err := request.GetParamAsUint(ctx, "product_item_id")
+	productItemIDStr, err := request.GetParamAsUint(ctx, "product_item_id")
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
 		return
 	}
+
+	//convert productItemID to uint
+	productItemID := uint(productItemIDStr)
+	// Fetch product item
 
 	productItem, err := p.productUseCase.GetProductItemByID(ctx, productItemID)
 	if err != nil {

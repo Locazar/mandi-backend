@@ -207,7 +207,7 @@ func (mr *MockAuthUseCaseMockRecorder) UserSignUp(ctx, signUpDetails interface{}
 func (m *MockAuthUseCase) VerifyAndGetRefreshTokenSession(ctx context.Context, refreshToken string, usedFor token.UserType) (domain.RefreshSession, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "VerifyAndGetRefreshTokenSession", ctx, refreshToken, usedFor)
-	ret0, _ := ret[0].(domain.UserRefreshSession)
+	ret0, _ := ret[0].(domain.RefreshSession)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

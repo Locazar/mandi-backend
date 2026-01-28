@@ -120,6 +120,7 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware middlewa
 	engine.StaticFS("/uploads/products", http.Dir("./uploads/products"))
 	engine.StaticFS("/uploads/promotions", http.Dir("./uploads/promotions"))
 	engine.StaticFS("/uploads/sub-category-images", http.Dir("./uploads/sub-category-images"))
+	engine.StaticFS("/uploads/banners", http.Dir("./uploads/banners"))
 
 	// set up routes
 	routes.UserRoutes(engine.Group("/api"), authHandler, middleware, userHandler, cartHandler,

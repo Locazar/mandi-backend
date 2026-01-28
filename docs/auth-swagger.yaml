@@ -1,0 +1,32 @@
+openapi: 3.0.0
+info:
+  title: Auth Service API
+  version: 1.0.0
+paths:
+  /auth/register:
+    post:
+      summary: Register user
+      requestBody:
+        required: true
+      responses:
+        '201': { description: created }
+  /auth/login:
+    post:
+      summary: Login with email/password
+      responses:
+        '200': { description: ok }
+  /auth/send-otp:
+    post:
+      summary: Send OTP
+  /auth/verify-otp:
+    post:
+      summary: Verify OTP
+  /auth/set-pin:
+    post:
+      summary: Set PIN after OTP
+  /auth/refresh-token:
+    post:
+      summary: Refresh tokens
+  /auth/logout:
+    post:
+      summary: Logout and revoke refresh token

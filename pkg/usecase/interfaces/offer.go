@@ -29,4 +29,10 @@ type OfferUseCase interface {
 	ChangeProductOffer(ctx context.Context, productOfferID, offerID uint) error
 	ApplyOfferToShop(ctx context.Context, adminID string, body request.ApplyOfferToShop) error
 	GetShopOffersByShopIDAndDateRange(ctx context.Context, shopID uint, startDate, endDate string) ([]domain.ShopOffer, error)
+
+	// Post login offer decision
+	GetPostLoginOffer(ctx context.Context, userID uint) (response.PostLoginOfferResponse, error)
+
+	// Banner
+	GetBanners(ctx context.Context) ([]response.Banner, error)
 }

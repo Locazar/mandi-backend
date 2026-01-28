@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -23,7 +24,8 @@ import (
 )
 
 type adminHandler struct {
-	adminUseCase usecaseInterface.AdminUseCase
+	adminUseCase    usecaseInterface.AdminUseCase
+	shopTimeUseCase usecaseInterface.ShopTimeUseCase
 }
 
 // UserLogout implements the UserLogout method required by the AdminHandler interface.
@@ -32,9 +34,10 @@ func (a *adminHandler) UserLogout(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully logged out", nil)
 }
 
-func NewAdminHandler(adminUsecase usecaseInterface.AdminUseCase) interfaces.AdminHandler {
+func NewAdminHandler(adminUsecase usecaseInterface.AdminUseCase, shopTimeUseCase usecaseInterface.ShopTimeUseCase) interfaces.AdminHandler {
 	return &adminHandler{
-		adminUseCase: adminUsecase,
+		adminUseCase:    adminUsecase,
+		shopTimeUseCase: shopTimeUseCase,
 	}
 }
 
@@ -53,6 +56,12 @@ func (a *adminHandler) AdminSignUp(ctx *gin.Context) {
 
 	if err := ctx.ShouldBindJSON(&body); err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, body)
+		return
+	}
+
+	// Validate mobile number (should be 10 digits)
+	if matched, _ := regexp.MatchString(`^\d{10}$`, body.Mobile); !matched {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid mobile number. Must be 10 digits.", nil, nil)
 		return
 	}
 
@@ -1129,4 +1138,61 @@ func (a *adminHandler) GetShopProfileImageById(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved shop profile image", map[string]interface{}{
 		"image_url": imageURL,
 	})
+}
+
+// SetShopTime godoc
+// @summary Set shop open/close status and times
+// @id SetShopTime
+// @tags Admin Shop
+// @Param shop_id query uint true "Shop ID"
+// @Param input body domain.ShopTime{} true "Shop Time details"
+// @Router /admin/shop-time [post]
+// @Success 200 {object} response.Response{} "Successfully set shop time"
+// @Failure 400 {object} response.Response{} "Invalid input"
+func (a *adminHandler) SetShopTime(ctx *gin.Context) {
+	shopIDStr := ctx.Query("shop_id")
+	shopID, err := strconv.ParseUint(shopIDStr, 10, 32)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid shop_id", err, nil)
+		return
+	}
+
+	var body domain.ShopTime
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+
+	err = a.shopTimeUseCase.SetShopTime(ctx, uint(shopID), body)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to set shop time", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully set shop time", nil)
+}
+
+// GetShopTime godoc
+// @summary Get shop open/close status and times
+// @id GetShopTime
+// @tags Admin Shop
+// @Param shop_id query uint true "Shop ID"
+// @Router /admin/shop-time [get]
+// @Success 200 {object} response.Response{} "Successfully retrieved shop time"
+// @Failure 400 {object} response.Response{} "Invalid shop_id"
+func (a *adminHandler) GetShopTime(ctx *gin.Context) {
+	shopIDStr := ctx.Query("shop_id")
+	shopID, err := strconv.ParseUint(shopIDStr, 10, 32)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid shop_id", err, nil)
+		return
+	}
+
+	shopTime, err := a.shopTimeUseCase.GetShopTime(ctx, uint(shopID))
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get shop time", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved shop time", shopTime)
 }

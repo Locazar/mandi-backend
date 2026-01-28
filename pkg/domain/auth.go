@@ -43,3 +43,15 @@ type OtpSessionEmail struct {
 	Email    string    `json:"email" gorm:"not null"`
 	ExpireAt time.Time `json:"expire_at" gorm:"not null"`
 }
+
+// RefreshSession represents a stored refresh token session used by the auth
+// usecases and tests. It intentionally mirrors the request/response structures
+// used elsewhere in the codebase so mocks and tests can operate against it.
+type RefreshSession struct {
+	TokenID      string    `json:"token_id"`
+	UserID       uint      `json:"user_id"`
+	UserType     string    `json:"user_type"`
+	RefreshToken string    `json:"refresh_token"`
+	ExpireAt     time.Time `json:"expire_at"`
+	IsBlocked    bool      `json:"is_blocked"`
+}

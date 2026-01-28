@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/copier"
@@ -442,4 +443,56 @@ func (c *offerHandler) GetShopOffers(ctx *gin.Context) {
 	}
 
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved shop offers", shopOffers)
+}
+
+// PostLoginOffer godoc
+//
+//	@Summary		Get post-login offer for user
+//	@Security		BearerAuth
+//	@Description	API to decide and return offer to show after login
+//	@Id				PostLoginOffer
+//	@Tags			User Offers
+//	@Router			/user/post-login-offer [get]
+//	@Success		200	{object}	response.PostLoginOfferResponse{}	"Offer decision"
+//	@Failure		500	{object}	response.Response{}	"Internal server error"
+func (c *offerHandler) PostLoginOffer(ctx *gin.Context) {
+	// Get user ID from context (set by auth middleware)
+	tokenStr := ctx.GetHeader("Authorization")
+	if tokenStr == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Authorization header missing", errors.New("authorization header missing"), nil)
+		return
+	}
+	adminIdStr := c.tokenService.DecodeTokenData(tokenStr)
+	adminId, err := strconv.ParseUint(adminIdStr, 10, 64)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Invalid token", err, nil)
+		return
+	}
+
+	offer, err := c.offerUseCase.GetPostLoginOffer(ctx, uint(adminId))
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get post-login offer", err, nil)
+		return
+	}
+
+	fmt.Printf("Post-login offer for user %d: %+v\n", adminId, offer)
+
+	response.SuccessResponse(ctx, http.StatusOK, "Post-login offer retrieved", offer)
+}
+
+// GetBanners godoc
+// @summary api to get banners
+// @id GetBanners
+// @tags Offer
+// @Router /banner [get]
+// @Success 200 {object} response.Response{} "successfully retrieved banners"
+// @Failure 500 {object} response.Response{} "failed to get banners"
+func (c *offerHandler) GetBanners(ctx *gin.Context) {
+	banners, err := c.offerUseCase.GetBanners(ctx)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get banners", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Banners retrieved successfully", banners)
 }

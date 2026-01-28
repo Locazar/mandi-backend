@@ -388,7 +388,7 @@ func (c *offerDatabase) ApplyOfferToShop(ctx context.Context, adminID string, bo
 // FindActiveOffers returns offers that are active based on start and end date
 func (c *offerDatabase) FindActiveOffers(ctx context.Context) ([]domain.Offer, error) {
 	var offers []domain.Offer
-	query := `SELECT * FROM offers WHERE is_active = true AND start_date <= NOW() AND end_date >= NOW()`
+	query := `SELECT * FROM promotions WHERE is_active = true AND start_date <= NOW() AND end_date >= NOW()`
 	err := c.DB.Raw(query).Scan(&offers).Error
 	return offers, err
 }

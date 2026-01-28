@@ -32,7 +32,7 @@ VALUES ($1, $2, $3, $4, $5)`
 		return err
 	}
 }
-func (c *authDatabase) FindRefreshSessionByTokenID(ctx context.Context, tokenID string, userType string) (refreshSession request.RefreshSession, err error) {
+func (c *authDatabase) FindRefreshSessionByTokenID(ctx context.Context, tokenID string, userType string) (refreshSession domain.RefreshSession, err error) {
 	if userType == "admin" {
 		query := `SELECT * FROM admin_refresh_sessions WHERE token_id = $1`
 		err = c.DB.Raw(query, tokenID).Scan(&refreshSession).Error

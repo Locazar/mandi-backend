@@ -43,6 +43,13 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		productDetails.GET("/details", adminHandler.GetAllProductDetails)
 	}
 
+	// Shop time management
+	shop := api.Group("/shop")
+	{
+		shop.POST("/time", adminHandler.SetShopTime)
+		shop.GET("/time", adminHandler.GetShopTime)
+	}
+
 	// Web views for admin interface
 	web := api.Group("/web")
 	{
@@ -62,7 +69,8 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 
 	api.Use(middleware.AuthenticateAdmin())
 	{
-
+		// Common routes
+		api.GET("/banner", offerHandler.GetBanners)
 		// user side
 		user := api.Group("/users")
 		{
@@ -151,11 +159,11 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		productItem := api.Group("/items")
 		{
 			productItem.GET("", productHandler.GetAllProductItemsAdmin())
+			productItem.GET("/lowViewproductitems", productHandler.FindLowViewProductItems)
 			productItem.GET("/shop/:shop_id", productHandler.GetProductItemsByShopID())
 			productItem.POST("", productHandler.SaveProductItem)
 			productItem.GET("/:product_item_id", productHandler.GetProductItemByID)
 			productItem.DELETE("/:product_item_id", productHandler.DeleteProductItem)
-			productItem.GET("/lowViewproductitems", productHandler.FindLowViewProductItems)
 
 			productView := productItem.Group("/:product_item_id/view")
 			{
@@ -207,6 +215,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			offer.PATCH("/products", offerHandler.ChangeProductOffer)
 			offer.DELETE("/products/:offer_product_id", offerHandler.RemoveProductOffer)
 			offer.GET("/active", offerHandler.GetActiveOffers)
+			offer.GET("/post-login-offer", offerHandler.PostLoginOffer)
 		}
 
 		// coupons

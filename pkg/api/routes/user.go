@@ -284,5 +284,11 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 
 		// Shop offers
 		api.GET("/shop-offers", offerHandle.GetShopOffers)
+
+		// Post-login offer decision
+		api.GET("/user/post-login-offer", offerHandle.PostLoginOffer)
+
+		// Common routes
+		api.GET("/banner", offerHandle.GetBanners)
 	}
 }

@@ -25,4 +25,10 @@ type OfferHandler interface {
 	//Shop offer
 	ApplyOfferToShop(ctx *gin.Context)
 	GetShopOffers(ctx *gin.Context)
+
+	// Post login offer decision
+	PostLoginOffer(ctx *gin.Context)
+
+	// Banner
+	GetBanners(ctx *gin.Context)
 }

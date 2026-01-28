@@ -19,6 +19,10 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/usecase"
 )
 
+func provideElasticURL(cfg config.Config) string {
+	return cfg.ElasticsearchURL
+}
+
 func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 
 	wire.Build(db.ConnectDatabase,
@@ -29,6 +33,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 
 		// elasticsearch
 		elasticsearch.NewElasticService,
+		provideElasticURL,
 
 		// graphics
 		graphics.NewGraphicsService,
@@ -48,6 +53,8 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		repository.NewStockRepository,
 		repository.NewBrandDatabaseRepository,
 		repository.NewPromotionRepository,
+		repository.NewShopTimeRepository,
+		repository.NewBannerRepository,
 
 		//usecase
 		usecase.NewAuthUseCase,
@@ -63,6 +70,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		usecase.NewBrandUseCase,
 		usecase.NewNotificationUseCase,
 		usecase.NewPromotionUseCase,
+		usecase.NewShopTimeUseCase,
 		// handler
 		handler.NewAuthHandler,
 		handler.NewAdminHandler,

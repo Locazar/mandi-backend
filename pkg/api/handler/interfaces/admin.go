@@ -47,6 +47,9 @@ type AdminHandler interface {
 	GetAllProductDetails(ctx *gin.Context)
 	UploadShopById(ctx *gin.Context)
 	GetShopProfileImageById(ctx *gin.Context)
+	// Shop Time
+	SetShopTime(ctx *gin.Context)
+	GetShopTime(ctx *gin.Context)
 	// Logout
 	UserLogout(ctx *gin.Context)
 }
