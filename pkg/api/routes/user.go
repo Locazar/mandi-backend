@@ -160,6 +160,7 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 		shop := api.Group("/shop")
 		{
 			shop.GET("/search", userHandler.SearchShopList)
+			shop.GET("/:shop_id", productHandler.GetProductItemsByShopID())
 		}
 
 		// Shop by Category

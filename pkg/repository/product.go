@@ -504,7 +504,8 @@ VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`
 func (c *productDatabase) FindAllProductItems(ctx context.Context,
 	adminID string, keyword string, categoryID *string, brandID *string, locationID *string, offer string, sortby string, pagination *request.Pagination, filterByShopID *string) (productItems []response.ProductItems, err error) {
 
-	log.Printf("FindAllProductItems called with shopID: %s, offer: '%s'", adminID, offer)
+	fmt.Printf("FindAllProductItems called with adminID: %s, keyword: %s, categoryID: %v, brandID: %v, locationID: %v, offer: %s, sortby: %s, pagination: %+v, filterByShopID: %v\n",
+		adminID, keyword, categoryID, brandID, locationID, offer, sortby, pagination, filterByShopID)
 
 	var ids []uint
 	if keyword != "" && c.ElasticClient != nil {
