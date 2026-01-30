@@ -59,7 +59,7 @@ type ProductRepository interface {
 	FindAllProductItemImages(ctx context.Context, productItemID uint) (images []string, err error)
 	SaveProductItemImage(ctx context.Context, productItemId uint, image domain.ProductItemImage) error
 
-	SearchProducts(ctx context.Context, keyword string, categoryID, brandID, locationID *string, pagination request.Pagination) (products []response.ProductItems, err error)
+	SearchProducts(ctx context.Context, keyword string, categoryID, brandID, locationID *string, latitude, longitude, radius float64, pincode *uint, pagination request.Pagination) (products []response.ProductItems, err error)
 
 	// department
 	SaveDepartment(ctx context.Context, departmentName string) error

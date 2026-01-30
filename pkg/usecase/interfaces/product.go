@@ -30,7 +30,7 @@ type ProductUseCase interface {
 	FindLowViewProductItems(ctx context.Context, shopID string, keyword string, categoryID, brandID, locationID *string, sortby string, pagination *request.Pagination, filterByShopID *string) ([]response.ProductItems, error)
 	DeleteProductItem(ctx context.Context, productItemID uint) error
 	FindProductItemFilters(ctx context.Context, adminID string, shopID uint) ([]domain.ProductItemFilterType, error)
-	SearchProducts(ctx context.Context, keyword string, categoryID, brandID, locationID *string, limit, offset int) (products []response.ProductItems, err error)
+	SearchProducts(ctx context.Context, keyword string, categoryID, brandID, locationID *string, latitude, longitude, radius float64, pincode *uint, limit, offset int) (products []response.ProductItems, err error)
 	GetProductNameSuggestions(ctx context.Context, prefix string) (suggestions []string, err error)
 	GetProductFilters(ctx context.Context) (filters response.ProductFilters, err error)
 	GetProductLocations(ctx context.Context) (locations []response.Location, err error)

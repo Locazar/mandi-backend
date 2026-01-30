@@ -504,7 +504,8 @@ VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`
 func (c *productDatabase) FindAllProductItems(ctx context.Context,
 	adminID string, keyword string, categoryID *string, brandID *string, locationID *string, offer string, sortby string, pagination *request.Pagination, filterByShopID string) (productItems []response.ProductItems, err error) {
 
-	log.Printf("FindAllProductItems called with shopIDss: %s, offer: '%s'", filterByShopID, offer)
+	fmt.Printf("FindAllProductItems called with adminID: %s, keyword: %s, categoryID: %v, brandID: %v, locationID: %v, offer: %s, sortby: %s, pagination: %+v, filterByShopID: %v\n",
+		adminID, keyword, categoryID, brandID, locationID, offer, sortby, pagination, filterByShopID)
 
 	var ids []uint
 	if keyword != "" && c.ElasticClient != nil {
@@ -1049,7 +1050,7 @@ func (c *productDatabase) FindAllProductItemImages(ctx context.Context, productI
 }
 
 // SearchProducts implements interfaces.ProductRepository.
-func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, categoryID, brandID, locationID *string, pagination request.Pagination) (products []response.ProductItems, err error) {
+func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, categoryID, brandID, locationID *string, latitude, longitude, radius float64, pincode *uint, pagination request.Pagination) (products []response.ProductItems, err error) {
 	limit := int(pagination.Limit)
 	offset := int(pagination.Offset)
 
@@ -1092,10 +1093,12 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 		FROM product_items pi
 		LEFT JOIN categories c ON pi.category_id = c.id
 		LEFT JOIN departments d ON pi.department_id = d.id
-		LEFT JOIN sub_categories sc ON pi.sub_category_id = sc.id`
+		LEFT JOIN sub_categories sc ON pi.sub_category_id = sc.id
+		LEFT JOIN shop_details sd ON sd.id = pi.shop_id`
 
 	params := []interface{}{}
 	paramIndex := 1
+	whereClause := " WHERE 1=1"
 
 	// If we have IDs from Elasticsearch, filter by them
 	if len(ids) > 0 {
@@ -1105,25 +1108,41 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 			params = append(params, id)
 			paramIndex++
 		}
-		baseQuery += " WHERE pi.id IN (" + strings.Join(placeholders, ",") + ")"
-		baseQuery += " ORDER BY pi.created_at DESC"
-	} else {
-		// Fallback to original search logic
-		whereClause := " WHERE (pi.sub_category_name ILIKE $1 OR pi.dynamic_fields::text ILIKE $1 OR c.name::text ILIKE $1 OR sc.name::text ILIKE $1 OR d.name::text ILIKE $1)"
+		whereClause += " AND pi.id IN (" + strings.Join(placeholders, ",") + ")"
+	} else if keyword != "" {
+		// Fallback to keyword search if no Elasticsearch
+		whereClause += fmt.Sprintf(" AND (pi.sub_category_name ILIKE $%d OR pi.dynamic_fields::text ILIKE $%d OR c.name::text ILIKE $%d OR sc.name::text ILIKE $%d OR d.name::text ILIKE $%d)", paramIndex, paramIndex, paramIndex, paramIndex, paramIndex)
 		params = append(params, "%"+keyword+"%")
-		paramIndex = 2
-
-		if categoryID != nil {
-			if cid, err := strconv.ParseUint(*categoryID, 10, 64); err == nil {
-				whereClause += fmt.Sprintf(" AND pi.category_id = $%d", paramIndex)
-				params = append(params, cid)
-				paramIndex++
-			}
-		}
-
-		baseQuery += whereClause + " ORDER BY pi.created_at DESC LIMIT $" + fmt.Sprint(paramIndex) + " OFFSET $" + fmt.Sprint(paramIndex+1)
-		params = append(params, limit, offset)
+		paramIndex++
 	}
+
+	if categoryID != nil {
+		if cid, err := strconv.ParseUint(*categoryID, 10, 64); err == nil {
+			whereClause += fmt.Sprintf(" AND pi.category_id = $%d", paramIndex)
+			params = append(params, cid)
+			paramIndex++
+		}
+	}
+
+	// Filter by geolocation (lat + long + radius) OR pincode, but not both
+	if latitude != 0 && longitude != 0 && radius > 0 {
+		// Using Haversine formula for distance calculation (in km, using 6371 as Earth's radius)
+		// Also ensure shop_details has valid latitude and longitude
+		whereClause += fmt.Sprintf(` AND sd.latitude IS NOT NULL AND sd.longitude IS NOT NULL
+			AND (6371 * acos(cos(radians($%d)) * cos(radians(sd.latitude)) * 
+			cos(radians(sd.longitude) - radians($%d)) + sin(radians($%d)) * 
+			sin(radians(sd.latitude)))) <= $%d`, paramIndex, paramIndex+1, paramIndex, paramIndex+2)
+		params = append(params, latitude, longitude, radius)
+		paramIndex += 3
+	} else if pincode != nil {
+		// Use pincode filter only if geolocation is not provided
+		whereClause += fmt.Sprintf(" AND sd.pincode = $%d", paramIndex)
+		params = append(params, fmt.Sprintf("%d", *pincode))
+		paramIndex++
+	}
+
+	baseQuery += whereClause + " ORDER BY pi.created_at DESC LIMIT $" + fmt.Sprint(paramIndex) + " OFFSET $" + fmt.Sprint(paramIndex+1)
+	params = append(params, limit, offset)
 
 	// Log the final SQL and parameters for debugging
 	fmt.Printf("SearchProducts SQL: %s\n", baseQuery)
@@ -1249,7 +1268,7 @@ func (c *productDatabase) GetDepartmentByID(ctx context.Context, brandID uint) (
 
 func (c *productDatabase) GetAllSubCategories(ctx context.Context) (subCategories []response.SubCategory, err error) {
 
-	query := `SELECT id, name FROM sub_categories`
+	query := `SELECT * FROM sub_categories`
 	err = c.DB.Raw(query).Scan(&subCategories).Error
 
 	return
