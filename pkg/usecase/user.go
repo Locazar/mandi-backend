@@ -321,3 +321,11 @@ func (c *userUserCase) GetProductItemsBySubCategory(ctx context.Context, subCate
 func (c *userUserCase) GetProductItemsByShop(ctx context.Context, adminID uint) ([]response.ProductItems, error) {
 	return c.productRepo.GetProductItemsByShop(ctx, adminID)
 }
+
+func (c *userUserCase) GetShopByID(ctx context.Context, shopID uint) (response.Shop, error) {
+	shop, err := c.userRepo.FindShopByID(ctx, shopID)
+	if err != nil {
+		return response.Shop{}, fmt.Errorf("failed to find shop by ID: %v", err)
+	}
+	return shop, nil
+}

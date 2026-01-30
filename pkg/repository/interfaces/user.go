@@ -42,4 +42,5 @@ type UserRepository interface {
 	FindSellersByPincode(ctx context.Context, reqData request.SellerPincodeRequest) (sellers []response.Shop, err error)
 	SearchShopList(ctx context.Context, reqData request.SearchShopListRequest) (shops []response.Shop, err error)
 	DeleteRefreshSessionByUserID(ctx context.Context, adminID string, userType string) error
+	FindShopByID(ctx context.Context, shopID uint) (response.Shop, error)
 }

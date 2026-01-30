@@ -32,4 +32,5 @@ type UserUseCase interface {
 	GetProductItemsByCategory(ctx context.Context, categoryID uint) ([]response.ProductItems, error)
 	GetProductItemsBySubCategory(ctx context.Context, subCategoryID uint) ([]response.ProductItems, error)
 	GetProductItemsByShop(ctx context.Context, adminID uint) ([]response.ProductItems, error)
+	GetShopByID(ctx context.Context, shopID uint) (response.Shop, error)
 }
