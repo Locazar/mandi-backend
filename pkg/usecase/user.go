@@ -96,7 +96,6 @@ func (c *userUserCase) SaveAddress(ctx context.Context, userID uint, address dom
 		return fmt.Errorf("given address already exist for user")
 	}
 
-	// //this address not exist then create it
 	fmt.Printf("saving address for user id: %d\n", userID)
 	fmt.Printf("address details: %+v\n", address)
 	// check the country id is valid or not
@@ -143,15 +142,13 @@ func (c *userUserCase) UpdateAddress(ctx context.Context, addressBody request.Ed
 
 	var address domain.Address
 	address.ID = addressBody.ID
-	address.AddressLine1 = addressBody.House
-	address.AddressLine2 = addressBody.Name
-	address.Area = addressBody.Area
 	address.LandMark = addressBody.LandMark
 	address.City = addressBody.City
 	address.Pincode = addressBody.Pincode
 	address.CountryID = addressBody.CountryID
 	address.Latitude = addressBody.Latitude
 	address.Longitude = addressBody.Longitude
+	address.PhoneNumber = addressBody.PhoneNumber
 
 	if err := c.userRepo.UpdateAddress(ctx, address); err != nil {
 		return err
