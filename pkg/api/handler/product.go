@@ -1095,7 +1095,7 @@ func SafeIntToUint64(i int) (uint64, error) {
 //
 //	@Summary		Search products
 //	@Security		BearerAuth
-//	@Description	API for user to search products with filters
+//	@Description	API for user to search products with filters. Supports: 1) Search by name + lat + lng + radius, 2) Search by name + pincode
 //	@ID				SearchProducts
 //	@Tags			User Products
 //	@Accept			json
@@ -1104,6 +1104,10 @@ func SafeIntToUint64(i int) (uint64, error) {
 //	@Param			category_id	query	string	false	"Category ID"
 //	@Param			brand_id	query	string	false	"Brand ID"
 //	@Param			location_id	query	string	false	"Location ID"
+//	@Param			lat			query	float64	false	"Latitude for geolocation search"
+//	@Param			long		query	float64	false	"Longitude for geolocation search"
+//	@Param			radius		query	float64	false	"Radius in kilometers for geolocation search"
+//	@Param			pincode		query	uint	false	"Pincode for location-based search"
 //	@Param			limit		query	int		false	"Limit"
 //	@Param			offset		query	int		false	"Offset"
 //	@Router			/products/search [get]
@@ -1111,7 +1115,11 @@ func SafeIntToUint64(i int) (uint64, error) {
 //	@Failure		500	{object}	response.Response{}	"Failed to search products
 func (h *ProductHandler) SearchProducts(c *gin.Context) {
 
+	// Support both 'q' and 'name' as search keyword parameter
 	keyword := c.Query("q")
+	if keyword == "" {
+		keyword = c.Query("name")
+	}
 
 	// Parse numeric filter IDs (category_id, brand_id, location_id) as unsigned integers.
 	// The DB uses numeric IDs for these fields; parsing as UUIDs caused type mismatches.
@@ -1132,6 +1140,42 @@ func (h *ProductHandler) SearchProducts(c *gin.Context) {
 		if _, err := strconv.ParseUint(lid, 10, 64); err == nil {
 			s := lid
 			locIDPtr = &s
+		}
+	}
+
+	// Parse geolocation parameters (optional)
+	// Support both 'lng' and 'long' for longitude
+	var latitude, longitude, radius float64
+	latStr := c.Query("lat")
+	lngStr := c.Query("lng")
+	if lngStr == "" {
+		lngStr = c.Query("long")
+	}
+	radiusStr := c.Query("radius")
+
+	if latStr != "" {
+		if lat, err := strconv.ParseFloat(latStr, 64); err == nil {
+			latitude = lat
+		}
+	}
+	if lngStr != "" {
+		if lng, err := strconv.ParseFloat(lngStr, 64); err == nil {
+			longitude = lng
+		}
+	}
+	if radiusStr != "" {
+		if r, err := strconv.ParseFloat(radiusStr, 64); err == nil {
+			radius = r
+		}
+	}
+
+	// Parse pincode parameter (optional)
+	var pincode *uint
+	pincodeStr := c.Query("pincode")
+	if pincodeStr != "" {
+		if p, err := strconv.ParseUint(pincodeStr, 10, 32); err == nil {
+			pincodeVal := uint(p)
+			pincode = &pincodeVal
 		}
 	}
 
@@ -1163,7 +1207,7 @@ func (h *ProductHandler) SearchProducts(c *gin.Context) {
 		Offset: offsetUint64,
 	}
 
-	products, err := h.productUseCase.SearchProducts(c, keyword, catIDPtr, brandIDPtr, locIDPtr, int(pagination.Limit), int(pagination.Offset))
+	products, err := h.productUseCase.SearchProducts(c, keyword, catIDPtr, brandIDPtr, locIDPtr, latitude, longitude, radius, pincode, int(pagination.Limit), int(pagination.Offset))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

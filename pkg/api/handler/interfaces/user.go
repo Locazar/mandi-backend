@@ -17,6 +17,7 @@ type UserHandler interface {
 	UploadProfileImage(ctx *gin.Context)
 	GetSellerByRadius(ctx *gin.Context)
 	GetSellerByPincode(ctx *gin.Context)
+	SearchShopList(ctx *gin.Context)
 	GetProductItemsByDepartment(ctx *gin.Context)
 	GetProductItemsByCategory(ctx *gin.Context)
 	GetProductItemsBySubCategory(ctx *gin.Context)
