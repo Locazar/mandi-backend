@@ -67,7 +67,7 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 			product.GET("/locations", productHandler.GetProductSearchLocations)
 			product.GET("/radius", productHandler.GetProductsByRadius)
 			product.GET("/nearby", productHandler.GetNearbyProductsByPincode)
-			productItem.GET("/shop/:shop_id", productHandler.GetProductItemsByShopID())
+			product.GET("/shop/:shop_id", productHandler.GetAllProductItemsUser())
 
 			productViewed := product.Group("/viewed-products")
 			{
