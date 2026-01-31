@@ -502,7 +502,7 @@ VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`
 
 // for get all products items for a product filtered by admin_id and additional filters
 func (c *productDatabase) FindAllProductItems(ctx context.Context,
-	adminID string, keyword string, categoryID *string, brandID *string, locationID *string, offer string, sortby string, pagination *request.Pagination, filterByShopID *string) (productItems []response.ProductItems, err error) {
+	adminID string, keyword string, categoryID *string, brandID *string, locationID *string, offer string, sortby string, pagination *request.Pagination, filterByShopID string) (productItems []response.ProductItems, err error) {
 
 	fmt.Printf("FindAllProductItems called with adminID: %s, keyword: %s, categoryID: %v, brandID: %v, locationID: %v, offer: %s, sortby: %s, pagination: %+v, filterByShopID: %v\n",
 		adminID, keyword, categoryID, brandID, locationID, offer, sortby, pagination, filterByShopID)
@@ -585,7 +585,7 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context,
 			LEFT JOIN categories c ON pi.category_id = c.id 
 			LEFT JOIN departments d ON pi.department_id = d.id
 			LEFT JOIN sub_categories sc ON pi.sub_category_id = sc.id
-			WHERE (pi.admin_id ->> 'id' = @adminID OR pi.admin_id #>> '{}' = @adminID)`
+			WHERE 1=1`
 
 	// If sorting by views, only include products with view_count > 30
 	if sortby == "views" {
@@ -609,13 +609,20 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context,
 	}
 	// If offer is neither "true" nor "false" (empty or other values), return all products without filtering
 	// Add filters dynamically
-	params := map[string]interface{}{
-		"adminID": adminID,
+	params := map[string]interface{}{}
+	if adminID != "" {
+		params["adminID"] = adminID
 	}
-	if filterByShopID != nil && *filterByShopID != "" {
+	if filterByShopID != "" {
+		shopIDUint, err := strconv.ParseUint(filterByShopID, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid shop_id: %w", err)
+		}
 		query += " AND pi.shop_id = @shopID"
-		params["shopID"] = *filterByShopID
+		fmt.Printf("Filtering by shop_id: %d\n", shopIDUint)
+		params["shopID"] = uint(shopIDUint)
 	}
+	// Removed shop_id filter as it may not be set correctly in DB
 	if len(ids) > 0 {
 		params["ids"] = ids
 		query += " AND pi.id = ANY(@ids)"
@@ -861,11 +868,15 @@ func (c *productDatabase) FindLowViewProductItems(ctx context.Context,
 	params := map[string]interface{}{
 		"adminID": adminID,
 	}
-
 	if filterByShopID != nil && *filterByShopID != "" {
+		shopIDUint, err := strconv.ParseUint(*filterByShopID, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid shop_id: %w", err)
+		}
 		query += " AND pi.shop_id = @shopID"
-		params["shopID"] = *filterByShopID
+		params["shopID"] = uint(shopIDUint)
 	}
+	// Removed shop_id filter
 
 	if len(ids) > 0 {
 		params["ids"] = ids

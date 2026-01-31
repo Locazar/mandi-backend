@@ -751,3 +751,22 @@ func (c *UserHandler) GetProductItemsByShop(ctx *gin.Context) {
 
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved product items by shop", products)
 }
+
+func (c *UserHandler) GetShopByID(ctx *gin.Context) {
+	shopIDStr := ctx.Param("shop_id")
+	shopID, err := strconv.ParseUint(shopIDStr, 10, 64)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid shop ID", err, nil)
+		return
+	}
+
+	shop, err := c.userUseCase.GetShopByID(ctx, uint(shopID))
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get shop by ID", err, nil)
+		return
+	}
+
+	fmt.Printf("shop00000000: %+v\n", shop)
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully got shop by ID", shop)
+}

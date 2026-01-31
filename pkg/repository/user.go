@@ -408,3 +408,15 @@ func (c *userDatabase) DeleteRefreshSessionByUserID(ctx context.Context, userId 
 		return err
 	}
 }
+func (c *userDatabase) FindShopByID(ctx context.Context, shopID uint) (response.Shop, error) {
+
+	var shop response.Shop
+	query := `SELECT id, shop_name, email, phone, address_line1, address_line2, city, state, country, pincode,
+	shop_type, shop_verification_status, shop_image_url, latitude, longitude, created_at, updated_at
+	FROM shop_details WHERE id = $1`
+	if c.DB.Raw(query, shopID).Scan(&shop).Error != nil {
+		return shop, errors.New("failed to find shop by ID")
+	}
+
+	return shop, nil
+}

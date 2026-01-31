@@ -598,6 +598,12 @@ func (c *ProductHandler) UpdateProduct(ctx *gin.Context) {
 //	@Failure		409	{object}	response.Response{}	"Product have already this configured product items exist"
 func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 
+	tokenString := ctx.GetHeader("Authorization")
+	fmt.Printf("tokenString: %v\n", tokenString)
+
+	adminID := p.tokenService.DecodeTokenData(tokenString)
+	fmt.Printf("Admin ID from token: %s\n", adminID)
+
 	shopIDStr := ctx.PostForm("shop_id")
 	fmt.Printf("ShopID from form: %s\n", shopIDStr)
 	var shopID uint
@@ -606,6 +612,13 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 			shopID = uint(n)
 		} else {
 			response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid shop_id", err, nil)
+			return
+		}
+	} else {
+		if n, err := strconv.Atoi(adminID); err == nil {
+			shopID = uint(n)
+		} else {
+			response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid admin_id", err, nil)
 			return
 		}
 	}
@@ -643,11 +656,6 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 			return
 		}
 	}
-
-	tokenString := ctx.GetHeader("Authorization")
-	fmt.Printf("tokenString: %v\n", tokenString)
-
-	adminID := p.tokenService.DecodeTokenData(tokenString)
 
 	subCategoryName := ctx.PostForm("sub_category_name")
 	dynamicFieldsStr := ctx.PostForm("dynamic_fields")
@@ -769,8 +777,14 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 //	@Success		200	{object}	response.Response{}	"Successfully get all product items"
 //	@Failure		400	{object}	response.Response{}	"Invalid input"
 //	@Failure		400	{object}	response.Response{}	"Failed to get all product items"
-func (p *ProductHandler) GetAllProductItemsAdmin() func(ctx *gin.Context) {
-	return p.getAllProductItems()
+func (p *ProductHandler) GetAllProductItemsAdmin() func(*gin.Context) {
+	return func(ctx *gin.Context) {
+		tokenString := ctx.GetHeader("Authorization")
+		fmt.Printf("tokenString: %v\n", tokenString)
+
+		adminID := p.tokenService.DecodeTokenData(tokenString)
+		p.getAllProductItems(adminID)(ctx)
+	}
 }
 
 // GetAllProductItemsUser godoc
@@ -787,18 +801,22 @@ func (p *ProductHandler) GetAllProductItemsAdmin() func(ctx *gin.Context) {
 //	@Success		200	{object}	response.Response{}	"Successfully get all product items"
 //	@Failure		400	{object}	response.Response{}	"Invalid input"
 //	@Failure		400	{object}	response.Response{}	"Failed to get all product items"
-func (p *ProductHandler) GetAllProductItemsUser() func(ctx *gin.Context) {
-	return p.getAllProductItems()
-}
-
-// same functionality of get all product items for admin and user
-func (p *ProductHandler) getAllProductItems() func(ctx *gin.Context) {
-
+func (p *ProductHandler) GetAllProductItemsUser() func(*gin.Context) {
 	return func(ctx *gin.Context) {
 		tokenString := ctx.GetHeader("Authorization")
 		fmt.Printf("tokenString: %v\n", tokenString)
 
-		adminID := p.tokenService.DecodeTokenData(tokenString)
+		userId := p.tokenService.DecodeTokenData(tokenString)
+		fmt.Printf("User ID from token: %s\n", userId)
+		p.getAllProductItems("")(ctx)
+	}
+}
+
+// same functionality of get all product items for admin and user
+func (p *ProductHandler) getAllProductItems(adminID string) func(ctx *gin.Context) {
+	return func(ctx *gin.Context) {
+
+		shopID := ctx.Param("shop_id")
 
 		// Parse optional query params
 		keyword := ctx.Query("q")
@@ -856,7 +874,7 @@ func (p *ProductHandler) getAllProductItems() func(ctx *gin.Context) {
 		// Define offer with a default value
 		offer := ctx.Query("offers")
 
-		productItems, err := p.productUseCase.FindAllProductItems(ctx, adminID, keyword, catIDPtr, brandIDPtr, locIDPtr, offer, sortby, pagination, nil)
+		productItems, err := p.productUseCase.FindAllProductItems(ctx, adminID, keyword, catIDPtr, brandIDPtr, locIDPtr, offer, sortby, pagination, shopID)
 
 		if err != nil {
 			response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get all product items", err, nil)
@@ -958,7 +976,7 @@ func (p *ProductHandler) GetProductItemsByShopID() func(ctx *gin.Context) {
 		if offer != nil {
 			offerVal = *offer
 		}
-		productItems, err := p.productUseCase.FindAllProductItems(ctx, adminID, keyword, catIDPtr, brandIDPtr, locIDPtr, offerVal, sortby, pagination, &shopID)
+		productItems, err := p.productUseCase.FindAllProductItems(ctx, adminID, keyword, catIDPtr, brandIDPtr, locIDPtr, offerVal, sortby, pagination, shopID)
 
 		fmt.Printf("Product items for shop %s: %+v\n", shopID, productItems)
 
