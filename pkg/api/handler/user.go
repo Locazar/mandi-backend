@@ -159,6 +159,7 @@ func (u *UserHandler) SaveAddress(ctx *gin.Context) {
 
 	var address domain.Address
 	address.LandMark = body.LandMark
+	address.Area = body.Area
 	address.City = body.City
 	address.Pincode = body.Pincode
 	address.CountryID = body.CountryID

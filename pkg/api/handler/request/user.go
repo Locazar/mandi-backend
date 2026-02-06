@@ -12,6 +12,7 @@ type UserSignUp struct {
 // for address add address
 type Address struct {
 	LandMark     string   `json:"land_mark" binding:"required"`
+	Area         *string  `json:"area" binding:"omitempty"`
 	City         string   `json:"city" binding:"required"`
 	Pincode      int64    `json:"pincode" binding:"required"`
 	CountryID    uint     `json:"country_id" binding:"required"`
@@ -27,6 +28,7 @@ type Address struct {
 type EditAddress struct {
 	ID           uint     `json:"address_id" binding:"required"`
 	LandMark     string   `json:"land_mark" binding:"required"`
+	Area         *string  `json:"area" binding:"omitempty"`
 	City         string   `json:"city" binding:"required"`
 	Pincode      int64    `json:"pincode" binding:"required"`
 	CountryID    uint     `json:"country_id" binding:"required"`

@@ -143,12 +143,16 @@ func (c *userUserCase) UpdateAddress(ctx context.Context, addressBody request.Ed
 	var address domain.Address
 	address.ID = addressBody.ID
 	address.LandMark = addressBody.LandMark
+	address.Area = addressBody.Area
 	address.City = addressBody.City
 	address.Pincode = addressBody.Pincode
 	address.CountryID = addressBody.CountryID
 	address.Latitude = addressBody.Latitude
 	address.Longitude = addressBody.Longitude
 	address.PhoneNumber = addressBody.PhoneNumber
+	address.AddressType = addressBody.AddressType
+	address.AddressLine1 = addressBody.AddressLine1
+	address.AddressLine2 = addressBody.AddressLine2
 
 	if err := c.userRepo.UpdateAddress(ctx, address); err != nil {
 		return err

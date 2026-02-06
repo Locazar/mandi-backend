@@ -38,6 +38,7 @@ type Cart struct {
 type Address struct {
 	ID           uint     `json:"address_id"`
 	LandMark     string   `json:"land_mark"`
+	Area         string   `json:"area"`
 	City         string   `json:"city"`
 	Pincode      int64    `json:"pincode"`
 	CountryID    uint     `json:"country_id"`

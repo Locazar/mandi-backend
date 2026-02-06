@@ -28,6 +28,7 @@ type Address struct {
 	ID           uint      `json:"id" gorm:"primaryKey;unique"`
 	UserID       uint      `json:"user_id" gorm:"not null"`
 	LandMark     string    `json:"land_mark" gorm:"not null"`
+	Area         *string   `json:"area" gorm:"type:varchar(255);default:null"`
 	City         string    `json:"city" gorm:"not null"`
 	Pincode      int64     `json:"pincode" gorm:"not null"`
 	CountryID    uint      `json:"country_id" gorm:"not null"`
