@@ -370,18 +370,11 @@ func (c *offerDatabase) RemoveProductItemsDiscountByProductOfferID(ctx context.C
 	return err
 }
 
-func (c *offerDatabase) ApplyOfferToShop(ctx context.Context, adminID string, body request.ApplyOfferToShop) error {
-	// First, get the shop ID using admin ID
-	var shopID uint
-	shopQuery := `SELECT id FROM shop_details WHERE admin_id = $1`
-	err := c.DB.Raw(shopQuery, adminID).Scan(&shopID).Error
-	if err != nil {
-		return fmt.Errorf("failed to find shop for admin ID %s: %w", adminID, err)
-	}
+func (c *offerDatabase) ApplyOfferToShop(ctx context.Context, adminID string, shopID string, body request.ApplyOfferToShop) error {
 
 	// Insert into shop_offers with shop_id
 	query := `INSERT INTO shop_offers (offer_id, shop_id, admin_id, start_date, end_date, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`
-	err = c.DB.Exec(query, body.OfferID, shopID, adminID, body.StartDate.Time, body.EndDate.Time).Error
+	err := c.DB.Exec(query, body.PromotionID, shopID, adminID, body.StartDate.Time, body.EndDate.Time).Error
 	return err
 }
 
@@ -398,5 +391,12 @@ func (c *offerDatabase) FindShopOffersByShopIDAndDateRange(ctx context.Context, 
 	var shopOffers []domain.ShopOffer
 	query := `SELECT * FROM shop_offers WHERE shop_id = $1 AND start_date <= $3 AND end_date >= $2`
 	err := c.DB.Raw(query, shopID, startDate, endDate).Scan(&shopOffers).Error
+	return shopOffers, err
+}
+
+func (c *offerDatabase) FindShopOffersByShopID(ctx context.Context, shopID uint, adminID uint64) ([]domain.ShopOffer, error) {
+	var shopOffers []domain.ShopOffer
+	query := `SELECT * FROM shop_offers WHERE shop_id = $1 AND admin_id = $2`
+	err := c.DB.Raw(query, shopID, adminID).Scan(&shopOffers).Error
 	return shopOffers, err
 }

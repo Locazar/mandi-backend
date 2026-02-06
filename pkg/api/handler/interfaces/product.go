@@ -49,6 +49,7 @@ type ProductHandler interface {
 	GetProductSearchLocations(ctx *gin.Context)
 	GetProductItemByID(ctx *gin.Context)
 	DeleteProductItem(ctx *gin.Context)
+	UpdateProductItem(ctx *gin.Context)
 	GetProductsByRadius(ctx *gin.Context)
 
 	// department

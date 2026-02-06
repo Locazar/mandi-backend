@@ -40,6 +40,9 @@ type ShopDetails struct {
 	Identity_Doc_Verification  bool   `json:"identity_doc_verification" gorm:"not null;default:false" binding:"omitempty"`
 	Address_Proof_Verification bool   `json:"address_proof_verification" gorm:"not null;default:false" binding:"omitempty"`
 
+	Offers    []Offer `json:"offers" gorm:"many2many:shop_offers;"`
+	HasOffers bool    `json:"has_offers" gorm:"column:has_offers"`
+
 	CreatedAt time.Time `json:"created_at" gorm:";autoCreateTime"`
 	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }

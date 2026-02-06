@@ -9,6 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	request "github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	domain "github.com/rohit221990/mandi-backend/pkg/domain"
 )
 
@@ -66,18 +67,18 @@ func (mr *MockAuthRepositoryMockRecorder) FindOtpSessionEmail(ctx, otpID interfa
 }
 
 // FindRefreshSessionByTokenID mocks base method.
-func (m *MockAuthRepository) FindRefreshSessionByTokenID(ctx context.Context, tokenID string) (domain.RefreshSession, error) {
+func (m *MockAuthRepository) FindRefreshSessionByTokenID(ctx context.Context, tokenID, userType string) (domain.RefreshSession, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FindRefreshSessionByTokenID", ctx, tokenID)
+	ret := m.ctrl.Call(m, "FindRefreshSessionByTokenID", ctx, tokenID, userType)
 	ret0, _ := ret[0].(domain.RefreshSession)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // FindRefreshSessionByTokenID indicates an expected call of FindRefreshSessionByTokenID.
-func (mr *MockAuthRepositoryMockRecorder) FindRefreshSessionByTokenID(ctx, tokenID interface{}) *gomock.Call {
+func (mr *MockAuthRepositoryMockRecorder) FindRefreshSessionByTokenID(ctx, tokenID, userType interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindRefreshSessionByTokenID", reflect.TypeOf((*MockAuthRepository)(nil).FindRefreshSessionByTokenID), ctx, tokenID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindRefreshSessionByTokenID", reflect.TypeOf((*MockAuthRepository)(nil).FindRefreshSessionByTokenID), ctx, tokenID, userType)
 }
 
 // SaveOtpSession mocks base method.
@@ -109,7 +110,7 @@ func (mr *MockAuthRepositoryMockRecorder) SaveOtpSessionEmail(ctx, otpSession in
 }
 
 // SaveRefreshSession mocks base method.
-func (m *MockAuthRepository) SaveRefreshSession(ctx context.Context, refreshSession domain.RefreshSession) error {
+func (m *MockAuthRepository) SaveRefreshSession(ctx context.Context, refreshSession request.RefreshSession) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SaveRefreshSession", ctx, refreshSession)
 	ret0, _ := ret[0].(error)

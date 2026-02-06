@@ -315,6 +315,14 @@ func (c *productUseCase) SaveProductItem(ctx context.Context, productItem reques
 	return nil
 }
 
+func (c *productUseCase) UpdateProductItem(ctx context.Context, productItemID uint, productItem request.ProductItem) error {
+	err := c.productRepo.UpdateProductItem(ctx, productItemID, productItem)
+	if err != nil {
+		return utils.PrependMessageToError(err, "failed to update product item")
+	}
+	return nil
+}
+
 // step 1 : get product_id and and all variation id as function parameter
 // step 2 : initialize an map for storing product item id and its count(map[uint]int)
 // step 3 : loop through the variation option ids

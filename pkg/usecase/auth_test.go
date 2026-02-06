@@ -70,6 +70,11 @@ func (u *userRepoAdapter) UpdateAdminVerified(ctx context.Context, adminID uint)
 	return nil
 }
 
+func (u *userRepoAdapter) DeleteRefreshSessionByUserID(ctx context.Context, adminID string, userType string) error {
+	// Not used in these tests; return nil.
+	return nil
+}
+
 func TestUserLogin(t *testing.T) {
 
 	tests := []struct {
@@ -320,7 +325,7 @@ func TestVerifyAndGetRefreshTokenSession(t *testing.T) {
 				tokenMockAuth.EXPECT().VerifyToken(token.VerifyTokenRequest{TokenString: "refreshToken", UsedFor: tokenUser}).
 					Times(1).Return(token.VerifyTokenResponse{TokenID: "token_id", UserID: 12}, nil)
 
-				authMockRepo.EXPECT().FindRefreshSessionByTokenID(gomock.Any(), "token_id").
+				authMockRepo.EXPECT().FindRefreshSessionByTokenID(gomock.Any(), "token_id", "user").
 					Times(1).Return(domain.RefreshSession{}, errors.New("error when finding refresh token"))
 			},
 			expectedOutput: domain.RefreshSession{},
@@ -333,7 +338,7 @@ func TestVerifyAndGetRefreshTokenSession(t *testing.T) {
 
 				tokenMockAuth.EXPECT().VerifyToken(token.VerifyTokenRequest{TokenString: "NonExistingRefreshToken", UsedFor: token.User}).
 					Times(1).Return(token.VerifyTokenResponse{TokenID: "no_existing_token_id", UserID: 12}, nil)
-				authMockRepo.EXPECT().FindRefreshSessionByTokenID(gomock.Any(), "no_existing_token_id").
+				authMockRepo.EXPECT().FindRefreshSessionByTokenID(gomock.Any(), "no_existing_token_id", "user").
 					Times(1).Return(domain.RefreshSession{}, nil)
 			},
 			expectedOutput: domain.RefreshSession{},
@@ -345,7 +350,7 @@ func TestVerifyAndGetRefreshTokenSession(t *testing.T) {
 			buildStub: func(authMockRepo *mockrepo.MockAuthRepository, tokenMockAuth *mockservice.MockTokenService) {
 				tokenMockAuth.EXPECT().VerifyToken(token.VerifyTokenRequest{TokenString: "validRefreshToken", UsedFor: tokenUser}).
 					Times(1).Return(token.VerifyTokenResponse{TokenID: "token_id", UserID: 12}, nil)
-				authMockRepo.EXPECT().FindRefreshSessionByTokenID(gomock.Any(), "token_id").
+				authMockRepo.EXPECT().FindRefreshSessionByTokenID(gomock.Any(), "token_id", "user").
 					Times(1).Return(domain.RefreshSession{TokenID: "token_id", IsBlocked: true,
 					ExpireAt: time.Now().Add(time.Hour * 2)}, nil)
 			},
@@ -362,7 +367,7 @@ func TestVerifyAndGetRefreshTokenSession(t *testing.T) {
 				expiredTokenSession := domain.RefreshSession{TokenID: "token_id",
 					ExpireAt: time.Date(2000, 12, 12, 12, 12, 12, 12, time.UTC)}
 
-				authMockRepo.EXPECT().FindRefreshSessionByTokenID(gomock.Any(), "token_id").
+				authMockRepo.EXPECT().FindRefreshSessionByTokenID(gomock.Any(), "token_id", "user").
 					Times(1).Return(expiredTokenSession, nil)
 			},
 			expectedOutput: domain.RefreshSession{},
@@ -379,7 +384,7 @@ func TestVerifyAndGetRefreshTokenSession(t *testing.T) {
 				refreshSession := domain.RefreshSession{TokenID: "token_id", IsBlocked: false,
 					ExpireAt: time.Date(3000, 12, 12, 12, 12, 12, 12, time.UTC)}
 
-				authMockRepo.EXPECT().FindRefreshSessionByTokenID(gomock.Any(), "token_id").
+				authMockRepo.EXPECT().FindRefreshSessionByTokenID(gomock.Any(), "token_id", "user").
 					Times(1).Return(refreshSession, nil)
 			},
 			expectedOutput: domain.RefreshSession{TokenID: "token_id", IsBlocked: false,

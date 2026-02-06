@@ -22,7 +22,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			login.POST("/", authHandler.AdminLogin)
 		}
 
-		signup := api.Group("/signup")
+		signup := auth.Group("/signup")
 		{
 			signup.POST("/", adminHandler.AdminSignUp)
 			signup.POST("/verify", adminHandler.AdminSignUpVerify)
@@ -46,8 +46,8 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 	// Shop time management
 	shop := api.Group("/shop")
 	{
-		shop.POST("/time", adminHandler.SetShopTime)
-		shop.GET("/time", adminHandler.GetShopTime)
+		shop.POST("/time/:shop_id", adminHandler.SetShopTime)
+		shop.GET("/time/:shop_id", adminHandler.GetShopTime)
 	}
 
 	// Web views for admin interface
@@ -82,7 +82,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		department := api.Group("/departments")
 		{
 			department.POST("/", middleware.TrimSpaces(), productHandler.SaveDepartment)
-			department.GET("/", productHandler.GetAllDepartments)
+			department.GET("/", middleware.TrimSpaces(), productHandler.GetAllDepartments)
 
 			// category
 			category := department.Group("/:department_id/categories")
@@ -164,6 +164,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			productItem.POST("", productHandler.SaveProductItem)
 			productItem.GET("/:product_item_id", productHandler.GetProductItemByID)
 			productItem.DELETE("/:product_item_id", productHandler.DeleteProductItem)
+			productItem.PUT("/:product_item_id", productHandler.UpdateProductItem)
 			// productItem.GET("/lowViewproductitems", productHandler.FindLowViewProductItems)
 
 			productView := productItem.Group("/:product_item_id/view")
@@ -201,11 +202,12 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		// offer
 		offer := api.Group("/offers")
 		{
+
 			offer.POST("/", middleware.TrimSpaces(), offerHandler.SaveOffer) // add a new offer
 			offer.GET("/", offerHandler.GetAllOffers)                        // get all offers
 			offer.DELETE("/:product_item_id", offerHandler.RemoveOffer)
-			offer.POST("/shop", middleware.TrimSpaces(), offerHandler.ApplyOfferToShop)
-
+			offer.POST("/shop/:shop_id", middleware.TrimSpaces(), offerHandler.ApplyOfferToShop)
+			offer.GET("/shop/:shop_id", offerHandler.GetShopOffersByShopID)
 			offer.GET("/category", offerHandler.GetAllCategoryOffers)                        // to get all offers of categories
 			offer.POST("/category", middleware.TrimSpaces(), offerHandler.SaveCategoryOffer) // add offer for categories
 			offer.PATCH("/category", offerHandler.ChangeCategoryOffer)

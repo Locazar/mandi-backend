@@ -17,11 +17,6 @@ type MockTokenService struct {
 	recorder *MockTokenServiceMockRecorder
 }
 
-// DecodeTokenData implements token.TokenService.
-func (m *MockTokenService) DecodeTokenData(tokenString string) string {
-	panic("unimplemented")
-}
-
 // MockTokenServiceMockRecorder is the mock recorder for MockTokenService.
 type MockTokenServiceMockRecorder struct {
 	mock *MockTokenService
@@ -37,6 +32,36 @@ func NewMockTokenService(ctrl *gomock.Controller) *MockTokenService {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockTokenService) EXPECT() *MockTokenServiceMockRecorder {
 	return m.recorder
+}
+
+// DecodeTokenData mocks base method.
+func (m *MockTokenService) DecodeTokenData(tokenString string) string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DecodeTokenData", tokenString)
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// DecodeTokenData indicates an expected call of DecodeTokenData.
+func (mr *MockTokenServiceMockRecorder) DecodeTokenData(tokenString interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DecodeTokenData", reflect.TypeOf((*MockTokenService)(nil).DecodeTokenData), tokenString)
+}
+
+// DecodeTokenDataToGetData mocks base method.
+func (m *MockTokenService) DecodeTokenDataToGetData(tokenString string) (string, token.UserType, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DecodeTokenDataToGetData", tokenString)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(token.UserType)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// DecodeTokenDataToGetData indicates an expected call of DecodeTokenDataToGetData.
+func (mr *MockTokenServiceMockRecorder) DecodeTokenDataToGetData(tokenString interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DecodeTokenDataToGetData", reflect.TypeOf((*MockTokenService)(nil).DecodeTokenDataToGetData), tokenString)
 }
 
 // GenerateToken mocks base method.

@@ -384,7 +384,12 @@ func (c *offerHandler) ApplyOfferToShop(ctx *gin.Context) {
 		return
 	}
 	adminId := c.tokenService.DecodeTokenData(tokenStr)
-	err := c.offerUseCase.ApplyOfferToShop(ctx, adminId, body)
+	shopIdStr := ctx.Param("shop_id")
+	if shopIdStr == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "shop_id parameter missing", errors.New("shop_id parameter missing"), nil)
+		return
+	}
+	err := c.offerUseCase.ApplyOfferToShop(ctx, adminId, shopIdStr, body)
 
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to apply offer to shop", err, nil)
@@ -400,7 +405,7 @@ func (c *offerHandler) GetActiveOffers(ctx *gin.Context) {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get active offers", err, nil)
 		return
 	}
-	if offers == nil || len(offers) == 0 {
+	if len(offers) == 0 {
 		response.SuccessResponse(ctx, http.StatusOK, "No active offers found", offers)
 		return
 	}
@@ -495,4 +500,35 @@ func (c *offerHandler) GetBanners(ctx *gin.Context) {
 	}
 
 	response.SuccessResponse(ctx, http.StatusOK, "Banners retrieved successfully", banners)
+}
+
+func (c *offerHandler) GetShopOffersByShopID(ctx *gin.Context) {
+	tokenStr := ctx.GetHeader("Authorization")
+	if tokenStr == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Authorization header missing", errors.New("authorization header missing"), nil)
+		return
+	}
+	adminIdStr := c.tokenService.DecodeTokenData(tokenStr)
+	adminId, err := strconv.ParseUint(adminIdStr, 10, 64)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Invalid token", err, nil)
+		return
+	}
+	shopIDStr := ctx.Param("shop_id")
+	if shopIDStr == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "shop_id parameter missing", errors.New("shop_id parameter missing"), nil)
+		return
+	}
+	var shopID uint
+	if _, err := fmt.Sscanf(shopIDStr, "%d", &shopID); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid shop_id", err, nil)
+		return
+	}
+
+	shopOffers, err := c.offerUseCase.GetShopOffersByShopID(ctx, shopID, adminId)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get shop offers", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved shop offers", shopOffers)
 }

@@ -41,6 +41,9 @@ func NewMobileAuthUseCase(
 // Compliant with TRAI DLT guidelines for OTP delivery
 func (m *mobileAuthUseCase) SendOTP(ctx context.Context, phone, ipAddress, userAgent string) (*response.SendOTPResponse, error) {
 	// Validate phone number (10 digits, starts with 6-9)
+	if phone == "" || phone == "null" {
+		return nil, fmt.Errorf("phone number is required")
+	}
 	if !m.otpService.ValidateIndianPhoneNumber(phone) {
 		auditLog := &domain.LoginAuditLog{
 			Phone:     phone,
@@ -91,6 +94,7 @@ func (m *mobileAuthUseCase) SendOTP(ctx context.Context, phone, ipAddress, userA
 	}
 
 	// Send OTP via Twilio SMS (DLT-approved template)
+	fmt.Printf("Sending OTP to phone: %s\n", phone)
 	err = m.smsService.SendOTPSMS(phone, generatedOTP)
 	if err != nil {
 		// Mark OTP as failed and log audit event
@@ -130,6 +134,11 @@ func (m *mobileAuthUseCase) SendOTP(ctx context.Context, phone, ipAddress, userA
 // VerifyOTP validates the OTP and issues JWT token if valid
 // Handles OTP expiry, attempt limits, and creates user if not exists
 func (m *mobileAuthUseCase) VerifyOTP(ctx context.Context, req *request.VerifyOTPRequest, ipAddress, userAgent string) (*response.VerifyOTPResponse, error) {
+	// Validate phone number
+	if req.Phone == "" || req.Phone == "null" {
+		return nil, fmt.Errorf("phone number is required")
+	}
+
 	// Validate phone number format
 	if !m.otpService.ValidateIndianPhoneNumber(req.Phone) {
 		return nil, fmt.Errorf("invalid phone number format")

@@ -27,7 +27,7 @@ type OfferUseCase interface {
 	FindAllProductOffers(ctx context.Context, pagination request.Pagination) ([]response.OfferProduct, error)
 	RemoveProductOffer(ctx context.Context, productOfferID uint) error
 	ChangeProductOffer(ctx context.Context, productOfferID, offerID uint) error
-	ApplyOfferToShop(ctx context.Context, adminID string, body request.ApplyOfferToShop) error
+	ApplyOfferToShop(ctx context.Context, adminId string, shopID string, body request.ApplyOfferToShop) error
 	GetShopOffersByShopIDAndDateRange(ctx context.Context, shopID uint, startDate, endDate string) ([]domain.ShopOffer, error)
 
 	// Post login offer decision
@@ -35,4 +35,7 @@ type OfferUseCase interface {
 
 	// Banner
 	GetBanners(ctx context.Context) ([]response.Banner, error)
+
+	// Deprecated: use GetShopOffersByShopIDAndDateRange instead
+	GetShopOffersByShopID(ctx context.Context, shopID uint, adminID uint64) ([]domain.ShopOffer, error)
 }

@@ -102,6 +102,7 @@ func ConnectDatabase(cfg config.Config) (*gorm.DB, error) {
 		domain.PromotionCategory{},
 		domain.Promotion{},
 		domain.Banner{},
+		domain.ShopTime{},
 	)
 
 	if err != nil {

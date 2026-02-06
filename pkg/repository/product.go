@@ -426,11 +426,52 @@ func (c *productDatabase) findProductItemsByProductID(ctx context.Context, produ
 
 // to get productItem id
 func (c *productDatabase) FindProductItemByID(ctx context.Context, productItemID uint) (productItem domain.ProductItem, err error) {
+	// Use a temporary struct to scan the array as string
+	type tempProductItem struct {
+		ID                uint      `gorm:"column:id"`
+		SubCategoryName   string    `gorm:"column:sub_category_name"`
+		SubCategoryID     uint      `gorm:"column:sub_category_id"`
+		CategoryID        uint      `gorm:"column:category_id"`
+		DepartmentID      uint      `gorm:"column:department_id"`
+		DynamicFields     string    `gorm:"column:dynamic_fields"`
+		AdminID           string    `gorm:"column:admin_id"`
+		ProductItemImages string    `gorm:"column:product_item_images"` // Scan as string
+		ShopID            uint      `gorm:"column:shop_id"`
+		CreatedAt         time.Time `gorm:"column:created_at"`
+		UpdatedAt         time.Time `gorm:"column:updated_at"`
+	}
 
-	query := `SELECT * FROM product_items WHERE id = $1`
-	err = c.DB.Raw(query, productItemID).Scan(&productItem).Error
+	var temp tempProductItem
+	err = c.DB.WithContext(ctx).Table("product_items").Where("id = ?", productItemID).First(&temp).Error
+	if err != nil {
+		return productItem, err
+	}
 
-	return productItem, err
+	// Convert temp to domain.ProductItem, parsing the array
+	productItem.ID = temp.ID
+	productItem.SubCategoryName = temp.SubCategoryName
+	productItem.SubCategoryID = temp.SubCategoryID
+	productItem.CategoryID = temp.CategoryID
+	productItem.DepartmentID = temp.DepartmentID
+	productItem.DynamicFields = temp.DynamicFields
+	productItem.AdminID = temp.AdminID
+	productItem.ShopID = temp.ShopID
+	productItem.CreatedAt = temp.CreatedAt
+	productItem.UpdatedAt = temp.UpdatedAt
+
+	// Parse product_item_images from PostgreSQL array format
+	if temp.ProductItemImages != "" {
+		// Remove curly braces and parse comma-separated values
+		imageStr := temp.ProductItemImages
+		if len(imageStr) > 2 && imageStr[0] == '{' && imageStr[len(imageStr)-1] == '}' {
+			imageStr = imageStr[1 : len(imageStr)-1] // Remove braces
+			if imageStr != "" {
+				productItem.ProductItemImages = strings.Split(imageStr, ",")
+			}
+		}
+	}
+
+	return productItem, nil
 }
 
 // to get how many variations are available for a product
@@ -498,6 +539,111 @@ VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`
 	}
 
 	return productItemID, err
+}
+
+func (c *productDatabase) UpdateProductItem(ctx context.Context, productItemID uint, productItem request.ProductItem) error {
+	// First, fetch the existing product item to merge dynamic_fields
+	existing, err := c.FindProductItemByID(ctx, productItemID)
+	if err != nil {
+		return fmt.Errorf("failed to fetch existing product item: %w", err)
+	}
+
+	// Parse existing dynamic_fields from JSON string to map
+	var existingDynamicFields map[string]interface{}
+	if existing.DynamicFields != "" {
+		if err := json.Unmarshal([]byte(existing.DynamicFields), &existingDynamicFields); err != nil {
+			return fmt.Errorf("failed to unmarshal existing dynamic fields: %w", err)
+		}
+		// Handle case where JSON is "null" which results in nil map
+		if existingDynamicFields == nil {
+			existingDynamicFields = make(map[string]interface{})
+		}
+	} else {
+		existingDynamicFields = make(map[string]interface{})
+	}
+
+	// Merge dynamic_fields: existing data as base, new data overwrites
+	mergedDynamicFields := existingDynamicFields
+	if productItem.DynamicFields != nil {
+		// Ensure productItem.DynamicFields is treated as a map
+		fieldsBytes, err := json.Marshal(productItem.DynamicFields)
+		if err != nil {
+			return fmt.Errorf("failed to marshal new dynamic fields: %w", err)
+		}
+		var newFields map[string]interface{}
+		if err := json.Unmarshal(fieldsBytes, &newFields); err != nil {
+			return fmt.Errorf("failed to unmarshal new dynamic fields: %w", err)
+		}
+		// Merge: new fields overwrite existing ones
+		for key, value := range newFields {
+			mergedDynamicFields[key] = value
+		}
+	}
+
+	query := `UPDATE product_items SET sub_category_name = $1, dynamic_fields = $2, product_item_images = $3, category_id = $4, department_id = $5, sub_category_id = $6, updated_at = $7 WHERE id = $8`
+
+	updatedAt := time.Now()
+
+	// Marshal merged DynamicFields to JSON for JSONB column
+	dynamicFieldsJSON, err := json.Marshal(mergedDynamicFields)
+	if err != nil {
+		return err
+	}
+
+	// Use provided values or fall back to existing values for fields not provided
+	subCategoryName := productItem.SubCategoryName
+	if subCategoryName == "" {
+		subCategoryName = existing.SubCategoryName
+	}
+
+	categoryID := productItem.CategoryID
+	if categoryID == 0 {
+		categoryID = existing.CategoryID
+	}
+
+	departmentID := productItem.DepartmentID
+	if departmentID == 0 {
+		departmentID = existing.DepartmentID
+	}
+
+	subCategoryID := productItem.SubCategoryID
+	if subCategoryID == 0 {
+		subCategoryID = existing.SubCategoryID
+	}
+
+	productItemImages := existing.ProductItemImages
+	if len(productItem.ProductItemImages) > 0 {
+		productItemImages = append(productItemImages, productItem.ProductItemImages...)
+	}
+
+	// Convert []string to PostgreSQL array format
+	var productItemImagesStr string
+	if len(productItemImages) > 0 {
+		productItemImagesStr = "{" + strings.Join(productItemImages, ",") + "}"
+	} else {
+		productItemImagesStr = "{}"
+	}
+
+	err = c.DB.Exec(query, subCategoryName, dynamicFieldsJSON, productItemImagesStr, categoryID, departmentID, subCategoryID, updatedAt, productItemID).Error
+
+	if err != nil {
+		return err
+	}
+
+	if err == nil && c.ElasticClient != nil {
+		domainItem := domain.ProductItem{
+			ID:                productItemID,
+			SubCategoryName:   subCategoryName,
+			CategoryID:        categoryID,
+			DepartmentID:      departmentID,
+			SubCategoryID:     subCategoryID,
+			DynamicFields:     string(dynamicFieldsJSON),
+			ProductItemImages: productItemImages,
+		}
+		go c.ElasticClient.UpdateProductItem(ctx, domainItem) // update asynchronously
+	}
+
+	return err
 }
 
 // for get all products items for a product filtered by admin_id and additional filters
@@ -792,7 +938,7 @@ func parsePostgresArray(s string) []string {
 func (c *productDatabase) FindLowViewProductItems(ctx context.Context,
 	adminID string, keyword string, categoryID *string, brandID *string, locationID *string, sortby string, pagination *request.Pagination, filterByShopID *string) (productItems []response.ProductItems, err error) {
 
-	log.Printf("FindLowViewProductItems called with shopID: %s", filterByShopID)
+	log.Printf("FindLowViewProductItems called with shopID: %v", filterByShopID)
 
 	var ids []uint
 	if keyword != "" && c.ElasticClient != nil {
@@ -1253,7 +1399,7 @@ func (c *productDatabase) SaveDepartment(ctx context.Context, departmentName str
 
 func (c *productDatabase) GetAllDepartments(ctx context.Context) (departments []response.Department, err error) {
 
-	query := `SELECT id, name, image_url FROM departments`
+	query := `SELECT id, name, image_url FROM departments where is_active = true`
 	err = c.DB.Raw(query).Scan(&departments).Error
 	return
 }

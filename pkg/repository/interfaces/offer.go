@@ -53,6 +53,7 @@ type OfferRepository interface {
 
 	DeleteAllProductOffersByOfferID(ctx context.Context, offerID uint) error
 	DeleteAllCategoryOffersByOfferID(ctx context.Context, offerID uint) error
-	ApplyOfferToShop(ctx context.Context, adminID string, body request.ApplyOfferToShop) error
+	ApplyOfferToShop(ctx context.Context, adminID string, shopID string, body request.ApplyOfferToShop) error
 	FindShopOffersByShopIDAndDateRange(ctx context.Context, shopID uint, startDate, endDate time.Time) ([]domain.ShopOffer, error)
+	FindShopOffersByShopID(ctx context.Context, shopID uint, adminID uint64) ([]domain.ShopOffer, error)
 }

@@ -39,12 +39,13 @@ func (m *MockAuthUseCase) EXPECT() *MockAuthUseCaseMockRecorder {
 }
 
 // AdminLogin mocks base method.
-func (m *MockAuthUseCase) AdminLogin(ctx context.Context, loginDetails request.Login) (uint, error) {
+func (m *MockAuthUseCase) AdminLogin(ctx context.Context, loginDetails request.Login) (domain.Admin, domain.ShopVerification, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AdminLogin", ctx, loginDetails)
-	ret0, _ := ret[0].(uint)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret0, _ := ret[0].(domain.Admin)
+	ret1, _ := ret[1].(domain.ShopVerification)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // AdminLogin indicates an expected call of AdminLogin.
@@ -186,6 +187,20 @@ func (m *MockAuthUseCase) UserLoginOtpSendEmail(ctx context.Context, emailDetail
 func (mr *MockAuthUseCaseMockRecorder) UserLoginOtpSendEmail(ctx, emailDetails interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UserLoginOtpSendEmail", reflect.TypeOf((*MockAuthUseCase)(nil).UserLoginOtpSendEmail), ctx, emailDetails)
+}
+
+// UserLogout mocks base method.
+func (m *MockAuthUseCase) UserLogout(ctx context.Context, userId, userType string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UserLogout", ctx, userId, userType)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UserLogout indicates an expected call of UserLogout.
+func (mr *MockAuthUseCaseMockRecorder) UserLogout(ctx, userId, userType interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UserLogout", reflect.TypeOf((*MockAuthUseCase)(nil).UserLogout), ctx, userId, userType)
 }
 
 // UserSignUp mocks base method.

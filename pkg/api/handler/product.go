@@ -2424,6 +2424,86 @@ func (p *ProductHandler) DeleteProductItem(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully deleted product item", nil)
 }
 
+func (p *ProductHandler) UpdateProductItem(ctx *gin.Context) {
+	productItemID, err := request.GetParamAsUint(ctx, "product_item_id")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+		return
+	}
+
+	subCategoryIDStr := ctx.PostForm("sub_category_id")
+	var subCategoryID uint
+	if subCategoryIDStr != "" {
+		if n, err := strconv.Atoi(subCategoryIDStr); err == nil {
+			subCategoryID = uint(n)
+		} else {
+			response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid sub_category_id", err, nil)
+			return
+		}
+	}
+
+	categoryIDStr := ctx.PostForm("category_id")
+	var categoryID uint
+	if categoryIDStr != "" {
+		if n, err := strconv.Atoi(categoryIDStr); err == nil {
+			categoryID = uint(n)
+		} else {
+			response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid category_id", err, nil)
+			return
+		}
+	}
+
+	departmentIDStr := ctx.PostForm("department_id")
+	var departmentID uint
+	if departmentIDStr != "" {
+		if n, err := strconv.Atoi(departmentIDStr); err == nil {
+			departmentID = uint(n)
+		} else {
+			response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid department_id", err, nil)
+			return
+		}
+	}
+
+	subCategoryName := ctx.PostForm("sub_category_name")
+	dynamicFieldsStr := ctx.PostForm("dynamic_fields")
+	files := ctx.Request.MultipartForm.File["images[]"]
+
+	var imagePaths []string
+	for _, fileHeader := range files {
+		localPath, err := utils.SaveFileLocally(fileHeader, "uploads/products")
+		if err != nil {
+			response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to save image", err, nil)
+			return
+		}
+		imagePaths = append(imagePaths, localPath)
+	}
+
+	var dynamicFields map[string]interface{}
+	if dynamicFieldsStr != "" {
+		if err := json.Unmarshal([]byte(dynamicFieldsStr), &dynamicFields); err != nil {
+			response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid dynamic_fields JSON", err, nil)
+			return
+		}
+	}
+
+	req := request.ProductItem{
+		SubCategoryName:   subCategoryName,
+		SubCategoryID:     subCategoryID,
+		DynamicFields:     dynamicFields,
+		CategoryID:        categoryID,
+		DepartmentID:      departmentID,
+		ProductItemImages: imagePaths,
+	}
+
+	err = p.productUseCase.UpdateProductItem(ctx, productItemID, req)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to update product item", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully updated product item", nil)
+}
+
 // FindProductItemFilters godoc
 //
 //	@Summary		Find product item filters

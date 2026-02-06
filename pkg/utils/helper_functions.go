@@ -147,5 +147,6 @@ func SaveFileLocally(fileHeader *multipart.FileHeader, baseDir string) (string, 
 	}
 
 	// Return the relative path within the project for storing in database
-	return fullPath, nil
+	// Normalize path separators to forward slashes for consistency
+	return strings.ReplaceAll(fullPath, "\\", "/"), nil
 }

@@ -31,4 +31,7 @@ type OfferHandler interface {
 
 	// Banner
 	GetBanners(ctx *gin.Context)
+
+	// Deprecated: use GetShopOffers instead
+	GetShopOffersByShopID(ctx *gin.Context)
 }

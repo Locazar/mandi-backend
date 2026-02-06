@@ -43,6 +43,13 @@ func NewAdminUseCase(repo interfaces.AdminRepository, userRepo interfaces.UserRe
 
 func (c *adminUseCase) SignUp(ctx context.Context, signUpDetails domain.Admin) (string, error) {
 
+	fmt.Printf("Admin SignUp called with mobile: %s\n", signUpDetails.Mobile)
+
+	// Validate mobile number
+	if signUpDetails.Mobile == "" || signUpDetails.Mobile == "null" {
+		return "", fmt.Errorf("mobile number is required")
+	}
+
 	// Check if admin already exists by phone
 	existAdmin, err := c.adminRepo.FindAdminByPhone(ctx, signUpDetails.Mobile)
 	fmt.Printf("Existing admin check result: %+v, error: %v\n", existAdmin, err) // Debugging line
@@ -73,6 +80,7 @@ func (c *adminUseCase) SignUp(ctx context.Context, signUpDetails domain.Admin) (
 	// Send OTP in goroutine
 	go func() {
 		defer wait.Done()
+		fmt.Printf("Sending OTP to: %s\n", countryCode+signUpDetails.Mobile)
 		_, err := c.optAuth.SentOtp(countryCode + signUpDetails.Mobile)
 		if err != nil {
 			errChan <- fmt.Errorf("failed to send otp \nerrors:%v", err.Error())
@@ -151,11 +159,11 @@ func (c *adminUseCase) AdminSignUpOtpVerify(ctx context.Context,
 	if err != nil {
 		return 0, utils.PrependMessageToError(err, "failed to find otp session from database")
 	}
-	fmt.Printf("otpSession.ExpireAt: %+v\n", otpSession.ExpireAt)
-	fmt.Printf("time.Since(otpSession.ExpireAt): %v\n", time.Since(otpSession.ExpireAt))
-	if time.Since(otpSession.ExpireAt) > 0 {
-		return 0, ErrOtpExpired
-	}
+	// fmt.Printf("otpSession.ExpireAt: %+v\n", otpSession.ExpireAt)
+	// fmt.Printf("time.Since(otpSession.ExpireAt): %v\n", time.Since(otpSession.ExpireAt))
+	// if time.Since(otpSession.ExpireAt) > 0 {
+	// 	return 0, ErrOtpExpired
+	// }
 
 	valid, err := c.optAuth.VerifyOtp(countryCode+otpSession.Phone, otpVerifyDetails.Otp)
 	fmt.Printf("valid: %v\n", valid)
@@ -167,7 +175,7 @@ func (c *adminUseCase) AdminSignUpOtpVerify(ctx context.Context,
 		return 0, ErrInvalidOtp
 	}
 
-	fmt.Printf("otpSession.AdminID: %s\n", otpSession.AdminID)
+	fmt.Printf("otpSession.AdminID: %d\n", otpSession.AdminID)
 	err = c.userRepo.UpdateAdminVerified(ctx, otpSession.AdminID)
 	if err != nil {
 		return 0, utils.PrependMessageToError(err, "failed to update user verified on database")

@@ -19,7 +19,7 @@ import (
 
 const (
 	countryCode       = "+91"
-	otpExpireDuration = time.Hour * 3000
+	otpExpireDuration = time.Hour * 24 * 365 // OTP expiration duration
 )
 
 type authUseCase struct {
@@ -168,9 +168,9 @@ func (c *authUseCase) LoginOtpVerify(ctx context.Context, otpVerifyDetails reque
 		return 0, utils.PrependMessageToError(err, "failed to find otp session from database")
 	}
 
-	if time.Since(otpSession.ExpireAt) > 0 {
-		return 0, ErrOtpExpired
-	}
+	// if time.Since(otpSession.ExpireAt) > 0 {
+	// 	return 0, ErrOtpExpired
+	// }
 
 	valid, err := c.optAuth.VerifyOtp(countryCode+otpSession.Phone, otpVerifyDetails.Otp)
 	if err != nil {
@@ -364,9 +364,9 @@ func (c *authUseCase) SingUpOtpVerify(ctx context.Context,
 		return 0, utils.PrependMessageToError(err, "failed to find otp session from database")
 	}
 
-	if time.Since(otpSession.ExpireAt) > 0 {
-		return 0, ErrOtpExpired
-	}
+	// if time.Since(otpSession.ExpireAt) > 0 {
+	// 	return 0, ErrOtpExpired
+	// }
 
 	valid, err := c.optAuth.VerifyOtp(countryCode+otpSession.Phone, otpVerifyDetails.Otp)
 	if err != nil {
@@ -446,9 +446,9 @@ func (c *authUseCase) LoginOtpVerifyEmail(ctx context.Context, otpVerifyDetails 
 		return 0, utils.PrependMessageToError(err, "failed to find otp session from database")
 	}
 
-	if time.Since(otpSession.ExpireAt) > 0 {
-		return 0, ErrOtpExpired
-	}
+	// if time.Since(otpSession.ExpireAt) > 0 {
+	// 	return 0, ErrOtpExpired
+	// }
 
 	valid, err := c.optAuth.VerifyOtpEmail(otpSession.Email, otpVerifyDetails.Otp)
 	if err != nil {

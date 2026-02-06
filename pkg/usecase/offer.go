@@ -392,9 +392,9 @@ func (s *offerUseCase) GetOffersByCategory(ctx context.Context, categoryID uuid.
 	return offers, nil
 }
 
-func (c *offerUseCase) ApplyOfferToShop(ctx context.Context, adminID string, body request.ApplyOfferToShop) error {
+func (c *offerUseCase) ApplyOfferToShop(ctx context.Context, adminID string, shopID string, body request.ApplyOfferToShop) error {
 
-	err := c.offerRepo.ApplyOfferToShop(ctx, adminID, body)
+	err := c.offerRepo.ApplyOfferToShop(ctx, adminID, shopID, body)
 	if err != nil {
 		return utils.PrependMessageToError(err, "failed to apply offer to shop")
 	}
@@ -513,4 +513,14 @@ func (c *offerUseCase) GetBanners(ctx context.Context) ([]response.Banner, error
 	}
 
 	return responseBanners, nil
+}
+
+func (c *offerUseCase) GetShopOffersByShopID(ctx context.Context, shopID uint, adminID uint64) ([]domain.ShopOffer, error) {
+
+	offers, err := c.offerRepo.FindShopOffersByShopID(ctx, shopID, adminID)
+	if err != nil {
+		return nil, utils.PrependMessageToError(err, "failed to find shop offers")
+	}
+
+	return offers, nil
 }

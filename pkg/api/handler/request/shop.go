@@ -9,3 +9,9 @@ type ShopVerification struct {
 	Address_Proof_Verification bool      `json:"address_proof_verification" gorm:"type:text;" binding:"omitempty"`
 	UpdatedAt                  time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }
+
+type SetShopTimeRequest struct {
+	Status    bool   `json:"status" binding:"required"`
+	OpenTime  string `json:"open_time" binding:"required"`
+	CloseTime string `json:"close_time" binding:"required"`
+}

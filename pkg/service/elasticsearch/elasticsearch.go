@@ -16,6 +16,10 @@ type ElasticService struct {
 	Client *elasticsearch.Client
 }
 
+func (es *ElasticService) UpdateProductItem(ctx context.Context, domainItem domain.ProductItem) {
+	panic("unimplemented")
+}
+
 func NewElasticService(url string) (*ElasticService, error) {
 	cfg := elasticsearch.Config{
 		Addresses: []string{url},

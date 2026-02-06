@@ -50,7 +50,7 @@ type UpdateProductOffer struct {
 }
 
 type ApplyOfferToShop struct {
-	StartDate CustomTime `json:"start_date" binding:"required"`
-	EndDate   CustomTime `json:"end_date" binding:"required"`
-	OfferID   uint       `json:"offer_id" binding:"required"`
+	StartDate   CustomTime `json:"start_date"`
+	EndDate     CustomTime `json:"end_date"`
+	PromotionID uint       `json:"promotion_id"`
 }

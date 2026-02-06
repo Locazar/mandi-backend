@@ -9,7 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
+	request "github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	response "github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	domain "github.com/rohit221990/mandi-backend/pkg/domain"
 )
@@ -18,11 +18,6 @@ import (
 type MockUserRepository struct {
 	ctrl     *gomock.Controller
 	recorder *MockUserRepositoryMockRecorder
-}
-
-// FindSellersByRadius implements interfaces.UserRepository.
-func (m *MockUserRepository) FindSellersByRadius(ctx context.Context, reqData request.SellerRadiusRequest) (sellers []response.Shop, err error) {
-	panic("unimplemented")
 }
 
 // MockUserRepositoryMockRecorder is the mock recorder for MockUserRepository.
@@ -40,6 +35,20 @@ func NewMockUserRepository(ctrl *gomock.Controller) *MockUserRepository {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockUserRepository) EXPECT() *MockUserRepositoryMockRecorder {
 	return m.recorder
+}
+
+// DeleteRefreshSessionByUserID mocks base method.
+func (m *MockUserRepository) DeleteRefreshSessionByUserID(ctx context.Context, adminID, userType string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteRefreshSessionByUserID", ctx, adminID, userType)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteRefreshSessionByUserID indicates an expected call of DeleteRefreshSessionByUserID.
+func (mr *MockUserRepositoryMockRecorder) DeleteRefreshSessionByUserID(ctx, adminID, userType interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteRefreshSessionByUserID", reflect.TypeOf((*MockUserRepository)(nil).DeleteRefreshSessionByUserID), ctx, adminID, userType)
 }
 
 // FindAddressByID mocks base method.
@@ -100,6 +109,51 @@ func (m *MockUserRepository) FindCountryByID(ctx context.Context, countryID uint
 func (mr *MockUserRepositoryMockRecorder) FindCountryByID(ctx, countryID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindCountryByID", reflect.TypeOf((*MockUserRepository)(nil).FindCountryByID), ctx, countryID)
+}
+
+// FindSellersByPincode mocks base method.
+func (m *MockUserRepository) FindSellersByPincode(ctx context.Context, reqData request.SellerPincodeRequest) ([]response.Shop, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindSellersByPincode", ctx, reqData)
+	ret0, _ := ret[0].([]response.Shop)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindSellersByPincode indicates an expected call of FindSellersByPincode.
+func (mr *MockUserRepositoryMockRecorder) FindSellersByPincode(ctx, reqData interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindSellersByPincode", reflect.TypeOf((*MockUserRepository)(nil).FindSellersByPincode), ctx, reqData)
+}
+
+// FindSellersByRadius mocks base method.
+func (m *MockUserRepository) FindSellersByRadius(ctx context.Context, reqData request.SellerRadiusRequest) ([]response.Shop, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindSellersByRadius", ctx, reqData)
+	ret0, _ := ret[0].([]response.Shop)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindSellersByRadius indicates an expected call of FindSellersByRadius.
+func (mr *MockUserRepositoryMockRecorder) FindSellersByRadius(ctx, reqData interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindSellersByRadius", reflect.TypeOf((*MockUserRepository)(nil).FindSellersByRadius), ctx, reqData)
+}
+
+// FindShopByID mocks base method.
+func (m *MockUserRepository) FindShopByID(ctx context.Context, shopID uint) (response.Shop, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindShopByID", ctx, shopID)
+	ret0, _ := ret[0].(response.Shop)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindShopByID indicates an expected call of FindShopByID.
+func (mr *MockUserRepositoryMockRecorder) FindShopByID(ctx, shopID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindShopByID", reflect.TypeOf((*MockUserRepository)(nil).FindShopByID), ctx, shopID)
 }
 
 // FindUserByEmail mocks base method.
@@ -294,6 +348,21 @@ func (mr *MockUserRepositoryMockRecorder) SaveWishListItem(ctx, wishList interfa
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveWishListItem", reflect.TypeOf((*MockUserRepository)(nil).SaveWishListItem), ctx, wishList)
 }
 
+// SearchShopList mocks base method.
+func (m *MockUserRepository) SearchShopList(ctx context.Context, reqData request.SearchShopListRequest) ([]response.Shop, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SearchShopList", ctx, reqData)
+	ret0, _ := ret[0].([]response.Shop)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SearchShopList indicates an expected call of SearchShopList.
+func (mr *MockUserRepositoryMockRecorder) SearchShopList(ctx, reqData interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchShopList", reflect.TypeOf((*MockUserRepository)(nil).SearchShopList), ctx, reqData)
+}
+
 // UpdateAddress mocks base method.
 func (m *MockUserRepository) UpdateAddress(ctx context.Context, address domain.Address) error {
 	m.ctrl.T.Helper()
@@ -306,6 +375,20 @@ func (m *MockUserRepository) UpdateAddress(ctx context.Context, address domain.A
 func (mr *MockUserRepositoryMockRecorder) UpdateAddress(ctx, address interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateAddress", reflect.TypeOf((*MockUserRepository)(nil).UpdateAddress), ctx, address)
+}
+
+// UpdateAdminVerified mocks base method.
+func (m *MockUserRepository) UpdateAdminVerified(ctx context.Context, adminID uint) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateAdminVerified", ctx, adminID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateAdminVerified indicates an expected call of UpdateAdminVerified.
+func (mr *MockUserRepositoryMockRecorder) UpdateAdminVerified(ctx, adminID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateAdminVerified", reflect.TypeOf((*MockUserRepository)(nil).UpdateAdminVerified), ctx, adminID)
 }
 
 // UpdateBlockStatus mocks base method.

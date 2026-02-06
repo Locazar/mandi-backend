@@ -300,14 +300,15 @@ func (c *adminDatabase) GetAllShops(ctx context.Context, pagination request.Pagi
 	limit := pagination.Limit
 	offset := pagination.Offset
 
-	query := `SELECT * FROM shop_details ORDER BY created_at DESC LIMIT $1 OFFSET $2`
+	query := `SELECT sd.*, (EXISTS (SELECT 1 FROM shop_offers so WHERE so.shop_id = sd.id)) as has_offers FROM shop_details sd ORDER BY sd.created_at DESC LIMIT $1 OFFSET $2`
 	err = c.DB.Raw(query, limit, offset).Scan(&shops).Error
 
 	return shops, err
 }
 
 func (c *adminDatabase) GetShopByID(ctx context.Context, shopID uint) (shop domain.ShopDetails, err error) {
-	err = c.DB.Model(&domain.ShopDetails{}).Where("id = ?", shopID).First(&shop).Error
+	query := `SELECT sd.*, (EXISTS (SELECT 1 FROM shop_offers so WHERE so.shop_id = sd.id)) as has_offers FROM shop_details sd WHERE sd.id = $1`
+	err = c.DB.Raw(query, shopID).Scan(&shop).Error
 	return shop, err
 }
 
