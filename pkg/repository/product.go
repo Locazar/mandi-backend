@@ -1279,6 +1279,30 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 		}
 	}
 
+	if shopID != nil {
+		if sid, err := strconv.ParseUint(*shopID, 10, 64); err == nil {
+			whereClause += fmt.Sprintf(" AND pi.shop_id = $%d", paramIndex)
+			params = append(params, sid)
+			paramIndex++
+		}
+	}
+
+	if brandID != nil {
+		if bid, err := strconv.ParseUint(*brandID, 10, 64); err == nil {
+			whereClause += fmt.Sprintf(" AND pi.brand_id = $%d", paramIndex)
+			params = append(params, bid)
+			paramIndex++
+		}
+	}
+
+	if locationID != nil {
+		if lid, err := strconv.ParseUint(*locationID, 10, 64); err == nil {
+			whereClause += fmt.Sprintf(" AND pi.location_id = $%d", paramIndex)
+			params = append(params, lid)
+			paramIndex++
+		}
+	}
+
 	// Filter by geolocation (lat + long + radius) OR pincode, but not both
 	if latitude != 0 && longitude != 0 && radius > 0 {
 		// Using Haversine formula for distance calculation (in km, using 6371 as Earth's radius)
