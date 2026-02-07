@@ -158,18 +158,18 @@ func (u *UserHandler) SaveAddress(ctx *gin.Context) {
 	userID := utils.GetUserIdFromContext(ctx)
 
 	var address domain.Address
-	address.Name = body.Name
-	address.PhoneNumber = body.PhoneNumber
-	address.House = &body.House
-	address.AddressLine1 = body.House
-	address.AddressLine2 = body.Name
-	address.Area = body.Area
 	address.LandMark = body.LandMark
+	address.Area = body.Area
 	address.City = body.City
 	address.Pincode = body.Pincode
 	address.CountryID = body.CountryID
 	address.Latitude = body.Latitude
 	address.Longitude = body.Longitude
+	address.PhoneNumber = body.PhoneNumber
+	address.AddressType = body.AddressType
+	address.AddressLine1 = body.AddressLine1
+	address.AddressLine2 = body.AddressLine2
+	address.IsDefault = body.IsDefault
 
 	// check is default is null
 	if body.IsDefault == nil {
@@ -770,4 +770,5 @@ func (c *UserHandler) GetShopByID(ctx *gin.Context) {
 	fmt.Printf("shop00000000: %+v\n", shop)
 
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully got shop by ID", shop)
+
 }

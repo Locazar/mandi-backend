@@ -12,6 +12,8 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 	orderHandler handlerInterface.OrderHandler, couponHandler handlerInterface.CouponHandler,
 	offerHandle handlerInterface.OfferHandler, stockHandler handlerInterface.StockHandler,
 	branHandler handlerInterface.BrandHandler, notificationHandler handlerInterface.NotificationHandler,
+	promotionHandler handlerInterface.PromotionHandler,
+
 ) {
 
 	auth := api.Group("/auth")
@@ -72,6 +74,11 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 			productViewed := product.Group("/viewed-products")
 			{
 				productViewed.GET("/:product_item_id/view-count", productHandler.GetProductItemViewCount)
+			}
+			offer := product.Group("/offers")
+			{
+				offer.GET("/:offer_id", productHandler.GetProductItemsByOfferID)
+
 			}
 		}
 
@@ -291,5 +298,31 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 
 		// Common routes
 		api.GET("/banner", offerHandle.GetBanners)
+
+		// Promotion Categories and Types
+		promotion := api.Group("/promotions")
+		{
+			// Promotion Categories
+			categories := promotion.Group("/categories")
+			{
+				categories.GET("/", promotionHandler.GetAllPromotionCategories)
+				categories.GET("/:category_id", promotionHandler.GetPromotionCategoryByID)
+			}
+
+			// Promotion Types
+			types := promotion.Group("/types")
+			{
+				types.GET("/", promotionHandler.GetAllPromotionTypes)
+				types.GET("/category/:category_id", promotionHandler.GetPromotionTypesByCategoryID)
+				types.GET("/:type_id", promotionHandler.GetPromotionTypeByID)
+			}
+
+			// Promotions (instances)
+			promotion.POST("/", promotionHandler.CreatePromotion)
+			promotion.GET("/", promotionHandler.GetAllPromotions)
+			promotion.GET("/:promotion_id", promotionHandler.GetPromotionByID)
+			promotion.DELETE("/:promotion_id", promotionHandler.DeletePromotion)
+		}
 	}
+
 }

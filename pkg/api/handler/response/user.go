@@ -36,18 +36,20 @@ type Cart struct {
 
 // address
 type Address struct {
-	ID          uint   `json:"address_id"`
-	Name        string `json:"name"`
-	PhoneNumber string `json:"phone_number"`
-	House       string `json:"house"`
-	Area        string `json:"area"`
-	LandMark    string `json:"land_mark"`
-	City        string `json:"city"`
-	Pincode     uint   `json:"pincode"`
-	CountryID   uint   `json:"country_id"`
-	CountryName string `json:"country_name"`
-
-	IsDefault *bool `json:"is_default"`
+	ID           uint     `json:"address_id"`
+	LandMark     string   `json:"land_mark"`
+	Area         string   `json:"area"`
+	City         string   `json:"city"`
+	Pincode      int64    `json:"pincode"`
+	CountryID    uint     `json:"country_id"`
+	CountryName  string   `json:"country_name"`
+	Latitude     *float64 `json:"latitude"`
+	Longitude    *float64 `json:"longitude"`
+	PhoneNumber  string   `json:"phone_number"`
+	AddressType  string   `json:"address_type"`
+	AddressLine1 string   `json:"address_line1"`
+	AddressLine2 string   `json:"address_line2"`
+	IsDefault    *bool    `json:"is_default"`
 }
 
 // wish list response

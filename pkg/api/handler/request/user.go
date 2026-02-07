@@ -11,31 +11,34 @@ type UserSignUp struct {
 
 // for address add address
 type Address struct {
-	Name        string  `json:"name" binding:"required,min=2,max=50"`
-	PhoneNumber string  `json:"phone_number" binding:"required,min=10,max=10"`
-	House       string  `json:"house" binding:"omitempty"`
-	Area        string  `json:"area"`
-	LandMark    string  `json:"land_mark" binding:"required"`
-	City        string  `json:"city"`
-	Pincode     uint    `json:"pincode" binding:"required"`
-	CountryID   uint    `json:"country_id" binding:"required"`
-	Latitude    float64 `json:"latitude" binding:"omitempty"`
-	Longitude   float64 `json:"longitude" binding:"omitempty"`
-	IsDefault   *bool   `json:"is_default"`
+	LandMark     string   `json:"land_mark" binding:"required"`
+	Area         *string  `json:"area" binding:"omitempty"`
+	City         string   `json:"city" binding:"required"`
+	Pincode      int64    `json:"pincode" binding:"required"`
+	CountryID    uint     `json:"country_id" binding:"required"`
+	Latitude     *float64 `json:"latitude" binding:"omitempty"`
+	Longitude    *float64 `json:"longitude" binding:"omitempty"`
+	PhoneNumber  string   `json:"phone_number" binding:"required,min=10,max=10"`
+	AddressType  string   `json:"address_type" binding:"required"`
+	AddressLine1 string   `json:"address_line1" binding:"required"`
+	AddressLine2 string   `json:"address_line2" binding:"required"`
+	IsDefault    *bool    `json:"is_default" binding:"omitempty"`
 }
+
 type EditAddress struct {
-	ID          uint    `json:"address_id" binding:"required"`
-	Name        string  `json:"name" binding:"required,min=2,max=50"`
-	PhoneNumber string  `json:"phone_number" binding:"required,min=10,max=10"`
-	House       string  `json:"house" binding:"omitempty"`
-	Area        string  `json:"area"`
-	LandMark    string  `json:"land_mark" binding:"required"`
-	City        string  `json:"city"`
-	Pincode     uint    `json:"pincode" binding:"required"`
-	CountryID   uint    `json:"country_id" binding:"required"`
-	Latitude    float64 `json:"latitude" binding:"omitempty"`
-	Longitude   float64 `json:"longitude" binding:"omitempty"`
-	IsDefault   *bool   `json:"is_default"`
+	ID           uint     `json:"address_id" binding:"required"`
+	LandMark     string   `json:"land_mark" binding:"required"`
+	Area         *string  `json:"area" binding:"omitempty"`
+	City         string   `json:"city" binding:"required"`
+	Pincode      int64    `json:"pincode" binding:"required"`
+	CountryID    uint     `json:"country_id" binding:"required"`
+	Latitude     *float64 `json:"latitude" binding:"omitempty"`
+	Longitude    *float64 `json:"longitude" binding:"omitempty"`
+	PhoneNumber  string   `json:"phone_number" binding:"required,min=10,max=10"`
+	AddressType  string   `json:"address_type" binding:"required"`
+	AddressLine1 string   `json:"address_line1" binding:"required"`
+	AddressLine2 string   `json:"address_line2" binding:"required"`
+	IsDefault    *bool    `json:"is_default" binding:"omitempty"`
 }
 
 // user side

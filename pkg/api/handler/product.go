@@ -2651,3 +2651,49 @@ func (p *ProductHandler) FindProductItemFilters(ctx *gin.Context) {
 		Data:    filters,
 	})
 }
+
+func (p *ProductHandler) GetProductItemsByOfferID(ctx *gin.Context) {
+	// Get Offer ID, Category ID, Department ID, Sub category ID, Lattitde, Longitude, Radius, Pincode, Limit, Offset from query parameters
+	offerID, err := request.GetParamAsUint(ctx, "offer_id")
+	CategoryId, _ := strconv.Atoi(ctx.Query("category_id"))
+	DepartmentId, _ := strconv.Atoi(ctx.Query("department_id"))
+	SubCategoryId, _ := strconv.Atoi(ctx.Query("sub_category_id"))
+	latStr := ctx.Query("lat")
+	lngStr := ctx.Query("lng")
+	pincode := ctx.Query("pincode")
+
+	// Accept both radius_km and radius parameters
+	radiusKmStr := ctx.Query("radius_km")
+	if radiusKmStr == "" {
+		radiusKmStr = ctx.Query("radius")
+	}
+
+	var radiusKm float64
+	if radiusKmStr != "" {
+		var err error
+		radiusKm, err = strconv.ParseFloat(radiusKmStr, 64)
+		if err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid radius parameter"})
+			return
+		}
+		if radiusKm < 0 {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "radius must be non-negative"})
+			return
+		}
+	}
+	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "20"))
+	offset, _ := strconv.Atoi(ctx.DefaultQuery("offset", "0"))
+
+	products, err := p.productUseCase.GetProductItemsByOfferID(ctx, offerID, CategoryId, DepartmentId, SubCategoryId, latStr, lngStr, pincode, radiusKm, limit, offset)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get product items by offer ID", err, nil)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, response.Response{
+		Status:  true,
+		Message: "Successfully retrieved product items by offer ID",
+		Data:    products,
+	})
+
+}

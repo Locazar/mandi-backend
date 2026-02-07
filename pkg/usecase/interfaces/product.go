@@ -82,4 +82,7 @@ type ProductUseCase interface {
 	GetProductItemByID(ctx context.Context, productItemID uint) (response.ProductItems, error)
 	IncrementProductItemViewCount(ctx context.Context, productItemID uint, adminID string) error
 	GetProductItemViewCount(ctx context.Context, productItemID uint, adminID string) (uint, error)
+
+	// Offer
+	GetProductItemsByOfferID(ctx context.Context, offerID uint, categoryID int, departmentID int, subCategoryID int, latStr string, lngStr string, pincode string, radiusKm float64, limit int, offset int) ([]response.ProductItems, error)
 }

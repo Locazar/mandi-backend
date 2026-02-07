@@ -25,6 +25,11 @@ type productDatabase struct {
 	ElasticClient *elasticsearch.ElasticService
 }
 
+// GetProductItemsByOfferID implements [interfaces.ProductRepository].
+func (c *productDatabase) GetProductItemsByOfferID(ctx context.Context, offerID uint, categoryID int, departmentID int, subCategoryID int, latStr string, lngStr string, pincode string, radiusKm float64, limit int, offset int) ([]response.ProductItems, error) {
+	return GetProductItemsByOfferID(ctx, c.DB, offerID, categoryID, departmentID, subCategoryID, latStr, lngStr, pincode, radiusKm, limit, offset)
+}
+
 // DeleteProductItem deletes a product item and all its related data.
 func (c *productDatabase) DeleteProductItem(ctx context.Context, productItemID uint) error {
 	// Delete all related records in cascade order to avoid foreign key constraints
@@ -2342,4 +2347,217 @@ func (c *productDatabase) FindProductItemFilters(ctx context.Context, adminID st
 	fmt.Printf("Fetched %d product item filters for admin %s\n", len(filters), adminID)
 
 	return filters, nil
+}
+
+func GetProductItemsByOfferID(ctx context.Context, db *gorm.DB, offerID uint, categoryID int, departmentID int, subCategoryID int, latStr string, lngStr string, pincode string, radiusKm float64, limit int, offset int) (productItems []response.ProductItems, err error) {
+	offerQuery := `SELECT pi.sub_category_name, pi.id, pi.category_id, pi.department_id, pi.sub_category_id,
+				pi.product_item_images, pi.dynamic_fields, pi.created_at, pi.updated_at,
+				c.name AS category_name, d.name AS department_name, sc.name AS sub_category_name_ref,
+				sc.image_url AS sub_category_image_url,
+				(SELECT COALESCE(SUM(view_count), 0) FROM product_item_views WHERE product_item_id = pi.id) AS view_count,
+				(
+					SELECT COALESCE(json_agg(json_build_object(
+						'offer_product_id', op2.id,
+						'product_name', pi2.sub_category_name,
+						'offer_id', p2.id,
+						'offer_name', p2.offer_name,
+						'discount_rate', p2.discount_rate,
+						'description', p2.description,
+						'start_date', p2.start_date,
+						'end_date', p2.end_date,
+						'promotion_category', json_build_object(
+							'id', pc2.id,
+							'name', pc2.name,
+							'shop_id', pc2.shop_id,
+							'is_active', pc2.is_active,
+							'icon_path', pc2.icon_path,
+							'created_at', pc2.created_at,
+							'updated_at', pc2.updated_at
+						),
+						'promotion_type', json_build_object(
+							'id', pt2.id,
+							'name', pt2.name,
+							'is_active', pt2.is_active,
+							'shop_id', pt2.shop_id,
+							'promotion_category_id', pt2.promotion_category_id,
+							'type', pt2.type,
+							'icon_path', pt2.icon_path,
+							'created_at', pt2.created_at,
+							'updated_at', pt2.updated_at
+						)
+					) ORDER BY p2.created_at DESC), '[]')
+					FROM offer_products op2
+					LEFT JOIN product_items pi2 ON pi2.id = (op2.product_item_id::text::bigint)
+					INNER JOIN promotions p2 ON p2.id = op2.offer_id
+					LEFT JOIN promotion_categories pc2 ON p2.promotion_category_id = pc2.id
+					LEFT JOIN promotions_types pt2 ON p2.promotion_type_id = pt2.id
+					WHERE (op2.product_item_id::text::bigint) = pi.id
+					AND p2.is_active = true
+				) AS offer_products
+			FROM product_items pi
+			LEFT JOIN categories c ON pi.category_id = c.id
+			LEFT JOIN departments d ON pi.department_id = d.id
+			LEFT JOIN sub_categories sc ON pi.sub_category_id = sc.id
+			INNER JOIN offer_products op ON (op.product_item_id::text::bigint) = pi.id
+			WHERE op.offer_id = $1`
+
+	// Add filters if provided
+	var filters []string
+	var params []interface{}
+	params = append(params, offerID)
+	paramIndex := 2
+
+	if categoryID > 0 {
+		filters = append(filters, fmt.Sprintf("pi.category_id = $%d", paramIndex))
+		params = append(params, categoryID)
+		paramIndex++
+	}
+	if departmentID > 0 {
+		filters = append(filters, fmt.Sprintf("pi.department_id = $%d", paramIndex))
+		params = append(params, departmentID)
+		paramIndex++
+	}
+	if subCategoryID > 0 {
+		filters = append(filters, fmt.Sprintf("pi.sub_category_id = $%d", paramIndex))
+		params = append(params, subCategoryID)
+		paramIndex++
+	}
+
+	// Handle location-based filters
+	if latStr != "" && lngStr != "" && radiusKm > 0 {
+		lat, errLat := strconv.ParseFloat(latStr, 64)
+		lng, errLng := strconv.ParseFloat(lngStr, 64)
+		if errLat == nil && errLng == nil {
+			// Distance calculation using haversine formula
+			filters = append(filters, fmt.Sprintf(`(6371 * acos(cos(radians($%d)) * cos(radians(CAST(pi.latitude AS float))) * cos(radians(CAST(pi.longitude AS float)) - radians($%d)) + sin(radians($%d)) * sin(radians(CAST(pi.latitude AS float))))) <= $%d`, paramIndex, paramIndex+1, paramIndex+2, paramIndex+3))
+			params = append(params, lat, lng, lat, radiusKm)
+			paramIndex += 4
+		}
+	}
+
+	// Handle pincode filter
+	if pincode != "" {
+		filters = append(filters, fmt.Sprintf("pi.pincode = $%d", paramIndex))
+		params = append(params, pincode)
+		paramIndex++
+	}
+
+	if len(filters) > 0 {
+		offerQuery += " AND " + strings.Join(filters, " AND ")
+	}
+
+	// Add pagination
+	offerQuery += fmt.Sprintf(" LIMIT $%d OFFSET $%d", paramIndex, paramIndex+1)
+	params = append(params, limit, offset)
+
+	type offerProductDB struct {
+		Name                string    `gorm:"column:sub_category_name"`
+		ID                  uint      `gorm:"column:id"`
+		CategoryID          uint      `gorm:"column:category_id"`
+		DepartmentID        uint      `gorm:"column:department_id"`
+		SubCategoryID       uint      `gorm:"column:sub_category_id"`
+		CategoryName        string    `gorm:"column:category_name"`
+		DepartmentName      string    `gorm:"column:department_name"`
+		SubCategoryNameRef  string    `gorm:"column:sub_category_name_ref"`
+		SubCategoryImageURL string    `gorm:"column:sub_category_image_url"`
+		ProductItemImages   string    `gorm:"column:product_item_images"`
+		DynamicFields       []byte    `gorm:"column:dynamic_fields"`
+		OfferProducts       []byte    `gorm:"column:offer_products"`
+		CreatedAt           time.Time `gorm:"column:created_at"`
+		UpdatedAt           time.Time `gorm:"column:updated_at"`
+		ViewCount           uint      `gorm:"column:view_count"`
+
+		// Offer details
+		OfferID      uint      `gorm:"column:offer_id"`
+		OfferName    string    `gorm:"column:offer_name"`
+		DiscountRate uint      `gorm:"column:discount_rate"`
+		Description  string    `gorm:"column:description"`
+		StartDate    time.Time `gorm:"column:start_date"`
+		EndDate      time.Time `gorm:"column:end_date"`
+
+		// Promotion category details
+		PromotionCategoryID        uint      `gorm:"column:promotion_category_id"`
+		PromotionCategoryName      string    `gorm:"column:promotion_category_name"`
+		PromotionCategoryShopID    uint      `gorm:"column:promotion_category_shop_id"`
+		PromotionCategoryIsActive  bool      `gorm:"column:promotion_category_is_active"`
+		PromotionCategoryIconPath  string    `gorm:"column:promotion_category_icon_path"`
+		PromotionCategoryCreatedAt time.Time `gorm:"column:promotion_category_created_at"`
+		PromotionCategoryUpdatedAt time.Time `gorm:"column:promotion_category_updated_at"`
+
+		// Promotion type details
+		PromotionTypeID                  uint      `gorm:"column:promotion_type_id"`
+		PromotionTypeName                string    `gorm:"column:promotion_type_name"`
+		PromotionTypeIsActive            bool      `gorm:"column:promotion_type_is_active"`
+		PromotionTypeShopID              uint      `gorm:"column:promotion_type_shop_id"`
+		PromotionTypePromotionCategoryID uint      `gorm:"column:promotion_type_promotion_category_id"`
+		PromotionTypeType                string    `gorm:"column:promotion_type_type"`
+		PromotionTypeIconPath            string    `gorm:"column:promotion_type_icon_path"`
+		PromotionTypeCreatedAt           time.Time `gorm:"column:promotion_type_created_at"`
+		PromotionTypeUpdatedAt           time.Time `gorm:"column:promotion_type_updated_at"`
+	}
+
+	var dbItems []offerProductDB
+	err = db.Raw(offerQuery, params...).Scan(&dbItems).Error
+	if err != nil {
+		return
+	}
+
+	for _, dbItem := range dbItems {
+		var images []string
+		if dbItem.ProductItemImages != "" {
+			imageStr := dbItem.ProductItemImages
+			if len(imageStr) > 2 && imageStr[0] == '{' && imageStr[len(imageStr)-1] == '}' {
+				imageStr = imageStr[1 : len(imageStr)-1]
+				if imageStr != "" {
+					images = []string{}
+					for _, img := range parsePostgresArray(imageStr) {
+						images = append(images, img)
+					}
+				}
+			}
+		}
+		if images == nil {
+			images = []string{}
+		}
+
+		item := response.ProductItems{
+			ID:                  dbItem.ID,
+			Name:                dbItem.Name,
+			CategoryName:        dbItem.CategoryName,
+			MainCategoryName:    dbItem.DepartmentName,
+			SubCategoryImageURL: dbItem.SubCategoryImageURL,
+			CategoryID:          dbItem.CategoryID,
+			DepartmentID:        dbItem.DepartmentID,
+			SubCategoryID:       dbItem.SubCategoryID,
+			ProductItemImages:   images,
+			CreatedAt:           dbItem.CreatedAt,
+			UpdatedAt:           dbItem.UpdatedAt,
+			ViewCount:           dbItem.ViewCount,
+		}
+
+		if len(dbItem.DynamicFields) > 0 {
+			var dynamicFields map[string]interface{}
+			if err := json.Unmarshal(dbItem.DynamicFields, &dynamicFields); err == nil {
+				item.DynamicFields = dynamicFields
+			}
+		} else {
+			item.DynamicFields = make(map[string]interface{})
+		}
+
+		// Unmarshal offer_products
+		if len(dbItem.OfferProducts) > 0 {
+			var offerProducts []response.OfferProduct
+			if err := json.Unmarshal(dbItem.OfferProducts, &offerProducts); err == nil {
+				item.OfferProducts = offerProducts
+			} else {
+				item.OfferProducts = []response.OfferProduct{}
+			}
+		} else {
+			item.OfferProducts = []response.OfferProduct{}
+		}
+
+		productItems = append(productItems, item)
+	}
+
+	return
 }

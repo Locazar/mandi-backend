@@ -1081,7 +1081,6 @@ func (s *productUseCase) GetNearbyProductsByPincode(ctx context.Context, pincode
 
 		products = append(products, response.ProductItems{
 			ID:                  id,
-			ShopID:              shopID,
 			Name:                name,
 			CategoryID:          categoryID,
 			CategoryName:        categoryName,
@@ -1226,7 +1225,6 @@ func (c *productUseCase) GetProductsByRadius(ctx context.Context, latitude float
 
 		products = append(products, response.ProductItems{
 			ID:                  id,
-			ShopID:              shopID,
 			Name:                name,
 			CategoryID:          categoryID,
 			DepartmentID:        deptID,
@@ -1463,3 +1461,13 @@ func (s *productUseCase) FindProductItemFilters(ctx context.Context, adminID str
 	}
 	return filters, nil
 }
+
+func (s *productUseCase) GetProductItemsByOfferID(ctx context.Context, offerID uint, categoryID int, departmentID int, subCategoryID int, latStr string, lngStr string, pincode string, radiusKm float64, limit int, offset int) ([]response.ProductItems, error) {
+	products, err := s.productRepo.GetProductItemsByOfferID(ctx, offerID, categoryID, departmentID, subCategoryID, latStr, lngStr, pincode, radiusKm, limit, offset)
+	if err != nil {
+		return nil, utils.PrependMessageToError(err, "failed to get product items by offer id")
+	}
+	return products, nil
+}
+
+// services/product_service.go
