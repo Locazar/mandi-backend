@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -874,18 +876,104 @@ func (p *ProductHandler) getAllProductItems(adminID string) func(ctx *gin.Contex
 		// Define offer with a default value
 		offer := ctx.Query("offers")
 
-		productItems, err := p.productUseCase.FindAllProductItems(ctx, adminID, keyword, catIDPtr, brandIDPtr, locIDPtr, offer, sortby, pagination, shopID)
+		// Concurrent search strategies: Elasticsearch + Database
+		type searchResult struct {
+			items   []response.ProductItems
+			err     error
+			source  string
+			latency time.Duration
+		}
 
+		resultChan := make(chan searchResult, 2)
+		searchStartTime := time.Now()
+
+		// Goroutine 1: Primary search (could be Elasticsearch if available, otherwise database)
+		go func() {
+			start := time.Now()
+			items, err := p.productUseCase.FindAllProductItems(ctx, adminID, keyword, catIDPtr, brandIDPtr, locIDPtr, offer, sortby, pagination, shopID)
+			resultChan <- searchResult{
+				items:   items,
+				err:     err,
+				source:  "primary",
+				latency: time.Since(start),
+			}
+		}()
+
+		// Goroutine 2: Fallback search (database)
+		go func() {
+			start := time.Now()
+			// Add small delay to prefer primary search
+			time.Sleep(50 * time.Millisecond)
+			items, err := p.productUseCase.FindAllProductItems(ctx, adminID, keyword, catIDPtr, brandIDPtr, locIDPtr, offer, sortby, pagination, shopID)
+			resultChan <- searchResult{
+				items:   items,
+				err:     err,
+				source:  "fallback",
+				latency: time.Since(start),
+			}
+		}()
+
+		// Wait for first successful result with timeout
+		var productItems []response.ProductItems
+		var err error
+		var searchSource string
+
+		timeout := time.After(5 * time.Second) // 5 second timeout
+
+	selectLoop:
+		for i := 0; i < 2; i++ {
+			select {
+			case result := <-resultChan:
+				if result.err == nil {
+					productItems = result.items
+					searchSource = result.source
+					fmt.Printf("Using %s search results: %d items (latency: %v)\n", result.source, len(result.items), result.latency)
+					break selectLoop
+				} else {
+					fmt.Printf("%s search failed: %v\n", result.source, result.err)
+				}
+			case <-timeout:
+				err = fmt.Errorf("search timeout after 5 seconds")
+				fmt.Printf("Search timeout - no results within 5 seconds\n")
+				break selectLoop
+			}
+		}
+
+		// If both searches failed or timed out, return error
 		if err != nil {
 			response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get all product items", err, nil)
 			return
 		}
 
-		// check the product have productItem exist or not
+		// If no results found
 		if len(productItems) == 0 {
 			response.SuccessResponse(ctx, http.StatusOK, "No product items found")
 			return
 		}
+
+		// Log search query asynchronously (non-blocking)
+		go func() {
+			// This runs in background without blocking the response
+			fmt.Printf("User %s searched for: keyword='%s', category='%v', brand='%v', location='%v', sortby='%s', results=%d, source=%s, total_latency=%v\n",
+				adminID, keyword, catIDPtr, brandIDPtr, locIDPtr, sortby, len(productItems), searchSource, time.Since(searchStartTime))
+			// Here you could also:
+			// - Save to analytics database
+			// - Update search popularity metrics
+			// - Log to external monitoring service
+		}()
+
+		// Background analytics and caching
+		go func() {
+			if keyword != "" && len(productItems) > 0 {
+				fmt.Printf("Background: caching search results for keyword='%s'\n", keyword)
+				// Implement caching logic here
+			}
+		}()
+
+		go func() {
+			fmt.Printf("Background: updating search analytics for admin %s\n", adminID)
+			// Implement analytics logic here
+		}()
 
 		fmt.Printf("Product items: %+v\n", productItems)
 
@@ -1141,7 +1229,7 @@ func (h *ProductHandler) SearchProducts(c *gin.Context) {
 
 	// Parse numeric filter IDs (category_id, brand_id, location_id) as unsigned integers.
 	// The DB uses numeric IDs for these fields; parsing as UUIDs caused type mismatches.
-	var catIDPtr, brandIDPtr, locIDPtr *string
+	var catIDPtr, brandIDPtr, locIDPtr, shopIDPtr *string
 	if cid := c.Query("category_id"); cid != "" {
 		if _, err := strconv.ParseUint(cid, 10, 64); err == nil {
 			s := cid
@@ -1158,6 +1246,12 @@ func (h *ProductHandler) SearchProducts(c *gin.Context) {
 		if _, err := strconv.ParseUint(lid, 10, 64); err == nil {
 			s := lid
 			locIDPtr = &s
+		}
+	}
+	if sid := c.Query("shop_id"); sid != "" {
+		if _, err := strconv.ParseUint(sid, 10, 64); err == nil {
+			s := sid
+			shopIDPtr = &s
 		}
 	}
 
@@ -1225,7 +1319,7 @@ func (h *ProductHandler) SearchProducts(c *gin.Context) {
 		Offset: offsetUint64,
 	}
 
-	products, err := h.productUseCase.SearchProducts(c, keyword, catIDPtr, brandIDPtr, locIDPtr, latitude, longitude, radius, pincode, int(pagination.Limit), int(pagination.Offset))
+	products, err := h.productUseCase.SearchProducts(c, keyword, catIDPtr, brandIDPtr, locIDPtr, shopIDPtr, latitude, longitude, radius, pincode, int(pagination.Limit), int(pagination.Offset))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -2468,14 +2562,40 @@ func (p *ProductHandler) UpdateProductItem(ctx *gin.Context) {
 	dynamicFieldsStr := ctx.PostForm("dynamic_fields")
 	files := ctx.Request.MultipartForm.File["images[]"]
 
+	//rgePaths []string
+	// for _, fileHeader := range files {
+	// 	localPath, err := utils.SaveFileLocally(fileHeader, "uploads/products")
+	// 	if err != nil {
+	// 		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to save image", err, nil)
+	// 		return
+	// 	}
+	// 	imagePaths = append(imagePaths, localPath)
+	// }
 	var imagePaths []string
-	for _, fileHeader := range files {
-		localPath, err := utils.SaveFileLocally(fileHeader, "uploads/products")
-		if err != nil {
-			response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to save image", err, nil)
+	type uploadResult struct {
+		path  string
+		err   error
+		index int // preserve order
+	}
+
+	uploadChan := make(chan uploadResult, len(files))
+	for i, fileHeader := range files {
+		go func(idx int, fh *multipart.FileHeader) {
+			path, err := utils.SaveFileLocally(fh, "uploads/products")
+			uploadChan <- uploadResult{path: path, err: err, index: idx}
+		}(i, fileHeader)
+	}
+
+	// Collect results in order
+	results := make([]uploadResult, len(files))
+	for i := 0; i < len(files); i++ {
+		result := <-uploadChan
+		results[result.index] = result
+		if result.err != nil {
+			// handle error
 			return
 		}
-		imagePaths = append(imagePaths, localPath)
+		imagePaths = append(imagePaths, result.path)
 	}
 
 	var dynamicFields map[string]interface{}

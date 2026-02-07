@@ -194,7 +194,7 @@ func (es *ElasticService) SearchProducts(ctx context.Context, keyword string, ca
 }
 
 // SearchProductItems searches for product items in Elasticsearch and returns IDs
-func (es *ElasticService) SearchProductItems(ctx context.Context, keyword string, categoryID *string, limit, offset int) ([]uint, error) {
+func (es *ElasticService) SearchProductItems(ctx context.Context, keyword string, categoryID *string, shopID *string, limit, offset int) ([]uint, error) {
 	query := map[string]interface{}{
 		"query": map[string]interface{}{
 			"bool": map[string]interface{}{
@@ -223,6 +223,16 @@ func (es *ElasticService) SearchProductItems(ctx context.Context, keyword string
 			filters = append(filters, map[string]interface{}{
 				"term": map[string]interface{}{
 					"category_id": cid,
+				},
+			})
+		}
+	}
+
+	if shopID != nil {
+		if sid, err := strconv.ParseUint(*shopID, 10, 64); err == nil {
+			filters = append(filters, map[string]interface{}{
+				"term": map[string]interface{}{
+					"shop_id": sid,
 				},
 			})
 		}

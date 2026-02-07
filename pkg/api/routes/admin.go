@@ -316,6 +316,11 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			identity.POST("/verify-otp", adminHandler.AdminDocumentOtpVerify)
 		}
 
+		verification := api.Group("/verification")
+		{
+			verification.GET("/shop/:shop_id", adminHandler.GetVerificationStatus)
+		}
+
 	}
 
 }

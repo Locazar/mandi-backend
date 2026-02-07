@@ -1196,14 +1196,14 @@ func (c *productDatabase) FindAllProductItemImages(ctx context.Context, productI
 }
 
 // SearchProducts implements interfaces.ProductRepository.
-func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, categoryID, brandID, locationID *string, latitude, longitude, radius float64, pincode *uint, pagination request.Pagination) (products []response.ProductItems, err error) {
+func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, categoryID, brandID, locationID, shopID *string, latitude, longitude, radius float64, pincode *uint, pagination request.Pagination) (products []response.ProductItems, err error) {
 	limit := int(pagination.Limit)
 	offset := int(pagination.Offset)
 
 	var ids []uint
 	if keyword != "" && c.ElasticClient != nil {
 		// Use Elasticsearch for search
-		ids, err = c.ElasticClient.SearchProductItems(ctx, keyword, categoryID, limit, offset)
+		ids, err = c.ElasticClient.SearchProductItems(ctx, keyword, categoryID, shopID, limit, offset)
 		if err != nil {
 			log.Printf("ES search failed, falling back to PG: %v", err)
 		} else if len(ids) == 0 {
