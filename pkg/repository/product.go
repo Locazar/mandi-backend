@@ -666,8 +666,12 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context,
 			limit = int(pagination.Limit)
 			offset = int(pagination.Offset)
 		}
+		var shopIDPtr *string
+		if filterByShopID != "" {
+			shopIDPtr = &filterByShopID
+		}
 		var err error
-		ids, err = c.ElasticClient.SearchProductItems(ctx, keyword, categoryID, limit, offset)
+		ids, err = c.ElasticClient.SearchProductItems(ctx, keyword, categoryID, shopIDPtr, limit, offset)
 		if err != nil {
 			log.Printf("ES search failed, falling back to PG: %v", err)
 		} else if len(ids) == 0 {
@@ -954,7 +958,7 @@ func (c *productDatabase) FindLowViewProductItems(ctx context.Context,
 			offset = int(pagination.Offset)
 		}
 		var err error
-		ids, err = c.ElasticClient.SearchProductItems(ctx, keyword, categoryID, limit, offset)
+		ids, err = c.ElasticClient.SearchProductItems(ctx, keyword, categoryID, filterByShopID, limit, offset)
 		if err != nil {
 			log.Printf("ES search failed, falling back to PG: %v", err)
 		} else if len(ids) == 0 {
