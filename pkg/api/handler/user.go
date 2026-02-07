@@ -770,4 +770,5 @@ func (c *UserHandler) GetShopByID(ctx *gin.Context) {
 	fmt.Printf("shop00000000: %+v\n", shop)
 
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully got shop by ID", shop)
+
 }
