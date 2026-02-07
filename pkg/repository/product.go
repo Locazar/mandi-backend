@@ -653,7 +653,7 @@ func (c *productDatabase) UpdateProductItem(ctx context.Context, productItemID u
 
 // for get all products items for a product filtered by admin_id and additional filters
 func (c *productDatabase) FindAllProductItems(ctx context.Context,
-	adminID string, keyword string, categoryID *string, brandID *string, locationID *string, offer string, sortby string, pagination *request.Pagination, filterByShopID string) (productItems []response.ProductItems, err error) {
+	adminID string, keyword string, categoryID *string, brandID *string, locationID *string, offer string, sortby string, pagination *request.Pagination, filterByShopID *string) (productItems []response.ProductItems, err error) {
 
 	fmt.Printf("FindAllProductItems called with adminID: %s, keyword: %s, categoryID: %v, brandID: %v, locationID: %v, offer: %s, sortby: %s, pagination: %+v, filterByShopID: %v\n",
 		adminID, keyword, categoryID, brandID, locationID, offer, sortby, pagination, filterByShopID)
@@ -667,7 +667,7 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context,
 			offset = int(pagination.Offset)
 		}
 		var err error
-		ids, err = c.ElasticClient.SearchProductItems(ctx, keyword, categoryID, limit, offset)
+		ids, err = c.ElasticClient.SearchProductItems(ctx, keyword, categoryID, filterByShopID, limit, offset)
 		if err != nil {
 			log.Printf("ES search failed, falling back to PG: %v", err)
 		} else if len(ids) == 0 {
@@ -764,8 +764,8 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context,
 	if adminID != "" {
 		params["adminID"] = adminID
 	}
-	if filterByShopID != "" {
-		shopIDUint, err := strconv.ParseUint(filterByShopID, 10, 64)
+	if filterByShopID != nil && *filterByShopID != "" {
+		shopIDUint, err := strconv.ParseUint(*filterByShopID, 10, 64)
 		if err != nil {
 			return nil, fmt.Errorf("invalid shop_id: %w", err)
 		}
@@ -954,7 +954,7 @@ func (c *productDatabase) FindLowViewProductItems(ctx context.Context,
 			offset = int(pagination.Offset)
 		}
 		var err error
-		ids, err = c.ElasticClient.SearchProductItems(ctx, keyword, categoryID, limit, offset)
+		ids, err = c.ElasticClient.SearchProductItems(ctx, keyword, categoryID, filterByShopID, limit, offset)
 		if err != nil {
 			log.Printf("ES search failed, falling back to PG: %v", err)
 		} else if len(ids) == 0 {
@@ -1201,14 +1201,14 @@ func (c *productDatabase) FindAllProductItemImages(ctx context.Context, productI
 }
 
 // SearchProducts implements interfaces.ProductRepository.
-func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, categoryID, brandID, locationID, shopID *string, latitude, longitude, radius float64, pincode *uint, pagination request.Pagination) (products []response.ProductItems, err error) {
+func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, categoryID, brandID, locationID *string, latitude, longitude, radius float64, pincode *uint, pagination request.Pagination) (products []response.ProductItems, err error) {
 	limit := int(pagination.Limit)
 	offset := int(pagination.Offset)
 
 	var ids []uint
 	if keyword != "" && c.ElasticClient != nil {
 		// Use Elasticsearch for search
-		ids, err = c.ElasticClient.SearchProductItems(ctx, keyword, categoryID, shopID, limit, offset)
+		ids, err = c.ElasticClient.SearchProductItems(ctx, keyword, categoryID, nil, limit, offset)
 		if err != nil {
 			log.Printf("ES search failed, falling back to PG: %v", err)
 		} else if len(ids) == 0 {

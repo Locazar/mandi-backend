@@ -890,7 +890,7 @@ func (p *ProductHandler) getAllProductItems(adminID string) func(ctx *gin.Contex
 		// Goroutine 1: Primary search (could be Elasticsearch if available, otherwise database)
 		go func() {
 			start := time.Now()
-			items, err := p.productUseCase.FindAllProductItems(ctx, adminID, keyword, catIDPtr, brandIDPtr, locIDPtr, offer, sortby, pagination, shopID)
+			items, err := p.productUseCase.FindAllProductItems(ctx, adminID, keyword, catIDPtr, brandIDPtr, locIDPtr, offer, sortby, pagination, &shopID)
 			resultChan <- searchResult{
 				items:   items,
 				err:     err,
@@ -904,7 +904,7 @@ func (p *ProductHandler) getAllProductItems(adminID string) func(ctx *gin.Contex
 			start := time.Now()
 			// Add small delay to prefer primary search
 			time.Sleep(50 * time.Millisecond)
-			items, err := p.productUseCase.FindAllProductItems(ctx, adminID, keyword, catIDPtr, brandIDPtr, locIDPtr, offer, sortby, pagination, shopID)
+			items, err := p.productUseCase.FindAllProductItems(ctx, adminID, keyword, catIDPtr, brandIDPtr, locIDPtr, offer, sortby, pagination, &shopID)
 			resultChan <- searchResult{
 				items:   items,
 				err:     err,
@@ -1064,7 +1064,7 @@ func (p *ProductHandler) GetProductItemsByShopID() func(ctx *gin.Context) {
 		if offer != nil {
 			offerVal = *offer
 		}
-		productItems, err := p.productUseCase.FindAllProductItems(ctx, adminID, keyword, catIDPtr, brandIDPtr, locIDPtr, offerVal, sortby, pagination, shopID)
+		productItems, err := p.productUseCase.FindAllProductItems(ctx, adminID, keyword, catIDPtr, brandIDPtr, locIDPtr, offerVal, sortby, pagination, &shopID)
 
 		fmt.Printf("Product items for shop %s: %+v\n", shopID, productItems)
 

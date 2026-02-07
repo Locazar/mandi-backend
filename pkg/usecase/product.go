@@ -361,7 +361,7 @@ func (c *productUseCase) isProductVariationCombinationExist(productID uint, vari
 }
 
 // for get all productItem for a specific product
-func (c *productUseCase) FindAllProductItems(ctx context.Context, adminId string, keyword string, categoryID, brandID, locationID *string, offer string, sortby string, pagination *request.Pagination, filterByShopID string) ([]response.ProductItems, error) {
+func (c *productUseCase) FindAllProductItems(ctx context.Context, adminId string, keyword string, categoryID, brandID, locationID *string, offer string, sortby string, pagination *request.Pagination, filterByShopID *string) ([]response.ProductItems, error) {
 
 	productItems, err := c.productRepo.FindAllProductItems(ctx, adminId, keyword, categoryID, brandID, locationID, offer, sortby, pagination, filterByShopID)
 	if err != nil {
@@ -442,7 +442,7 @@ func (c *productUseCase) SearchProducts(ctx context.Context, keyword string, cat
 		Limit:  limitUint64,
 		Offset: offsetUint64,
 	}
-	resProducts, err := c.productRepo.SearchProducts(ctx, keyword, categoryID, brandID, locationID, shopID, latitude, longitude, radius, pincode, pagination)
+	resProducts, err := c.productRepo.SearchProducts(ctx, keyword, categoryID, brandID, locationID, latitude, longitude, radius, pincode, pagination)
 	if err != nil {
 		return nil, utils.PrependMessageToError(err, "failed to search products")
 	}
