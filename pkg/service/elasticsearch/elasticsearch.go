@@ -16,8 +16,43 @@ type ElasticService struct {
 	Client *elasticsearch.Client
 }
 
-func (es *ElasticService) UpdateProductItem(ctx context.Context, domainItem domain.ProductItem) {
-	panic("unimplemented")
+func (es *ElasticService) UpdateProductItem(ctx context.Context, domainItem domain.ProductItem) error {
+	// Re-index with the same document ID to update
+	body := map[string]interface{}{
+		"id":                  domainItem.ID,
+		"sub_category_name":   domainItem.SubCategoryName,
+		"category_id":         domainItem.CategoryID,
+		"department_id":       domainItem.DepartmentID,
+		"sub_category_id":     domainItem.SubCategoryID,
+		"admin_id":            domainItem.AdminID,
+		"dynamic_fields":      domainItem.DynamicFields,
+		"product_item_images": domainItem.ProductItemImages,
+	}
+	data, err := json.Marshal(body)
+	if err != nil {
+		log.Printf("Error marshaling product item for update: %v", err)
+		return err
+	}
+
+	res, err := es.Client.Index(
+		"product_items",
+		bytes.NewReader(data),
+		es.Client.Index.WithDocumentID(fmt.Sprintf("%d", domainItem.ID)),
+		es.Client.Index.WithContext(ctx),
+	)
+	if err != nil {
+		log.Printf("Error updating product item in Elasticsearch: %v", err)
+		return err
+	}
+	defer res.Body.Close()
+
+	if res.IsError() {
+		log.Printf("Error response when updating product item: %s", res.String())
+		return fmt.Errorf("error updating product item: %s", res.String())
+	}
+
+	log.Printf("Product item %d updated successfully in Elasticsearch", domainItem.ID)
+	return nil
 }
 
 func NewElasticService(url string) (*ElasticService, error) {

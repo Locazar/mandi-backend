@@ -540,7 +540,11 @@ VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`
 			ProductItemImages: productItem.ProductItemImages,
 			ShopID:            shopID,
 		}
-		go c.ElasticClient.IndexProductItem(ctx, domainItem) // index asynchronously
+		go func() {
+			if indexErr := c.ElasticClient.IndexProductItem(ctx, domainItem); indexErr != nil {
+				log.Printf("Failed to index product item in Elasticsearch: %v", indexErr)
+			}
+		}()
 	}
 
 	return productItemID, err
@@ -645,7 +649,11 @@ func (c *productDatabase) UpdateProductItem(ctx context.Context, productItemID u
 			DynamicFields:     string(dynamicFieldsJSON),
 			ProductItemImages: productItemImages,
 		}
-		go c.ElasticClient.UpdateProductItem(ctx, domainItem) // update asynchronously
+		go func() {
+			if updateErr := c.ElasticClient.UpdateProductItem(ctx, domainItem); updateErr != nil {
+				log.Printf("Failed to update product item in Elasticsearch: %v", updateErr)
+			}
+		}()
 	}
 
 	return err
@@ -730,7 +738,7 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context,
 	log.Printf("offerSubquery: %s", offerSubquery)
 
 	query := `SELECT pi.sub_category_name, pi.id, pi.category_id, pi.department_id, pi.sub_category_id,
-				pi.product_item_images, pi.dynamic_fields, pi.created_at, pi.updated_at,
+			pi.product_item_images, pi.dynamic_fields, pi.stock, pi.created_at, pi.updated_at,
 				c.name AS category_name, d.name AS department_name, sc.name AS sub_category_name_ref,
 			(SELECT MAX(p3.discount_rate) FROM offer_products op3 INNER JOIN promotions p3 ON p3.id = op3.offer_id WHERE op3.product_item_id = pi.id AND p3.is_active = true AND (p3.start_date)::timestamp <= CURRENT_TIMESTAMP AND (p3.end_date)::timestamp >= CURRENT_TIMESTAMP) AS discount_rate,
 				sc.image_url AS sub_category_image_url,
@@ -837,6 +845,7 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context,
 		UpdatedAt           time.Time     `gorm:"column:updated_at"`
 		DiscountRate        sql.NullInt64 `gorm:"column:discount_rate"`
 		ViewCount           uint          `gorm:"column:view_count"`
+		Stock               bool          `gorm:"column:stock"`
 	}
 	var dbItems []productItemDB
 	log.Printf("Query: %s, Params: %v", query, params)
@@ -884,6 +893,7 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context,
 			CreatedAt:           dbItem.CreatedAt,
 			UpdatedAt:           dbItem.UpdatedAt,
 			ViewCount:           dbItem.ViewCount,
+			Stock:               dbItem.Stock,
 		}
 
 		// Unmarshal offer_products if present
@@ -1562,7 +1572,7 @@ func (c *productDatabase) DeleteCategoryImage(ctx context.Context, imageID uint)
 
 func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID uint) (productItem response.ProductItems, err error) {
 	// First, get product item details (excluding images)
-	query := `SELECT pi.id, pi.sub_category_name, pi.category_id, 
+	query := `SELECT pi.id, pi.sub_category_name, pi.category_id, pi.stock,
 	           sc.name AS category_name, mc.name AS main_category_name, 
 	           pi.dynamic_fields, pi.created_at, pi.updated_at,
 	           (SELECT COALESCE(SUM(view_count), 0) FROM product_item_views WHERE product_item_id = pi.id) AS view_count
@@ -1578,6 +1588,7 @@ func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID 
 		CategoryID       uint
 		CategoryName     string
 		MainCategoryName string
+		Stock            bool
 		DynamicFields    []byte
 		CreatedAt        time.Time
 		UpdatedAt        time.Time
@@ -1593,6 +1604,7 @@ func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID 
 	productItem.Name = dbItem.SubCategoryName
 	productItem.CategoryName = dbItem.CategoryName
 	productItem.MainCategoryName = dbItem.MainCategoryName
+	productItem.Stock = dbItem.Stock
 	productItem.CreatedAt = dbItem.CreatedAt
 	productItem.UpdatedAt = dbItem.UpdatedAt
 	productItem.ViewCount = dbItem.ViewCount

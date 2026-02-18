@@ -13,6 +13,7 @@ type ProductHandler interface {
 	GetAllCategoriesByDepartmentID(ctx *gin.Context)
 	GetAllSubCategoriesByCategoryID(ctx *gin.Context)
 	FindLowViewProductItems(ctx *gin.Context)
+	GetDepartmentByID(ctx *gin.Context)
 
 	GetAllProductsAdmin(ctx *gin.Context)
 	GetAllProductsUser(ctx *gin.Context)

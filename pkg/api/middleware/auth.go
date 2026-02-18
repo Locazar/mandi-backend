@@ -64,6 +64,21 @@ func (c *middleware) authorize(tokenUser token.UserType) gin.HandlerFunc {
 
 		verifyRes, err := c.tokenService.VerifyToken(tokenVerifyReq)
 
+		// if initial verify failed due to invalid token and we were checking for a user,
+		// try verifying as admin so that admins can access user endpoints too.
+		if err != nil && errors.Is(err, token.ErrInvalidToken) && tokenUser == token.User {
+			altReq := token.VerifyTokenRequest{
+				TokenString: accessToken,
+				UsedFor:     token.Admin,
+			}
+			altRes, altErr := c.tokenService.VerifyToken(altReq)
+			if altErr == nil {
+				// treat as valid admin token
+				verifyRes = altRes
+				err = nil
+			}
+		}
+
 		if err != nil {
 			response.ErrorResponse(ctx, http.StatusUnauthorized, "Unauthorized user", err, nil)
 			ctx.Abort()

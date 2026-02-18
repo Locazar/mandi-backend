@@ -81,6 +81,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		//department
 		department := api.Group("/departments")
 		{
+			department.GET("/:department_id", middleware.TrimSpaces(), productHandler.GetDepartmentByID)
 			department.POST("/", middleware.TrimSpaces(), productHandler.SaveDepartment)
 			department.GET("/", middleware.TrimSpaces(), productHandler.GetAllDepartments)
 
