@@ -2682,17 +2682,17 @@ func handleUpload(fileHeader *multipart.FileHeader) (string, error) {
 	return savedPath, nil
 }
 
-func handleAdultContent(fileName string) (bool, error) {
-	isAdult, err := checkAdultContent(fileName)
-	if err != nil {
-		return false, err
-	}
+// func handleAdultContent(fileName string) (bool, error) {
+// 	isAdult, err := checkAdultContent(fileName)
+// 	if err != nil {
+// 		return false, err
+// 	}
 
-	if isAdult {
-		return false, fmt.Errorf("content policy violation: adult image detected")
-	}
-	return isAdult, nil
-}
+// 	if isAdult {
+// 		return false, fmt.Errorf("content policy violation: adult image detected")
+// 	}
+// 	return isAdult, nil
+// }
 
 // handleSecureMagic validates and enhances the image, returns the file path as a string
 func handleSecureMagic(fileHeader *multipart.FileHeader) (string, error) {
@@ -2749,97 +2749,9 @@ func handleSecureMagic(fileHeader *multipart.FileHeader) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	// Return the absolute path for further use
-	return savePath, nil
-}
 
-func checkAdultContent(imageURL string) (bool, error) {
-	if imageURL == "" {
-		return false, nil
-	}
-	// Clean up imageURL: replace backslashes with slashes, remove leading slashes or 'uploads/'
-	cleanedURL := imageURL
-	cleanedURL = filepath.ToSlash(cleanedURL)
-	// Remove any leading slashes
-	for len(cleanedURL) > 0 && (cleanedURL[0] == '/' || cleanedURL[0] == '\\') {
-		cleanedURL = cleanedURL[1:]
-	}
-	// Remove leading 'uploads/' if present
-	if len(cleanedURL) >= 8 && cleanedURL[:8] == "uploads/" {
-		cleanedURL = cleanedURL[8:]
-	}
-
-	// Get server root directory
-	wd, err := os.Getwd()
-	if err != nil {
-		return false, fmt.Errorf("failed to get working directory: %w", err)
-	}
-
-	// check the file exists in the uploads/products directory
-	localPath := filepath.Join(wd, "uploads", cleanedURL)
-	if _, err := os.Stat(localPath); os.IsNotExist(err) {
-		return false, fmt.Errorf("file does not exist: %s", localPath)
-	}
-
-	// Open the file for multipart request
-	file, err := os.Open(localPath)
-	if err != nil {
-		return false, fmt.Errorf("failed to open file: %w", err)
-	}
-	defer file.Close()
-
-	// Create multipart form data
-	body := &bytes.Buffer{}
-	writer := multipart.NewWriter(body)
-
-	// Add file to multipart form with key 'media'
-	part, err := writer.CreateFormFile("media", filepath.Base(localPath))
-	if err != nil {
-		return false, fmt.Errorf("failed to create form file: %w", err)
-	}
-
-	_, err = io.Copy(part, file)
-	if err != nil {
-		return false, fmt.Errorf("failed to copy file: %w", err)
-	}
-
-	// Add API parameters
-	writer.WriteField("models", "nudity-2.1")
-	writer.WriteField("api_user", "1350960651")
-	writer.WriteField("api_secret", "xD7trXQ3EDEzJsd4Msy5bZzVZCXADoJf")
-
-	writer.Close()
-
-	// Build the API Request
-	apiURL := "https://api.sightengine.com/1.0/check.json"
-	req, err := http.NewRequest("POST", apiURL, body)
-	if err != nil {
-		return false, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return false, fmt.Errorf("failed to send request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	var result ModerationResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return false, fmt.Errorf("failed to decode response: %w", err)
-	}
-
-	// Logic: If any of the explicit adult content scores > 0.5, block it
-	// sexual_activity and sexual_display are clear indicators of adult content
-	// erotica and very_suggestive are also strong indicators
-	if result.Nudity.SexualActivity > 0.5 ||
-		result.Nudity.SexualDisplay > 0.5 ||
-		result.Nudity.Erotica > 0.5 ||
-		result.Nudity.VerySuggestive > 0.5 {
-		return true, nil // It is adult content
-	}
-
-	return false, nil // Safe
+	relativePath := "/uploads/products/" + filename
+	fmt.Printf("Image processed and saved to: %s\n", relativePath)
+	// Return the relative path for API response (for client to access via HTTP)
+	return relativePath, nil
 }
