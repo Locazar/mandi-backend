@@ -2738,7 +2738,7 @@ func handleSecureMagic(fileHeader *multipart.FileHeader) (string, error) {
 	if err := os.MkdirAll(saveDir, 0755); err != nil {
 		return "", fmt.Errorf("failed to create directory: %w", err)
 	}
-	filename := fmt.Sprintf("%s.jpg", uuid.New().String())
+	filename := fmt.Sprintf("%s_tweak.jpg", uuid.New().String())
 	savePath := filepath.Join(saveDir, filename)
 	outFile, err := os.Create(savePath)
 	if err != nil {
@@ -2749,6 +2749,7 @@ func handleSecureMagic(fileHeader *multipart.FileHeader) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	// Return the relative path for database storage
-	return "uploads/products/" + filename, nil
+	// Return the relative path for database storage with forward slashes
+	relativePath := "uploads/products/" + filename
+	return filepath.ToSlash(relativePath), nil
 }
