@@ -8,9 +8,14 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
-	"strconv"
+	"net/url"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strconv"	
 	"time"
 
+	"github.com/disintegration/imaging"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jinzhu/copier"
@@ -22,7 +27,18 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/usecase"
 	usecaseInterface "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
+	
 )
+
+// semaphore limits concurrent image processing operations
+var semaphore = make(chan struct{}, runtime.NumCPU())
+
+type ModerationResponse struct {
+	Status string `json:"status"`
+	Nudity struct {
+		Raw float64 `json:"raw"` // Likelihood of full nudity
+	} `json:"nudity"`
+}
 
 // Helper function to get minimum of two integers
 func min(a, b int) int {
@@ -327,7 +343,6 @@ func (p *ProductHandler) SaveProduct(ctx *gin.Context) {
 	departmentID, errDeptID := request.GetFormValuesAsUint(ctx, "department_id")
 	description, err2 := request.GetFormValuesAsString(ctx, "description")
 	categoryID, err3 := request.GetFormValuesAsUint(ctx, "category_id")
-
 	fileHeader, err6 := ctx.FormFile("image")
 
 	fmt.Printf("Received form data - Name: %s, DepartmentID: %d, Description: %s, CategoryID: %d\n", name, departmentID, description, categoryID)
@@ -662,6 +677,7 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 	subCategoryName := ctx.PostForm("sub_category_name")
 	dynamicFieldsStr := ctx.PostForm("dynamic_fields")
 	files := ctx.Request.MultipartForm.File["images[]"]
+
 	fmt.Printf("Admin ID from token: %s\n", adminID)
 	fmt.Printf("SubCategory Name from form: %s\n", subCategoryName)
 	fmt.Printf("Dynamic Fields from form: %s\n", dynamicFieldsStr)
@@ -669,11 +685,13 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 
 	var imagePaths []string
 	for _, fileHeader := range files {
-		localPath, err := utils.SaveFileLocally(fileHeader, "uploads/products")
+
+		localPath, err := handleUpload(fileHeader)
 		if err != nil {
-			response.ErrorResponse(ctx, http.StatusBadRequest, BindFormValueMessage, err, nil)
+			response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to process image", err, nil)
 			return
 		}
+
 		imagePaths = append(imagePaths, localPath)
 	}
 	fmt.Printf("Saved image paths: %+v\n", imagePaths)
@@ -1218,7 +1236,7 @@ func SafeIntToUint64(i int) (uint64, error) {
 //	@Param			offset		query	int		false	"Offset"
 //	@Router			/products/search [get]
 //	@Success		200	{object}	response.Response{}	"Successfully searched products"
-//	@Failure		500	{object}	response.Response{}	"Failed to search products
+//	@Failure		500	{object}	response.Response{}	"Failed to search products"
 func (h *ProductHandler) SearchProducts(c *gin.Context) {
 
 	// Support both 'q' and 'name' as search keyword parameter
@@ -2696,4 +2714,140 @@ func (p *ProductHandler) GetProductItemsByOfferID(ctx *gin.Context) {
 		Data:    products,
 	})
 
+}
+
+// handleUpload validates the file header for adult content and security checks
+func handleUpload(fileHeader *multipart.FileHeader) (string, error) {
+	// Check for adult content
+	savedPath, err := handleSecureMagic(fileHeader)
+	if err != nil {
+		return "", err
+	}
+	// Check for adult content
+	isAdult, err := CheckNudity(savedPath)
+	if isAdult {
+		return "", nil
+	}
+
+	if err != nil {
+		return "", err
+	}
+
+	return savedPath, nil
+}
+
+func handleAdultContent(fileName string) (bool, error) {
+	isAdult, err := checkAdultContent(fileName)
+	if err != nil {
+		return false, err
+	}
+	fmt.Printf("Adult content check result: %v\n", isAdult)
+
+	if isAdult {
+		return false, fmt.Errorf("content policy violation: adult image detected")
+	}
+	return isAdult, nil
+}
+
+// handleSecureMagic validates and enhances the image, returns the file path as a string
+func handleSecureMagic(fileHeader *multipart.FileHeader) (string, error) {
+	file, err := fileHeader.Open()
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	buffer := make([]byte, 512)
+	_, err = file.Read(buffer)
+	if err != nil && err != io.EOF {
+		return "", err
+	}
+
+	contentType := http.DetectContentType(buffer)
+	file.Seek(0, 0)
+
+	if contentType != "image/jpeg" && contentType != "image/png" {
+		return "", fmt.Errorf("unsupported file type: %s", contentType)
+	}
+
+	semaphore <- struct{}{}
+	defer func() { <-semaphore }()
+
+	src, err := imaging.Decode(file)
+	if err != nil {
+		return "", err
+	}
+
+	processed := imaging.AdjustSaturation(src, 20)
+	processed = imaging.AdjustContrast(processed, 15)
+	processed = imaging.Sharpen(processed, 0.8)
+
+	// Save processed image directly to uploads/products with a unique filename
+	saveDir := "uploads/products"
+	if err := os.MkdirAll(saveDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create directory: %w", err)
+	}
+	filename := fmt.Sprintf("%s.jpg", uuid.New().String())
+	savePath := filepath.Join(saveDir, filename)
+	outFile, err := os.Create(savePath)
+	if err != nil {
+		return "", err
+	}
+	defer outFile.Close()
+	err = imaging.Encode(outFile, processed, imaging.JPEG, imaging.JPEGQuality(20))
+	if err != nil {
+		return "", err
+	}
+	// Return the relative path for further use
+	return savePath, nil
+}
+
+func checkAdultContent(imageURL string) (bool, error) {
+	if imageURL == "" {
+		return false, nil
+	}
+	// Clean up imageURL: replace backslashes with slashes, remove leading slashes or 'uploads/'
+	cleanedURL := imageURL
+	cleanedURL = filepath.ToSlash(cleanedURL)
+	// Remove any leading slashes
+	for len(cleanedURL) > 0 && (cleanedURL[0] == '/' || cleanedURL[0] == '\\') {
+		cleanedURL = cleanedURL[1:]
+	}
+	// Remove leading 'uploads/' if present
+	if len(cleanedURL) >= 8 && cleanedURL[:8] == "uploads/" {
+		cleanedURL = cleanedURL[8:]
+	}
+
+	// check the file exists in the uploads/products directory
+	localPath := filepath.Join("uploads", cleanedURL)
+	if _, err := os.Stat(localPath); os.IsNotExist(err) {
+		return false, fmt.Errorf("file does not exist: %s", localPath)
+	}
+
+	fullURL := "https://feignedly-unpaired-amiya.ngrok-free.dev/uploads/" + cleanedURL
+	fmt.Printf("Checking image URL for adult content: %s\n", fullURL)
+	// 1. Build the API Request
+	apiURL := "https://api.sightengine.com/1.0/check.json"
+	params := url.Values{}
+	params.Add("url", fullURL)
+	params.Add("models", "nudity-2.1")
+	params.Add("api_user", "1350960651") // Get from Sightengine dashboard
+	params.Add("api_secret", "xD7trXQ3EDEzJsd4Msy5bZzVZCXADoJf")
+	fmt.Printf("Sightengine API request URL: %s?%s\n", apiURL, params.Encode())
+	resp, err := http.Get(apiURL + "?" + params.Encode())
+	if err != nil {
+		return false, err
+	}
+	defer resp.Body.Close()
+
+	var result ModerationResponse
+	json.NewDecoder(resp.Body).Decode(&result)
+
+	// 2. Logic: If 'raw' nudity score > 0.5, block it.
+	fmt.Printf("Sightengine API response: %+v\n", result)
+	if result.Nudity.Raw > 0.5 {
+		return true, nil // It is adult content
+	}
+
+	return false, nil // Safe
 }

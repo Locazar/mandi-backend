@@ -1,6 +1,7 @@
 package http
 
 import (
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -114,6 +115,15 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware middlewa
 	// 	c.File(fullPath)
 	// })
 
+	file, err := os.OpenFile("server.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		log.Fatal("Failed to open log file:", err)
+	}
+
+	// Send logs to file
+	log.SetOutput(file)
+
+	// Serve all files in uploads directory at /uploads
 	// Serve static files from uploads directory subdirectories (excluding icon which has custom handling)
 	engine.StaticFS("/uploads/admin-profiles", http.Dir("./uploads/admin-profiles"))
 	engine.StaticFS("/uploads/category-images", http.Dir("./uploads/category-images"))
@@ -126,6 +136,7 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware middlewa
 
 	// set up routes
 	routes.UserRoutes(engine.Group("/api"), authHandler, middleware, userHandler, cartHandler,
+
 		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler, notificationHandler, promotionHandler)
 	routes.AdminRoutes(engine.Group("/api/admin"), authHandler, middleware, adminHandler,
 		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler, promotionHandler)
@@ -141,6 +152,5 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware middlewa
 }
 
 func (s *ServerHTTP) Start() error {
-
 	return s.Engine.Run(":3000")
 }
