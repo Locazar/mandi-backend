@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -28,8 +29,14 @@ func CheckNudity(filename string) (bool, error) {
 	// e.g., "uploads/products/abc123.jpg" -> "abc123.jpg"
 	justFilename := filepath.Base(filename)
 
-	// Construct full path from filename in uploads/products directory
-	fullPath := filepath.Join("uploads", "products", justFilename)
+	// Get the current working directory (server root)
+	wd, err := os.Getwd()
+	if err != nil {
+		return false, fmt.Errorf("failed to get working directory: %w", err)
+	}
+
+	fullPath := filepath.Join(wd, "uploads", "products", filepath.Base(justFilename))
+	fmt.Printf("Checking nudity for file: %s\n", fullPath)
 
 	// Open the file
 	file, err := os.Open(fullPath)

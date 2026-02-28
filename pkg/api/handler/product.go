@@ -2721,8 +2721,14 @@ func handleSecureMagic(fileHeader *multipart.FileHeader) (string, error) {
 	processed = imaging.AdjustContrast(processed, 15)
 	processed = imaging.Sharpen(processed, 0.8)
 
+	// Get the server root directory
+	wd, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("failed to get working directory: %w", err)
+	}
+
 	// Save processed image directly to uploads/products with a unique filename
-	saveDir := "uploads/products"
+	saveDir := filepath.Join(wd, "uploads", "products")
 	if err := os.MkdirAll(saveDir, 0755); err != nil {
 		return "", fmt.Errorf("failed to create directory: %w", err)
 	}
@@ -2737,7 +2743,7 @@ func handleSecureMagic(fileHeader *multipart.FileHeader) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	// Return the relative path for further use
+	// Return the absolute path for further use
 	return savePath, nil
 }
 
@@ -2757,8 +2763,14 @@ func checkAdultContent(imageURL string) (bool, error) {
 		cleanedURL = cleanedURL[8:]
 	}
 
+	// Get server root directory
+	wd, err := os.Getwd()
+	if err != nil {
+		return false, fmt.Errorf("failed to get working directory: %w", err)
+	}
+
 	// check the file exists in the uploads/products directory
-	localPath := filepath.Join("uploads", cleanedURL)
+	localPath := filepath.Join(wd, "uploads", cleanedURL)
 	if _, err := os.Stat(localPath); os.IsNotExist(err) {
 		return false, fmt.Errorf("file does not exist: %s", localPath)
 	}
