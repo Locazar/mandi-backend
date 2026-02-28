@@ -15,7 +15,13 @@ import (
 type ModerationResponse struct {
 	Status string `json:"status"`
 	Nudity struct {
-		Raw float64 `json:"raw"`
+		SexualActivity   float64 `json:"sexual_activity"`
+		SexualDisplay    float64 `json:"sexual_display"`
+		Erotica          float64 `json:"erotica"`
+		VerySuggestive   float64 `json:"very_suggestive"`
+		Suggestive       float64 `json:"suggestive"`
+		MildlySuggestive float64 `json:"mildly_suggestive"`
+		None             float64 `json:"none"`
 	} `json:"nudity"`
 	Error struct {
 		Type    string `json:"type"`
@@ -95,16 +101,27 @@ func CheckNudity(filename string) (bool, error) {
 	fmt.Printf("Sightengine API Response: %+v\n", result)
 	fmt.Printf("Response Status: %s\n", result.Status)
 	if result.Status == "success" {
-		fmt.Printf("Nudity Score (raw): %f\n", result.Nudity.Raw)
+		fmt.Printf("Sexual Activity: %f\n", result.Nudity.SexualActivity)
+		fmt.Printf("Sexual Display: %f\n", result.Nudity.SexualDisplay)
+		fmt.Printf("Erotica: %f\n", result.Nudity.Erotica)
+		fmt.Printf("Very Suggestive: %f\n", result.Nudity.VerySuggestive)
+		fmt.Printf("Suggestive: %f\n", result.Nudity.Suggestive)
 	} else if result.Status == "failure" {
 		fmt.Printf("Error Type: %s\n", result.Error.Type)
 		fmt.Printf("Error Code: %d\n", result.Error.Code)
 		fmt.Printf("Error Message: %s\n", result.Error.Message)
 	}
 
-	// If 'raw' nudity score > 0.5, it's adult content
-	if result.Status == "success" && result.Nudity.Raw > 0.5 {
-		return true, nil // It is adult content
+	// If any of the explicit adult content scores > 0.5, it's adult content
+	// sexual_activity and sexual_display are clear indicators of adult content
+	// erotica and very_suggestive are also strong indicators
+	if result.Status == "success" {
+		if result.Nudity.SexualActivity > 0.5 ||
+			result.Nudity.SexualDisplay > 0.5 ||
+			result.Nudity.Erotica > 0.5 ||
+			result.Nudity.VerySuggestive > 0.5 {
+			return true, nil // It is adult content
+		}
 	}
 
 	return false, nil // Safe

@@ -34,7 +34,13 @@ var semaphore = make(chan struct{}, runtime.NumCPU())
 type ModerationResponse struct {
 	Status string `json:"status"`
 	Nudity struct {
-		Raw float64 `json:"raw"` // Likelihood of full nudity
+		SexualActivity   float64 `json:"sexual_activity"`
+		SexualDisplay    float64 `json:"sexual_display"`
+		Erotica          float64 `json:"erotica"`
+		VerySuggestive   float64 `json:"very_suggestive"`
+		Suggestive       float64 `json:"suggestive"`
+		MildlySuggestive float64 `json:"mildly_suggestive"`
+		None             float64 `json:"none"`
 	} `json:"nudity"`
 }
 
@@ -2825,8 +2831,13 @@ func checkAdultContent(imageURL string) (bool, error) {
 		return false, fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	// Logic: If 'raw' nudity score > 0.5, block it.
-	if result.Nudity.Raw > 0.5 {
+	// Logic: If any of the explicit adult content scores > 0.5, block it
+	// sexual_activity and sexual_display are clear indicators of adult content
+	// erotica and very_suggestive are also strong indicators
+	if result.Nudity.SexualActivity > 0.5 ||
+		result.Nudity.SexualDisplay > 0.5 ||
+		result.Nudity.Erotica > 0.5 ||
+		result.Nudity.VerySuggestive > 0.5 {
 		return true, nil // It is adult content
 	}
 
