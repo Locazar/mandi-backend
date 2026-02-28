@@ -2749,9 +2749,6 @@ func handleSecureMagic(fileHeader *multipart.FileHeader) (string, error) {
 	if err != nil {
 		return "", err
 	}
-
-	relativePath := "/uploads/products/" + filename
-	fmt.Printf("Image processed and saved to: %s\n", relativePath)
-	// Return the relative path for API response (for client to access via HTTP)
-	return relativePath, nil
+	// Return the relative path for database storage
+	return "uploads/products/" + filename, nil
 }
