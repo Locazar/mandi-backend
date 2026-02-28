@@ -2,48 +2,103 @@ package utils
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
+	"os"
+	"path/filepath"
 )
 
-func CheckNudity(filename string) {
-	url := "https://api.sightengine.com/1.0/check.json"
-	method := "POST"
+type ModerationResponse struct {
+	Status string `json:"status"`
+	Nudity struct {
+		Raw float64 `json:"raw"`
+	} `json:"nudity"`
+	Error struct {
+		Type    string `json:"type"`
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	} `json:"error"`
+}
 
+func CheckNudity(filename string) (bool, error) {
+	// Extract just the filename if full path is provided
+	// e.g., "uploads/products/abc123.jpg" -> "abc123.jpg"
+	justFilename := filepath.Base(filename)
+
+	// Construct full path from filename in uploads/products directory
+	fullPath := filepath.Join("uploads", "products", justFilename)
+
+	// Open the file
+	file, err := os.Open(fullPath)
+	if err != nil {
+		return false, fmt.Errorf("failed to open file: %w", err)
+	}
+	defer file.Close()
+
+	// Create multipart form data
 	payload := &bytes.Buffer{}
 	writer := multipart.NewWriter(payload)
-	// Pass image URL instead of file
-	_ = writer.WriteField("media", "https://feignedly-unpaired-amiya.ngrok-free.dev/uploads/products/"+filename)
+
+	// Add file to multipart form with key 'media'
+	part, err := writer.CreateFormFile("media", justFilename)
+	if err != nil {
+		return false, fmt.Errorf("failed to create form file: %w", err)
+	}
+
+	_, err = io.Copy(part, file)
+	if err != nil {
+		return false, fmt.Errorf("failed to copy file: %w", err)
+	}
+
+	// Add API parameters
 	_ = writer.WriteField("models", "nudity-2.1")
 	_ = writer.WriteField("api_user", "1350960651")
 	_ = writer.WriteField("api_secret", "xD7trXQ3EDEzJsd4Msy5bZzVZCXADoJf")
-	err := writer.Close()
+
+	err = writer.Close()
 	if err != nil {
-		fmt.Println(err)
-		return
+		return false, fmt.Errorf("failed to close writer: %w", err)
 	}
+
+	// Build API request
+	apiURL := "https://api.sightengine.com/1.0/check.json"
+	req, err := http.NewRequest("POST", apiURL, payload)
+	if err != nil {
+		return false, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", writer.FormDataContentType())
 
 	client := &http.Client{}
-	req, err := http.NewRequest(method, url, payload)
-
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	req.Header.Set("Content-Type", writer.FormDataContentType())
 	res, err := client.Do(req)
 	if err != nil {
-		fmt.Println(err)
-		return
+		return false, fmt.Errorf("failed to send request: %w", err)
 	}
 	defer res.Body.Close()
 
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		fmt.Println(err)
-		return
+	var result ModerationResponse
+	if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
+		return false, fmt.Errorf("failed to decode response: %w", err)
 	}
-	fmt.Println(string(body))
+
+	// Print the full response for debugging
+	fmt.Printf("Sightengine API Response: %+v\n", result)
+	fmt.Printf("Response Status: %s\n", result.Status)
+	if result.Status == "success" {
+		fmt.Printf("Nudity Score (raw): %f\n", result.Nudity.Raw)
+	} else if result.Status == "failure" {
+		fmt.Printf("Error Type: %s\n", result.Error.Type)
+		fmt.Printf("Error Code: %d\n", result.Error.Code)
+		fmt.Printf("Error Message: %s\n", result.Error.Message)
+	}
+
+	// If 'raw' nudity score > 0.5, it's adult content
+	if result.Status == "success" && result.Nudity.Raw > 0.5 {
+		return true, nil // It is adult content
+	}
+
+	return false, nil // Safe
 }

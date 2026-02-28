@@ -8,11 +8,10 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
-	"strconv"	
+	"strconv"
 	"time"
 
 	"github.com/disintegration/imaging"
@@ -27,7 +26,6 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/usecase"
 	usecaseInterface "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
-	
 )
 
 // semaphore limits concurrent image processing operations
@@ -328,7 +326,6 @@ func (c *ProductHandler) GetAllVariations(ctx *gin.Context) {
 func (p *ProductHandler) SaveProduct(ctx *gin.Context) {
 
 	tokenString := ctx.GetHeader("Authorization")
-	fmt.Printf("tokenString: %v\n", tokenString)
 
 	adminID := p.tokenService.DecodeTokenData(tokenString)
 	// Check if this is a JSON request (without file upload)
@@ -345,7 +342,6 @@ func (p *ProductHandler) SaveProduct(ctx *gin.Context) {
 	categoryID, err3 := request.GetFormValuesAsUint(ctx, "category_id")
 	fileHeader, err6 := ctx.FormFile("image")
 
-	fmt.Printf("Received form data - Name: %s, DepartmentID: %d, Description: %s, CategoryID: %d\n", name, departmentID, description, categoryID)
 	// Only check required fields
 	err := errors.Join(err1, err2, err3, err6, errDeptID)
 	if err != nil {
@@ -361,22 +357,16 @@ func (p *ProductHandler) SaveProduct(ctx *gin.Context) {
 		ImageFileHeader: fileHeader,
 	}
 
-	fmt.Printf("Product to be saved: %+v\n", product)
-
 	productID, err := p.productUseCase.SaveProduct(ctx, product, adminID)
 
-	fmt.Printf("Result of SaveProduct - productID: %d, err: %v\n", productID, err)
 	if err != nil {
 		statusCode := http.StatusInternalServerError
 		if errors.Is(err, usecase.ErrProductAlreadyExist) {
 			statusCode = http.StatusConflict
 		}
-		fmt.Printf("Successfully product added: %v\n", map[string]uint{"product_id": productID})
 		response.ErrorResponse(ctx, statusCode, "Failed to add product", err, map[string]uint{"product_id": productID})
 		return
 	}
-
-	fmt.Printf("Successfully product added: %v\n", map[string]uint{"product_id": productID})
 
 	response.SuccessResponse(ctx, http.StatusCreated, "Successfully product added", map[string]uint{"product_id": productID})
 }
@@ -385,36 +375,24 @@ func (p *ProductHandler) SaveProduct(ctx *gin.Context) {
 func (p *ProductHandler) SaveProductJSON(ctx *gin.Context, adminID string) {
 	// Debug: Log raw request body
 	rawData, _ := ctx.GetRawData()
-	fmt.Printf("\n=== DEBUG SaveProductJSON ===\n")
-	fmt.Printf("Raw request body: %s\n", string(rawData))
-	fmt.Printf("Content-Type: %s\n", ctx.GetHeader("Content-Type"))
-	fmt.Printf("Body length: %d bytes\n", len(rawData))
 
 	// Check if the body starts with a quote (indicating it's a string-wrapped JSON)
 	if len(rawData) > 0 && rawData[0] == '"' {
-		fmt.Printf("WARNING: Request body appears to be a JSON string (double-encoded)\n")
 		// Unwrap the double-encoded JSON string
 		var unwrappedJSON string
 		if err := json.Unmarshal(rawData, &unwrappedJSON); err != nil {
-			fmt.Printf("Failed to unwrap double-encoded JSON: %v\n", err)
 			response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid JSON format (double-encoded)", err, nil)
 			return
 		}
 		rawData = []byte(unwrappedJSON)
-		fmt.Printf("Unwrapped JSON: %s\n", string(rawData))
-		fmt.Printf("First 100 chars of unwrapped: %s\n", string(rawData[:min(100, len(rawData))]))
 	}
 
 	// Additional validation: Check if it's valid JSON before binding
 	var testJSON interface{}
 	if err := json.Unmarshal(rawData, &testJSON); err != nil {
-		fmt.Printf("JSON validation failed: %v\n", err)
-		fmt.Printf("Problematic JSON (first 200 chars): %s\n", string(rawData[:min(200, len(rawData))]))
 		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid JSON syntax", err, nil)
 		return
 	}
-	fmt.Printf("JSON validation passed\n")
-	fmt.Printf("=============================\n\n")
 
 	// Re-bind the body since we read it
 	ctx.Request.Body = io.NopCloser(bytes.NewBuffer(rawData))
@@ -431,8 +409,6 @@ func (p *ProductHandler) SaveProductJSON(ctx *gin.Context, adminID string) {
 	}
 
 	if err := ctx.ShouldBindJSON(&body); err != nil {
-		fmt.Printf("JSON binding error: %v\n", err)
-		fmt.Printf("Error type: %T\n", err)
 		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
 		return
 	}
@@ -616,13 +592,10 @@ func (c *ProductHandler) UpdateProduct(ctx *gin.Context) {
 func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 
 	tokenString := ctx.GetHeader("Authorization")
-	fmt.Printf("tokenString: %v\n", tokenString)
 
 	adminID := p.tokenService.DecodeTokenData(tokenString)
-	fmt.Printf("Admin ID from token: %s\n", adminID)
 
 	shopIDStr := ctx.PostForm("shop_id")
-	fmt.Printf("ShopID from form: %s\n", shopIDStr)
 	var shopID uint
 	if shopIDStr != "" {
 		if n, err := strconv.Atoi(shopIDStr); err == nil {
@@ -641,7 +614,6 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 	}
 
 	subCategoryIDStr := ctx.PostForm("sub_category_id")
-	fmt.Printf("SubCategoryID from form: %s\n", subCategoryIDStr)
 	var subCategoryID uint
 	if subCategoryIDStr != "" {
 		if n, err := strconv.Atoi(subCategoryIDStr); err == nil {
@@ -678,11 +650,6 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 	dynamicFieldsStr := ctx.PostForm("dynamic_fields")
 	files := ctx.Request.MultipartForm.File["images[]"]
 
-	fmt.Printf("Admin ID from token: %s\n", adminID)
-	fmt.Printf("SubCategory Name from form: %s\n", subCategoryName)
-	fmt.Printf("Dynamic Fields from form: %s\n", dynamicFieldsStr)
-	fmt.Printf("Image Files from form: %+v\n", files)
-
 	var imagePaths []string
 	for _, fileHeader := range files {
 
@@ -694,7 +661,6 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 
 		imagePaths = append(imagePaths, localPath)
 	}
-	fmt.Printf("Saved image paths: %+v\n", imagePaths)
 
 	var dynamicFields map[string]interface{}
 	if err := json.Unmarshal([]byte(dynamicFieldsStr), &dynamicFields); err != nil {
@@ -800,7 +766,6 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 func (p *ProductHandler) GetAllProductItemsAdmin() func(*gin.Context) {
 	return func(ctx *gin.Context) {
 		tokenString := ctx.GetHeader("Authorization")
-		fmt.Printf("tokenString: %v\n", tokenString)
 
 		adminID := p.tokenService.DecodeTokenData(tokenString)
 		p.getAllProductItems(adminID)(ctx)
@@ -823,11 +788,6 @@ func (p *ProductHandler) GetAllProductItemsAdmin() func(*gin.Context) {
 //	@Failure		400	{object}	response.Response{}	"Failed to get all product items"
 func (p *ProductHandler) GetAllProductItemsUser() func(*gin.Context) {
 	return func(ctx *gin.Context) {
-		tokenString := ctx.GetHeader("Authorization")
-		fmt.Printf("tokenString: %v\n", tokenString)
-
-		userId := p.tokenService.DecodeTokenData(tokenString)
-		fmt.Printf("User ID from token: %s\n", userId)
 		p.getAllProductItems("")(ctx)
 	}
 }
@@ -903,7 +863,6 @@ func (p *ProductHandler) getAllProductItems(adminID string) func(ctx *gin.Contex
 		}
 
 		resultChan := make(chan searchResult, 2)
-		searchStartTime := time.Now()
 
 		// Goroutine 1: Primary search (could be Elasticsearch if available, otherwise database)
 		go func() {
@@ -934,7 +893,6 @@ func (p *ProductHandler) getAllProductItems(adminID string) func(ctx *gin.Contex
 		// Wait for first successful result with timeout
 		var productItems []response.ProductItems
 		var err error
-		var searchSource string
 
 		timeout := time.After(5 * time.Second) // 5 second timeout
 
@@ -944,15 +902,11 @@ func (p *ProductHandler) getAllProductItems(adminID string) func(ctx *gin.Contex
 			case result := <-resultChan:
 				if result.err == nil {
 					productItems = result.items
-					searchSource = result.source
-					fmt.Printf("Using %s search results: %d items (latency: %v)\n", result.source, len(result.items), result.latency)
 					break selectLoop
 				} else {
-					fmt.Printf("%s search failed: %v\n", result.source, result.err)
 				}
 			case <-timeout:
 				err = fmt.Errorf("search timeout after 5 seconds")
-				fmt.Printf("Search timeout - no results within 5 seconds\n")
 				break selectLoop
 			}
 		}
@@ -972,8 +926,7 @@ func (p *ProductHandler) getAllProductItems(adminID string) func(ctx *gin.Contex
 		// Log search query asynchronously (non-blocking)
 		go func() {
 			// This runs in background without blocking the response
-			fmt.Printf("User %s searched for: keyword='%s', category='%v', brand='%v', location='%v', sortby='%s', results=%d, source=%s, total_latency=%v\n",
-				adminID, keyword, catIDPtr, brandIDPtr, locIDPtr, sortby, len(productItems), searchSource, time.Since(searchStartTime))
+
 			// Here you could also:
 			// - Save to analytics database
 			// - Update search popularity metrics
@@ -983,17 +936,13 @@ func (p *ProductHandler) getAllProductItems(adminID string) func(ctx *gin.Contex
 		// Background analytics and caching
 		go func() {
 			if keyword != "" && len(productItems) > 0 {
-				fmt.Printf("Background: caching search results for keyword='%s'\n", keyword)
 				// Implement caching logic here
 			}
 		}()
 
 		go func() {
-			fmt.Printf("Background: updating search analytics for admin %s\n", adminID)
 			// Implement analytics logic here
 		}()
-
-		fmt.Printf("Product items: %+v\n", productItems)
 
 		response.SuccessResponse(ctx, http.StatusOK, "Successfully get all product items", productItems)
 	}
@@ -1015,7 +964,6 @@ func (p *ProductHandler) getAllProductItems(adminID string) func(ctx *gin.Contex
 func (p *ProductHandler) GetProductItemsByShopID() func(ctx *gin.Context) {
 	return func(ctx *gin.Context) {
 		tokenString := ctx.GetHeader("Authorization")
-		fmt.Printf("tokenString: %v\n", tokenString)
 
 		adminID := p.tokenService.DecodeTokenData(tokenString)
 
@@ -1084,8 +1032,6 @@ func (p *ProductHandler) GetProductItemsByShopID() func(ctx *gin.Context) {
 		}
 		productItems, err := p.productUseCase.FindAllProductItems(ctx, adminID, keyword, catIDPtr, brandIDPtr, locIDPtr, offerVal, sortby, pagination, shopID)
 
-		fmt.Printf("Product items for shop %s: %+v\n", shopID, productItems)
-
 		if err != nil {
 			response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get product items", err, nil)
 			return
@@ -1096,8 +1042,6 @@ func (p *ProductHandler) GetProductItemsByShopID() func(ctx *gin.Context) {
 			response.SuccessResponse(ctx, http.StatusOK, "No product items found for this shop", []response.ProductItems{})
 			return
 		}
-
-		fmt.Printf("Product items for shop %s: %+v\n", shopID, productItems)
 
 		response.SuccessResponse(ctx, http.StatusOK, "Successfully get product items for shop", productItems)
 	}
@@ -2057,8 +2001,6 @@ func (a *ProductHandler) GetAllSubCategoriesByCategoryID(ctx *gin.Context) {
 		return
 	}
 
-	fmt.Println("SubCategories:", subCategories)
-
 	ctx.JSON(http.StatusOK, response.Response{
 		Status:  true,
 		Message: "Successfully get all sub-categories",
@@ -2459,10 +2401,8 @@ func (p *ProductHandler) GetProductItemByID(ctx *gin.Context) {
 	err = p.productUseCase.IncrementProductItemViewCount(ctx, productItemID, adminId)
 	if err != nil {
 		// Log the error but don't fail the request
-		fmt.Printf("Failed to increment view count: %v\n", err)
 	}
 
-	fmt.Printf("Product Item: %+v\n", productItem)
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully get product item", productItem)
 }
 
@@ -2724,13 +2664,13 @@ func handleUpload(fileHeader *multipart.FileHeader) (string, error) {
 		return "", err
 	}
 	// Check for adult content
-	isAdult, err := CheckNudity(savedPath)
-	if isAdult {
-		return "", nil
+	isAdult, err := utils.CheckNudity(savedPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to check nudity: %w", err)
 	}
 
-	if err != nil {
-		return "", err
+	if isAdult {
+		return "", fmt.Errorf("image contains adult content and cannot be uploaded")
 	}
 
 	return savedPath, nil
@@ -2741,7 +2681,6 @@ func handleAdultContent(fileName string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	fmt.Printf("Adult content check result: %v\n", isAdult)
 
 	if isAdult {
 		return false, fmt.Errorf("content policy violation: adult image detected")
@@ -2824,27 +2763,57 @@ func checkAdultContent(imageURL string) (bool, error) {
 		return false, fmt.Errorf("file does not exist: %s", localPath)
 	}
 
-	fullURL := "https://feignedly-unpaired-amiya.ngrok-free.dev/uploads/" + cleanedURL
-	fmt.Printf("Checking image URL for adult content: %s\n", fullURL)
-	// 1. Build the API Request
-	apiURL := "https://api.sightengine.com/1.0/check.json"
-	params := url.Values{}
-	params.Add("url", fullURL)
-	params.Add("models", "nudity-2.1")
-	params.Add("api_user", "1350960651") // Get from Sightengine dashboard
-	params.Add("api_secret", "xD7trXQ3EDEzJsd4Msy5bZzVZCXADoJf")
-	fmt.Printf("Sightengine API request URL: %s?%s\n", apiURL, params.Encode())
-	resp, err := http.Get(apiURL + "?" + params.Encode())
+	// Open the file for multipart request
+	file, err := os.Open(localPath)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to open file: %w", err)
+	}
+	defer file.Close()
+
+	// Create multipart form data
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+
+	// Add file to multipart form with key 'media'
+	part, err := writer.CreateFormFile("media", filepath.Base(localPath))
+	if err != nil {
+		return false, fmt.Errorf("failed to create form file: %w", err)
+	}
+
+	_, err = io.Copy(part, file)
+	if err != nil {
+		return false, fmt.Errorf("failed to copy file: %w", err)
+	}
+
+	// Add API parameters
+	writer.WriteField("models", "nudity-2.1")
+	writer.WriteField("api_user", "1350960651")
+	writer.WriteField("api_secret", "xD7trXQ3EDEzJsd4Msy5bZzVZCXADoJf")
+
+	writer.Close()
+
+	// Build the API Request
+	apiURL := "https://api.sightengine.com/1.0/check.json"
+	req, err := http.NewRequest("POST", apiURL, body)
+	if err != nil {
+		return false, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return false, fmt.Errorf("failed to send request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	var result ModerationResponse
-	json.NewDecoder(resp.Body).Decode(&result)
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return false, fmt.Errorf("failed to decode response: %w", err)
+	}
 
-	// 2. Logic: If 'raw' nudity score > 0.5, block it.
-	fmt.Printf("Sightengine API response: %+v\n", result)
+	// Logic: If 'raw' nudity score > 0.5, block it.
 	if result.Nudity.Raw > 0.5 {
 		return true, nil // It is adult content
 	}
