@@ -22,6 +22,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
+	service "github.com/rohit221990/mandi-backend/pkg/service/ai"
 	"github.com/rohit221990/mandi-backend/pkg/service/token"
 	"github.com/rohit221990/mandi-backend/pkg/usecase"
 	usecaseInterface "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
@@ -44,6 +45,10 @@ type ModerationResponse struct {
 	} `json:"nudity"`
 }
 
+type EmbeddingResponse struct {
+	Vector []float32 `json:"vector"`
+}
+
 // Helper function to get minimum of two integers
 func min(a, b int) int {
 	if a < b {
@@ -55,12 +60,21 @@ func min(a, b int) int {
 type ProductHandler struct {
 	productUseCase usecaseInterface.ProductUseCase
 	tokenService   token.TokenService
+	validator      *service.ProductValidator
 }
 
 func NewProductHandler(productUsecase usecaseInterface.ProductUseCase, tokenService token.TokenService) interfaces.ProductHandler {
+	// Initialize product validator with Claude API key from environment
+	apiKey := os.Getenv("CLAUDE_API_KEY")
+	var validator *service.ProductValidator
+	if apiKey != "" {
+		validator = service.NewProductValidator(apiKey)
+	}
+
 	return &ProductHandler{
 		productUseCase: productUsecase,
 		tokenService:   tokenService,
+		validator:      validator,
 	}
 }
 
@@ -653,6 +667,7 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 	}
 
 	subCategoryName := ctx.PostForm("sub_category_name")
+	categoryName := ctx.PostForm("category_name")
 	dynamicFieldsStr := ctx.PostForm("dynamic_fields")
 	files := ctx.Request.MultipartForm.File["images[]"]
 
@@ -663,6 +678,27 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 		if err != nil {
 			response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to process image", err, nil)
 			return
+		}
+
+		// Validate product image matches category if validator is available and category is provided
+		if p.validator != nil && categoryName != "" {
+			// Get absolute path for validation
+			wd, _ := os.Getwd()
+			absolutePath := filepath.Join(wd, localPath)
+
+			validationResult, err := p.validator.ValidateProductCategory(absolutePath, categoryName)
+			if err != nil {
+				response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to validate product image", err, nil)
+				return
+			}
+
+			// If validation failed (valid is false) and confidence is high, reject the upload
+			if !validationResult.Valid && validationResult.Confidence > 0.6 {
+				response.ErrorResponse(ctx, http.StatusBadRequest,
+					fmt.Sprintf("Product image does not match '%s' category. Reason: %s", categoryName, validationResult.Reason),
+					nil, nil)
+				return
+			}
 		}
 
 		imagePaths = append(imagePaths, localPath)
@@ -2723,9 +2759,20 @@ func handleSecureMagic(fileHeader *multipart.FileHeader) (string, error) {
 		return "", err
 	}
 
-	processed := imaging.AdjustSaturation(src, 20)
-	processed = imaging.AdjustContrast(processed, 15)
-	processed = imaging.Sharpen(processed, 0.8)
+	// Resize first (important for file size)
+	processed := imaging.Resize(src, 1080, 0, imaging.Lanczos)
+
+	// Improve brightness slightly
+	processed = imaging.AdjustBrightness(processed, 5)
+
+	// Add contrast for punch
+	processed = imaging.AdjustContrast(processed, 18)
+
+	// Boost saturation carefully (avoid oversaturation)
+	processed = imaging.AdjustSaturation(processed, 12)
+
+	// Light sharpening for product clarity
+	processed = imaging.Sharpen(processed, 0.6)
 
 	// Get the server root directory
 	wd, err := os.Getwd()
@@ -2753,3 +2800,6 @@ func handleSecureMagic(fileHeader *multipart.FileHeader) (string, error) {
 	relativePath := "uploads/products/" + filename
 	return filepath.ToSlash(relativePath), nil
 }
+
+
+
