@@ -85,10 +85,8 @@ func (c *adminDatabase) FindAdminWithShopVerificationByPhone(ctx context.Context
 	shopErr := c.DB.Raw(shopQuery, adminIDStr).Scan(&shopVerification).Error
 	// Shop verification might not exist, so don't treat as error
 	if shopErr != nil {
-		fmt.Printf("Shop verification not found for admin %d: %v\n", admin.ID, shopErr)
 	}
 
-	fmt.Printf("FindAdminWithShopVerificationByPhone - Admin: %+v, Shop: %+v\n", admin, shopVerification)
 	return admin, shopVerification, nil
 }
 
@@ -195,8 +193,6 @@ func (c *adminDatabase) VerifyShop(ctx context.Context, shopVerification request
 		return fmt.Errorf("failed to fetch shop details for admin %s: %v", adminId, err)
 	}
 
-	fmt.Printf("Document_Type for admin %s: %v\n", adminId, Document_Type)
-
 	// Check if Document_Type is nil before dereferencing
 	if Document_Type != nil && *Document_Type != "manual" {
 		verificationStatusValue = verificationStatus
@@ -204,8 +200,6 @@ func (c *adminDatabase) VerifyShop(ctx context.Context, shopVerification request
 		// If Document_Type is nil or "manual", use the provided verificationStatus
 		verificationStatusValue = verificationStatus
 	}
-
-	fmt.Printf("Fetched shop details for admin %s: shopID=%v, shopName=%v, verificationStatusValue=%v\n", adminId, shopID, shopName, verificationStatusValue)
 
 	insertQuery := `INSERT INTO shop_details (admin_id, shop_verification_status, photo_shop_verification, business_doc_verification, identity_doc_verification, address_proof_verification, updated_at, created_at)
 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -380,15 +374,10 @@ func (c *adminDatabase) UpdateShop(ctx context.Context, shop map[string]interfac
 	query := fmt.Sprintf("UPDATE shop_details SET %s WHERE id = %s",
 		strings.Join(setClauses, ", "), shopId)
 
-	fmt.Printf("-------------------------Executing query: %s\nWith values: %+v\n", query, values)
-
 	result := c.DB.Exec(query, values...)
 	if result.Error != nil {
-		fmt.Printf("Error updating shop: %v\n", result.Error)
 		return nil, result.Error
 	}
-
-	fmt.Printf("Successfully updated shop with ID %s, rows affected: %d\n", shopId, result.RowsAffected)
 
 	return shop, nil
 }
@@ -397,7 +386,6 @@ func (c *adminDatabase) GetShopByOwnerID(ctx context.Context, ownerID uint) (sho
 	query := `SELECT * FROM shop_details WHERE admin_id = $1`
 	err = c.DB.Raw(query, ownerID).Scan(&shop).Error
 
-	fmt.Printf("GetShopByOwnerID - shop: %+v, err: %v\n", shop, err)
 	return shop, err
 }
 
@@ -552,4 +540,12 @@ func (c *adminDatabase) DeleteRefreshSessionByUserID(ctx context.Context, adminI
 	query := `DELETE FROM refresh_sessions WHERE user_id = $1`
 	err := c.DB.Exec(query, adminId).Error
 	return err
+}
+
+func (c *adminDatabase) GetShopSocialDetails(ctx context.Context, shopID uint) ([]domain.ShopSocial, error) {
+	var details []domain.ShopSocial
+	if err := c.DB.WithContext(ctx).Where("shop_id = ?", shopID).Find(&details).Error; err != nil {
+		return nil, err
+	}
+	return details, nil
 }

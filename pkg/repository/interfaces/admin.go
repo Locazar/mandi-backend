@@ -44,4 +44,5 @@ type AdminRepository interface {
 	GetVerificationStatus(ctx context.Context, adminId string) (domain.Admin, domain.ShopVerification, error)
 	GetShopProfileImageById(ctx context.Context, shopId string) (string, error)
 	DeleteRefreshSessionByUserID(ctx context.Context, adminId string) error
+	GetShopSocialDetails(ctx context.Context, shopID uint) ([]domain.ShopSocial, error)
 }

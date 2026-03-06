@@ -41,6 +41,8 @@ type Config struct {
 	SharedUploadsPath string `mapstructure:"SHARED_UPLOADS_PATH"`
 
 	ElasticsearchURL string `mapstructure:"ELASTICSEARCH_URL"`
+
+	AIServiceURL string `mapstructure:"AI_SERVICE_URL"`
 }
 
 var firbaseConfig = map[string]interface{}{
@@ -68,6 +70,7 @@ var envsNames = []string{
 	"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_REGION", "AWS_BUCKET_NAME", // aws s3
 	"SHARED_UPLOADS_PATH", // shared uploads directory
 	"ELASTICSEARCH_URL",   // elasticsearch
+	"AI_SERVICE_URL",      // ai service
 }
 
 func LoadConfig() (config Config, err error) {

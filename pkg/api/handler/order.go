@@ -2,7 +2,6 @@ package handler
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -45,7 +44,7 @@ func (c *OrderHandler) GetAllOrderStatuses(ctx *gin.Context) {
 	}
 
 	if orderStatuses == nil {
-		response.SuccessResponse(ctx, 200, "No order statuses found")
+		response.SuccessResponse(ctx, 200, "No order statuses found", []interface{}{})
 		return
 	}
 
@@ -74,13 +73,9 @@ func (c *OrderHandler) SaveOrder(ctx *gin.Context) {
 		return
 	}
 
-	fmt.Printf("Placing order for address id: %d\n", addressID)
-
 	userID := utils.GetUserIdFromContext(ctx)
 
 	shopOrderID, err := c.orderUseCase.SaveOrder(ctx, userID, addressID)
-
-	fmt.Printf("Order placed with shop order id: %d\n", shopOrderID)
 
 	if err != nil {
 		var statusCode int
@@ -121,7 +116,6 @@ func (c *OrderHandler) GetUserOrder(ctx *gin.Context) {
 	userId := utils.GetUserIdFromContext(ctx)
 	pagination := request.GetPagination(ctx)
 
-	fmt.Printf("Retrieving orders for user id: %d\n", userId)
 	orders, err := c.orderUseCase.FindUserShopOrder(ctx, userId, pagination)
 
 	if err != nil {
@@ -130,7 +124,7 @@ func (c *OrderHandler) GetUserOrder(ctx *gin.Context) {
 	}
 
 	if orders == nil {
-		response.SuccessResponse(ctx, http.StatusNoContent, "No shop orders found", nil)
+		response.SuccessResponse(ctx, http.StatusNoContent, "No shop orders found", []interface{}{})
 		return
 	}
 
@@ -161,7 +155,7 @@ func (c *OrderHandler) GetAllShopOrders(ctx *gin.Context) {
 	}
 
 	if len(shopOrders) == 0 {
-		response.SuccessResponse(ctx, http.StatusNoContent, "No shop order found", nil)
+		response.SuccessResponse(ctx, http.StatusNoContent, "No shop order found", []interface{}{})
 		return
 	}
 
@@ -220,7 +214,7 @@ func (c *OrderHandler) findAllOrderItems() func(ctx *gin.Context) {
 		}
 
 		if orderItems == nil {
-			response.SuccessResponse(ctx, http.StatusNoContent, "No order items found", nil)
+			response.SuccessResponse(ctx, http.StatusNoContent, "No order items found", []interface{}{})
 			return
 		}
 
@@ -336,7 +330,7 @@ func (c *OrderHandler) GetAllOrderReturns(ctx *gin.Context) {
 	}
 
 	if len(orderReturns) == 0 {
-		response.SuccessResponse(ctx, http.StatusOK, "No order returns found", nil)
+		response.SuccessResponse(ctx, http.StatusOK, "No order returns found", []interface{}{})
 		return
 	}
 
@@ -366,7 +360,7 @@ func (c *OrderHandler) GetAllPendingReturns(ctx *gin.Context) {
 	}
 
 	if len(orderReturns) == 0 {
-		response.SuccessResponse(ctx, 200, "No pending order returns requests found", nil)
+		response.SuccessResponse(ctx, 200, "No pending order returns requests found", []interface{}{})
 		return
 	}
 

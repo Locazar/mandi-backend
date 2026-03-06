@@ -256,7 +256,6 @@ func (c *productUseCase) FindAllVariationsAndItsValues(ctx context.Context, cate
 // to get all product
 func (c *productUseCase) FindAllProducts(ctx context.Context, pagination request.Pagination, search string) ([]response.Product, error) {
 	responseProducts, err := c.productRepo.FindAllProducts(ctx, pagination, search)
-	fmt.Printf("%+v\n", responseProducts)
 	if err != nil {
 		return nil, utils.PrependMessageToError(err, "failed to get product details from database")
 	}
@@ -288,7 +287,6 @@ func (c *productUseCase) SaveProduct(ctx context.Context, product request.Produc
 
 	// Save image to uploads folder in project directory
 	localPath, err := utils.SaveFileLocally(product.ImageFileHeader, "uploads/products")
-	fmt.Printf("Local path of saved image: %s\n", localPath)
 	if err != nil {
 		return 0, utils.PrependMessageToError(err, "failed to save image locally")
 	}
@@ -368,7 +366,6 @@ func (c *productUseCase) FindAllProductItems(ctx context.Context, adminId string
 		return productItems, err
 	}
 
-	fmt.Printf("Retrieved %d product items in usecase\n", len(productItems)) // Debugging line
 	return productItems, nil
 }
 
@@ -379,7 +376,6 @@ func (c *productUseCase) FindLowViewProductItems(ctx context.Context, adminId st
 		return productItems, err
 	}
 
-	fmt.Printf("Retrieved %d low-view product items in usecase\n", len(productItems)) // Debugging line
 	return productItems, nil
 }
 
@@ -979,7 +975,6 @@ func (s *productUseCase) GetLocationByPincode(ctx context.Context, pincodeID str
 const DefaultRadiusMeters = 5000 // or get from config/env
 
 func (s *productUseCase) GetNearbyProductsByPincode(ctx context.Context, pincode string, limit, offset int) ([]response.ProductItems, error) {
-	fmt.Printf("GetNearbyProductsByPincode - pincode: %s, limit: %d, offset: %d\n", pincode, limit, offset)
 
 	// Check if pincode exists in shop_details
 	checkQuery := `SELECT COUNT(*) FROM shop_details WHERE pincode = $1`
@@ -987,10 +982,8 @@ func (s *productUseCase) GetNearbyProductsByPincode(ctx context.Context, pincode
 	row := s.DB.QueryRow(ctx, checkQuery, pincode)
 	err := row.Scan(&count)
 	if err != nil || count == 0 {
-		fmt.Printf("GetNearbyProductsByPincode - No shop found for pincode %s: %v\n", pincode, err)
 		return []response.ProductItems{}, nil
 	}
-	fmt.Printf("GetNearbyProductsByPincode - Shops found for pincode %s\n", pincode)
 
 	// Get products from shops with the exact pincode
 	query := `
@@ -1021,7 +1014,6 @@ func (s *productUseCase) GetNearbyProductsByPincode(ctx context.Context, pincode
 
 	rows, err := s.DB.Query(ctx, query, pincode, limit, offset)
 	if err != nil {
-		fmt.Printf("GetNearbyProductsByPincode - Query error: %v\n", err)
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
 	defer rows.Close()
@@ -1059,7 +1051,6 @@ func (s *productUseCase) GetNearbyProductsByPincode(ctx context.Context, pincode
 			&subCatName,
 			&subCatImageURL,
 		); err != nil {
-			fmt.Printf("GetNearbyProductsByPincode - Scan error: %v\n", err)
 			return nil, fmt.Errorf("failed to scan product row: %w", err)
 		}
 
@@ -1095,7 +1086,6 @@ func (s *productUseCase) GetNearbyProductsByPincode(ctx context.Context, pincode
 		})
 	}
 
-	fmt.Printf("GetNearbyProductsByPincode - Total products found: %d\n", len(products))
 	if len(products) == 0 {
 		return []response.ProductItems{}, nil
 	}
@@ -1115,7 +1105,6 @@ func (c *productUseCase) GetProductsByRadius(ctx context.Context, latitude float
 		radiusKm = 10.0 // default 10 km
 	}
 
-	fmt.Printf("[DEBUG] GetProductsByRadius called with lat=%.6f, lng=%.6f, radiusKm=%.2f, limit=%d, offset=%d\n", latitude, longitude, radiusKm, limit, offset)
 
 	query := `
 		SELECT * FROM (
@@ -1141,8 +1130,6 @@ func (c *productUseCase) GetProductsByRadius(ctx context.Context, latitude float
 		LIMIT $4 OFFSET $5;
 	`
 
-	fmt.Printf("[DEBUG] Executing SQL: %s\n", query)
-	fmt.Printf("[DEBUG] SQL params: lat=%.6f, lng=%.6f, radiusKm=%.2f, limit=%d, offset=%d\n", latitude, longitude, radiusKm, limit, offset)
 	type productItemDB struct {
 		Name                string    `gorm:"column:sub_category_name"`
 		ID                  uint      `gorm:"column:id"`
@@ -1162,7 +1149,6 @@ func (c *productUseCase) GetProductsByRadius(ctx context.Context, latitude float
 
 	rows, err := c.DB.Query(ctx, query, latitude, longitude, radiusKm, limit, offset)
 	if err != nil {
-		fmt.Printf("[ERROR] Query failed: %v\n", err)
 		return nil, utils.PrependMessageToError(err, "failed to get products by radius")
 	}
 	defer rows.Close()
@@ -1201,11 +1187,9 @@ func (c *productUseCase) GetProductsByRadius(ctx context.Context, latitude float
 			&subCatImageURL,
 			&distanceKm,
 		); err != nil {
-			fmt.Printf("[ERROR] Row scan failed: %v\n", err)
 			return nil, utils.PrependMessageToError(err, "failed to scan product row")
 		}
 
-		fmt.Printf("[DEBUG] Product %d, distance %.6f km\n", id, distanceKm)
 
 		var dynamicFieldsMap map[string]interface{}
 		if len(dynamicFields) > 0 {
@@ -1240,9 +1224,7 @@ func (c *productUseCase) GetProductsByRadius(ctx context.Context, latitude float
 		})
 		count++
 	}
-	fmt.Printf("[DEBUG] GetProductsByRadius - products found: %d\n", count)
 	if count == 0 {
-		fmt.Println("[DEBUG] No products found for given lat/lng and radius.")
 	}
 	return products, nil
 }
@@ -1304,7 +1286,6 @@ func (c *productUseCase) GetAllSubCategoriesByCategoryID(ctx context.Context, ca
 	if err != nil {
 		return nil, utils.PrependMessageToError(err, "failed to get sub-categories by category id")
 	}
-	fmt.Printf("Retrieved %d sub-categories for category ID %d\n", len(subCategories), categoryID)
 	return subCategories, nil
 }
 

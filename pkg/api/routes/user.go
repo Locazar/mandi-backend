@@ -169,6 +169,7 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 		{
 			shop.GET("/search", userHandler.SearchShopList)
 			shop.GET("/:shop_id", userHandler.GetShopByID)
+			shop.GET("/:shop_id/social", userHandler.GetShopSocialDetails)
 			// shop.GET("/:shop_id", productHandler.GetProductItemsByShopID())
 		}
 
@@ -324,5 +325,4 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 			promotion.DELETE("/:promotion_id", promotionHandler.DeletePromotion)
 		}
 	}
-
 }

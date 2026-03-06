@@ -183,7 +183,7 @@ func (c *offerHandler) GetAllCategoryOffers(ctx *gin.Context) {
 	}
 
 	if len(offerCategories) == 0 {
-		response.SuccessResponse(ctx, http.StatusOK, "No offer categories found", nil)
+		response.SuccessResponse(ctx, http.StatusOK, "No offer categories found", []interface{}{})
 		return
 	}
 
@@ -267,12 +267,8 @@ func (c *offerHandler) SaveProductItemOffer(ctx *gin.Context) {
 		return
 	}
 
-	fmt.Printf("Body after binding: %+v\n", body)
-
 	var offerProduct domain.OfferProduct
 	copier.Copy(&offerProduct, &body)
-
-	fmt.Printf("offerProduct after copying: %+v\n", offerProduct)
 
 	err := c.offerUseCase.SaveProductItemOffer(ctx, offerProduct)
 	if err != nil {
@@ -306,7 +302,7 @@ func (c *offerHandler) GetAllProductsOffers(ctx *gin.Context) {
 	}
 
 	if offersOfCategories == nil {
-		response.SuccessResponse(ctx, http.StatusOK, "No offer products found", nil)
+		response.SuccessResponse(ctx, http.StatusOK, "No offer products found", []interface{}{})
 		return
 	}
 
@@ -479,8 +475,6 @@ func (c *offerHandler) PostLoginOffer(ctx *gin.Context) {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get post-login offer", err, nil)
 		return
 	}
-
-	fmt.Printf("Post-login offer for user %d: %+v\n", adminId, offer)
 
 	response.SuccessResponse(ctx, http.StatusOK, "Post-login offer retrieved", offer)
 }

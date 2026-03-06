@@ -59,8 +59,6 @@ func (a *adminHandler) AdminSignUp(ctx *gin.Context) {
 		return
 	}
 
-	fmt.Printf("AdminSignUp body: %+v\n", body)
-
 	// Validate mobile number
 	if body.Mobile == "" || body.Mobile == "null" {
 		response.ErrorResponse(ctx, http.StatusBadRequest, "Mobile number is required", nil, nil)
@@ -119,7 +117,6 @@ func (a *adminHandler) AdminSignUpVerify(ctx *gin.Context) {
 		return
 	}
 
-	fmt.Printf("body: %+v\n", body)
 	// get the user using loginOtp useCase
 	userID, err := a.adminUseCase.AdminSignUpOtpVerify(ctx, body)
 	println("userID:", userID)
@@ -232,7 +229,7 @@ func (a *adminHandler) GetAllUsers(ctx *gin.Context) {
 	}
 
 	if len(users) == 0 {
-		response.SuccessResponse(ctx, http.StatusNoContent, "No users found", nil)
+		response.SuccessResponse(ctx, http.StatusNoContent, "No users found", []interface{}{})
 		return
 	}
 
@@ -310,7 +307,7 @@ func (c *adminHandler) GetFullSalesReport(ctx *gin.Context) {
 	}
 
 	if len(salesReport) == 0 {
-		response.SuccessResponse(ctx, http.StatusNoContent, "No sales report found", nil)
+		response.SuccessResponse(ctx, http.StatusNoContent, "No sales report found", []interface{}{})
 		return
 	}
 
@@ -366,7 +363,6 @@ func (c *adminHandler) VerifyShop(ctx *gin.Context) {
 
 	var body request.ShopVerification
 	tokenString := ctx.GetHeader("Authorization")
-	fmt.Printf("tokenString: %v\n", tokenString)
 	adminId := c.adminUseCase.DecodeTokenData(tokenString)
 
 	if err := ctx.ShouldBindJSON(&body); err != nil {
@@ -569,8 +565,6 @@ func (h *adminHandler) GetShopByID(ctx *gin.Context) {
 		return
 	}
 
-	fmt.Printf("shop00000000: %+v\n", shop)
-
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully got shop by ID", shop)
 }
 
@@ -633,8 +627,6 @@ func (h *adminHandler) UploadShopById(ctx *gin.Context) {
 		return
 	}
 
-	fmt.Printf("Received shop ID: %s with details: %+v\n", shopId, shopDetails)
-
 	// Remove empty or nil fields
 	for k, v := range shopDetails {
 		if v == nil || v == "" {
@@ -665,7 +657,6 @@ func (h *adminHandler) UploadShopById(ctx *gin.Context) {
 //	@Failure		500	{object}	response.Response{}	"Failed to get shop by owner ID"
 func (h *adminHandler) GetShopByOwnerID(ctx *gin.Context) {
 	tokenString := ctx.GetHeader("Authorization")
-	fmt.Printf("tokenString: %v\n", tokenString)
 	adminId := h.adminUseCase.DecodeTokenData(tokenString)
 	ownerID, err := strconv.ParseUint(adminId, 10, 64)
 	if err != nil {
@@ -678,8 +669,6 @@ func (h *adminHandler) GetShopByOwnerID(ctx *gin.Context) {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get shop by owner ID", err, nil)
 		return
 	}
-
-	fmt.Printf("shop11111111: %+v\n", shop)
 
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully got shop by owner ID", shop)
 }
@@ -743,7 +732,6 @@ func (c *adminHandler) SendNotificationToUser(ctx context.Context, userID uint, 
 // @Failure 500 {object} response.Response{} "failed to upload profile image"
 func (a *adminHandler) UploadAdminProfileImage(ctx *gin.Context) {
 	var shopId = ctx.Param("shop_id")
-	fmt.Printf("shopId: %v\n", shopId)
 	// Implementation goes here
 	var req request.AdminUploadImageRequest
 
@@ -755,8 +743,6 @@ func (a *adminHandler) UploadAdminProfileImage(ctx *gin.Context) {
 
 	// Check what files are available
 	if ctx.Request.MultipartForm != nil {
-		fmt.Printf("Available files: %+v\n", ctx.Request.MultipartForm.File)
-		fmt.Printf("Available form values: %+v\n", ctx.Request.MultipartForm.Value)
 	}
 
 	if err := ctx.ShouldBind(&req); err != nil {
@@ -770,15 +756,10 @@ func (a *adminHandler) UploadAdminProfileImage(ctx *gin.Context) {
 		return
 	}
 
-	fmt.Printf("Image file details - Name: %s, Size: %d bytes, Header: %+v\n",
-		req.Image.Filename, req.Image.Size, req.Image.Header)
-
 	//get token from and send to decode and get the data
 	tokenString := ctx.GetHeader("Authorization")
-	fmt.Printf("tokenString: %v\n", tokenString)
 	adminId := a.adminUseCase.DecodeTokenData(tokenString)
 
-	fmt.Printf("decodedData: %v\n", adminId)
 	if adminId == "" {
 		response.ErrorResponse(ctx, http.StatusUnauthorized, "Invalid token data", fmt.Errorf("failed to decode admin ID from token"), nil)
 		return
@@ -797,7 +778,6 @@ func (a *adminHandler) UploadAdminProfileImage(ctx *gin.Context) {
 	if req.Image.Header != nil {
 		contentType = req.Image.Header.Get("Content-Type")
 	}
-	fmt.Printf("File content type: %s\n", contentType)
 
 	// Check if it's a valid image content type
 	validContentTypes := []string{
@@ -820,7 +800,6 @@ func (a *adminHandler) UploadAdminProfileImage(ctx *gin.Context) {
 	// If content type is not valid or is octet-stream, validate by filename extension
 	if !contentTypeValid || contentType == "application/octet-stream" {
 		filename := req.Image.Filename
-		fmt.Printf("Validating filename: %s\n", filename)
 
 		validExtensions := []string{".jpg", ".jpeg", ".png", ".gif"}
 		extensionValid := false
@@ -831,7 +810,6 @@ func (a *adminHandler) UploadAdminProfileImage(ctx *gin.Context) {
 		for _, ext := range validExtensions {
 			if strings.HasSuffix(filenameLower, ext) {
 				extensionValid = true
-				fmt.Printf("Valid extension found: %s\n", ext)
 				break
 			}
 		}
@@ -840,7 +818,6 @@ func (a *adminHandler) UploadAdminProfileImage(ctx *gin.Context) {
 			response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid file type. Only JPEG, PNG, and GIF images are allowed", fmt.Errorf("unsupported file extension for: %s", filename), nil)
 			return
 		}
-		fmt.Printf("File passed extension validation\n")
 	}
 
 	// Save the file to local storage (you can modify this to use AWS S3 or other cloud storage)
@@ -933,7 +910,6 @@ func getFileExtension(filename string) string {
 func (a *adminHandler) UploadShopDocument(ctx *gin.Context) {
 	// Implementation goes here
 	var req request.DocumentRequest
-	fmt.Printf("Received document upload request: %+v\n", req)
 	if err := ctx.ShouldBind(&req); err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
 		return
@@ -975,11 +951,9 @@ func (a *adminHandler) UploadAddress(ctx *gin.Context) {
 	// Implementation goes here
 	var req request.AddressRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		fmt.Printf("Binding error: %v\n", err)
 		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
 		return
 	}
-	fmt.Printf("Received address upload request: %+v\n", req)
 
 	//get token from and send to decode and get the data
 	tokenString := ctx.GetHeader("Authorization")
@@ -1027,7 +1001,6 @@ func (a *adminHandler) VerifyShopDocument(ctx *gin.Context) {
 
 func (a *adminHandler) AdminDocumentOtpSend(ctx *gin.Context) {
 	var req request.DocumentRequest
-	fmt.Printf("Received document upload request: %+v\n", req)
 	if err := ctx.ShouldBind(&req); err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
 		return
@@ -1083,7 +1056,6 @@ func (a *adminHandler) GetVerificationStatus(ctx *gin.Context) {
 	//get token from and send to decode and get the data
 	tokenString := ctx.GetHeader("Authorization")
 	shopOwnerIdStr := a.adminUseCase.DecodeTokenData(tokenString)
-	fmt.Printf("Decoded shop owner ID: %v\n", shopOwnerIdStr)
 
 	if shopOwnerIdStr == "" {
 		response.ErrorResponse(ctx, http.StatusUnauthorized, "Invalid token data", fmt.Errorf("failed to decode shop owner ID from token"), nil)
@@ -1134,7 +1106,6 @@ func (a *ProductHandler) GetAllSubCategories(ctx *gin.Context) {
 
 func (a *adminHandler) GetShopProfileImageById(ctx *gin.Context) {
 	shopId := ctx.Param("shop_id")
-	fmt.Printf("shopId: %v\n", shopId)
 
 	imageURL, err := a.adminUseCase.GetShopProfileImageById(ctx, shopId)
 	if err != nil {
@@ -1213,4 +1184,20 @@ func (a *adminHandler) GetShopTime(ctx *gin.Context) {
 	}
 
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved shop time", shopTime)
+}
+
+
+func (h *adminHandler) GetShopSocialDetails(ctx *gin.Context) {
+	shopIDStr := ctx.Param("shop_id")
+	shopID, err := strconv.ParseUint(shopIDStr, 10, 64)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid shop_id", err, nil)
+		return
+	}
+	details, err := h.adminUseCase.GetShopSocialDetails(ctx, uint(shopID))
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to fetch shop social details", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Shop social details fetched", details)
 }

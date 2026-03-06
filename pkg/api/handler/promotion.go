@@ -204,7 +204,6 @@ func (h *PromotionHandler) GetAllPromotions(ctx *gin.Context) {
 		return
 	}
 
-	fmt.Printf("Promotions: %+v\n", promotions)
 
 	response.SuccessResponse(ctx, http.StatusOK, "Promotions retrieved successfully", promotions)
 }

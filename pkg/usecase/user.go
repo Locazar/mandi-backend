@@ -63,7 +63,6 @@ func (c *userUserCase) UpdateProfile(ctx context.Context, user domain.User) erro
 	}
 	if checkUser.ID != 0 { // if there is an user exist with given details then make it as error
 		err = utils.CompareUserExistingDetails(user, checkUser)
-		fmt.Println(user)
 		return err
 	}
 
@@ -96,8 +95,6 @@ func (c *userUserCase) SaveAddress(ctx context.Context, userID uint, address dom
 		return fmt.Errorf("given address already exist for user")
 	}
 
-	fmt.Printf("saving address for user id: %d\n", userID)
-	fmt.Printf("address details: %+v\n", address)
 	// check the country id is valid or not
 	country, err := c.userRepo.FindCountryByID(ctx, address.CountryID)
 	if err != nil {
@@ -244,21 +241,16 @@ func (c *userUserCase) FindLocation(ctx context.Context, lat string, long string
 
 	if len(resp) > 0 {
 		address := resp[0]
-		fmt.Printf("Formatted Address: %s\n", address.FormattedAddress)
 		for _, component := range address.AddressComponents {
 			for _, t := range component.Types {
 				switch t {
 				case "locality":
-					fmt.Printf("City: %s\n", component.LongName)
 				case "administrative_area_level_1":
-					fmt.Printf("State: %s\n", component.LongName)
 				case "country":
-					fmt.Printf("Country: %s\n", component.LongName)
 				}
 			}
 		}
 	} else {
-		fmt.Println("No results found.")
 	}
 }
 
@@ -329,4 +321,12 @@ func (c *userUserCase) GetShopByID(ctx context.Context, shopID uint) (response.S
 		return response.Shop{}, fmt.Errorf("failed to find shop by ID: %v", err)
 	}
 	return shop, nil
+}
+
+func (c *userUserCase) GetShopSocialDetails(ctx context.Context, shopID uint) ([]domain.ShopSocial, error) {
+	shopSocialDetails, err := c.userRepo.GetShopSocialDetails(ctx, shopID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get shop social details \nerror:%v", err.Error())
+	}
+	return shopSocialDetails, nil
 }

@@ -34,9 +34,7 @@ func (c *userDatabase) FindUserByEmail(ctx context.Context, email string) (user 
 
 	query := `SELECT * FROM users WHERE email = $1`
 
-	fmt.Printf("Executing query: %s with email: %s\n", query, email) // Debugging line
 	err = c.DB.Raw(query, email).Scan(&user).Error
-	fmt.Printf("Query result: %+v, error: %v\n", user, err) // Debugging line
 
 	return user, err
 }
@@ -58,13 +56,10 @@ func (c *userDatabase) FindUserByUserName(ctx context.Context, userName string) 
 
 func (c *userDatabase) FindUserByUserNameEmailOrPhoneNotID(ctx context.Context,
 	userDetails domain.User) (user domain.User, err error) {
-	fmt.Printf("Checking for existing user with Email: %s, Phone: %s excluding ID: %d\n",
-		userDetails.Email, userDetails.Phone, userDetails.ID) // Debugging line
+	// Debugging line
 
 	query := `SELECT * FROM users WHERE (email = $1 OR phone = $2) AND id != $3`
 	err = c.DB.Raw(query, userDetails.Email, userDetails.Phone, userDetails.ID).Scan(&user).Error
-
-	fmt.Printf("Found user: %+v, error: %v\n", user, err) // Debugging line
 
 	return
 }
@@ -193,8 +188,6 @@ func (c *userDatabase) FindAllAddressByUserID(ctx context.Context, userID uint) 
 func (c *userDatabase) FindCountryByID(ctx context.Context, countryID uint) (domain.Country, error) {
 
 	var country domain.Country
-
-	fmt.Printf("Finding country with ID: %d\n", countryID) // Debugging line
 
 	if c.DB.Raw("SELECT * FROM countries WHERE id = ?", countryID).Scan(&country).Error != nil {
 		return country, errors.New("filed to find the country")
@@ -419,4 +412,12 @@ func (c *userDatabase) FindShopByID(ctx context.Context, shopID uint) (response.
 	}
 
 	return shop, nil
+}
+
+func (c *userDatabase) GetShopSocialDetails(ctx context.Context, shopID uint) ([]domain.ShopSocial, error) {
+	var details []domain.ShopSocial
+	if err := c.DB.WithContext(ctx).Where("shop_id = ?", shopID).Find(&details).Error; err != nil {
+		return nil, err
+	}
+	return details, nil
 }

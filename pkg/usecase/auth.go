@@ -51,7 +51,6 @@ const (
 
 func (c *authUseCase) UserLogin(ctx context.Context, loginDetails request.Login) (uint, error) {
 
-	fmt.Printf("loginDetails: %+v\n", loginDetails)
 	var (
 		user domain.User
 		err  error
@@ -65,7 +64,6 @@ func (c *authUseCase) UserLogin(ctx context.Context, loginDetails request.Login)
 		return 0, ErrEmptyLoginCredentials
 	}
 
-	fmt.Printf("Found user: %+v, error: %v\n", user, err)
 
 	if err != nil {
 		return 0, utils.PrependMessageToError(err, "failed to find user from database")
@@ -88,7 +86,6 @@ func (c *authUseCase) UserLogin(ctx context.Context, loginDetails request.Login)
 		return 0, ErrWrongPassword
 	}
 
-	fmt.Printf("User after password check: %+v\n", user)
 
 	return user.ID, nil
 }
@@ -288,7 +285,6 @@ func (c *authUseCase) VerifyAndGetRefreshTokenSession(ctx context.Context, refre
 func (c *authUseCase) UserSignUp(ctx context.Context, signUpDetails domain.User) (string, error) {
 
 	existUser, err := c.userRepo.FindUserByUserNameEmailOrPhoneNotID(ctx, signUpDetails)
-	fmt.Printf("Existing user check result: %+v, error: %v\n", existUser, err) // Debugging line
 	if err != nil {
 		return "", utils.PrependMessageToError(err, "failed to check user details already exist")
 	}

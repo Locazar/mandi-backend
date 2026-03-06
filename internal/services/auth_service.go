@@ -76,7 +76,6 @@ func (s *AuthService) LoginWithPassword(ctx context.Context, email, password, ip
 		_ = s.audit.Create(ctx, &models.LoginAuditLog{UserID: &u.ID, EventType: models.EventLoginFail, IPAddress: ip, UserAgent: ua, CreatedAt: time.Now()})
 		return "", "", errors.New("invalid credentials")
 	}
-	fmt.Printf("User %d logged in successfully\n", u.ID)
 	access, refresh, err := utils.GenerateTokenPair(u.ID, s.cfg.JWT.AccessSecret, s.cfg.JWT.RefreshSecret, s.cfg.JWT.AccessTTL, s.cfg.JWT.RefreshTTL)
 	if err != nil {
 		return "", "", err

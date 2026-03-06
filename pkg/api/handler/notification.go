@@ -72,13 +72,11 @@ func (h *NotificationHandler) SaveNotification(ctx *gin.Context) {
 	}
 
 	// Fetch receiver's active tokens
-	notifications, err := h.notificationUsecase.SendNotificationToDevice(ctx.Request.Context(), notificationData)
+	// _, err := h.notificationUsecase.SendNotificationToDevice(ctx.Request.Context(), notificationData)
 	if err != nil {
 		ctx.JSON(500, gin.H{"error": "Failed to send notification to device"})
 		return
 	}
-
-	fmt.Printf("Fetched %d notifications for sending\n", len(notifications))
 
 	sendNotificationDataToDevice(Token, notificationData)
 	ctx.JSON(200, gin.H{"message": "Notification sent successfully"})

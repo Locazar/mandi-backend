@@ -238,7 +238,6 @@ func (c *offerUseCase) ChangeCategoryOffer(ctx context.Context, categoryOfferID,
 // offer on products
 func (c *offerUseCase) SaveProductItemOffer(ctx context.Context, offerProduct domain.OfferProduct) error {
 
-	fmt.Printf("offerProduct received in usecase: %+v\n", offerProduct)
 	// check the any offer is already exist for the given product
 	offerProductData, err := c.offerRepo.FindOfferProductByProductID(ctx, offerProduct.ProductItemID)
 	if err != nil {
@@ -248,15 +247,12 @@ func (c *offerUseCase) SaveProductItemOffer(ctx context.Context, offerProduct do
 		return ErrProductOfferAlreadyExist
 	}
 
-	fmt.Printf("offerProduct: %+v\n", offerProduct)
-
 	err = c.offerRepo.Transactions(ctx, func(repo repo.OfferRepository) error {
 		// save product offer
-		productOfferID, err := repo.SaveOfferProduct(ctx, offerProduct)
+		_, err := repo.SaveOfferProduct(ctx, offerProduct)
 		if err != nil {
 			return utils.PrependMessageToError(err, "failed save product offer")
 		}
-		fmt.Printf("Saved product offer ID: %d\n", productOfferID)
 		// update the discount price of products
 		// err = repo.ApplyOfferToProductItem(ctx, productOfferID)
 		// if err != nil {

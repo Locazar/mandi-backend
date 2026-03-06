@@ -23,6 +23,8 @@ type UserHandler interface {
 	GetProductItemsBySubCategory(ctx *gin.Context)
 	GetProductItemsByShop(ctx *gin.Context)
 	GetShopByID(ctx *gin.Context)
+	GetShopSocialDetails(ctx *gin.Context)
+
 	// GetAllJobs(ctx *gin.Context)
 	// GetUserJobApplications(ctx *gin.Context)
 	// DeleteJobApplication(ctx *gin.Context)

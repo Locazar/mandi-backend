@@ -1,8 +1,10 @@
 package db
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/rohit221990/mandi-backend/pkg/config"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
@@ -21,6 +23,23 @@ func ConnectDatabase(cfg config.Config) (*gorm.DB, error) {
 
 	if err != nil {
 		return nil, err
+	}
+
+	// configure underlying sql.DB for connection pooling
+	sqlDB, err := db.DB()
+	if err == nil {
+		// use ~80% of Postgres max_connections as safe pool size
+		sqlDB.SetMaxOpenConns(240)
+		// keep a fraction of connections idle for quick bursts
+		sqlDB.SetMaxIdleConns(60)
+		// recycle connections periodically (avoid stale network state)
+		sqlDB.SetConnMaxLifetime(30 * time.Minute)
+		sqlDB.SetConnMaxIdleTime(5 * time.Minute)
+
+		// verify connectivity with a short timeout
+		pingCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = sqlDB.PingContext(pingCtx) // record error if necessary
 	}
 
 	// migrate the database tables
@@ -103,6 +122,8 @@ func ConnectDatabase(cfg config.Config) (*gorm.DB, error) {
 		domain.Promotion{},
 		domain.Banner{},
 		domain.ShopTime{},
+		// Shop social (followers, ratings, reviews)
+		domain.ShopSocial{},
 	)
 
 	if err != nil {

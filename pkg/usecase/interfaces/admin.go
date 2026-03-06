@@ -43,6 +43,7 @@ type AdminUseCase interface {
 	GetAllProductDetails(ctx context.Context) (products []any, err error)
 	GetShopProfileImageById(ctx context.Context, shopId string) (string, error)
 	UserLogout(ctx context.Context, adminId string) error
+	GetShopSocialDetails(ctx context.Context, shopID uint) ([]domain.ShopSocial, error)
 }
 
 // GetCategory(ctx context.Context) (helper.Category, any)

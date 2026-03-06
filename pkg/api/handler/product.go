@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/disintegration/imaging"
@@ -60,22 +61,98 @@ func min(a, b int) int {
 type ProductHandler struct {
 	productUseCase usecaseInterface.ProductUseCase
 	tokenService   token.TokenService
-	validator      *service.ProductValidator
+	aiClient       service.Client
 }
 
-func NewProductHandler(productUsecase usecaseInterface.ProductUseCase, tokenService token.TokenService) interfaces.ProductHandler {
-	// Initialize product validator with Claude API key from environment
-	apiKey := os.Getenv("CLAUDE_API_KEY")
-	var validator *service.ProductValidator
-	if apiKey != "" {
-		validator = service.NewProductValidator(apiKey)
-	}
-
+func NewProductHandler(productUsecase usecaseInterface.ProductUseCase, tokenService token.TokenService, aiClient *service.Client) interfaces.ProductHandler {
 	return &ProductHandler{
 		productUseCase: productUsecase,
 		tokenService:   tokenService,
-		validator:      validator,
+		aiClient:       *aiClient,
 	}
+}
+
+// callCompareImages validates that two images match by category using the AI service
+// It returns nil if images match, or an AppError if they don't match or service fails
+func (p *ProductHandler) callCompareImages(imagePath1, imagePath2 string) *domain.AppError {
+	payload := map[string]string{
+		"image_path1": imagePath1,
+		"image_path2": imagePath2,
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return domain.InternalError("failed to prepare image comparison request", err)
+	}
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Post("http://localhost:3001/api/ai/compare-images", "application/json", bytes.NewReader(body))
+	if err != nil {
+		return domain.ExternalServiceError("compare-images", "failed to connect to AI service", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return domain.ExternalServiceError("compare-images", "failed to read AI service response", err)
+	}
+
+	// Check HTTP status code first before parsing response
+	if resp.StatusCode >= 400 {
+		// Try to parse error response, but handle non-JSON responses gracefully
+		var compareResult map[string]interface{}
+		if err := json.Unmarshal(respBody, &compareResult); err != nil {
+			// If response is not JSON, create a generic error message
+			return domain.ExternalServiceError("compare-images", fmt.Sprintf("AI service returned status %d: %s", resp.StatusCode, string(respBody)), nil)
+		}
+
+		// Handle JSON error responses
+		serviceMessage, _ := compareResult["message"].(string)
+		if serviceMessage != "" {
+			// Check if we have detailed reason in data field
+			data, _ := compareResult["data"].(map[string]interface{})
+			if data != nil {
+				reason, _ := data["reason"].(string)
+				if reason != "" {
+					return domain.ImageMismatchError(reason)
+				}
+			}
+			// Use the service's error message
+			return domain.ImageMismatchError(serviceMessage)
+		}
+		return domain.ExternalServiceError("compare-images", fmt.Sprintf("service returned status %d", resp.StatusCode), nil)
+	}
+
+	// Parse successful response
+	var compareResult map[string]interface{}
+	if err := json.Unmarshal(respBody, &compareResult); err != nil {
+		return domain.ExternalServiceError("compare-images", "invalid response format from AI service", err)
+	}
+
+	// Check if comparison was successful
+	success, ok := compareResult["success"].(bool)
+	if !ok || !success {
+		return domain.ExternalServiceError("compare-images", "comparison operation failed", nil)
+	}
+
+	// Extract the data field containing comparison results
+	data, ok := compareResult["data"].(map[string]interface{})
+	if !ok {
+		return domain.ExternalServiceError("compare-images", "invalid response structure: missing data field", nil)
+	}
+
+	// Check if images match by category
+	sameCategory, ok := data["same_category"].(bool)
+	if !ok {
+		return domain.ExternalServiceError("compare-images", "invalid response structure: missing same_category field", nil)
+	}
+
+	// If categories don't match, return user-friendly error
+	if !sameCategory {
+		reason, _ := data["reason"].(string)
+		return domain.ImageMismatchError(reason)
+	}
+
+	return nil
 }
 
 // GetAllCategories godoc
@@ -99,20 +176,20 @@ func (p *ProductHandler) GetAllCategories(ctx *gin.Context) {
 	categories, err := p.productUseCase.FindAllCategories(ctx, pagination)
 
 	if err != nil {
-		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to retrieve categories", err, nil)
+		appErr := utils.ConvertDBError(err, "categories")
+		if appErr == nil {
+			appErr = domain.InternalError("failed to retrieve categories", err)
+		}
+		response.ErrorResponse(ctx, appErr.StatusCode, appErr.Message, appErr.Err, nil)
 		return
 	}
 
 	if len(categories) == 0 {
-		response.SuccessResponse(ctx, http.StatusOK, "No categories found", nil)
+		response.SuccessResponse(ctx, http.StatusOK, "No categories found", []interface{}{})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, response.Response{
-		Status:  true,
-		Message: "Successfully get all categories",
-		Data:    categories,
-	})
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved all categories", categories)
 }
 
 // SaveCategory godoc
@@ -312,7 +389,7 @@ func (c *ProductHandler) GetAllVariations(ctx *gin.Context) {
 	}
 
 	if len(variations) == 0 {
-		response.SuccessResponse(ctx, http.StatusOK, "No variations found")
+		response.SuccessResponse(ctx, http.StatusOK, "No variations found", []interface{}{})
 		return
 	}
 
@@ -365,7 +442,8 @@ func (p *ProductHandler) SaveProduct(ctx *gin.Context) {
 	// Only check required fields
 	err := errors.Join(err1, err2, err3, err6, errDeptID)
 	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindFormValueMessage, err, nil)
+		appErr := domain.ValidationError("product fields", "missing or invalid required fields")
+		response.ErrorResponseAppError(ctx, appErr)
 		return
 	}
 
@@ -380,15 +458,15 @@ func (p *ProductHandler) SaveProduct(ctx *gin.Context) {
 	productID, err := p.productUseCase.SaveProduct(ctx, product, adminID)
 
 	if err != nil {
-		statusCode := http.StatusInternalServerError
+		appErr := domain.InternalError("failed to save product", err)
 		if errors.Is(err, usecase.ErrProductAlreadyExist) {
-			statusCode = http.StatusConflict
+			appErr = domain.AlreadyExistsError("product")
 		}
-		response.ErrorResponse(ctx, statusCode, "Failed to add product", err, map[string]uint{"product_id": productID})
+		response.ErrorResponseAppError(ctx, appErr)
 		return
 	}
 
-	response.SuccessResponse(ctx, http.StatusCreated, "Successfully product added", map[string]uint{"product_id": productID})
+	response.SuccessResponse(ctx, http.StatusCreated, "Successfully added product", map[string]uint{"product_id": productID})
 }
 
 // SaveProductJSON handles JSON requests without image uploa
@@ -401,7 +479,8 @@ func (p *ProductHandler) SaveProductJSON(ctx *gin.Context, adminID string) {
 		// Unwrap the double-encoded JSON string
 		var unwrappedJSON string
 		if err := json.Unmarshal(rawData, &unwrappedJSON); err != nil {
-			response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid JSON format (double-encoded)", err, nil)
+			appErr := domain.ValidationError("request body", "invalid JSON format (double-encoded)")
+			response.ErrorResponseAppError(ctx, appErr)
 			return
 		}
 		rawData = []byte(unwrappedJSON)
@@ -410,7 +489,8 @@ func (p *ProductHandler) SaveProductJSON(ctx *gin.Context, adminID string) {
 	// Additional validation: Check if it's valid JSON before binding
 	var testJSON interface{}
 	if err := json.Unmarshal(rawData, &testJSON); err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid JSON syntax", err, nil)
+		appErr := domain.ValidationError("request body", "invalid JSON syntax")
+		response.ErrorResponseAppError(ctx, appErr)
 		return
 	}
 
@@ -429,13 +509,15 @@ func (p *ProductHandler) SaveProductJSON(ctx *gin.Context, adminID string) {
 	}
 
 	if err := ctx.ShouldBindJSON(&body); err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		appErr := domain.ValidationError("request body", "failed to parse JSON request")
+		response.ErrorResponseAppError(ctx, appErr)
 		return
 	}
 
 	// For JSON requests without file upload, you need to provide image_url or handle it differently
 	if body.ImageURL == "" {
-		response.ErrorResponse(ctx, http.StatusBadRequest, "image_url is required for JSON requests", errors.New("image_url field is missing or empty"), nil)
+		appErr := domain.ValidationError("image_url", "image_url is required for JSON requests")
+		response.ErrorResponseAppError(ctx, appErr)
 		return
 	}
 
@@ -452,15 +534,15 @@ func (p *ProductHandler) SaveProductJSON(ctx *gin.Context, adminID string) {
 	productID, err := p.productUseCase.SaveProduct(ctx, product, adminID)
 
 	if err != nil {
-		statusCode := http.StatusInternalServerError
+		appErr := domain.InternalError("failed to save product", err)
 		if errors.Is(err, usecase.ErrProductAlreadyExist) {
-			statusCode = http.StatusConflict
+			appErr = domain.AlreadyExistsError("product")
 		}
-		response.ErrorResponse(ctx, statusCode, "Failed to add product", err, nil)
+		response.ErrorResponseAppError(ctx, appErr)
 		return
 	}
 
-	response.SuccessResponse(ctx, http.StatusCreated, "Successfully product added", map[string]uint{"product_id": productID})
+	response.SuccessResponse(ctx, http.StatusCreated, "Successfully added product", map[string]uint{"product_id": productID})
 }
 
 // GetAllProductsAdmin godoc
@@ -513,7 +595,7 @@ func (p *ProductHandler) getAllProducts() func(ctx *gin.Context) {
 		}
 
 		if len(products) == 0 {
-			response.SuccessResponse(ctx, http.StatusOK, "No products found", nil)
+			response.SuccessResponse(ctx, http.StatusOK, "No products found", []interface{}{})
 			return
 		}
 
@@ -669,6 +751,19 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 	subCategoryName := ctx.PostForm("sub_category_name")
 	categoryName := ctx.PostForm("category_name")
 	dynamicFieldsStr := ctx.PostForm("dynamic_fields")
+	// Try to resolve subcategory image URL (if subCategoryID provided)
+	var subCatImageURL string
+	if subCategoryID != 0 && categoryID != 0 {
+		subs, err := p.productUseCase.GetAllSubCategoriesByCategoryID(ctx, categoryID)
+		if err == nil {
+			for _, sc := range subs {
+				if sc.ID == subCategoryID {
+					subCatImageURL = sc.ImageUrl
+					break
+				}
+			}
+		}
+	}
 	files := ctx.Request.MultipartForm.File["images[]"]
 
 	var imagePaths []string
@@ -680,13 +775,13 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 			return
 		}
 
-		// Validate product image matches category if validator is available and category is provided
-		if p.validator != nil && categoryName != "" {
+		// Validate product image matches category using AI service if available
+		if categoryName != "" {
 			// Get absolute path for validation
 			wd, _ := os.Getwd()
 			absolutePath := filepath.Join(wd, localPath)
 
-			validationResult, err := p.validator.ValidateProductCategory(absolutePath, categoryName)
+			validationResult, err := p.aiClient.ValidateProduct(absolutePath, categoryName)
 			if err != nil {
 				response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to validate product image", err, nil)
 				return
@@ -702,6 +797,20 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 		}
 
 		imagePaths = append(imagePaths, localPath)
+
+		// If we have a subcategory image, ask the compare-images service to compare
+		// the uploaded product image with the subcategory reference image so external
+		// services can validate or index similarity.
+		if subCatImageURL != "" {
+			// Build publicly accessible URLs that other services can fetch
+			prodURL := buildPublicURL(localPath)
+			subURL := buildPublicURL(subCatImageURL)
+			if err := p.callCompareImages(subURL, prodURL); err != nil {
+				// Return error if image doesn't match category
+				response.ErrorResponseAppError(ctx, err)
+				return
+			}
+		}
 	}
 
 	var dynamicFields map[string]interface{}
@@ -961,7 +1070,7 @@ func (p *ProductHandler) getAllProductItems(adminID string) func(ctx *gin.Contex
 
 		// If no results found
 		if len(productItems) == 0 {
-			response.SuccessResponse(ctx, http.StatusOK, "No product items found")
+			response.SuccessResponse(ctx, http.StatusOK, "No product items found", []interface{}{})
 			return
 		}
 
@@ -1971,7 +2080,7 @@ func (a *ProductHandler) GetAllDepartments(ctx *gin.Context) {
 //	@Failure		500	{object}	response.Response{}	"Failed to get department"
 //	@Router			/departments/{id} [get]
 func (a *ProductHandler) GetDepartmentByID(ctx *gin.Context) {
-	departmentID, err := request.GetParamAsUint(ctx, "id")
+	departmentID, err := request.GetParamAsUint(ctx, "department_id")
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
 		return
@@ -2801,5 +2910,20 @@ func handleSecureMagic(fileHeader *multipart.FileHeader) (string, error) {
 	return filepath.ToSlash(relativePath), nil
 }
 
-
-
+// buildPublicURL converts a local relative path (uploads/...) or absolute path
+// to a HTTP URL that other services can fetch from this API server.
+func buildPublicURL(path string) string {
+	if path == "" {
+		return ""
+	}
+	// If already a full URL, return as-is
+	if strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") {
+		return path
+	}
+	// Ensure leading slash and forward slashes
+	p := filepath.ToSlash(path)
+	if !strings.HasPrefix(p, "/") {
+		p = "/" + p
+	}
+	return fmt.Sprintf("http://localhost:3000%s", p)
+}

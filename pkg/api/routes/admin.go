@@ -278,6 +278,11 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			{
 				address.POST("/save", adminHandler.UploadAddress)
 			}
+			// social := shop.Group("/social")
+			// {
+			// 	social.GET(":shop_id", adminHandler.GetShopSocialDetails)
+			// }
+			shop.GET("/:shop_id/social", adminHandler.GetShopSocialDetails)
 		}
 
 		// Notification

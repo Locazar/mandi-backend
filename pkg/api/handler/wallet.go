@@ -57,7 +57,7 @@ func (c *OrderHandler) GetUserWalletTransactions(ctx *gin.Context) {
 	}
 
 	if len(transactions) == 0 {
-		response.SuccessResponse(ctx, http.StatusNoContent, "No user wallet transaction found", nil)
+		response.SuccessResponse(ctx, http.StatusNoContent, "No user wallet transaction found", []interface{}{})
 		return
 	}
 

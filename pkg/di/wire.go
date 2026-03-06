@@ -11,6 +11,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/config"
 	"github.com/rohit221990/mandi-backend/pkg/db"
 	"github.com/rohit221990/mandi-backend/pkg/repository"
+	aiservice "github.com/rohit221990/mandi-backend/pkg/service/ai"
 	"github.com/rohit221990/mandi-backend/pkg/service/cloud"
 	elasticsearch "github.com/rohit221990/mandi-backend/pkg/service/elasticsearch"
 	"github.com/rohit221990/mandi-backend/pkg/service/graphics"
@@ -21,6 +22,10 @@ import (
 
 func provideElasticURL(cfg config.Config) string {
 	return cfg.ElasticsearchURL
+}
+
+func provideAIServiceClient(cfg config.Config) *aiservice.Client {
+	return aiservice.NewClient(cfg.AIServiceURL)
 }
 
 func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
@@ -34,6 +39,9 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		// elasticsearch
 		elasticsearch.NewElasticService,
 		provideElasticURL,
+
+		// ai service
+		provideAIServiceClient,
 
 		// graphics
 		graphics.NewGraphicsService,

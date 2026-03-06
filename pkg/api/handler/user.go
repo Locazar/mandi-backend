@@ -207,7 +207,7 @@ func (u *UserHandler) GetAllAddresses(ctx *gin.Context) {
 	}
 
 	if addresses == nil {
-		response.SuccessResponse(ctx, http.StatusOK, "No addresses found")
+		response.SuccessResponse(ctx, http.StatusOK, "No addresses found", []interface{}{})
 		return
 	}
 
@@ -239,8 +239,6 @@ func (u *UserHandler) UpdateAddress(ctx *gin.Context) {
 	if body.IsDefault == nil {
 		body.IsDefault = new(bool)
 	}
-
-	fmt.Printf("Update address request body: %+v\n", body)
 
 	err := u.userUseCase.UpdateAddress(ctx, body, userID)
 	if err != nil {
@@ -346,7 +344,7 @@ func (u *UserHandler) GetWishList(ctx *gin.Context) {
 	}
 
 	if len(wishListItems) == 0 {
-		response.SuccessResponse(ctx, http.StatusOK, "No wishlist items found", nil)
+		response.SuccessResponse(ctx, http.StatusOK, "No wishlist items found", []interface{}{})
 		return
 	}
 
@@ -505,7 +503,7 @@ func (c *UserHandler) GetSellerByRadius(ctx *gin.Context) {
 	}
 
 	if len(sellers) == 0 {
-		response.SuccessResponse(ctx, http.StatusNoContent, "No sellers found in the given radius", nil)
+		response.SuccessResponse(ctx, http.StatusNoContent, "No sellers found in the given radius", []interface{}{})
 		return
 	}
 
@@ -549,7 +547,7 @@ func (c *UserHandler) GetSellerByPincode(ctx *gin.Context) {
 	}
 
 	if len(sellers) == 0 {
-		response.SuccessResponse(ctx, http.StatusNoContent, "No sellers found in the given pincode", nil)
+		response.SuccessResponse(ctx, http.StatusNoContent, "No sellers found in the given pincode", []interface{}{})
 		return
 	}
 
@@ -636,7 +634,7 @@ func (c *UserHandler) SearchShopList(ctx *gin.Context) {
 	}
 
 	if len(shops) == 0 {
-		response.SuccessResponse(ctx, http.StatusNoContent, "No shops found", nil)
+		response.SuccessResponse(ctx, http.StatusNoContent, "No shops found", []interface{}{})
 		return
 	}
 
@@ -767,8 +765,24 @@ func (c *UserHandler) GetShopByID(ctx *gin.Context) {
 		return
 	}
 
-	fmt.Printf("shop00000000: %+v\n", shop)
-
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully got shop by ID", shop)
+
+}
+
+func (c *UserHandler) GetShopSocialDetails(ctx *gin.Context) {
+	shopIDStr := ctx.Param("shop_id")
+	shopID, err := strconv.ParseUint(shopIDStr, 10, 64)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid shop ID", err, nil)
+		return
+	}
+
+	socialDetails, err := c.userUseCase.GetShopSocialDetails(ctx, uint(shopID))
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get shop social details", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully got shop social details", socialDetails)
 
 }

@@ -35,6 +35,31 @@ services:
     networks:
       - ecommerce-network
 
+# ai-service container
+  ai-service:
+    build:
+      context: ../ai-service
+      dockerfile: Dockerfile
+    image: rohit221990/ai-service
+    container_name: ai-service
+    ports:
+      - "3001:3001"
+    env_file:
+      - ../ai-service/.env
+    environment:
+      - AI_SERVICE_PORT=3001
+    depends_on:
+      - postgresdb
+    restart: unless-stopped
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
 # for persistent data storage
 volumes:
   database:

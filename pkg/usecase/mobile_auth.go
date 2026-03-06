@@ -94,7 +94,6 @@ func (m *mobileAuthUseCase) SendOTP(ctx context.Context, phone, ipAddress, userA
 	}
 
 	// Send OTP via Twilio SMS (DLT-approved template)
-	fmt.Printf("Sending OTP to phone: %s\n", phone)
 	err = m.smsService.SendOTPSMS(phone, generatedOTP)
 	if err != nil {
 		// Mark OTP as failed and log audit event

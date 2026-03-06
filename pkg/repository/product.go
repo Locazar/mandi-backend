@@ -245,7 +245,6 @@ func (c *productDatabase) IsProductNameExistForShop(ctx context.Context, product
 func (c *productDatabase) SaveProduct(ctx context.Context, product domain.Product, adminID string) (productID uint, err error) {
 	// Get the shop Id and Shop name using adminID
 
-	fmt.Printf("Saving product: %+v for adminID: %s\n", product, adminID)
 	var shopDetails struct {
 		ShopID   string `gorm:"column:id"`
 		ShopName string `gorm:"column:shop_name"`
@@ -257,17 +256,11 @@ func (c *productDatabase) SaveProduct(ctx context.Context, product domain.Produc
 		return 0, fmt.Errorf("failed to fetch shop details for admin %s: %v", adminID, err)
 	}
 
-	fmt.Printf("Shop ID: %v, Shop Name: %v\n", shopDetails.ShopID, shopDetails.ShopName)
-
 	// Check if product with shop_id and category_id already exists
 	checkQuery := `SELECT id FROM products WHERE shop_id = $1 AND category_id = $2 LIMIT 1`
 	err = c.DB.Raw(checkQuery, shopDetails.ShopID, product.CategoryID).Scan(&productID).Error
 
-	fmt.Printf("Checked existing product ID: %d for shop_id: %v and category_id: %d\n", productID, shopDetails.ShopID, product.CategoryID)
 	if err == nil && productID != 0 {
-		// Product already exists, return existing product ID
-		fmt.Printf("Product already exists with ID: %d for shop_id: %v and category_id: %d\n",
-			productID, shopDetails.ShopID, product.CategoryID)
 		return productID, nil
 	}
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -297,7 +290,6 @@ func (c *productDatabase) SaveProduct(ctx context.Context, product domain.Produc
 		return 0, fmt.Errorf("failed to insert product: %v", err)
 	}
 
-	fmt.Printf("New product created with ID: %d\n", productID)
 	return productID, nil
 }
 
@@ -482,7 +474,6 @@ func (c *productDatabase) FindProductItemByID(ctx context.Context, productItemID
 // to get how many variations are available for a product
 func (c *productDatabase) FindVariationCountForProduct(ctx context.Context, productID uint) (variationCount uint, err error) {
 
-	fmt.Printf("Finding variation count for product ID: %d\n", productID) // Debugging line
 	query := `SELECT COUNT(v.id) FROM variations v
 	INNER JOIN categories c ON c.id = v.category_id 
 	INNER JOIN products p ON p.category_id = v.category_id 
@@ -660,11 +651,7 @@ func (c *productDatabase) UpdateProductItem(ctx context.Context, productItemID u
 }
 
 // for get all products items for a product filtered by admin_id and additional filters
-func (c *productDatabase) FindAllProductItems(ctx context.Context,
-	adminID string, keyword string, categoryID *string, brandID *string, locationID *string, offer string, sortby string, pagination *request.Pagination, filterByShopID string) (productItems []response.ProductItems, err error) {
-
-	fmt.Printf("FindAllProductItems called with adminID: %s, keyword: %s, categoryID: %v, brandID: %v, locationID: %v, offer: %s, sortby: %s, pagination: %+v, filterByShopID: %v\n",
-		adminID, keyword, categoryID, brandID, locationID, offer, sortby, pagination, filterByShopID)
+func (c *productDatabase) FindAllProductItems(ctx context.Context, adminID string, keyword string, categoryID *string, brandID *string, locationID *string, offer string, sortby string, pagination *request.Pagination, filterByShopID string) (productItems []response.ProductItems, err error) {
 
 	var ids []uint
 	if keyword != "" && c.ElasticClient != nil {
@@ -782,7 +769,6 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context,
 			return nil, fmt.Errorf("invalid shop_id: %w", err)
 		}
 		query += " AND pi.shop_id = @shopID"
-		fmt.Printf("Filtering by shop_id: %d\n", shopIDUint)
 		params["shopID"] = uint(shopIDUint)
 	}
 	// Removed shop_id filter as it may not be set correctly in DB
@@ -920,7 +906,6 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context,
 
 		productItems = append(productItems, item)
 	}
-	fmt.Printf("Retrieved %d product items\n", len(productItems)) // Debugging line
 	return
 }
 
@@ -1334,8 +1319,6 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 	params = append(params, limit, offset)
 
 	// Log the final SQL and parameters for debugging
-	fmt.Printf("SearchProducts SQL: %s\n", baseQuery)
-	fmt.Printf("SearchProducts Params: %#v\n", params)
 
 	// Scan into internal DB struct to correctly parse JSONB and array columns
 	type productItemDB struct {
@@ -1359,7 +1342,6 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 	var dbItems []productItemDB
 	err = c.DB.Raw(baseQuery, params...).Scan(&dbItems).Error
 	if err != nil {
-		fmt.Printf("Executed Query Error: %v\n", err) // Debugging line
 		return
 	}
 
@@ -1406,7 +1388,6 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 				rawStr := string(dbItem.OfferProducts)
 				if rawStr != "" {
 					if err2 := json.Unmarshal([]byte(rawStr), &offerProducts); err2 != nil {
-						fmt.Printf("SearchProducts: failed to unmarshal offer_products: %v %v\n", err, err2)
 					} else {
 						item.OfferProducts = offerProducts
 					}
@@ -2383,8 +2364,6 @@ func (c *productDatabase) FindProductItemFilters(ctx context.Context, adminID st
 			ShopID:     shopID,
 		})
 	}
-
-	fmt.Printf("Fetched %d product item filters for admin %s\n", len(filters), adminID)
 
 	return filters, nil
 }

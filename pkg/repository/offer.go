@@ -326,7 +326,6 @@ func (c *offerDatabase) RemoveProductItemsDiscountByCategoryOfferID(ctx context.
 // Recalculate all product discount price by check given product offer id
 func (c *offerDatabase) ApplyOfferToProductItem(ctx context.Context, productOfferID uint) error {
 
-	fmt.Printf("insert offer om product item: %d\n", productOfferID)
 	query := `insert into offer_products (offer_id, product_id)`
 	err := c.DB.Exec(query, productOfferID).Error
 	return err
@@ -335,7 +334,6 @@ func (c *offerDatabase) ApplyOfferToProductItem(ctx context.Context, productOffe
 // Recalculate all product discount price by check given product offer id
 func (c *offerDatabase) RemoveProductsDiscountByProductOfferID(ctx context.Context, productOfferID uint) error {
 
-	fmt.Printf("Removing product discount for product offer id: %d\n", productOfferID)
 	query := `UPDATE products p SET discount_price = (p.price * (100 - o.discount_rate))/100 
 	FROM offer_products op
 	INNER JOIN  offers o ON op.offer_id = o.id 
@@ -348,7 +346,6 @@ func (c *offerDatabase) RemoveProductsDiscountByProductOfferID(ctx context.Conte
 // Remove  product items discount price by given product offer id
 func (c *offerDatabase) UpdateProductItemsDiscountByProductOfferID(ctx context.Context, productOfferID uint) error {
 
-	fmt.Printf("Updating product items discount for product offer id: %d\n", productOfferID)
 	query := `UPDATE product_items pi SET discount_price = 0 
 	FROM offer_products op
 	INNER JOIN offers o ON o.id = op.offer_id  

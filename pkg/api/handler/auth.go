@@ -2,7 +2,6 @@ package handler
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -57,8 +56,6 @@ func (c *AuthHandler) UserLogin(ctx *gin.Context) {
 		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, body)
 		return
 	}
-
-	fmt.Printf("login details: %+v\n", body)
 
 	userID, err := c.authUseCase.UserLogin(ctx, body)
 
@@ -290,7 +287,6 @@ func (c *AuthHandler) AdminLogin(ctx *gin.Context) {
 		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, body)
 		return
 	}
-	fmt.Printf("Admin login details: %+v\n", body)
 
 	admin, shopVerification, err := c.authUseCase.AdminLogin(ctx, body)
 	if err != nil {
@@ -312,7 +308,6 @@ func (c *AuthHandler) AdminLogin(ctx *gin.Context) {
 		return
 	}
 
-	fmt.Printf("Admin %d logged in successfully\n", admin.ID)
 	// setup token common part
 	c.setupTokenAndResponse(ctx, token.Admin, admin.ID, shopVerification)
 }

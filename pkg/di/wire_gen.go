@@ -13,6 +13,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/config"
 	"github.com/rohit221990/mandi-backend/pkg/db"
 	"github.com/rohit221990/mandi-backend/pkg/repository"
+	aiservice "github.com/rohit221990/mandi-backend/pkg/service/ai"
 	"github.com/rohit221990/mandi-backend/pkg/service/cloud"
 	elasticsearch "github.com/rohit221990/mandi-backend/pkg/service/elasticsearch"
 	"github.com/rohit221990/mandi-backend/pkg/service/graphics"
@@ -60,7 +61,8 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	paymentUseCase := usecase.NewPaymentUseCase(paymentRepository, orderRepository, userRepository, cartRepository, couponRepository, cfg)
 	paymentHandler := handler.NewPaymentHandler(paymentUseCase)
 	productUseCase := usecase.NewProductUseCase(productRepository, cloudService, gormDB)
-	productHandler := handler.NewProductHandler(productUseCase, tokenService)
+	aiClient := aiservice.NewClient(cfg.AIServiceURL)
+	productHandler := handler.NewProductHandler(productUseCase, tokenService, aiClient)
 	orderUseCase := usecase.NewOrderUseCase(orderRepository, cartRepository, userRepository, paymentRepository)
 	orderHandler := handler.NewOrderHandler(orderUseCase)
 	couponUseCase := usecase.NewCouponUseCase(couponRepository, cartRepository)
