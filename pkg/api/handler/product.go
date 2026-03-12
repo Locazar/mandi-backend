@@ -2054,6 +2054,10 @@ func (a *ProductHandler) SaveDepartment(ctx *gin.Context) {
 //	@Router			/departments [get]
 
 func (a *ProductHandler) GetAllDepartments(ctx *gin.Context) {
+
+	tokenString := ctx.GetHeader("Authorization")
+	adminId := a.tokenService.DecodeTokenData(tokenString)
+	fmt.Printf("Admin ID from token: %d\n", adminId)
 	departments, err := a.productUseCase.GetAllDepartments(ctx)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get departments", err, nil)

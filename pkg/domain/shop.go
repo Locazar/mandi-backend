@@ -7,15 +7,15 @@ type ShopDetails struct {
 	AdminID   uint   `json:"admin_id" gorm:";uniqueIndex"`
 	ShopName  string `json:"shop_name" gorm:"size:100;"`
 	OwnerName string `json:"owner_name" gorm:"size:100;"`
-	Email     string `json:"email" gorm:"size:100;uniqueIndex;"`
+	Email     string `json:"email" gorm:"size:100;"`
 	Phone     string `json:"phone" gorm:"size:50;"`
 
 	AddressLine1 string  `json:"address_line1" gorm:"size:255"`
 	AddressLine2 string  `json:"address_line2" gorm:"size:255" binding:"omitempty"`
-	City         string  `json:"city" gorm:"size:50" binding:"required"`
-	State        string  `json:"state" gorm:"size:50" binding:"required"`
-	Country      string  `json:"country" gorm:"size:50" binding:"required"`
-	Pincode      string  `json:"pincode" gorm:"size:50" binding:"required"`
+	City         string  `json:"city" gorm:"size:50"`
+	State        string  `json:"state" gorm:"size:50"`
+	Country      string  `json:"country" gorm:"size:50"`
+	Pincode      string  `json:"pincode" gorm:"size:50"`
 	Latitude     float64 `json:"latitude" gorm:"type:decimal(10,7);"`
 	Longitude    float64 `json:"longitude" gorm:"type:decimal(10,7);"`
 

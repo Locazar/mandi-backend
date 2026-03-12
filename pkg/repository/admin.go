@@ -49,10 +49,10 @@ func (c *adminDatabase) FindAdminByEmail(ctx context.Context, email string) (dom
 }
 
 func (c *adminDatabase) FindAdminByPhone(ctx context.Context, phone string) (domain.Admin, error) {
-
+	fmt.Printf("Finding admin by phone number: %s\n", phone)
 	var admin domain.Admin
 	err := c.DB.Raw("SELECT * FROM admins WHERE mobile = $1", phone).Scan(&admin).Error
-
+	fmt.Printf("Admin found: %+v\n", admin)
 	return admin, err
 }
 
@@ -265,19 +265,61 @@ func (c *adminDatabase) CreateShop(ctx context.Context, shop domain.ShopDetails)
 		return shop, tx.Error
 	}
 
-	query := `INSERT INTO shop_details (owner_id, shop_name, address_line1, address_line2, email, mobile,
-	city, state, country, pincode, bank_account_number, shop_type, shop_status, bank_ifsc, pan, itr_documents, document_type, document_value, created_at, updated_at)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22) RETURNING id`
+	query := `INSERT INTO shop_details (admin_id, shop_name, address_line1, address_line2, email, phone,
+	city, state, country, pincode, bank_account_number, shop_type, shop_status, bank_ifsc, pan_number, itr_documents, document_type, document_value, created_at, updated_at)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+	ON CONFLICT (admin_id) DO UPDATE SET
+		shop_name = EXCLUDED.shop_name,
+		owner_name = EXCLUDED.owner_name,
+		address_line1 = EXCLUDED.address_line1,
+		address_line2 = EXCLUDED.address_line2,
+		email = EXCLUDED.email,
+		phone = EXCLUDED.phone,
+		city = EXCLUDED.city,
+		state = EXCLUDED.state,
+		country = EXCLUDED.country,
+		pincode = EXCLUDED.pincode,
+		bank_account_number = EXCLUDED.bank_account_number,
+		shop_type = EXCLUDED.shop_type,
+		shop_status = EXCLUDED.shop_status,
+		bank_ifsc = EXCLUDED.bank_ifsc,
+		pan_number = EXCLUDED.pan_number,
+		itr_documents = EXCLUDED.itr_documents,
+		document_type = EXCLUDED.document_type,
+		document_value = EXCLUDED.document_value,
+		updated_at = EXCLUDED.updated_at
+	RETURNING id`
 
-	err := tx.Exec(query, shop.AdminID, shop.ShopName, shop.AddressLine1,
+	err := tx.Raw(query, shop.AdminID, shop.ShopName, shop.AddressLine1,
 		shop.AddressLine2, shop.Email, shop.Phone, shop.City, shop.State, shop.Country, shop.Pincode,
 		shop.BankAccountNumber, shop.ShopType, shop.ShopStatus, shop.BankIFSC, shop.PanNumber, shop.ITRDocuments, shop.Document_Type, shop.Document_Value,
 		time.Now(), time.Now()).Scan(&shop.ID).Error
 
-	queryShops := `INSERT INTO shop_verifications (shop_id, admin_id, verification_status, remarks, created_at, updated_at)
+	if err != nil {
+		tx.Rollback()
+		return shop, err
+	}
+
+	// Use UPSERT to handle existing admin_id (unique constraint)
+	queryVerification := `INSERT INTO shop_verifications (shop_id, admin_id, verification_status, remarks, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		ON CONFLICT (admin_id) DO UPDATE SET
+		shop_id = EXCLUDED.shop_id,
+		verification_status = EXCLUDED.verification_status,
+		remarks = EXCLUDED.remarks,
+		updated_at = EXCLUDED.updated_at`
+
+	adminIDStr := fmt.Sprintf("%d", shop.AdminID)
+	if err := tx.Exec(queryVerification, shop.ID, adminIDStr, shop.ShopVerificationStatus, shop.ShopVerificationRemarks, time.Now(), time.Now()).Error; err != nil {
+		tx.Rollback()
+		return shop, err
+	}
+
+	// Insert default shop time record
+	queryShopTime := `INSERT INTO shop_times (shop_id, status, open_time, close_time, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6)`
 
-	if err := tx.Exec(queryShops, shop.AdminID, shop.ShopVerificationStatus, shop.ShopVerificationRemarks, time.Now(), time.Now()).Error; err != nil {
+	if err := tx.Exec(queryShopTime, shop.ID, "close", "09:00", "21:00", time.Now(), time.Now()).Error; err != nil {
 		tx.Rollback()
 		return shop, err
 	}

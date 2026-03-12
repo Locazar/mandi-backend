@@ -42,7 +42,7 @@ type jwtClaims struct {
 
 // Generate a new JWT token string from token request
 func (c *jwtAuth) GenerateToken(req GenerateTokenRequest) (GenerateTokenResponse, error) {
-
+	fmt.Printf("Generating token for userID: %d, userType: %s\n", req.UserID, req.UsedFor)
 	if req.UsedFor != Admin && req.UsedFor != User {
 
 		return GenerateTokenResponse{}, ErrInvalidUserType
@@ -58,7 +58,7 @@ func (c *jwtAuth) GenerateToken(req GenerateTokenRequest) (GenerateTokenResponse
 		UsedFor:   req.UsedFor,
 		ExpiresAt: req.ExpireAt,
 	}
-
+	fmt.Printf("Claims for token generation: %+v\n", claims)
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
 	var (
@@ -67,11 +67,17 @@ func (c *jwtAuth) GenerateToken(req GenerateTokenRequest) (GenerateTokenResponse
 	)
 	// sign the token by user type
 	if req.UsedFor == Admin {
+		fmt.Printf("Signing token with admin secret key\n")
 		tokenString, err = token.SignedString([]byte(c.adminSecretKey))
 	} else {
+		fmt.Printf("Signing token with user secret key\n")
 		tokenString, err = token.SignedString([]byte(c.userSecretKey))
 	}
 
+	fmt.Printf("Generated token string: %s\n", tokenString)
+	if err != nil {
+		fmt.Printf("Error signing token: %v\n", err)
+	}
 	if err != nil {
 		return GenerateTokenResponse{}, fmt.Errorf("failed to sign the token \nerror:%w", err)
 	}
@@ -80,7 +86,7 @@ func (c *jwtAuth) GenerateToken(req GenerateTokenRequest) (GenerateTokenResponse
 		TokenID:     tokenID,
 		TokenString: tokenString,
 	}
-
+	fmt.Printf("Generated token response: %+v\n", response)
 	return response, nil
 }
 

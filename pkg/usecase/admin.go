@@ -43,7 +43,6 @@ func NewAdminUseCase(repo interfaces.AdminRepository, userRepo interfaces.UserRe
 
 func (c *adminUseCase) SignUp(ctx context.Context, signUpDetails domain.Admin) (string, error) {
 
-
 	// Validate mobile number
 	if signUpDetails.Mobile == "" || signUpDetails.Mobile == "null" {
 		return "", fmt.Errorf("mobile number is required")
@@ -54,10 +53,10 @@ func (c *adminUseCase) SignUp(ctx context.Context, signUpDetails domain.Admin) (
 	if err != nil {
 		return "", utils.PrependMessageToError(err, "failed to check admin details already exist")
 	}
-
+	fmt.Printf("Existing admin details for phone %s: %+v\n", signUpDetails.Mobile, existAdmin)
 	// If admin already exists, return error
 	if existAdmin.ID != 0 && existAdmin.VerifiedSeller {
-		return "", errors.New("can't save admin - an admin already exists with this phone")
+		return "", errors.New("Admin already exists with this phone")
 	}
 
 	// Check if email is provided and already exists
@@ -78,12 +77,13 @@ func (c *adminUseCase) SignUp(ctx context.Context, signUpDetails domain.Admin) (
 	// Send OTP in goroutine
 	go func() {
 		defer wait.Done()
-		_, err := c.optAuth.SentOtp(countryCode + signUpDetails.Mobile)
-		if err != nil {
-			errChan <- fmt.Errorf("failed to send otp \nerrors:%v", err.Error())
-		}
+		// _, err := c.optAuth.SentOtp(countryCode + signUpDetails.Mobile)
+		// if err != nil {
+		// 	errChan <- fmt.Errorf("failed to send otp \nerrors:%v", err.Error())
+		// }
 	}()
 
+	fmt.Printf("Simulating OTP send to phone number: %s\n", signUpDetails.Mobile)
 	var adminID uint
 
 	// Save admin in goroutine
@@ -103,18 +103,20 @@ func (c *adminUseCase) SignUp(ctx context.Context, signUpDetails domain.Admin) (
 			errChan <- utils.PrependMessageToError(err, "failed to save admin details")
 			return
 		}
-
+		fmt.Printf("Admin details saved successfully for phone number: %s\n", signUpDetails.Mobile)
 		// Get the saved admin ID
 		savedAdmin, err := c.adminRepo.FindAdminByPhone(ctx, signUpDetails.Mobile)
+		fmt.Printf("Retrieved saved admin details: %+v\n", savedAdmin)
 		if err != nil {
 			errChan <- utils.PrependMessageToError(err, "failed to get saved admin ID")
 			return
 		}
 		adminID = savedAdmin.ID
+		fmt.Printf("Retrieved saved admin details: %+v\n", savedAdmin)
 	}()
-
+	fmt.Printf("Waiting for OTP send and admin save operations to complete for phone number: %s\n", signUpDetails.Mobile)
 	wait.Wait()
-
+	fmt.Printf("OTP send and admin save operations completed for phone number: %s\n", signUpDetails.Mobile)
 	// Check for any errors from goroutines
 	close(errChan)
 	for err := range errChan {
@@ -138,6 +140,8 @@ func (c *adminUseCase) SignUp(ctx context.Context, signUpDetails domain.Admin) (
 		return "", utils.PrependMessageToError(err, "failed to save otp session")
 	}
 
+	fmt.Printf("OTP session created successfully with OTP ID: %s for admin ID: %d\n", otpID, adminID)
+
 	return otpID, nil
 }
 
@@ -147,7 +151,7 @@ func (c *adminUseCase) GetAdminWithShopVerificationByPhone(ctx context.Context, 
 
 func (c *adminUseCase) AdminSignUpOtpVerify(ctx context.Context,
 	otpVerifyDetails request.OTPVerify) (userID uint, err error) {
-
+	fmt.Printf("Starting OTP verification for OTP ID: %s\n", otpVerifyDetails.OtpID)
 	otpSession, err := c.authRepo.FindOtpSession(ctx, otpVerifyDetails.OtpID)
 	if err != nil {
 		return 0, utils.PrependMessageToError(err, "failed to find otp session from database")
@@ -156,13 +160,13 @@ func (c *adminUseCase) AdminSignUpOtpVerify(ctx context.Context,
 	// 	return 0, ErrOtpExpired
 	// }
 
-	valid, err := c.optAuth.VerifyOtp(countryCode+otpSession.Phone, otpVerifyDetails.Otp)
+	// valid, err := c.optAuth.VerifyOtp(countryCode+otpSession.Phone, otpVerifyDetails.Otp)
 	if err != nil {
 		return 0, utils.PrependMessageToError(err, "failed to verify otp")
 	}
-	if !valid {
-		return 0, ErrInvalidOtp
-	}
+	// if !valid {
+	// 	return 0, ErrInvalidOtp
+	// }
 
 	err = c.userRepo.UpdateAdminVerified(ctx, otpSession.AdminID)
 	if err != nil {
@@ -172,7 +176,7 @@ func (c *adminUseCase) AdminSignUpOtpVerify(ctx context.Context,
 
 }
 func (c *adminUseCase) GenerateAccessToken(ctx context.Context, tokenParams service.GenerateTokenParams) (string, error) {
-
+	fmt.Printf("Generating access token for userID: %d, userType: %s\n", tokenParams.UserID, tokenParams.UserType)
 	tokenReq := token.GenerateTokenRequest{
 		UserID:   tokenParams.UserID,
 		UsedFor:  tokenParams.UserType,
@@ -180,7 +184,10 @@ func (c *adminUseCase) GenerateAccessToken(ctx context.Context, tokenParams serv
 	}
 
 	tokenRes, err := c.tokenService.GenerateToken(tokenReq)
-
+	fmt.Printf("Token generation result for userID: %d, userType: %s, tokenRes: %+v, error: %v\n", tokenParams.UserID, tokenParams.UserType, tokenRes, err)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate access token \nerror:%w", err)
+	}
 	return tokenRes.TokenString, err
 }
 func (c *adminUseCase) GenerateRefreshToken(ctx context.Context, tokenParams service.GenerateTokenParams) (string, error) {
@@ -449,7 +456,6 @@ func (c *adminUseCase) UserLogout(ctx context.Context, adminId string) error {
 	}
 	return nil
 }
-
 
 func (c *adminUseCase) GetShopSocialDetails(ctx context.Context, shopID uint) ([]domain.ShopSocial, error) {
 	shopSocialDetails, err := c.adminRepo.GetShopSocialDetails(ctx, shopID)

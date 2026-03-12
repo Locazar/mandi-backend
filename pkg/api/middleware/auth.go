@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -31,10 +32,12 @@ func (c *middleware) AuthenticateAdmin() gin.HandlerFunc {
 // authorize request on request header using user type
 func (c *middleware) authorize(tokenUser token.UserType) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-
+		fmt.Printf("Starting authorization middleware for userType: %s\n", tokenUser)
 		authorizationValues := ctx.GetHeader(authorizationHeaderKey)
 
 		authFields := strings.Fields(authorizationValues)
+		fmt.Printf("Authorization header fields: %v\n", authFields)
+		fmt.Printf("length authFields: %d\n", len(authFields))
 		if len(authFields) < 2 {
 
 			err := errors.New("authorization token not provided properly with prefix of Bearer")
