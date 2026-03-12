@@ -64,7 +64,6 @@ func (c *authUseCase) UserLogin(ctx context.Context, loginDetails request.Login)
 		return 0, ErrEmptyLoginCredentials
 	}
 
-
 	if err != nil {
 		return 0, utils.PrependMessageToError(err, "failed to find user from database")
 	}
@@ -85,7 +84,6 @@ func (c *authUseCase) UserLogin(ctx context.Context, loginDetails request.Login)
 	if err != nil {
 		return 0, ErrWrongPassword
 	}
-
 
 	return user.ID, nil
 }
@@ -125,10 +123,10 @@ func (c *authUseCase) UserLoginOtpSend(ctx context.Context, loginDetails request
 
 	go func() {
 		defer wait.Done()
-		_, err := c.optAuth.SentOtp(countryCode + user.Phone)
-		if err != nil {
-			errChan <- fmt.Errorf("failed to send otp \nerrors:%v", err.Error())
-		}
+		// _, err := c.optAuth.SentOtp(countryCode + user.Phone)
+		// if err != nil {
+		// 	errChan <- fmt.Errorf("failed to send otp \nerrors:%v", err.Error())
+		// }
 	}()
 	otpID := uuid.NewString()
 
@@ -169,13 +167,13 @@ func (c *authUseCase) LoginOtpVerify(ctx context.Context, otpVerifyDetails reque
 	// 	return 0, ErrOtpExpired
 	// }
 
-	valid, err := c.optAuth.VerifyOtp(countryCode+otpSession.Phone, otpVerifyDetails.Otp)
+	//valid, err := c.optAuth.VerifyOtp(countryCode+otpSession.Phone, otpVerifyDetails.Otp)
 	if err != nil {
 		return 0, utils.PrependMessageToError(err, "failed to verify otp")
 	}
-	if !valid {
-		return 0, ErrInvalidOtp
-	}
+	// if !valid {
+	// 	return 0, ErrInvalidOtp
+	// }
 
 	return otpSession.UserID, nil
 }
@@ -300,6 +298,7 @@ func (c *authUseCase) UserSignUp(ctx context.Context, signUpDetails domain.User)
 	wait := sync.WaitGroup{}
 	wait.Add(2)
 
+	// This is commented as we do not have any sms
 	go func() {
 		defer wait.Done()
 		_, err := c.optAuth.SentOtp(countryCode + signUpDetails.Phone)

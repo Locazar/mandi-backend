@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
@@ -57,7 +58,7 @@ func (c *authDatabase) FindOtpSession(ctx context.Context, otpID string) (otpSes
 	query := `SELECT * FROM otp_sessions WHERE otp_id = $1`
 
 	err = c.DB.Raw(query, otpID).Scan(&otpSession).Error
-
+	fmt.Printf("Queried OTP session for OTP ID: %s, Result: %+v, Error: %v\n", otpID, otpSession, err)
 	return otpSession, err
 }
 
