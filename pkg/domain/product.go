@@ -30,6 +30,7 @@ type ProductItem struct {
 	ShopID            uint      `json:"shop_id"`
 	CreatedAt         time.Time `json:"created_at" gorm:"not null"`
 	UpdatedAt         time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+	Stock             bool      `json:"stock" gorm:"not null;default:true"`
 }
 
 type ProductItemImage struct {

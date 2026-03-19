@@ -464,3 +464,7 @@ func (c *adminUseCase) GetShopSocialDetails(ctx context.Context, shopID uint) ([
 	}
 	return shopSocialDetails, nil
 }
+
+func (c *adminUseCase) GetAdminByID(ctx context.Context, adminID uint) (domain.Admin, error) {
+	return c.adminRepo.GetAdminByID(ctx, adminID)
+}

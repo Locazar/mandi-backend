@@ -520,6 +520,14 @@ func (h *adminHandler) CreateShop(ctx *gin.Context) {
 	body.Country = "India"
 	fmt.Printf("Decoded admin ID from token: %d\n", adminId)
 
+	// Fetch admin mobile and assign to shop phone
+	admin, err := h.adminUseCase.GetAdminByID(ctx, uint(adminIdUint))
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to fetch admin details", err, nil)
+		return
+	}
+	body.Phone = admin.Mobile
+
 	fmt.Printf("Received request to create shop with body: %+v\n", body)
 
 	// Call use case to create shop
@@ -777,6 +785,14 @@ func (a *adminHandler) UploadAdminProfileImage(ctx *gin.Context) {
 		response.ErrorResponse(ctx, http.StatusBadRequest, "No image file provided", fmt.Errorf("image field is nil in request"), nil)
 		return
 	}
+
+	fileHeader := req.Image
+	localPath, err := handleUpload(fileHeader)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to process image", err, nil)
+		return
+	}
+	_ = localPath
 
 	//get token from and send to decode and get the data
 	tokenString := ctx.GetHeader("Authorization")

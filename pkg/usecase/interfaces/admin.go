@@ -28,6 +28,7 @@ type AdminUseCase interface {
 	DeleteAdvertisement(ctx context.Context, advertisementID string) error
 	CreateShop(ctx context.Context, shop domain.ShopDetails) (domain.ShopDetails, error)
 	GetAllShops(ctx context.Context, pagination request.Pagination) (shops []domain.ShopDetails, err error)
+	GetAdminByID(ctx context.Context, adminID uint) (domain.Admin, error)
 	GetShopByID(ctx context.Context, shopID uint) (shop domain.ShopDetails, err error)
 	UpdateShop(ctx context.Context, shop map[string]interface{}, shopId string) (map[string]interface{}, error)
 	GetShopByOwnerID(ctx context.Context, ownerID uint) (shop domain.ShopDetails, err error)

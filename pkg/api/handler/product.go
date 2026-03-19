@@ -788,7 +788,7 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 			}
 
 			// If validation failed (valid is false) and confidence is high, reject the upload
-			if !validationResult.Valid && validationResult.Confidence > 0.6 {
+			if !validationResult.Valid && validationResult.Confidence > 0.1 {
 				response.ErrorResponse(ctx, http.StatusBadRequest,
 					fmt.Sprintf("Product image does not match '%s' category. Reason: %s", categoryName, validationResult.Reason),
 					nil, nil)
@@ -2673,18 +2673,42 @@ func (p *ProductHandler) UpdateProductItem(ctx *gin.Context) {
 
 	subCategoryName := ctx.PostForm("sub_category_name")
 	dynamicFieldsStr := ctx.PostForm("dynamic_fields")
+	categoryName := ctx.PostForm("category_name")
 	files := ctx.Request.MultipartForm.File["images[]"]
 
-	//rgePaths []string
-	// for _, fileHeader := range files {
-	// 	localPath, err := utils.SaveFileLocally(fileHeader, "uploads/products")
-	// 	if err != nil {
-	// 		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to save image", err, nil)
-	// 		return
-	// 	}
-	// 	imagePaths = append(imagePaths, localPath)
-	// }
 	var imagePaths []string
+	for _, fileHeader := range files {
+
+		localPath, err := handleUpload(fileHeader)
+		if err != nil {
+			response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to process image", err, nil)
+			return
+		}
+
+		// Validate product image matches category using AI service if available
+		if categoryName != "" {
+			// Get absolute path for validation
+			wd, _ := os.Getwd()
+			absolutePath := filepath.Join(wd, localPath)
+
+			validationResult, err := p.aiClient.ValidateProduct(absolutePath, categoryName)
+			if err != nil {
+				response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to validate product image", err, nil)
+				return
+			}
+
+			// If validation failed (valid is false) and confidence is high, reject the upload
+			if !validationResult.Valid && validationResult.Confidence > 0.1 {
+				response.ErrorResponse(ctx, http.StatusBadRequest,
+					fmt.Sprintf("Product image does not match '%s' category. Reason: %s", categoryName, validationResult.Reason),
+					nil, nil)
+				return
+			}
+		}
+
+		imagePaths = append(imagePaths, localPath)
+	}
+
 	type uploadResult struct {
 		path  string
 		err   error

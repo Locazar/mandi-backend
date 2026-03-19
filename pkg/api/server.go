@@ -138,7 +138,7 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware middlewa
 	routes.UserRoutes(engine.Group("/api"), authHandler, middleware, userHandler, cartHandler,
 
 		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler, notificationHandler, promotionHandler)
-	routes.AdminRoutes(engine.Group("/api/admin"), authHandler, middleware, adminHandler,
+	routes.AdminRoutes(engine.Group("/admin"), authHandler, middleware, adminHandler,
 		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler, promotionHandler)
 
 	// no handler

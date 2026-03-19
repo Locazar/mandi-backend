@@ -1,39 +1,38 @@
 {
-    // Go extension settings for gopls language server
-    "go.lintOnSave": "package",
-    "go.lintTool": "golangci-lint",
-    "go.lintFlags": [
-        "--timeout=5m"
-    ],
-    // Enable gopls features (language server protocol)
-    "go.useLanguageServer": true,
-    "[go]": {
-        "editor.defaultFormatter": "golang.go",
-        "editor.formatOnSave": true,
-        "editor.codeActionsOnSave": {
-            "source.organizeImports": "explicit"
-        }
-    },
-    // GoLang settings for better definition/reference support
-    "go.lintOnChange": "off",
-    "go.coverOnSave": false,
+  // Go extension settings for gopls language server
+  "go.lintOnSave": "package",
+  "go.lintTool": "golangci-lint",
+  "go.lintFlags": ["--timeout=5m"],
+  // Enable gopls features (language server protocol)
+  "go.useLanguageServer": true,
+  "[go]": {
+    "editor.defaultFormatter": "golang.go",
     "editor.formatOnSave": true,
-    // Ensure gopls is properly configured
-    "[go][gopls]": {
-        "gofumpt": true,
-        "local": "github.com/rohit221990/mandi-backend"
-    },
-    // File watching exclusions (reduces lag)
-    "files.exclude": {
-        "**/build": true,
-        "**/vendor": true,
-        "**/.git": true
-    },
-    // Extension exclusions
-    "files.watcherExclude": {
-        "**/build/**": true,
-        "**/vendor/**": true,
-        "**/.git/**": true,
-        "**/.mod": true
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit"
     }
+  },
+  // GoLang settings for better definition/reference support
+  "go.lintOnChange": "off",
+  "go.coverOnSave": false,
+  "editor.formatOnSave": true,
+  // Ensure gopls is properly configured
+  "[go][gopls]": {
+    "gofumpt": true,
+    "local": "github.com/rohit221990/mandi-backend"
+  },
+  // File watching exclusions (reduces lag)
+  "files.exclude": {
+    "**/build": true,
+    "**/vendor": true,
+    "**/.git": true
+  },
+  // Extension exclusions
+  "files.watcherExclude": {
+    "**/build/**": true,
+    "**/vendor/**": true,
+    "**/.git/**": true,
+    "**/.mod": true
+  },
+  "cSpell.words": ["TIMESTAMPTZ"]
 }

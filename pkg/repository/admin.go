@@ -591,3 +591,9 @@ func (c *adminDatabase) GetShopSocialDetails(ctx context.Context, shopID uint) (
 	}
 	return details, nil
 }
+
+func (c *adminDatabase) GetAdminByID(ctx context.Context, adminID uint) (domain.Admin, error) {
+	var admin domain.Admin
+	err := c.DB.Raw("SELECT * FROM admins WHERE id = $1", adminID).Scan(&admin).Error
+	return admin, err
+}
