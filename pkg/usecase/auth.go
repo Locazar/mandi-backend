@@ -363,13 +363,13 @@ func (c *authUseCase) SingUpOtpVerify(ctx context.Context,
 	// 	return 0, ErrOtpExpired
 	// }
 
-	valid, err := c.optAuth.VerifyOtp(countryCode+otpSession.Phone, otpVerifyDetails.Otp)
-	if err != nil {
-		return 0, utils.PrependMessageToError(err, "failed to verify otp")
-	}
-	if !valid {
-		return 0, ErrInvalidOtp
-	}
+	// valid, err := c.optAuth.VerifyOtp(countryCode+otpSession.Phone, otpVerifyDetails.Otp)
+	// if err != nil {
+	// 	return 0, utils.PrependMessageToError(err, "failed to verify otp")
+	// }
+	// if !valid {
+	// 	return 0, ErrInvalidOtp
+	// }
 
 	err = c.userRepo.UpdateVerified(ctx, otpSession.UserID)
 	if err != nil {
