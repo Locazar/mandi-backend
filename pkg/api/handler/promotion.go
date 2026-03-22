@@ -188,6 +188,7 @@ func (h *PromotionHandler) CreatePromotion(ctx *gin.Context) {
 
 	promotion, err := h.promotionUseCase.CreatePromotion(ctx, uint(categoryID), uint(typeID), offerDetails, uint(shopID), reqBody.IsActive)
 	if err != nil {
+		fmt.Printf("Error creating promotion: %v\n", err)
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to create promotion", err, nil)
 		return
 	}
@@ -203,7 +204,6 @@ func (h *PromotionHandler) GetAllPromotions(ctx *gin.Context) {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to retrieve promotions", err, nil)
 		return
 	}
-
 
 	response.SuccessResponse(ctx, http.StatusOK, "Promotions retrieved successfully", promotions)
 }

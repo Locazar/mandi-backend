@@ -112,12 +112,13 @@ func (r *promotionRepository) FindPromotionTypeByID(ctx context.Context, typeID 
 }
 
 func (r *promotionRepository) CreatePromotion(ctx context.Context, promotion domain.Promotion) (response.Promotion, error) {
-	var existingPromotion domain.Promotion
-	if err := r.db.Where("promotion_type_id = ?", promotion.PromotionTypeID).First(&existingPromotion).Error; err == nil {
-		return response.Promotion{}, fmt.Errorf("promotion with this promotion_type_id already exists")
-	}
+	//var existingPromotion domain.Promotion
+	// if err := r.db.Where("promotion_type_id = ?", promotion.PromotionTypeID).First(&existingPromotion).Error; err == nil {
+	// 	return response.Promotion{}, fmt.Errorf("promotion with this promotion_type_id already exists")
+	// }
 
 	if err := r.db.Create(&promotion).Error; err != nil {
+		fmt.Printf("Error creating promotion: %v\n", err) // Log the error for debugging
 		return response.Promotion{}, fmt.Errorf("failed to create promotion: %w", err)
 	}
 

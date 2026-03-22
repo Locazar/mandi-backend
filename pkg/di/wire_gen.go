@@ -87,6 +87,9 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	notificationRepository := repository.NewNotificationRepository(gormDB)
 	notificationUseCase := usecase.NewNotificationUseCase(notificationRepository)
 	notificationHandler := handler.NewNotificationHandler(notificationUseCase)
-	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler)
+	fcmTokenRepository := repository.NewFcmTokenRepository(gormDB)
+	fcmTokenUseCase := usecase.NewFcmTokenUseCase(fcmTokenRepository)
+	fcmTokenHandler := handler.NewFcmTokenHandler(fcmTokenUseCase)
+	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler)
 	return serverHTTP, nil
 }

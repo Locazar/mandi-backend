@@ -42,6 +42,7 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware middlewa
 	couponHandler handlerInterface.CouponHandler, offerHandler handlerInterface.OfferHandler,
 	stockHandler handlerInterface.StockHandler, branHandler handlerInterface.BrandHandler,
 	notificationHandler handlerInterface.NotificationHandler, promotionHandler handlerInterface.PromotionHandler,
+	fcmTokenHandler handlerInterface.FcmTokenHandler,
 ) *ServerHTTP {
 
 	engine := gin.New()
@@ -138,8 +139,8 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware middlewa
 	routes.UserRoutes(engine.Group("/api"), authHandler, middleware, userHandler, cartHandler,
 
 		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler, notificationHandler, promotionHandler)
-	routes.AdminRoutes(engine.Group("/admin"), authHandler, middleware, adminHandler,
-		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler, promotionHandler)
+	routes.AdminRoutes(engine.Group("/api/admin"), authHandler, middleware, adminHandler,
+		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler, promotionHandler, fcmTokenHandler)
 
 	// no handler
 	engine.NoRoute(func(ctx *gin.Context) {

@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
@@ -61,7 +62,7 @@ func (u *promotionUseCase) CreatePromotion(ctx context.Context, promotionCategor
 		CreatedAt:              time.Now().UTC(),
 		UpdatedAt:              time.Now().UTC(),
 	}
-
+	fmt.Printf("Creating promotion: %+v\n", promotion) // Log the promotion details for debugging
 	return u.promotionRepo.CreatePromotion(ctx, promotion)
 }
 

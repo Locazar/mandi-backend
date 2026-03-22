@@ -210,17 +210,17 @@ type PromotionCategory struct {
 }
 
 type PromotionOfferDetails struct {
-	OfferName              string   `json:"offer_name"`
-	Description            string   `json:"description"`
-	DiscountRate           float64  `json:"discount_rate"`
-	StartDate              string   `json:"start_date"`
-	EndDate                string   `json:"end_date"`
-	MinimumPurchaseAmount  *float64 `json:"minimum_purchase_amount,omitempty"`
-	TierQuantity           *int     `json:"tier_quantity,omitempty"`
-	BogoGetQuantity        *int     `json:"bogo_get_quantity,omitempty"`
-	BogoBuyQuantity        *int     `json:"bogo_buy_quantity,omitempty"`
-	BogoCombinationEnabled *bool    `json:"bogo_combination_enabled,omitempty"`
-	GiftDescription        *string  `json:"gift_description,omitempty"`
+	OfferName              string    `json:"offer_name"`
+	Description            string    `json:"description"`
+	DiscountRate           float64   `json:"discount_rate"`
+	StartDate              time.Time `json:"start_date"`
+	EndDate                time.Time `json:"end_date"`
+	MinimumPurchaseAmount  *float64  `json:"minimum_purchase_amount,omitempty"`
+	TierQuantity           *int      `json:"tier_quantity,omitempty"`
+	BogoGetQuantity        *int      `json:"bogo_get_quantity,omitempty"`
+	BogoBuyQuantity        *int      `json:"bogo_buy_quantity,omitempty"`
+	BogoCombinationEnabled *bool     `json:"bogo_combination_enabled,omitempty"`
+	GiftDescription        *string   `json:"gift_description,omitempty"`
 }
 
 type Promotion struct {
@@ -230,8 +230,8 @@ type Promotion struct {
 	OfferName              string    `json:"offer_name"`
 	Description            string    `json:"description"`
 	DiscountRate           float64   `json:"discount_rate"`
-	StartDate              string    `json:"start_date"`
-	EndDate                string    `json:"end_date"`
+	StartDate              time.Time `json:"start_date"`
+	EndDate                time.Time `json:"end_date"`
 	MinimumPurchaseAmount  *float64  `json:"minimum_purchase_amount,omitempty"`
 	TierQuantity           *int      `json:"tier_quantity,omitempty"`
 	BogoGetQuantity        *int      `json:"bogo_get_quantity,omitempty"`

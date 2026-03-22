@@ -11,7 +11,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 	paymentHandler handlerInterface.PaymentHandler, orderHandler handlerInterface.OrderHandler,
 	couponHandler handlerInterface.CouponHandler, offerHandler handlerInterface.OfferHandler,
 	stockHandler handlerInterface.StockHandler, branHandler handlerInterface.BrandHandler,
-	promotionHandler handlerInterface.PromotionHandler,
+	promotionHandler handlerInterface.PromotionHandler, fcmTokenHandler handlerInterface.FcmTokenHandler,
 
 ) {
 
@@ -327,6 +327,9 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			verification.GET("/shop/:shop_id", adminHandler.GetVerificationStatus)
 		}
 
+		fcm := api.Group("/fcm")
+		{
+			fcm.POST("/token", fcmTokenHandler.SaveFcmToken)
+		}
 	}
-
 }

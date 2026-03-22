@@ -39,6 +39,8 @@ require (
 	gorm.io/gorm v1.25.1
 )
 
+require github.com/google/subcommands v1.0.1 // indirect
+
 require (
 	cloud.google.com/go v0.110.2 // indirect
 	cloud.google.com/go/compute v1.20.0 // indirect

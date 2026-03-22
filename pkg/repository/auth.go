@@ -10,17 +10,17 @@ import (
 	"gorm.io/gorm"
 )
 
-type authDatabase struct {
+type AuthRepository struct {
 	DB *gorm.DB
 }
 
 func NewAuthRepository(db *gorm.DB) interfaces.AuthRepository {
-	return &authDatabase{
+	return &AuthRepository{
 		DB: db,
 	}
 }
 
-func (c *authDatabase) SaveRefreshSession(ctx context.Context, refreshSession request.RefreshSession) error {
+func (c *AuthRepository) SaveRefreshSession(ctx context.Context, refreshSession request.RefreshSession) error {
 	if refreshSession.UserType == "admin" {
 		query := `INSERT INTO admin_refresh_sessions (token_id, user_id, refresh_token, expire_at, user_type) 
 VALUES ($1, $2, $3, $4, $5)`
@@ -33,7 +33,7 @@ VALUES ($1, $2, $3, $4, $5)`
 		return err
 	}
 }
-func (c *authDatabase) FindRefreshSessionByTokenID(ctx context.Context, tokenID string, userType string) (refreshSession domain.RefreshSession, err error) {
+func (c *AuthRepository) FindRefreshSessionByTokenID(ctx context.Context, tokenID string, userType string) (refreshSession domain.RefreshSession, err error) {
 	if userType == "admin" {
 		query := `SELECT * FROM admin_refresh_sessions WHERE token_id = $1`
 		err = c.DB.Raw(query, tokenID).Scan(&refreshSession).Error
@@ -45,7 +45,7 @@ func (c *authDatabase) FindRefreshSessionByTokenID(ctx context.Context, tokenID 
 	return
 }
 
-func (c *authDatabase) SaveOtpSession(ctx context.Context, otpSession domain.OtpSession) error {
+func (c *AuthRepository) SaveOtpSession(ctx context.Context, otpSession domain.OtpSession) error {
 
 	query := `INSERT INTO otp_sessions (otp_id, user_id, admin_id, user_type, phone ,expire_at) 
 	VALUES ($1, $2, $3, $4, $5, $6)`
@@ -53,7 +53,7 @@ func (c *authDatabase) SaveOtpSession(ctx context.Context, otpSession domain.Otp
 	return err
 }
 
-func (c *authDatabase) FindOtpSession(ctx context.Context, otpID string) (otpSession domain.OtpSession, err error) {
+func (c *AuthRepository) FindOtpSession(ctx context.Context, otpID string) (otpSession domain.OtpSession, err error) {
 
 	query := `SELECT * FROM otp_sessions WHERE otp_id = $1`
 
@@ -62,7 +62,7 @@ func (c *authDatabase) FindOtpSession(ctx context.Context, otpID string) (otpSes
 	return otpSession, err
 }
 
-func (c *authDatabase) SaveOtpSessionEmail(ctx context.Context, otpSession domain.OtpSessionEmail) error {
+func (c *AuthRepository) SaveOtpSessionEmail(ctx context.Context, otpSession domain.OtpSessionEmail) error {
 
 	query := `INSERT INTO otp_sessions_email (otp_id, user_id, email ,expire_at) 
 	VALUES ($1, $2, $3, $4)`
@@ -71,7 +71,7 @@ func (c *authDatabase) SaveOtpSessionEmail(ctx context.Context, otpSession domai
 
 }
 
-func (c *authDatabase) FindOtpSessionEmail(ctx context.Context, otpID string) (otpSession domain.OtpSessionEmail, err error) {
+func (c *AuthRepository) FindOtpSessionEmail(ctx context.Context, otpID string) (otpSession domain.OtpSessionEmail, err error) {
 
 	query := `SELECT * FROM otp_sessions_email WHERE otp_id = $1`
 
