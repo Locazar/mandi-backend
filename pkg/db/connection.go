@@ -153,5 +153,5 @@ func ConnectDatabase(cfg config.Config) (*gorm.DB, error) {
 		log.Printf("Warning: failed to seed countries: %v. Continuing.", err)
 	}
 
-	return db, err
+	return db, nil
 }

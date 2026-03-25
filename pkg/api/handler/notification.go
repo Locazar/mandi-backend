@@ -1,220 +1,189 @@
-package handler
+﻿package handler
 
-// This file is intentionally left blank as a placeholder for future notification handler implementations.
 import (
-	"context"
-	"fmt"
-	"log"
-	"os"
-	"time"
+"net/http"
+"strconv"
 
-	firebase "firebase.google.com/go"
-	"firebase.google.com/go/messaging"
-	"github.com/gin-gonic/gin"
-	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
-	usercaseInterfaces "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
-	"google.golang.org/api/option"
+"github.com/gin-gonic/gin"
+"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
+"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
+usecaseInterfaces "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
+"github.com/rohit221990/mandi-backend/pkg/utils"
 )
 
-var fcmClient *messaging.Client
-
+// NotificationHandler handles all notification-related HTTP endpoints.
 type NotificationHandler struct {
-	// Add necessary fields here, such as services or configurations
-	notificationUsecase usercaseInterfaces.NotificationUseCase
+notificationUsecase usecaseInterfaces.NotificationUseCase
 }
 
-func NewNotificationHandler(notificationUsecase usercaseInterfaces.NotificationUseCase) *NotificationHandler {
-	InitFirebase()
-	return &NotificationHandler{
-		notificationUsecase: notificationUsecase,
-	}
+// NewNotificationHandler creates a new NotificationHandler.
+func NewNotificationHandler(notificationUsecase usecaseInterfaces.NotificationUseCase) *NotificationHandler {
+return &NotificationHandler{notificationUsecase: notificationUsecase}
 }
 
-// Example method for sending a notification
+// RegisterDeviceToken godoc
+//
+//@SummaryRegister FCM device token
+//@SecurityBearerAuth
+//@IDRegisterDeviceToken
+//@TagsNotification
+//@Acceptjson
+//@Producejson
+//@Paraminputbodyrequest.NotificationDeviceTokentrue"Device token payload"
+//@Router/notifications/register-token [post]
+//@Success200{object}response.Response{}"Token registered"
+//@Failure400{object}response.Response{}"Invalid input"
+//@Failure500{object}response.Response{}"Internal server error"
+func (h *NotificationHandler) RegisterDeviceToken(ctx *gin.Context) {
+var req request.NotificationDeviceToken
+if err := ctx.ShouldBindJSON(&req); err != nil {
+response.ErrorResponse(ctx, http.StatusBadRequest, "Validation failed", err, nil)
+return
+}
+if err := h.notificationUsecase.RegisterDeviceToken(ctx.Request.Context(), req); err != nil {
+response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to register device token", err, nil)
+return
+}
+response.SuccessResponse(ctx, http.StatusOK, "Device token registered successfully")
+}
+
+// UnregisterDeviceToken godoc
+//
+//@SummaryUnregister FCM device token
+//@SecurityBearerAuth
+//@IDUnregisterDeviceToken
+//@TagsNotification
+//@Acceptjson
+//@Producejson
+//@Paraminputbodyrequest.UnregisterDeviceTokentrue"Token to remove"
+//@Router/notifications/unregister-token [delete]
+//@Success200{object}response.Response{}"Token removed"
+//@Failure400{object}response.Response{}"Invalid input"
+//@Failure500{object}response.Response{}"Internal server error"
+func (h *NotificationHandler) UnregisterDeviceToken(ctx *gin.Context) {
+var req request.UnregisterDeviceToken
+if err := ctx.ShouldBindJSON(&req); err != nil {
+response.ErrorResponse(ctx, http.StatusBadRequest, "Validation failed", err, nil)
+return
+}
+if err := h.notificationUsecase.UnregisterDeviceToken(ctx.Request.Context(), req); err != nil {
+response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to unregister device token", err, nil)
+return
+}
+response.SuccessResponse(ctx, http.StatusOK, "Device token unregistered successfully")
+}
+
+// SendPushNotification godoc
+//
+//@SummarySend a direct FCM push notification
+//@SecurityBearerAuth
+//@IDSendPushNotification
+//@TagsNotification
+//@Acceptjson
+//@Producejson
+//@Paraminputbodyrequest.SendPushRequesttrue"Push notification payload"
+//@Router/notifications/push [post]
+//@Success200{object}response.Response{}"Notification sent"
+//@Failure400{object}response.Response{}"Invalid input"
+//@Failure500{object}response.Response{}"Internal server error"
+func (h *NotificationHandler) SendPushNotification(ctx *gin.Context) {
+var req request.SendPushRequest
+if err := ctx.ShouldBindJSON(&req); err != nil {
+response.ErrorResponse(ctx, http.StatusBadRequest, "Validation failed", err, nil)
+return
+}
+if err := h.notificationUsecase.SendPushNotification(ctx.Request.Context(), req); err != nil {
+response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to send push notification", err, nil)
+return
+}
+response.SuccessResponse(ctx, http.StatusOK, "Push notification sent successfully")
+}
 
 // SaveNotification godoc
 //
-//	@summary 	api for sending notification
-//	@Security	BearerAuth
-//	@id			SaveNotification
-//	@tags		Notification
-//	@Param		input	body	request.Notification{}	true	"inputs"
-//	@Router		/notifications/ [post]
-//	@Success	200	{object}	response.Response{}	"Successfully sent notification"
-//	@Failure	400	{object}	response.Response{}	"invalid input"
+//@SummarySave a notification record
+//@SecurityBearerAuth
+//@IDSaveNotification
+//@TagsNotification
+//@Acceptjson
+//@Producejson
+//@Paraminputbodyrequest.Notificationtrue"Notification payload"
+//@Router/notifications [post]
+//@Success201{object}response.Response{}"Notification saved"
+//@Failure400{object}response.Response{}"Invalid input"
+//@Failure500{object}response.Response{}"Internal server error"
 func (h *NotificationHandler) SaveNotification(ctx *gin.Context) {
-	// Implementation for sending notification
-	var body request.Notification
-	if err := ctx.ShouldBindJSON(&body); err != nil {
-		ctx.JSON(400, gin.H{"error": "Invalid request"})
-		return
-	}
-
-	// Call the usecase to send notification
-	err := h.notificationUsecase.SaveNotification(ctx.Request.Context(), body)
-	if err != nil {
-		ctx.JSON(500, gin.H{"error": "Failed to send notification"})
-		return
-	}
-
-	// Example: send notification using FCM
-	var Token = "device_registration_token_here" // Replace with actual device token
-
-	notificationData := request.Notification{
-		SenderID:     body.SenderID,
-		SenderType:   body.SenderType,
-		ReceiverID:   body.ReceiverID,
-		ReceiverType: body.ReceiverType,
-		Title:        body.Title,
-		Body:         body.Body,
-		Status:       "sent",
-		CreatedAt:    time.Now(),
-	}
-
-	// Fetch receiver's active tokens
-	// _, err := h.notificationUsecase.SendNotificationToDevice(ctx.Request.Context(), notificationData)
-	if err != nil {
-		ctx.JSON(500, gin.H{"error": "Failed to send notification to device"})
-		return
-	}
-
-	sendNotificationDataToDevice(Token, notificationData)
-	ctx.JSON(200, gin.H{"message": "Notification sent successfully"})
-
+var req request.Notification
+if err := ctx.ShouldBindJSON(&req); err != nil {
+response.ErrorResponse(ctx, http.StatusBadRequest, "Validation failed", err, nil)
+return
+}
+if err := h.notificationUsecase.SaveNotification(ctx.Request.Context(), req); err != nil {
+response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to save notification", err, nil)
+return
+}
+response.SuccessResponse(ctx, http.StatusCreated, "Notification saved successfully")
 }
 
 // GetNotificationsBy godoc
 //
-//	@summary 	api for getting notifications with filters
-//	@Security	BearerAuth
-//	@id			GetNotificationsBy
-//	@tags		Notification
-//	@Param		filter	query	request.GetNotification	false	"filter"
-//	@Param		pagination	query	request.Pagination	false	"pagination"
-//	@Router		/notifications/ [get]
-//	@Success	200	{object}	response.Response{}	"Successfully got notifications"
-//	@Failure	400	{object}	response.Response{}	"invalid input"
-func (c *NotificationHandler) GetNotificationsBy(ctx *gin.Context) {
-	// Implementation for getting notifications
-	var filter request.GetNotification
-	var pagination request.Pagination
-	ctx.JSON(200, gin.H{"message": "Get Notifications"})
-
-	err := ctx.ShouldBindQuery(&request.Pagination{})
-	if err != nil {
-		ctx.JSON(400, gin.H{"error": "Invalid request"})
-		return
-	}
-
-	// Call the usecase to get notifications
-	notificationData, err := c.notificationUsecase.GetNotificationsBy(ctx.Request.Context(), filter, pagination)
-	if err != nil {
-		ctx.JSON(500, gin.H{"error": "Failed to get notifications"})
-		return
-	}
-
-	// Use a token placeholder or obtain the real device token(s) as needed.
-	var token = "device_registration_token_here"
-
-	// Send notifications to devices for each returned notification.
-	for _, n := range notificationData {
-		reqNotif := request.Notification{
-			Title: n.Title,
-			Body:  n.Body,
-		}
-		sendNotificationDataToDevice(token, reqNotif)
-	}
+//@SummaryGet notifications with filters and pagination
+//@SecurityBearerAuth
+//@IDGetNotificationsBy
+//@TagsNotification
+//@Producejson
+//@Paramfilterqueryrequest.GetNotificationfalse"Filters"
+//@Parampaginationqueryrequest.Paginationfalse"Pagination"
+//@Router/notifications [get]
+//@Success200{object}response.Response{}"Notifications retrieved"
+//@Failure400{object}response.Response{}"Invalid query params"
+//@Failure500{object}response.Response{}"Internal server error"
+func (h *NotificationHandler) GetNotificationsBy(ctx *gin.Context) {
+var filter request.GetNotification
+if err := ctx.ShouldBindQuery(&filter); err != nil {
+response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid query parameters", err, nil)
+return
 }
-
-func InitFirebase() {
-	// Initialize Firebase app and messaging client here
-	ctx := context.Background()
-	creds := os.Getenv("FIREBASE_CONFIG")
-	if creds == "" {
-		log.Println("FIREBASE_CONFIG env var is empty; skipping Firebase initialization")
-		return
-	}
-	opt := option.WithCredentialsJSON([]byte(creds))
-	app, err := firebase.NewApp(ctx, nil, opt)
-	if err != nil {
-		log.Fatalf("error initializing Firebase app: %v", err)
-	}
-	fcmClient, err = app.Messaging(ctx)
-	if err != nil {
-		log.Fatalf("error getting Messaging client: %v", err)
-	}
+if filter.UserID == 0 {
+if uid := utils.GetUserIdFromContext(ctx); uid != 0 {
+filter.UserID = uid
+}
+}
+pagination := request.GetPagination(ctx)
+notifications, err := h.notificationUsecase.GetNotificationsBy(ctx.Request.Context(), filter, pagination)
+if err != nil {
+response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to fetch notifications", err, nil)
+return
+}
+response.SuccessResponse(ctx, http.StatusOK, "Notifications retrieved", notifications)
 }
 
 // MarkNotificationAsRead godoc
 //
-//	@summary 	api for marking notification as read
-//	@Security	BearerAuth
-//	@id			MarkNotificationAsRead
-//	@tags		Notification
-//	@Param		notification_id	path	uint	true	"Notification ID"
-//	@Router		/notifications/{notification_id}/read [put]
-//	@Success	200	{object}	response.Response{}	"Successfully marked notification as read"
-//	@Failure	400	{object}	response.Response{}	"invalid input"
+//@SummaryMark a notification as read
+//@SecurityBearerAuth
+//@IDMarkNotificationAsRead
+//@TagsNotification
+//@Paramnotification_idpathuinttrue"Notification ID"
+//@Producejson
+//@Router/notifications/{notification_id}/read [patch]
+//@Success200{object}response.Response{}"Marked as read"
+//@Failure400{object}response.Response{}"Invalid ID"
+//@Failure500{object}response.Response{}"Internal server error"
 func (h *NotificationHandler) MarkNotificationAsRead(ctx *gin.Context) {
-	notificationIDParam := ctx.Param("notification_id")
-	var notificationID uint
-	_, err := fmt.Sscan(notificationIDParam, &notificationID)
-	if err != nil {
-		ctx.JSON(400, gin.H{"error": "Invalid notification ID"})
-		return
-	}
-	// Implementation for marking notification as read
-	ctx.JSON(200, gin.H{"message": "Mark Notification As Read"})
-
-	err = h.notificationUsecase.MarkNotificationAsRead(ctx.Request.Context(), notificationID)
-	if err != nil {
-		ctx.JSON(500, gin.H{"error": "Failed to mark notification as read"})
-		return
-	}
-
-	ctx.JSON(200, gin.H{"message": "Notification marked as read successfully"})
-
+id, err := strconv.ParseUint(ctx.Param("notification_id"), 10, 32)
+if err != nil {
+response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid notification ID", err, nil)
+return
+}
+if err := h.notificationUsecase.MarkNotificationAsRead(ctx.Request.Context(), uint(id)); err != nil {
+response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to mark notification as read", err, nil)
+return
+}
+response.SuccessResponse(ctx, http.StatusOK, "Notification marked as read")
 }
 
-// sendNotificationToDevice sends a notification to a device using FCM.
-func sendNotificationDataToDevice(token string, notificationData request.Notification) {
-	message := &messaging.Message{
-		Token: token,
-		Notification: &messaging.Notification{
-			Title: notificationData.Title,
-			Body:  notificationData.Body,
-		},
-	}
-
-	// Send a message to the device corresponding to the provided registration token.
-	response, err := fcmClient.Send(context.Background(), message)
-	if err != nil {
-		log.Printf("Failed to send message: %v\n", err)
-		return
-	}
-	// Response is a message ID string.
-	log.Printf("Successfully sent message: %s\n", response)
-}
-
-// GenerateFCMToken godoc
-//
-//	@summary 	api for generating FCM token
-//	@Security	BearerAuth
-//	@id			GenerateFCMToken
-//	@tags		Notification
-//	@Param		input	body	request.NotificationDeviceToken{}	true	"inputs"
-//	@Router		/notifications/generateFCMToken [post]
-//	@Success	200	{object}	response.Response{}	"Successfully generated FCM token"
-//	@Failure	400	{object}	response.Response{}	"invalid input"
+// GenerateFCMToken is a backward-compatible alias for RegisterDeviceToken.
 func (h *NotificationHandler) GenerateFCMToken(ctx *gin.Context) {
-
-	var req request.NotificationDeviceToken
-
-	err := h.notificationUsecase.GenerateFCMToken(ctx, req)
-	if err != nil {
-		ctx.JSON(500, gin.H{"error": "Failed to generate token"})
-		return
-	}
-
-	ctx.JSON(200, gin.H{"message": "Notification sent successfully"})
+h.RegisterDeviceToken(ctx)
 }

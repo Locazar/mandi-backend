@@ -12,7 +12,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 	couponHandler handlerInterface.CouponHandler, offerHandler handlerInterface.OfferHandler,
 	stockHandler handlerInterface.StockHandler, branHandler handlerInterface.BrandHandler,
 	promotionHandler handlerInterface.PromotionHandler, fcmTokenHandler handlerInterface.FcmTokenHandler,
-
+	notificationHandler handlerInterface.NotificationHandler,
 ) {
 
 	auth := api.Group("/auth")
@@ -289,6 +289,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		notification := api.Group("/notifications")
 		{
 			notification.GET("/sendToUsersInRadius", adminHandler.SendNotificationToUsersInRadius)
+			notification.POST("/push", notificationHandler.SendPushNotification)
 		}
 
 		// Promotion Categories and Types

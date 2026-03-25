@@ -236,8 +236,11 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 		{
 			notification.POST("/", notificationHandler.SaveNotification)
 			notification.GET("/", notificationHandler.GetNotificationsBy)
-			notification.PUT("/:notification_id/read", notificationHandler.MarkNotificationAsRead)
-			notification.POST("/generateFCMToken", notificationHandler.GenerateFCMToken)
+			notification.PATCH("/:notification_id/read", notificationHandler.MarkNotificationAsRead)
+			notification.PUT("/:notification_id/read", notificationHandler.MarkNotificationAsRead) // backward compat
+			notification.POST("/register-token", notificationHandler.RegisterDeviceToken)
+			notification.DELETE("/unregister-token", notificationHandler.UnregisterDeviceToken)
+			notification.POST("/generateFCMToken", notificationHandler.GenerateFCMToken) // backward compat
 		}
 
 		feedback := api.Group("/feedback")

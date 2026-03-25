@@ -9,7 +9,11 @@ import (
 
 type NotificationRepository interface {
 	SaveNotification(ctx context.Context, notification domain.Notification) error
-	GetNotification(ctx context.Context, filter request.Notification) error
+	GetNotifications(ctx context.Context, filter request.GetNotification, pagination request.Pagination) ([]domain.Notification, error)
 	MarkNotificationAsRead(ctx context.Context, notificationID uint) error
-	GenerateFCMToken(ctx context.Context, request request.NotificationDeviceToken) error
+
+	// FCM token management in Postgres
+	SaveDeviceToken(ctx context.Context, token domain.NotificationDeviceToken) error
+	GetActiveTokensByOwner(ctx context.Context, ownerID, ownerType string) ([]string, error)
+	DeleteDeviceToken(ctx context.Context, ownerID, ownerType, token string) error
 }

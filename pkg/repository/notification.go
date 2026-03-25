@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
@@ -21,22 +22,18 @@ func NewNotificationRepository(db *gorm.DB) interfaces.NotificationRepository {
 }
 
 func (r *notificationRepository) SaveNotification(ctx context.Context, notification domain.Notification) error {
-	result := r.db.WithContext(ctx).Create(&notification)
-	return result.Error
+	return r.db.WithContext(ctx).Create(&notification).Error
 }
 
-func (r *notificationRepository) GetNotification(ctx context.Context, filter request.Notification) error {
+func (r *notificationRepository) GetNotifications(ctx context.Context, filter request.GetNotification, pagination request.Pagination) ([]domain.Notification, error) {
 	var notifications []domain.Notification
 	query := r.db.WithContext(ctx).Model(&domain.Notification{})
 
-	if filter.ReceiverID != 0 {
-		query = query.Where("receiver_id = ?", filter.ReceiverID)
+	if filter.UserID != 0 {
+		query = query.Where("receiver_id = ? AND receiver_type = 'user'", filter.UserID)
 	}
-	if filter.IsRead {
-		query = query.Where("is_read = ?", filter.IsRead)
-	}
-	if filter.SenderID != 0 {
-		query = query.Where("sender_id = ?", filter.SenderID)
+	if filter.AdminID != 0 {
+		query = query.Where("receiver_id = ? AND receiver_type = 'admin'", filter.AdminID)
 	}
 	if filter.ShopID != 0 {
 		query = query.Where("shop_id = ?", filter.ShopID)
@@ -50,28 +47,54 @@ func (r *notificationRepository) GetNotification(ctx context.Context, filter req
 	if filter.OrderID != 0 {
 		query = query.Where("order_id = ?", filter.OrderID)
 	}
-	if filter.VariationID != 0 {
-		query = query.Where("variation_id = ?", filter.VariationID)
+	if filter.IsRead != nil {
+		query = query.Where("is_read = ?", *filter.IsRead)
 	}
 
-	result := query.Find(&notifications)
-	return result.Error
+	query = query.Limit(int(pagination.Limit)).Offset(int(pagination.Offset))
+
+	if err := query.Order("created_at DESC").Find(&notifications).Error; err != nil {
+		return nil, err
+	}
+	return notifications, nil
 }
 
 func (r *notificationRepository) MarkNotificationAsRead(ctx context.Context, notificationID uint) error {
-	result := r.db.WithContext(ctx).Model(&domain.Notification{}).Where("id = ?", notificationID).Update("is_read", true)
+	result := r.db.WithContext(ctx).
+		Model(&domain.Notification{}).
+		Where("id = ?", notificationID).
+		Update("is_read", true)
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("notification %d not found", notificationID)
+	}
 	return result.Error
 }
 
-func (r *notificationRepository) GenerateFCMToken(ctx context.Context, req request.NotificationDeviceToken) error {
-	// Save or update token in DB (upsert example)
-	err := r.db.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "token"}},
-		DoUpdates: clause.AssignmentColumns([]string{"owner_id", "owner_type", "platform", "updated_at"}),
-	}).Create(&req).Error
-	if err != nil {
-		return err
-	}
-
-	return nil
+// SaveDeviceToken upserts an FCM device token for a user or seller in Postgres.
+func (r *notificationRepository) SaveDeviceToken(ctx context.Context, token domain.NotificationDeviceToken) error {
+	return r.db.WithContext(ctx).
+		Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "token"}},
+			DoUpdates: clause.AssignmentColumns([]string{"owner_id", "owner_type", "platform", "is_active", "updated_at"}),
+		}).
+		Create(&token).Error
 }
+
+// GetActiveTokensByOwner returns all active FCM tokens for a given owner (user/seller).
+func (r *notificationRepository) GetActiveTokensByOwner(ctx context.Context, ownerID, ownerType string) ([]string, error) {
+	var tokens []string
+	err := r.db.WithContext(ctx).
+		Model(&domain.NotificationDeviceToken{}).
+		Where("owner_id = ? AND owner_type = ? AND is_active = true", ownerID, ownerType).
+		Pluck("token", &tokens).Error
+	return tokens, err
+}
+
+// DeleteDeviceToken marks an FCM token as inactive (soft delete).
+func (r *notificationRepository) DeleteDeviceToken(ctx context.Context, ownerID, ownerType, token string) error {
+	return r.db.WithContext(ctx).
+		Model(&domain.NotificationDeviceToken{}).
+		Where("owner_id = ? AND owner_type = ? AND token = ?", ownerID, ownerType, token).
+		Update("is_active", false).Error
+}
+

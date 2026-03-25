@@ -1,6 +1,8 @@
 package config
 
 import (
+	"os"
+
 	"github.com/go-playground/validator/v10"
 	"github.com/spf13/viper"
 )
@@ -71,6 +73,9 @@ var envsNames = []string{
 	"SHARED_UPLOADS_PATH", // shared uploads directory
 	"ELASTICSEARCH_URL",   // elasticsearch
 	"AI_SERVICE_URL",      // ai service
+	// Firebase — either an ADC credentials file path or inline JSON
+	"GOOGLE_APPLICATION_CREDENTIALS",
+	"FIREBASE_CONFIG",
 }
 
 func LoadConfig() (config Config, err error) {
@@ -99,6 +104,13 @@ func LoadConfig() (config Config, err error) {
 
 	//firebase config
 	viper.Set("FIREBASE_CONFIG", firbaseConfig)
+
+	// Propagate Firebase credentials file path into the OS environment so the
+	// Firebase Admin Go SDK can find them via os.Getenv (Viper doesn't do this
+	// automatically).
+	if credPath := viper.GetString("GOOGLE_APPLICATION_CREDENTIALS"); credPath != "" {
+		_ = os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", credPath)
+	}
 
 	return config, nil
 }
