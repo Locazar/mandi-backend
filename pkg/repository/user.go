@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
+	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
@@ -32,9 +34,7 @@ func (c *userDatabase) FindUserByEmail(ctx context.Context, email string) (user 
 
 	query := `SELECT * FROM users WHERE email = $1`
 
-	fmt.Printf("Executing query: %s with email: %s\n", query, email) // Debugging line
 	err = c.DB.Raw(query, email).Scan(&user).Error
-	fmt.Printf("Query result: %+v, error: %v\n", user, err) // Debugging line
 
 	return user, err
 }
@@ -56,24 +56,45 @@ func (c *userDatabase) FindUserByUserName(ctx context.Context, userName string) 
 
 func (c *userDatabase) FindUserByUserNameEmailOrPhoneNotID(ctx context.Context,
 	userDetails domain.User) (user domain.User, err error) {
+	// Debugging line
 
-	query := `SELECT * FROM users WHERE (user_name = $1 OR email = $2 OR phone = $3) AND id != $4`
-	err = c.DB.Raw(query, userDetails.UserName, userDetails.Email, userDetails.Phone, userDetails.ID).Scan(&user).Error
+	query := `SELECT * FROM users WHERE (email = $1 OR phone = $2) AND id != $3`
+	err = c.DB.Raw(query, userDetails.Email, userDetails.Phone, userDetails.ID).Scan(&user).Error
 
 	return
 }
 
 func (c *userDatabase) SaveUser(ctx context.Context, user domain.User) (userID uint, err error) {
+	// Build dynamic column list and values
+	columns := []string{}
+	placeholders := []string{}
+	values := []interface{}{}
+	paramCount := 1
 
-	//save the user details
-	query := `INSERT INTO users (user_name, first_name, 
-		last_name, age, email, phone, password, google_image, created_at) 
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9 ) RETURNING id`
+	if user.Email != "" {
+		columns = append(columns, "email")
+		placeholders = append(placeholders, fmt.Sprintf("$%d", paramCount))
+		values = append(values, user.Email)
+		paramCount++
+	}
+	if user.Phone != "" {
+		columns = append(columns, "phone")
+		placeholders = append(placeholders, fmt.Sprintf("$%d", paramCount))
+		values = append(values, user.Phone)
+		paramCount++
+	}
 
-	createdAt := time.Now()
-	err = c.DB.Raw(query, user.UserName, user.FirstName, user.LastName,
-		user.Age, user.Email, user.Phone, user.Password, user.GoogleImage, createdAt).Scan(&userID).Error
+	// Always add created_at
+	columns = append(columns, "created_at")
+	placeholders = append(placeholders, fmt.Sprintf("$%d", paramCount))
+	values = append(values, time.Now())
 
+	// Build dynamic query
+	query := fmt.Sprintf("INSERT INTO users (%s) VALUES (%s) RETURNING id",
+		strings.Join(columns, ", "),
+		strings.Join(placeholders, ", "))
+
+	err = c.DB.Raw(query, values...).Scan(&userID).Error
 	return userID, err
 }
 
@@ -85,20 +106,28 @@ func (c *userDatabase) UpdateVerified(ctx context.Context, userID uint) error {
 	return err
 }
 
+func (c *userDatabase) UpdateAdminVerified(ctx context.Context, adminID uint) error {
+
+	query := `UPDATE admins SET verified_seller = 'T' WHERE id = $1`
+	err := c.DB.Exec(query, adminID).Error
+
+	return err
+}
+
 func (c *userDatabase) UpdateUser(ctx context.Context, user domain.User) (err error) {
 
 	updatedAt := time.Now()
 	// check password need to update or not
 	if user.Password != "" {
-		query := `UPDATE users SET user_name = $1, first_name = $2, last_name = $3,age = $4, 
-		email = $5, phone = $6, password = $7, google_image = $8, updated_at = $9 WHERE id = $10`
-		err = c.DB.Exec(query, user.UserName, user.FirstName, user.LastName, user.Age, user.Email,
-			user.Phone, user.Password, user.GoogleImage, updatedAt, user.ID).Error
+		query := `UPDATE users SET first_name = $1, last_name = $2,age = $3, 
+		email = $4, phone = $5, password = $6, updated_at = $7 WHERE id = $8`
+		err = c.DB.Exec(query, user.FirstName, user.LastName, user.Age, user.Email,
+			user.Phone, user.Password, updatedAt, user.ID).Error
 	} else {
-		query := `UPDATE users SET user_name = $1, first_name = $2, last_name = $3,age = $4, 
-		email = $5, phone = $6,  google_image = $7, updated_at = $8 WHERE id = $9`
-		err = c.DB.Exec(query, user.UserName, user.FirstName, user.LastName, user.Age, user.Email,
-			user.Phone, user.GoogleImage, updatedAt, user.ID).Error
+		query := `UPDATE users SET first_name = $1, last_name = $2,age = $3, 
+		email = $4, phone = $5,  updated_at = $6 WHERE id = $7`
+		err = c.DB.Exec(query, user.FirstName, user.LastName, user.Age, user.Email,
+			user.Phone, updatedAt, user.ID).Error
 	}
 
 	if err != nil {
@@ -123,10 +152,9 @@ func (c *userDatabase) IsAddressIDExist(ctx context.Context, addressID uint) (ex
 }
 func (c *userDatabase) FindAddressByID(ctx context.Context, addressID uint) (address response.Address, err error) {
 
-	query := `SELECT adrs.id, adrs.house, adrs.name, adrs.phone_number, adrs.area, adrs.land_mark, 
-	adrs.city, adrs.pincode, country_id, country_name FROM addresses adrs 
+	query := `SELECT adrs.id, adrs.land_mark, adrs.area, adrs.city, adrs.pincode, adrs.country_id, c.country_name, adrs.latitude, adrs.longitude, adrs.phone_number, adrs.address_type, adrs.address_line1, adrs.address_line2, adrs.is_default
+	FROM addresses adrs 
 	INNER JOIN countries c ON c.id = adrs.country_id  
-	INNER JOIN user_addresses uadrs ON uadrs.address_id = adrs.id 
 	WHERE adrs.id = $1 `
 	err = c.DB.Raw(query, addressID).Scan(&address).Error
 
@@ -134,14 +162,12 @@ func (c *userDatabase) FindAddressByID(ctx context.Context, addressID uint) (add
 }
 
 func (c *userDatabase) IsAddressAlreadyExistForUser(ctx context.Context, address domain.Address, userID uint) (exist bool, err error) {
-	address.CountryID = 1 // hardcoded !!!! should change
 
 	query := `SELECT DISTINCT CASE  WHEN adrs.id != 0 THEN 'T' ELSE 'F' END AS exist 
 	FROM addresses adrs 
 	INNER JOIN user_addresses urs ON adrs.id = urs.address_id 
-	WHERE adrs.name = $1 AND adrs.house = $2 AND adrs.land_mark = $3 
-	AND adrs.pincode = $4 AND adrs.country_id = $5  AND urs.user_id = $6`
-	err = c.DB.Raw(query, address.Name, address.House, address.LandMark, address.Pincode, address.CountryID, userID).Scan(&exist).Error
+	WHERE adrs.land_mark = $1 AND adrs.city = $2 AND adrs.pincode = $3 AND adrs.country_id = $4 AND urs.user_id = $5`
+	err = c.DB.Raw(query, address.LandMark, address.City, address.Pincode, address.CountryID, userID).Scan(&exist).Error
 	if err != nil {
 		return exist, fmt.Errorf("filed to check address already exist for user with user_id %d", userID)
 	}
@@ -150,10 +176,9 @@ func (c *userDatabase) IsAddressAlreadyExistForUser(ctx context.Context, address
 
 func (c *userDatabase) FindAllAddressByUserID(ctx context.Context, userID uint) (addresses []response.Address, err error) {
 
-	query := `SELECT a.id, a.house,a.name, a.phone_number, a.area, a.land_mark,a.city, 
-	a.pincode, a.country_id, c.country_name, ua.is_default
+	query := `SELECT a.id, a.land_mark, a.area, a.city, a.pincode, a.country_id, c.country_name, a.latitude, a.longitude, a.phone_number, a.address_type, a.address_line1, a.address_line2, a.is_default, ua.is_default
 	FROM user_addresses ua JOIN addresses a ON ua.address_id=a.id 
-	INNER JOIN countries c ON a.country_id=c.id AND ua.user_id = $1`
+	INNER JOIN countries c ON a.country_id=c.id WHERE ua.user_id = $1`
 
 	err = c.DB.Raw(query, userID).Scan(&addresses).Error
 
@@ -164,8 +189,6 @@ func (c *userDatabase) FindCountryByID(ctx context.Context, countryID uint) (dom
 
 	var country domain.Country
 
-	fmt.Printf("Finding country with ID: %d\n", countryID) // Debugging line
-
 	if c.DB.Raw("SELECT * FROM countries WHERE id = ?", countryID).Scan(&country).Error != nil {
 		return country, errors.New("filed to find the country")
 	}
@@ -175,33 +198,27 @@ func (c *userDatabase) FindCountryByID(ctx context.Context, countryID uint) (dom
 
 // save address
 func (c *userDatabase) SaveAddress(ctx context.Context, address domain.Address) (addressID uint, err error) {
-	address.CountryID = 1 // hardcoded !!!! should change
-	query := `INSERT INTO addresses (name, phone_number, house,area, land_mark, city, pincode, country_id, created_at) 
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`
+	query := `INSERT INTO addresses (user_id, land_mark, area, city, pincode, country_id, latitude, longitude, phone_number, address_type, address_line1, address_line2, is_default, created_at, updated_at) 
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id`
 
-	createdAt := time.Now()
+	now := time.Now()
 
-	if c.DB.Raw(query, address.Name, address.PhoneNumber,
-		address.House, address.Area, address.LandMark, address.City,
-		address.Pincode, address.CountryID, createdAt,
-	).Scan(&address).Error != nil {
-		return addressID, errors.New("filed to insert address on database")
+	if c.DB.Raw(query, address.UserID, address.LandMark, address.Area, address.City, address.Pincode, address.CountryID,
+		address.Latitude, address.Longitude, address.PhoneNumber, address.AddressType, address.AddressLine1, address.AddressLine2, address.IsDefault, now, now,
+	).Scan(&addressID).Error != nil {
+		return addressID, errors.New("failed to insert address on database")
 	}
-	return address.ID, nil
+	return addressID, nil
 }
 
 // update address
 func (c *userDatabase) UpdateAddress(ctx context.Context, address domain.Address) error {
-
-	// address.CountryID = 1 // hardcoded !!!! should change
-	query := `UPDATE addresses SET name=$1, phone_number=$2, house=$3, area=$4, land_mark=$5, 
-	city=$6, pincode=$7,country_id=$8, updated_at = $9 WHERE id=$10`
+	query := `UPDATE addresses SET land_mark=$1, area=$2, city=$3, pincode=$4, country_id=$5, latitude=$6, longitude=$7, phone_number=$8, address_type=$9, address_line1=$10, address_line2=$11, is_default=$12, updated_at=$13 WHERE id=$14`
 
 	updatedAt := time.Now()
-	if c.DB.Raw(query, address.Name, address.PhoneNumber, address.House,
-		address.Area, address.LandMark, address.City, address.Pincode,
-		address.CountryID, updatedAt, address.ID).Scan(&address).Error != nil {
-		return errors.New("filed to update the address for edit address")
+	if c.DB.Raw(query, address.LandMark, address.Area, address.City, address.Pincode, address.CountryID,
+		address.Latitude, address.Longitude, address.PhoneNumber, address.AddressType, address.AddressLine1, address.AddressLine2, address.IsDefault, updatedAt, address.ID).Scan(&address).Error != nil {
+		return errors.New("failed to update the address for edit address")
 	}
 	return nil
 }
@@ -266,8 +283,7 @@ func (c *userDatabase) FindWishListItem(ctx context.Context, productID, userID u
 
 func (c *userDatabase) FindAllWishListItemsByUserID(ctx context.Context, userID uint) (productItems []response.WishListItem, err error) {
 
-	query := `SELECT p.name, wl.id, pi.id AS product_item_id, pi.product_id, pi.price, pi.discount_price, 
-	pi.qty_in_stock, sku FROM wish_lists wl 
+	query := `SELECT p.name, wl.id, pi.id AS product_item_id, pi.product_id, FROM wish_lists wl 
 	INNER JOIN product_items pi ON wl.product_item_id = pi.id 
 	INNER JOIN products p ON pi.product_id = p.id 
 	AND wl.user_id = $1`
@@ -278,9 +294,9 @@ func (c *userDatabase) FindAllWishListItemsByUserID(ctx context.Context, userID 
 
 func (c *userDatabase) SaveWishListItem(ctx context.Context, wishList domain.WishList) error {
 
-	query := `INSERT INTO wish_lists (user_id,product_item_id) VALUES ($1,$2) RETURNING *`
+	query := `INSERT INTO wish_lists (user_id,product_item_id,shop_id,admin_id) VALUES ($1,$2,$3,$4) RETURNING *`
 
-	if c.DB.Raw(query, wishList.UserID, wishList.ProductItemID).Scan(&wishList).Error != nil {
+	if c.DB.Raw(query, wishList.UserID, wishList.ProductItemID, wishList.ShopID, wishList.AdminID).Scan(&wishList).Error != nil {
 		return errors.New("filed to insert new wishlist on database")
 	}
 	return nil
@@ -292,4 +308,116 @@ func (c *userDatabase) RemoveWishListItem(ctx context.Context, userID, productIt
 	err := c.DB.Exec(query, productItemID, userID).Error
 
 	return err
+}
+
+func (c *userDatabase) FindSellersByRadius(ctx context.Context, reqData request.SellerRadiusRequest) (sellers []response.Shop, err error) {
+	query := `
+		SELECT * FROM (
+	 SELECT a.id, a.shop_name, a.email, a.phone, a.latitude, a.longitude,
+		a.owner_name, a.shop_image_url, a.address_line1, a.address_line2, a.city, a.country, a.state, a.pincode,
+		a.shop_verification_status, a.created_at, a.updated_at,
+			(6371 * acos(
+					cos(radians($1)) * cos(radians(a.latitude)) *
+					cos(radians(a.longitude) - radians($2)) +
+					sin(radians($1)) * sin(radians(a.latitude))
+			)) AS distance_km
+		FROM shop_details a
+		WHERE a.latitude IS NOT NULL AND a.longitude IS NOT NULL
+	) AS subquery
+	WHERE distance_km <= $3
+	LIMIT $4 OFFSET $5
+	`
+
+	err = c.DB.Raw(query, reqData.Latitude, reqData.Longitude, reqData.RadiusKm, reqData.Limit, reqData.Offset).Scan(&sellers).Error
+
+	return sellers, err
+}
+
+func (c *userDatabase) FindSellersByPincode(ctx context.Context, reqData request.SellerPincodeRequest) (sellers []response.Shop, err error) {
+	query := `
+		SELECT id, shop_name, email, phone, latitude, longitude,
+		owner_name, shop_image_url, address_line1, address_line2, city, country, state, pincode,
+		shop_verification_status, created_at, updated_at
+		FROM shop_details
+		WHERE pincode = $1
+		LIMIT $2 OFFSET $3
+	`
+
+	err = c.DB.Raw(query, reqData.Pincode, reqData.Limit, reqData.Offset).Scan(&sellers).Error
+
+	return sellers, err
+}
+
+func (c *userDatabase) SearchShopList(ctx context.Context, reqData request.SearchShopListRequest) (shops []response.Shop, err error) {
+	query := `
+		SELECT id, shop_name, email, phone, latitude, longitude,
+		owner_name, shop_image_url, address_line1, address_line2, city, country, state, pincode,
+		shop_verification_status, created_at, updated_at
+		FROM shop_details
+		WHERE 1=1
+	`
+
+	paramIndex := 1
+	args := []interface{}{}
+
+	// Add search query condition if provided
+	if reqData.Query != "" {
+		query += fmt.Sprintf(` AND (shop_name ILIKE $%d OR owner_name ILIKE $%d)`, paramIndex, paramIndex)
+		args = append(args, "%"+reqData.Query+"%")
+		paramIndex++
+	}
+
+	// Filter by geolocation (lat + long + radius) OR pincode, but not both
+	if reqData.Latitude != 0 && reqData.Longitude != 0 && reqData.Radius > 0 {
+		// Using Haversine formula for distance calculation (in km)
+		query += fmt.Sprintf(` AND latitude IS NOT NULL AND longitude IS NOT NULL AND (6371 * acos(cos(radians($%d)) * cos(radians(latitude)) * 
+			cos(radians(longitude) - radians($%d)) + sin(radians($%d)) * 
+			sin(radians(latitude)))) <= $%d`, paramIndex, paramIndex+1, paramIndex, paramIndex+2)
+		args = append(args, reqData.Latitude, reqData.Longitude, reqData.Radius)
+		paramIndex += 3
+	} else if reqData.Pincode != nil {
+		// Use pincode filter only if geolocation is not provided
+		query += fmt.Sprintf(` AND pincode = $%d`, paramIndex)
+		args = append(args, fmt.Sprintf("%d", *reqData.Pincode))
+		paramIndex++
+	}
+
+	query += fmt.Sprintf(` LIMIT $%d OFFSET $%d`, paramIndex, paramIndex+1)
+	args = append(args, reqData.Limit, reqData.Offset)
+
+	err = c.DB.Raw(query, args...).Scan(&shops).Error
+
+	return shops, err
+}
+
+func (c *userDatabase) DeleteRefreshSessionByUserID(ctx context.Context, userId string, userType string) error {
+	if userType == "admin" {
+		query := `DELETE FROM admin_refresh_sessions WHERE user_id = $1 AND user_type = $2`
+		err := c.DB.Exec(query, userId, userType).Error
+		return err
+	} else {
+		query := `DELETE FROM user_refresh_sessions WHERE user_id = $1 AND user_type = $2`
+		err := c.DB.Exec(query, userId, userType).Error
+		return err
+	}
+}
+func (c *userDatabase) FindShopByID(ctx context.Context, shopID uint) (response.Shop, error) {
+
+	var shop response.Shop
+	query := `SELECT id, shop_name, email, phone, address_line1, address_line2, city, state, country, pincode,
+	shop_type, shop_verification_status, shop_image_url, latitude, longitude, created_at, updated_at
+	FROM shop_details WHERE id = $1`
+	if c.DB.Raw(query, shopID).Scan(&shop).Error != nil {
+		return shop, errors.New("failed to find shop by ID")
+	}
+
+	return shop, nil
+}
+
+func (c *userDatabase) GetShopSocialDetails(ctx context.Context, shopID uint) ([]domain.ShopSocial, error) {
+	var details []domain.ShopSocial
+	if err := c.DB.WithContext(ctx).Where("shop_id = ?", shopID).Find(&details).Error; err != nil {
+		return nil, err
+	}
+	return details, nil
 }

@@ -13,7 +13,10 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/config"
 	"github.com/rohit221990/mandi-backend/pkg/db"
 	"github.com/rohit221990/mandi-backend/pkg/repository"
+	aiservice "github.com/rohit221990/mandi-backend/pkg/service/ai"
 	"github.com/rohit221990/mandi-backend/pkg/service/cloud"
+	elasticsearch "github.com/rohit221990/mandi-backend/pkg/service/elasticsearch"
+	"github.com/rohit221990/mandi-backend/pkg/service/graphics"
 	"github.com/rohit221990/mandi-backend/pkg/service/otp"
 	"github.com/rohit221990/mandi-backend/pkg/service/token"
 	"github.com/rohit221990/mandi-backend/pkg/usecase"
@@ -26,18 +29,24 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	if err != nil {
 		return nil, err
 	}
+	var elasticService *elasticsearch.ElasticService
+	if cfg.ElasticsearchURL != "" {
+		elasticService, err = elasticsearch.NewElasticService(cfg.ElasticsearchURL)
+		if err != nil {
+			return nil, err
+		}
+	}
 	authRepository := repository.NewAuthRepository(gormDB)
 	tokenService := token.NewTokenService(cfg)
 	userRepository := repository.NewUserRepository(gormDB)
 	adminRepository := repository.NewAdminRepository(gormDB)
 	otpAuth := otp.NewOtpAuth(cfg)
 	authUseCase := usecase.NewAuthUseCase(authRepository, tokenService, userRepository, adminRepository, otpAuth)
-	authHandler := handler.NewAuthHandler(authUseCase, cfg)
+	authHandler := handler.NewAuthHandler(authUseCase, cfg, tokenService)
 	middlewareMiddleware := middleware.NewMiddleware(tokenService)
-	adminUseCase := usecase.NewAdminUseCase(adminRepository, userRepository)
-	adminHandler := handler.NewAdminHandler(adminUseCase)
+	adminUseCase := usecase.NewAdminUseCase(adminRepository, userRepository, authRepository, otpAuth, tokenService)
 	cartRepository := repository.NewCartRepository(gormDB)
-	productRepository := repository.NewProductRepository(gormDB)
+	productRepository := repository.NewProductRepository(gormDB, elasticService)
 	cloudService, err := cloud.NewAWSCloudService(cfg)
 	if err != nil {
 		return nil, err
@@ -52,20 +61,35 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	paymentUseCase := usecase.NewPaymentUseCase(paymentRepository, orderRepository, userRepository, cartRepository, couponRepository, cfg)
 	paymentHandler := handler.NewPaymentHandler(paymentUseCase)
 	productUseCase := usecase.NewProductUseCase(productRepository, cloudService, gormDB)
-	productHandler := handler.NewProductHandler(productUseCase)
+	aiClient := aiservice.NewClient(cfg.AIServiceURL)
+	productHandler := handler.NewProductHandler(productUseCase, tokenService, aiClient)
 	orderUseCase := usecase.NewOrderUseCase(orderRepository, cartRepository, userRepository, paymentRepository)
 	orderHandler := handler.NewOrderHandler(orderUseCase)
 	couponUseCase := usecase.NewCouponUseCase(couponRepository, cartRepository)
 	couponHandler := handler.NewCouponHandler(couponUseCase)
 	offerRepository := repository.NewOfferRepository(gormDB)
-	offerUseCase := usecase.NewOfferUseCase(offerRepository, gormDB)
-	offerHandler := handler.NewOfferHandler(offerUseCase)
+	graphicsService := graphics.NewGraphicsService("./uploads/offers")
+	bannerRepository := repository.NewBannerRepository(gormDB)
+	offerUseCase := usecase.NewOfferUseCase(offerRepository, bannerRepository, gormDB, graphicsService)
+	offerHandler := handler.NewOfferHandler(offerUseCase, tokenService)
 	stockRepository := repository.NewStockRepository(gormDB)
 	stockUseCase := usecase.NewStockUseCase(stockRepository)
 	stockHandler := handler.NewStockHandler(stockUseCase)
 	brandRepository := repository.NewBrandDatabaseRepository(gormDB)
 	brandUseCase := usecase.NewBrandUseCase(brandRepository)
 	brandHandler := handler.NewBrandHandler(brandUseCase)
-	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler)
+	promotionRepository := repository.NewPromotionRepository(gormDB)
+	promotionUseCase := usecase.NewPromotionUseCase(promotionRepository)
+	promotionHandler := handler.NewPromotionHandler(promotionUseCase)
+	shopTimeRepository := repository.NewShopTimeRepository(gormDB)
+	shopTimeUseCase := usecase.NewShopTimeUseCase(shopTimeRepository)
+	adminHandler := handler.NewAdminHandler(adminUseCase, shopTimeUseCase)
+	notificationRepository := repository.NewNotificationRepository(gormDB)
+	notificationUseCase := usecase.NewNotificationUseCase(notificationRepository)
+	notificationHandler := handler.NewNotificationHandler(notificationUseCase)
+	fcmTokenRepository := repository.NewFcmTokenRepository(gormDB)
+	fcmTokenUseCase := usecase.NewFcmTokenUseCase(fcmTokenRepository)
+	fcmTokenHandler := handler.NewFcmTokenHandler(fcmTokenUseCase)
+	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler)
 	return serverHTTP, nil
 }

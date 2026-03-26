@@ -8,7 +8,6 @@ import (
 	"mime/multipart"
 
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
-	"github.com/jinzhu/copier"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
@@ -64,7 +63,6 @@ func (c *userUserCase) UpdateProfile(ctx context.Context, user domain.User) erro
 	}
 	if checkUser.ID != 0 { // if there is an user exist with given details then make it as error
 		err = utils.CompareUserExistingDetails(user, checkUser)
-		fmt.Println(user)
 		return err
 	}
 
@@ -97,9 +95,6 @@ func (c *userUserCase) SaveAddress(ctx context.Context, userID uint, address dom
 		return fmt.Errorf("given address already exist for user")
 	}
 
-	// //this address not exist then create it
-	fmt.Printf("saving address for user id: %d\n", userID)
-	fmt.Printf("address details: %+v\n", address)
 	// check the country id is valid or not
 	country, err := c.userRepo.FindCountryByID(ctx, address.CountryID)
 	if err != nil {
@@ -107,6 +102,9 @@ func (c *userUserCase) SaveAddress(ctx context.Context, userID uint, address dom
 	} else if country.ID == 0 {
 		return errors.New("invalid country id")
 	}
+
+	// Set the user ID on the address before saving
+	address.UserID = userID
 
 	// save the address on database
 	addressID, err := c.userRepo.SaveAddress(ctx, address)
@@ -140,7 +138,18 @@ func (c *userUserCase) UpdateAddress(ctx context.Context, addressBody request.Ed
 	}
 
 	var address domain.Address
-	copier.Copy(&address, &addressBody)
+	address.ID = addressBody.ID
+	address.LandMark = addressBody.LandMark
+	address.Area = addressBody.Area
+	address.City = addressBody.City
+	address.Pincode = addressBody.Pincode
+	address.CountryID = addressBody.CountryID
+	address.Latitude = addressBody.Latitude
+	address.Longitude = addressBody.Longitude
+	address.PhoneNumber = addressBody.PhoneNumber
+	address.AddressType = addressBody.AddressType
+	address.AddressLine1 = addressBody.AddressLine1
+	address.AddressLine2 = addressBody.AddressLine2
 
 	if err := c.userRepo.UpdateAddress(ctx, address); err != nil {
 		return err
@@ -207,14 +216,6 @@ func (c *userUserCase) FindAllWishListItems(ctx context.Context, userID uint) ([
 		return nil, utils.PrependMessageToError(err, "failed to find wish list product items")
 	}
 
-	for i, productItem := range wishListItems {
-		variationValues, err := c.productRepo.FindAllVariationValuesOfProductItem(ctx, productItem.ProductItemID)
-		if err != nil {
-			return nil, utils.PrependMessageToError(err, "failed to find variation values product item")
-		}
-		wishListItems[i].VariationValues = variationValues
-	}
-
 	return wishListItems, nil
 }
 
@@ -240,21 +241,16 @@ func (c *userUserCase) FindLocation(ctx context.Context, lat string, long string
 
 	if len(resp) > 0 {
 		address := resp[0]
-		fmt.Printf("Formatted Address: %s\n", address.FormattedAddress)
 		for _, component := range address.AddressComponents {
 			for _, t := range component.Types {
 				switch t {
 				case "locality":
-					fmt.Printf("City: %s\n", component.LongName)
 				case "administrative_area_level_1":
-					fmt.Printf("State: %s\n", component.LongName)
 				case "country":
-					fmt.Printf("Country: %s\n", component.LongName)
 				}
 			}
 		}
 	} else {
-		fmt.Println("No results found.")
 	}
 }
 
@@ -265,4 +261,72 @@ func (u *userUserCase) UploadProfileImage(ctx context.Context, userID string, fi
 		return "", utils.PrependMessageToError(err, "failed to save image on cloud storage")
 	}
 	return image_path, nil
+}
+
+func (c *userUserCase) GetSellersByRadius(ctx context.Context, reqData request.SellerRadiusRequest) (sellers []response.Shop, err error) {
+	sellers, err = c.userRepo.FindSellersByRadius(ctx, reqData)
+
+	if err != nil {
+		return sellers, fmt.Errorf("failed to get sellers by radius \nerror:%v", err.Error())
+	}
+
+	log.Printf("successfully got sellers within %v km radius", reqData.RadiusKm)
+
+	return sellers, nil
+}
+
+func (c *userUserCase) GetSellersByPincode(ctx context.Context, reqData request.SellerPincodeRequest) (sellers []response.Shop, err error) {
+	sellers, err = c.userRepo.FindSellersByPincode(ctx, reqData)
+
+	if err != nil {
+		return sellers, fmt.Errorf("failed to get sellers by pincode \nerror:%v", err.Error())
+	}
+
+	log.Printf("successfully got sellers in pincode %v", reqData.Pincode)
+
+	return sellers, nil
+}
+
+func (c *userUserCase) SearchShopList(ctx context.Context, reqData request.SearchShopListRequest) (shops []response.Shop, err error) {
+	shops, err = c.userRepo.SearchShopList(ctx, reqData)
+
+	if err != nil {
+		return shops, fmt.Errorf("failed to search shops \nerror:%v", err.Error())
+	}
+
+	log.Printf("successfully searched shops with query: %s, latitude: %f, longitude: %f, radius: %f", reqData.Query, reqData.Latitude, reqData.Longitude, reqData.Radius)
+
+	return shops, nil
+}
+
+func (c *userUserCase) GetProductItemsByDepartment(ctx context.Context, documentID uint) ([]response.ProductItems, error) {
+	return c.productRepo.GetProductItemsByDepartment(ctx, documentID)
+}
+
+func (c *userUserCase) GetProductItemsByCategory(ctx context.Context, categoryID uint) ([]response.ProductItems, error) {
+	return c.productRepo.GetProductItemsByCategory(ctx, categoryID)
+}
+
+func (c *userUserCase) GetProductItemsBySubCategory(ctx context.Context, subCategoryID uint) ([]response.ProductItems, error) {
+	return c.productRepo.GetProductItemsBySubCategory(ctx, subCategoryID)
+}
+
+func (c *userUserCase) GetProductItemsByShop(ctx context.Context, adminID uint) ([]response.ProductItems, error) {
+	return c.productRepo.GetProductItemsByShop(ctx, adminID)
+}
+
+func (c *userUserCase) GetShopByID(ctx context.Context, shopID uint) (response.Shop, error) {
+	shop, err := c.userRepo.FindShopByID(ctx, shopID)
+	if err != nil {
+		return response.Shop{}, fmt.Errorf("failed to find shop by ID: %v", err)
+	}
+	return shop, nil
+}
+
+func (c *userUserCase) GetShopSocialDetails(ctx context.Context, shopID uint) ([]domain.ShopSocial, error) {
+	shopSocialDetails, err := c.userRepo.GetShopSocialDetails(ctx, shopID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get shop social details \nerror:%v", err.Error())
+	}
+	return shopSocialDetails, nil
 }

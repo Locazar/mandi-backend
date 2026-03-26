@@ -463,6 +463,172 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/advertisements": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "API for admin to get all advertisements",
+                "tags": [
+                    "Advertisement Management"
+                ],
+                "summary": "Get all advertisements",
+                "operationId": "GetAllAdvertisements",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page Number",
+                        "name": "page_number",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Count",
+                        "name": "count",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully got all advertisements",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "204": {
+                        "description": "No advertisements found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to get all advertisements",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Advertisement Management"
+                ],
+                "summary": "api for admin to update advertisement",
+                "operationId": "UpdateAdvertisement",
+                "parameters": [
+                    {
+                        "description": "inputs",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/domain.Advertisement"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully updated advertisement",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Advertisement Management"
+                ],
+                "summary": "api for admin to create advertisement",
+                "operationId": "CreateAdvertisement",
+                "parameters": [
+                    {
+                        "description": "inputs",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/domain.Advertisement"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully created advertisement",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/advertisements/{advertisement_id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Advertisement Management"
+                ],
+                "summary": "api for admin to delete advertisement",
+                "operationId": "DeleteAdvertisement",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Advertisement ID",
+                        "name": "advertisement_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully deleted advertisement",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid advertisement ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to delete advertisement",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/auth/renew-access-token": {
             "post": {
                 "security": [
@@ -1270,6 +1436,89 @@ const docTemplate = `{
                 "responses": {
                     "200": {
                         "description": "successfully coupon added",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/notifications/radius": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Admin Notification"
+                ],
+                "summary": "api for admin to send notification to users in radius",
+                "operationId": "SendNotificationToUsersInRadius",
+                "parameters": [
+                    {
+                        "description": "inputs",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.NotificationRadiusRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully sent notification to users in radius",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/notifications/user/{user_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Admin Notification"
+                ],
+                "summary": "api for admin to send notification to a user",
+                "operationId": "SendNotificationToUser",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "User ID",
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Notification Message",
+                        "name": "message",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully sent notification to user",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -2454,6 +2703,256 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/shops": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "API for admin to get all shop details",
+                "tags": [
+                    "Admin Shop"
+                ],
+                "summary": "Get all shops",
+                "operationId": "GetAllShops",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page Number",
+                        "name": "page_number",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Count",
+                        "name": "count",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully got all shops",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "204": {
+                        "description": "No shops found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to get all shops",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Admin Shop"
+                ],
+                "summary": "api for admin to update shop",
+                "operationId": "UpdateShop",
+                "parameters": [
+                    {
+                        "description": "inputs",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/domain.ShopDetails"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully updated shop",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Admin Shop"
+                ],
+                "summary": "api for admin to create shop",
+                "operationId": "CreateShop",
+                "parameters": [
+                    {
+                        "description": "inputs",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/domain.ShopDetails"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully created shop",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/shops/owner/{owner_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "API for admin to get shop details by owner ID",
+                "tags": [
+                    "Admin Shop"
+                ],
+                "summary": "Get shop by owner ID",
+                "operationId": "GetShopByOwnerID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Owner ID",
+                        "name": "owner_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully got shop by owner ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid owner ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to get shop by owner ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/shops/verify": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Admin Shop"
+                ],
+                "summary": "api for admin to verify shop",
+                "operationId": "VerifyShop",
+                "parameters": [
+                    {
+                        "description": "inputs",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/domain.ShopVerification"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully updated shop verification status",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/shops/{shop_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "API for admin to get shop details by shop ID",
+                "tags": [
+                    "Admin Shop"
+                ],
+                "summary": "Get shop by ID",
+                "operationId": "GetShopByID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Shop ID",
+                        "name": "shop_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully got shop by ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid shop ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to get shop by ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/signUp": {
             "post": {
                 "tags": [
@@ -2670,60 +3169,6 @@ const docTemplate = `{
                         "description": "invalid input",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/upload-profile-image": {
-            "post": {
-                "description": "API endpoint to upload a user profile image file and save it to AWS S3 storage.",
-                "consumes": [
-                    "multipart/form-data"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "User Profile",
-                    "File Upload"
-                ],
-                "summary": "Upload profile image to S3",
-                "parameters": [
-                    {
-                        "type": "file",
-                        "description": "Profile image file to upload",
-                        "name": "image",
-                        "in": "formData",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Returns URL of the uploaded image",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Image file is required or invalid request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Failed to upload image to storage",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
                         }
                     }
                 }
@@ -2970,6 +3415,59 @@ const docTemplate = `{
                 }
             }
         },
+        "/auth/sign-in/otp/send-email": {
+            "post": {
+                "description": "API for user to send otp for login enter email : otp will send to user registered email",
+                "tags": [
+                    "User Authentication"
+                ],
+                "summary": "Login with Otp send email (User)",
+                "operationId": "UserLoginOtpSendEmail",
+                "parameters": [
+                    {
+                        "description": "Login credentials",
+                        "name": "inputs",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.OTPLoginEmail"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully otp send to user's registered email",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid Otp",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "User not exist with given login credentials",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "User blocked by admin",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to send otp",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/auth/sign-in/otp/verify": {
             "post": {
                 "description": "API for user to verify otp",
@@ -2978,6 +3476,71 @@ const docTemplate = `{
                 ],
                 "summary": "Login with Otp verify (User)",
                 "operationId": "UserLoginOtpVerify",
+                "parameters": [
+                    {
+                        "description": "Otp Verify Details",
+                        "name": "inputs",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.OTPVerify"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully user logged in",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/response.TokenResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid inputs",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Otp not matched",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "410": {
+                        "description": "Otp Expired",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to verify otp",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/sign-in/otp/verify-email": {
+            "post": {
+                "description": "API for user to verify otp",
+                "tags": [
+                    "User Authentication"
+                ],
+                "summary": "Login with Otp verify email (User)",
+                "operationId": "UserLoginOtpVerifyEmail",
                 "parameters": [
                     {
                         "description": "Otp Verify Details",
@@ -4124,6 +4687,199 @@ const docTemplate = `{
                 }
             }
         },
+        "/notifications/": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Notification"
+                ],
+                "summary": "api for getting notifications with filters",
+                "operationId": "GetNotificationsBy",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "name": "admin_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "name": "is_read",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "name": "order_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "name": "product_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "name": "shop_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "name": "user_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "format": "int64",
+                        "name": "count",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "format": "int64",
+                        "name": "pageNumber",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully got notifications",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Notification"
+                ],
+                "summary": "api for sending notification",
+                "operationId": "SaveNotification",
+                "parameters": [
+                    {
+                        "description": "inputs",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.Notification"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully sent notification",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/notifications/generateFCMToken": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Notification"
+                ],
+                "summary": "api for generating FCM token",
+                "operationId": "GenerateFCMToken",
+                "parameters": [
+                    {
+                        "description": "inputs",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.NotificationDeviceToken"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully generated FCM token",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/notifications/{notification_id}/read": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Notification"
+                ],
+                "summary": "api for marking notification as read",
+                "operationId": "MarkNotificationAsRead",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Notification ID",
+                        "name": "notification_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully marked notification as read",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/orders": {
             "get": {
                 "security": [
@@ -4646,6 +5402,85 @@ const docTemplate = `{
                 }
             }
         },
+        "/products/radius": {
+            "get": {
+                "description": "Retrieve a paginated list of products available within a specified radius (in kilometers) from given latitude and longitude coordinates.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Get products by geographic radius",
+                "parameters": [
+                    {
+                        "type": "number",
+                        "description": "Latitude coordinate",
+                        "name": "lat",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "number",
+                        "description": "Longitude coordinate",
+                        "name": "lng",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "number",
+                        "description": "Radius in kilometers to search within",
+                        "name": "radius",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Limit number of results",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Offset for pagination",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of products within the specified radius",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input parameters",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/products/search": {
             "get": {
                 "security": [
@@ -4882,6 +5717,73 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/shop/search/radius": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "API for user to get sellers within a specified radius from given latitude and longitude",
+                "tags": [
+                    "User Profile"
+                ],
+                "summary": "Get sellers by radius (User)",
+                "operationId": "GetSellerByRadius",
+                "parameters": [
+                    {
+                        "type": "number",
+                        "format": "float64",
+                        "description": "Latitude",
+                        "name": "latitude",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "number",
+                        "format": "float64",
+                        "description": "Longitude",
+                        "name": "longitude",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "number",
+                        "format": "float64",
+                        "description": "Radius in kilometers",
+                        "name": "radius_km",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully found sellers in the given radius",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "204": {
+                        "description": "No sellers found in the given radius",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to get sellers by radius",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -4893,12 +5795,9 @@ const docTemplate = `{
                 "city",
                 "country",
                 "email",
-                "latitude",
-                "longitude",
                 "mobile",
                 "password",
                 "pincode",
-                "shop_name",
                 "state",
                 "user_name"
             ],
@@ -4933,10 +5832,6 @@ const docTemplate = `{
                 "email": {
                     "type": "string"
                 },
-                "gstin": {
-                    "description": "GST number (optional)",
-                    "type": "string"
-                },
                 "id": {
                     "type": "integer"
                 },
@@ -4960,13 +5855,6 @@ const docTemplate = `{
                 "pincode": {
                     "type": "string"
                 },
-                "shop_id": {
-                    "description": "Shop registration number",
-                    "type": "string"
-                },
-                "shop_name": {
-                    "type": "string"
-                },
                 "state": {
                     "type": "string"
                 },
@@ -4982,8 +5870,216 @@ const docTemplate = `{
                     "maxLength": 15,
                     "minLength": 3
                 },
-                "verified": {
+                "verified_seller": {
                     "description": "e.g. \"yes\", \"no\", \"pending\"",
+                    "type": "string"
+                }
+            }
+        },
+        "domain.Advertisement": {
+            "type": "object",
+            "required": [
+                "content",
+                "end_date",
+                "start_date",
+                "title"
+            ],
+            "properties": {
+                "admin_id": {
+                    "type": "integer"
+                },
+                "area_targeted": {
+                    "type": "string"
+                },
+                "content": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by_admin": {
+                    "type": "integer"
+                },
+                "distance_km": {
+                    "type": "number"
+                },
+                "end_date": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "latitude": {
+                    "type": "number"
+                },
+                "longitude": {
+                    "type": "number"
+                },
+                "pincode_targeted": {
+                    "type": "string"
+                },
+                "priority": {
+                    "description": "e.g. \"high\", \"medium\", \"low\"",
+                    "type": "string"
+                },
+                "start_date": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "e.g. \"active\", \"inactive\", \"expired\"",
+                    "type": "string"
+                },
+                "target_url": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.ShopDetails": {
+            "type": "object",
+            "required": [
+                "address_line1",
+                "city",
+                "country",
+                "pincode",
+                "state"
+            ],
+            "properties": {
+                "address_line1": {
+                    "type": "string"
+                },
+                "address_line2": {
+                    "type": "string"
+                },
+                "bank_account_number": {
+                    "type": "string"
+                },
+                "bank_ifsc": {
+                    "type": "string"
+                },
+                "city": {
+                    "type": "string"
+                },
+                "country": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "electricity_bill": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "gstin": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "itr_documents": {
+                    "type": "string"
+                },
+                "latitude": {
+                    "type": "number"
+                },
+                "longitude": {
+                    "type": "number"
+                },
+                "mobile": {
+                    "type": "string"
+                },
+                "msme_registration_number": {
+                    "type": "string"
+                },
+                "owner_id": {
+                    "type": "integer"
+                },
+                "owner_name": {
+                    "type": "string"
+                },
+                "pan_number": {
+                    "type": "string"
+                },
+                "pincode": {
+                    "type": "string"
+                },
+                "shop_description": {
+                    "type": "string"
+                },
+                "shop_id": {
+                    "type": "string"
+                },
+                "shop_name": {
+                    "type": "string"
+                },
+                "shop_status": {
+                    "type": "string"
+                },
+                "shop_type": {
+                    "type": "string"
+                },
+                "shop_verification_docs": {
+                    "type": "string"
+                },
+                "shop_verification_remarks": {
+                    "type": "string"
+                },
+                "shop_verification_status": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.ShopVerification": {
+            "type": "object",
+            "required": [
+                "admin_id",
+                "shop_id",
+                "shop_name",
+                "verification_status"
+            ],
+            "properties": {
+                "admin_id": {
+                    "type": "integer"
+                },
+                "agent_id": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "remarks": {
+                    "type": "string"
+                },
+                "shop_id": {
+                    "type": "string"
+                },
+                "shop_name": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "verification_status": {
+                    "description": "e.g. \"verified\", \"unverified\", \"under_review\"",
                     "type": "string"
                 }
             }
@@ -4991,6 +6087,7 @@ const docTemplate = `{
         "request.Address": {
             "type": "object",
             "required": [
+                "country_id",
                 "house",
                 "land_mark",
                 "name",
@@ -5004,6 +6101,9 @@ const docTemplate = `{
                 "city": {
                     "type": "string"
                 },
+                "country_id": {
+                    "type": "integer"
+                },
                 "house": {
                     "type": "string"
                 },
@@ -5012,6 +6112,12 @@ const docTemplate = `{
                 },
                 "land_mark": {
                     "type": "string"
+                },
+                "latitude": {
+                    "type": "number"
+                },
+                "longitude": {
+                    "type": "number"
                 },
                 "name": {
                     "type": "string",
@@ -5122,6 +6228,7 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "address_id",
+                "country_id",
                 "house",
                 "land_mark",
                 "name",
@@ -5138,6 +6245,9 @@ const docTemplate = `{
                 "city": {
                     "type": "string"
                 },
+                "country_id": {
+                    "type": "integer"
+                },
                 "house": {
                     "type": "string"
                 },
@@ -5146,6 +6256,12 @@ const docTemplate = `{
                 },
                 "land_mark": {
                     "type": "string"
+                },
+                "latitude": {
+                    "type": "number"
+                },
+                "longitude": {
+                    "type": "number"
                 },
                 "name": {
                     "type": "string",
@@ -5231,9 +6347,6 @@ const docTemplate = `{
                     "maxLength": 50,
                     "minLength": 2
                 },
-                "google_profile_image": {
-                    "type": "string"
-                },
                 "last_name": {
                     "type": "string",
                     "maxLength": 50,
@@ -5280,6 +6393,151 @@ const docTemplate = `{
                 }
             }
         },
+        "request.Notification": {
+            "type": "object",
+            "required": [
+                "body",
+                "category_id",
+                "message",
+                "offer_id",
+                "order_id",
+                "product_id",
+                "receiver_id",
+                "receiver_type",
+                "sender_id",
+                "sender_type",
+                "shop_id",
+                "status",
+                "title",
+                "variation_id"
+            ],
+            "properties": {
+                "body": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "minLength": 5
+                },
+                "category_id": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "is_read": {
+                    "type": "boolean"
+                },
+                "message": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "minLength": 5
+                },
+                "notification_meta_data": {
+                    "type": "string"
+                },
+                "offer_id": {
+                    "type": "integer"
+                },
+                "order_id": {
+                    "type": "integer"
+                },
+                "product_id": {
+                    "type": "integer"
+                },
+                "receiver_id": {
+                    "type": "integer"
+                },
+                "receiver_type": {
+                    "type": "string",
+                    "enum": [
+                        "user",
+                        "seller"
+                    ]
+                },
+                "sender_id": {
+                    "type": "integer"
+                },
+                "sender_type": {
+                    "type": "string",
+                    "enum": [
+                        "user",
+                        "seller"
+                    ]
+                },
+                "shop_id": {
+                    "type": "integer"
+                },
+                "status": {
+                    "description": "e.g. \"accepted\", \"pending\", \"rejected\"",
+                    "type": "string",
+                    "maxLength": 50,
+                    "minLength": 2
+                },
+                "title": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 2
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "variation_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "request.NotificationDeviceToken": {
+            "type": "object",
+            "required": [
+                "owner_id",
+                "owner_type",
+                "token"
+            ],
+            "properties": {
+                "owner_id": {
+                    "type": "string"
+                },
+                "owner_type": {
+                    "type": "string",
+                    "enum": [
+                        "user",
+                        "seller"
+                    ]
+                },
+                "platform": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "request.NotificationRadiusRequest": {
+            "type": "object",
+            "required": [
+                "body",
+                "latitude",
+                "longitude",
+                "radius_meters",
+                "title"
+            ],
+            "properties": {
+                "body": {
+                    "type": "string"
+                },
+                "latitude": {
+                    "type": "number"
+                },
+                "longitude": {
+                    "type": "number"
+                },
+                "radius_meters": {
+                    "type": "number"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
         "request.OTPLogin": {
             "type": "object",
             "properties": {
@@ -5295,6 +6553,17 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 16,
                     "minLength": 3
+                }
+            }
+        },
+        "request.OTPLoginEmail": {
+            "type": "object",
+            "required": [
+                "email"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
                 }
             }
         },
@@ -5696,7 +6965,7 @@ const docTemplate = `{
             "description": "Add prefix of Bearer before  token Ex: \"Bearer token\"",
             "type": "apiKey",
             "name": "Authorization",
-            "in": "header"
+            "in": "headerNewServerHTTP"
         }
     }
 }`

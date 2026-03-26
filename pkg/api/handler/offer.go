@@ -2,7 +2,9 @@ package handler
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/copier"
@@ -10,17 +12,20 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
+	"github.com/rohit221990/mandi-backend/pkg/service/token"
 	"github.com/rohit221990/mandi-backend/pkg/usecase"
 	usecaseInterface "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 )
 
 type offerHandler struct {
 	offerUseCase usecaseInterface.OfferUseCase
+	tokenService token.TokenService
 }
 
-func NewOfferHandler(offerUseCase usecaseInterface.OfferUseCase) interfaces.OfferHandler {
+func NewOfferHandler(offerUseCase usecaseInterface.OfferUseCase, tokenService token.TokenService) interfaces.OfferHandler {
 	return &offerHandler{
 		offerUseCase: offerUseCase,
+		tokenService: tokenService,
 	}
 }
 
@@ -74,26 +79,18 @@ func (p *offerHandler) SaveOffer(ctx *gin.Context) {
 //	@Param			page_number	query	int	false	"Page Number"
 //	@Param			count		query	int	false	"Count"
 //	@Router			/admin/offers [get]
-//	@Success		200	{object}	response.Response{}	""Successfully	found	all	offers"
-//	@Failure		500	{object}	response.Response{}	"Failed to get all offers"
+//	@Success		200	{object}	response.Response{}	"Successfully found all promotions"
+//	@Failure		500	{object}	response.Response{}	"Failed to get all promotions"
 func (c *offerHandler) GetAllOffers(ctx *gin.Context) {
-
 	pagination := request.GetPagination(ctx)
 
-	offers, err := c.offerUseCase.FindAllOffers(ctx, pagination)
+	offersAndPromotions, err := c.offerUseCase.FindAllOffers(ctx, pagination)
 	if err != nil {
-		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get all offers", err, nil)
-
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to retrieve offers", err, nil)
 		return
 	}
 
-	if offers == nil {
-		response.SuccessResponse(ctx, http.StatusOK, "No offer found", offers)
-
-		return
-	}
-
-	response.SuccessResponse(ctx, http.StatusOK, "Successfully found all offers", offers)
+	response.SuccessResponse(ctx, http.StatusOK, "Offers retrieved successfully", offersAndPromotions)
 }
 
 // RemoveOffer godoc
@@ -109,7 +106,7 @@ func (c *offerHandler) GetAllOffers(ctx *gin.Context) {
 //	@Failure		400	{object}	response.Response{}	"invalid input"
 func (c *offerHandler) RemoveOffer(ctx *gin.Context) {
 
-	offerID, err := request.GetParamAsUint(ctx, "offer_id")
+	offerID, err := request.GetParamAsUint(ctx, "product_item_id")
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
 		return
@@ -186,7 +183,7 @@ func (c *offerHandler) GetAllCategoryOffers(ctx *gin.Context) {
 	}
 
 	if len(offerCategories) == 0 {
-		response.SuccessResponse(ctx, http.StatusOK, "No offer categories found", nil)
+		response.SuccessResponse(ctx, http.StatusOK, "No offer categories found", []interface{}{})
 		return
 	}
 
@@ -251,21 +248,20 @@ func (c *offerHandler) ChangeCategoryOffer(ctx *gin.Context) {
 	response.SuccessResponse(ctx, 200, "Successfully offer changed for given category offer")
 }
 
-// SaveProductOffer godoc
+// SaveProductItemOffer godoc
 //
 //	@Summary		Add product offer (Admin)
 //	@Security		BearerAuth
 //	@Description	API for admin to add an offer for product
-//	@Id				SaveProductOffer
+//	@Id				SaveProductItemOffer
 //	@Tags			Admin Offers
 //	@Param			input	body	request.OfferProduct{}	true	"input field"
 //	@Router			/admin/offers/products [post]
 //	@Success		200	{object}	response.Response{}	"successfully offer added for product"
 //	@Failure		400	{object}	response.Response{}	"invalid input"
-func (c *offerHandler) SaveProductOffer(ctx *gin.Context) {
+func (c *offerHandler) SaveProductItemOffer(ctx *gin.Context) {
 
 	var body request.OfferProduct
-
 	if err := ctx.ShouldBindJSON(&body); err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
 		return
@@ -274,7 +270,7 @@ func (c *offerHandler) SaveProductOffer(ctx *gin.Context) {
 	var offerProduct domain.OfferProduct
 	copier.Copy(&offerProduct, &body)
 
-	err := c.offerUseCase.SaveProductOffer(ctx, offerProduct)
+	err := c.offerUseCase.SaveProductItemOffer(ctx, offerProduct)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to add offer for given product", err, nil)
 		return
@@ -306,7 +302,7 @@ func (c *offerHandler) GetAllProductsOffers(ctx *gin.Context) {
 	}
 
 	if offersOfCategories == nil {
-		response.SuccessResponse(ctx, http.StatusOK, "No offer products found", nil)
+		response.SuccessResponse(ctx, http.StatusOK, "No offer products found", []interface{}{})
 		return
 	}
 
@@ -370,4 +366,163 @@ func (c *offerHandler) ChangeProductOffer(ctx *gin.Context) {
 	}
 
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully offer changed for  given product offer")
+}
+
+func (c *offerHandler) ApplyOfferToShop(ctx *gin.Context) {
+	var body request.ApplyOfferToShop
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	tokenStr := ctx.GetHeader("Authorization")
+	if tokenStr == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Authorization header missing", errors.New("authorization header missing"), nil)
+		return
+	}
+	adminId := c.tokenService.DecodeTokenData(tokenStr)
+	shopIdStr := ctx.Param("shop_id")
+	if shopIdStr == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "shop_id parameter missing", errors.New("shop_id parameter missing"), nil)
+		return
+	}
+	err := c.offerUseCase.ApplyOfferToShop(ctx, adminId, shopIdStr, body)
+
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to apply offer to shop", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully offer applied to shop", nil)
+}
+
+// GetActiveOffers returns currently active offers based on start and end date
+func (c *offerHandler) GetActiveOffers(ctx *gin.Context) {
+	offers, err := c.offerUseCase.FindActiveOffers(ctx)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get active offers", err, nil)
+		return
+	}
+	if len(offers) == 0 {
+		response.SuccessResponse(ctx, http.StatusOK, "No active offers found", offers)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully found active offers", offers)
+}
+
+// GetShopOffers godoc
+//
+//	@Summary		Get shop offers by shop ID and date range (User)
+//	@Security		BearerAuth
+//	@Description	API for user to get shop offers within a date range
+//	@Id				GetShopOffers
+//	@Tags			User Offers
+//	@Param			shop_id		query	uint	true	"Shop ID"
+//	@Param			start_date	query	string	true	"Start Date (YYYY-MM-DD)"
+//	@Param			end_date	query	string	true	"End Date (YYYY-MM-DD)"
+//	@Router			/shop-offers [get]
+//	@Success		200	{object}	response.Response{}	"Successfully retrieved shop offers"
+//	@Failure		400	{object}	response.Response{}	"Invalid inputs"
+func (c *offerHandler) GetShopOffers(ctx *gin.Context) {
+	shopIDStr := ctx.Query("shop_id")
+	startDate := ctx.Query("start_date")
+	endDate := ctx.Query("end_date")
+
+	if shopIDStr == "" || startDate == "" || endDate == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "shop_id, start_date, and end_date are required", nil, nil)
+		return
+	}
+
+	var shopID uint
+	if _, err := fmt.Sscanf(shopIDStr, "%d", &shopID); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid shop_id", err, nil)
+		return
+	}
+
+	shopOffers, err := c.offerUseCase.GetShopOffersByShopIDAndDateRange(ctx, shopID, startDate, endDate)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get shop offers", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved shop offers", shopOffers)
+}
+
+// PostLoginOffer godoc
+//
+//	@Summary		Get post-login offer for user
+//	@Security		BearerAuth
+//	@Description	API to decide and return offer to show after login
+//	@Id				PostLoginOffer
+//	@Tags			User Offers
+//	@Router			/user/post-login-offer [get]
+//	@Success		200	{object}	response.PostLoginOfferResponse{}	"Offer decision"
+//	@Failure		500	{object}	response.Response{}	"Internal server error"
+func (c *offerHandler) PostLoginOffer(ctx *gin.Context) {
+	// Get user ID from context (set by auth middleware)
+	tokenStr := ctx.GetHeader("Authorization")
+	if tokenStr == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Authorization header missing", errors.New("authorization header missing"), nil)
+		return
+	}
+	adminIdStr := c.tokenService.DecodeTokenData(tokenStr)
+	adminId, err := strconv.ParseUint(adminIdStr, 10, 64)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Invalid token", err, nil)
+		return
+	}
+
+	offer, err := c.offerUseCase.GetPostLoginOffer(ctx, uint(adminId))
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get post-login offer", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Post-login offer retrieved", offer)
+}
+
+// GetBanners godoc
+// @summary api to get banners
+// @id GetBanners
+// @tags Offer
+// @Router /banner [get]
+// @Success 200 {object} response.Response{} "successfully retrieved banners"
+// @Failure 500 {object} response.Response{} "failed to get banners"
+func (c *offerHandler) GetBanners(ctx *gin.Context) {
+	banners, err := c.offerUseCase.GetBanners(ctx)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get banners", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Banners retrieved successfully", banners)
+}
+
+func (c *offerHandler) GetShopOffersByShopID(ctx *gin.Context) {
+	tokenStr := ctx.GetHeader("Authorization")
+	if tokenStr == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Authorization header missing", errors.New("authorization header missing"), nil)
+		return
+	}
+	adminIdStr := c.tokenService.DecodeTokenData(tokenStr)
+	adminId, err := strconv.ParseUint(adminIdStr, 10, 64)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Invalid token", err, nil)
+		return
+	}
+	shopIDStr := ctx.Param("shop_id")
+	if shopIDStr == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "shop_id parameter missing", errors.New("shop_id parameter missing"), nil)
+		return
+	}
+	var shopID uint
+	if _, err := fmt.Sscanf(shopIDStr, "%d", &shopID); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid shop_id", err, nil)
+		return
+	}
+
+	shopOffers, err := c.offerUseCase.GetShopOffersByShopID(ctx, shopID, adminId)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get shop offers", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved shop offers", shopOffers)
 }

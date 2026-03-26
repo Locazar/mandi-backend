@@ -2,6 +2,8 @@ package middleware
 
 import (
 	"errors"
+	"fmt"
+	"log"
 	"net/http"
 	"strings"
 
@@ -30,10 +32,12 @@ func (c *middleware) AuthenticateAdmin() gin.HandlerFunc {
 // authorize request on request header using user type
 func (c *middleware) authorize(tokenUser token.UserType) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-
+		fmt.Printf("Starting authorization middleware for userType: %s\n", tokenUser)
 		authorizationValues := ctx.GetHeader(authorizationHeaderKey)
 
 		authFields := strings.Fields(authorizationValues)
+		fmt.Printf("Authorization header fields: %v\n", authFields)
+		fmt.Printf("length authFields: %d\n", len(authFields))
 		if len(authFields) < 2 {
 
 			err := errors.New("authorization token not provided properly with prefix of Bearer")
@@ -45,6 +49,9 @@ func (c *middleware) authorize(tokenUser token.UserType) gin.HandlerFunc {
 
 		authType := authFields[0]
 		accessToken := authFields[1]
+
+		log.Printf("Authorization header: %s", authorizationValues)
+		log.Printf("Access token: %s", accessToken)
 
 		if !strings.EqualFold(authType, authorizationType) {
 			err := errors.New("invalid authorization type")
@@ -59,6 +66,21 @@ func (c *middleware) authorize(tokenUser token.UserType) gin.HandlerFunc {
 		}
 
 		verifyRes, err := c.tokenService.VerifyToken(tokenVerifyReq)
+
+		// if initial verify failed due to invalid token and we were checking for a user,
+		// try verifying as admin so that admins can access user endpoints too.
+		if err != nil && errors.Is(err, token.ErrInvalidToken) && tokenUser == token.User {
+			altReq := token.VerifyTokenRequest{
+				TokenString: accessToken,
+				UsedFor:     token.Admin,
+			}
+			altRes, altErr := c.tokenService.VerifyToken(altReq)
+			if altErr == nil {
+				// treat as valid admin token
+				verifyRes = altRes
+				err = nil
+			}
+		}
 
 		if err != nil {
 			response.ErrorResponse(ctx, http.StatusUnauthorized, "Unauthorized user", err, nil)

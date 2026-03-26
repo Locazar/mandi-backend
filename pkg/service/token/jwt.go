@@ -3,6 +3,7 @@ package token
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
@@ -33,14 +34,15 @@ var (
 
 type jwtClaims struct {
 	TokenID   string
-	UserID    uint
+	UserID    string
 	ExpiresAt time.Time
+	UsedFor   UserType
 	// jwt.RegisteredClaims
 }
 
 // Generate a new JWT token string from token request
 func (c *jwtAuth) GenerateToken(req GenerateTokenRequest) (GenerateTokenResponse, error) {
-
+	fmt.Printf("Generating token for userID: %d, userType: %s\n", req.UserID, req.UsedFor)
 	if req.UsedFor != Admin && req.UsedFor != User {
 
 		return GenerateTokenResponse{}, ErrInvalidUserType
@@ -49,13 +51,14 @@ func (c *jwtAuth) GenerateToken(req GenerateTokenRequest) (GenerateTokenResponse
 	tokenID := utils.GenerateUniqueString()
 	claims := &jwtClaims{
 		TokenID: tokenID,
-		UserID:  req.UserID,
+		UserID:  fmt.Sprintf("%d", req.UserID),
 		// RegisteredClaims: jwt.RegisteredClaims{
 		// 	ExpiresAt: jwt.NewNumericDate(req.ExpirationDate),
 		// },
+		UsedFor:   req.UsedFor,
 		ExpiresAt: req.ExpireAt,
 	}
-
+	fmt.Printf("Claims for token generation: %+v\n", claims)
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
 	var (
@@ -64,11 +67,17 @@ func (c *jwtAuth) GenerateToken(req GenerateTokenRequest) (GenerateTokenResponse
 	)
 	// sign the token by user type
 	if req.UsedFor == Admin {
+		fmt.Printf("Signing token with admin secret key\n")
 		tokenString, err = token.SignedString([]byte(c.adminSecretKey))
 	} else {
+		fmt.Printf("Signing token with user secret key\n")
 		tokenString, err = token.SignedString([]byte(c.userSecretKey))
 	}
 
+	fmt.Printf("Generated token string: %s\n", tokenString)
+	if err != nil {
+		fmt.Printf("Error signing token: %v\n", err)
+	}
 	if err != nil {
 		return GenerateTokenResponse{}, fmt.Errorf("failed to sign the token \nerror:%w", err)
 	}
@@ -77,7 +86,7 @@ func (c *jwtAuth) GenerateToken(req GenerateTokenRequest) (GenerateTokenResponse
 		TokenID:     tokenID,
 		TokenString: tokenString,
 	}
-
+	fmt.Printf("Generated token response: %+v\n", response)
 	return response, nil
 }
 
@@ -105,17 +114,89 @@ func (c *jwtAuth) VerifyToken(req VerifyTokenRequest) (VerifyTokenResponse, erro
 		}
 		return VerifyTokenResponse{}, ErrInvalidToken
 	}
-
 	claims, ok := token.Claims.(*jwtClaims)
 	if !ok {
 		return VerifyTokenResponse{}, ErrFailedToParseToken
 	}
 
+	userID, err := strconv.ParseUint(claims.UserID, 10, 64)
+	if err != nil {
+		return VerifyTokenResponse{}, fmt.Errorf("failed to parse user ID: %w", err)
+	}
+
 	response := VerifyTokenResponse{
 		TokenID: claims.TokenID,
-		UserID:  claims.UserID,
+		UserID:  uint(userID),
 	}
 	return response, nil
+}
+
+func (c *jwtAuth) DecodeTokenData(tokenString string) string {
+	// Remove Bearer prefix if present
+	if len(tokenString) > 7 && tokenString[:7] == "Bearer " {
+		tokenString = tokenString[7:]
+	}
+
+	// Try with admin secret key first
+	token, err := jwt.ParseWithClaims(tokenString, &jwtClaims{}, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, ErrInvalidToken
+		}
+		return []byte(c.adminSecretKey), nil
+	})
+
+	if err != nil {
+		// If admin key fails, try with user secret key
+		token, err = jwt.ParseWithClaims(tokenString, &jwtClaims{}, func(t *jwt.Token) (interface{}, error) {
+			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, ErrInvalidToken
+			}
+			return []byte(c.userSecretKey), nil
+		})
+	}
+
+	if err != nil {
+		return ""
+	}
+	claims, ok := token.Claims.(*jwtClaims)
+	if !ok {
+		return ""
+	}
+	return claims.UserID
+}
+
+func (c *jwtAuth) DecodeTokenDataToGetData(tokenString string) (string, UserType, error) {
+	// Remove Bearer prefix if present
+	if len(tokenString) > 7 && tokenString[:7] == "Bearer " {
+		tokenString = tokenString[7:]
+	}
+
+	// Try with admin secret key first
+	token, err := jwt.ParseWithClaims(tokenString, &jwtClaims{}, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, ErrInvalidToken
+		}
+		return []byte(c.adminSecretKey), nil
+	})
+
+	if err != nil {
+		// If admin key fails, try with user secret key
+		token, err = jwt.ParseWithClaims(tokenString, &jwtClaims{}, func(t *jwt.Token) (interface{}, error) {
+			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, ErrInvalidToken
+			}
+			return []byte(c.userSecretKey), nil
+		})
+	}
+
+	if err != nil {
+		return "", "", err
+	}
+	claims, ok := token.Claims.(*jwtClaims)
+	if !ok {
+		return "", "", ErrFailedToParseToken
+	}
+	return claims.UserID, claims.UsedFor, nil
 }
 
 // Validate claims

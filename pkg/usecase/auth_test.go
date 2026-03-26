@@ -9,6 +9,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
+	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"github.com/rohit221990/mandi-backend/pkg/mock/mockrepo"
 	"github.com/rohit221990/mandi-backend/pkg/mock/mockservice"
@@ -47,9 +48,31 @@ func createRandomLoginDetail(loginKey LoginKey) request.Login {
 		}
 	}
 	return request.Login{
-		UserName: utils.GenerateRandomString(12),
+		Phone:    utils.GenerateRandomString(12),
 		Password: utils.GenerateRandomString(12),
 	}
+}
+
+// userRepoAdapter wraps mockrepo.MockUserRepository and adds missing methods required by
+// the production UserRepository interface so the mock can be passed where the full
+// interface is expected in tests.
+type userRepoAdapter struct {
+	*mockrepo.MockUserRepository
+}
+
+func (u *userRepoAdapter) FindSellersByRadius(ctx context.Context, req request.SellerRadiusRequest) ([]response.Shop, error) {
+	// Not used in these tests; return empty result.
+	return nil, nil
+}
+
+func (u *userRepoAdapter) UpdateAdminVerified(ctx context.Context, adminID uint) error {
+	// Not used in these tests; return nil.
+	return nil
+}
+
+func (u *userRepoAdapter) DeleteRefreshSessionByUserID(ctx context.Context, adminID string, userType string) error {
+	// Not used in these tests; return nil.
+	return nil
 }
 
 func TestUserLogin(t *testing.T) {
@@ -91,7 +114,7 @@ func TestUserLogin(t *testing.T) {
 			buildStub: func(mockRepo *mockrepo.MockUserRepository, loginDetails request.Login) {
 				dbError := fmt.Errorf("error from find user on database")
 				mockRepo.EXPECT().
-					FindUserByUserName(gomock.Any(), loginDetails.UserName).
+					FindUserByUserName(gomock.Any(), loginDetails.Phone).
 					Times(1).Return(domain.User{}, dbError)
 			},
 			expectedError: fmt.Errorf("failed to find user from database \nerror: %v", "error from find user on database"),
@@ -113,7 +136,7 @@ func TestUserLogin(t *testing.T) {
 			expectedOutput: 0,
 			buildStub: func(mockRepo *mockrepo.MockUserRepository, loginDetails request.Login) {
 				outputUser := domain.User{ID: 1, BlockStatus: true}
-				mockRepo.EXPECT().FindUserByUserName(gomock.Any(), loginDetails.UserName).
+				mockRepo.EXPECT().FindUserByUserName(gomock.Any(), loginDetails.Phone).
 					Times(1).Return(outputUser, nil)
 			},
 			expectedError: ErrUserBlocked,
@@ -156,7 +179,7 @@ func TestUserLogin(t *testing.T) {
 			userMockRepo := mockrepo.NewMockUserRepository(ctl)
 			test.buildStub(userMockRepo, test.input)
 
-			authUseCase := NewAuthUseCase(nil, nil, userMockRepo, nil, nil)
+			authUseCase := NewAuthUseCase(nil, nil, &userRepoAdapter{userMockRepo}, nil, nil)
 			actualOutput, actualError := authUseCase.UserLogin(context.Background(), test.input)
 
 			if test.expectedError != nil {
@@ -302,7 +325,7 @@ func TestVerifyAndGetRefreshTokenSession(t *testing.T) {
 				tokenMockAuth.EXPECT().VerifyToken(token.VerifyTokenRequest{TokenString: "refreshToken", UsedFor: tokenUser}).
 					Times(1).Return(token.VerifyTokenResponse{TokenID: "token_id", UserID: 12}, nil)
 
-				authMockRepo.EXPECT().FindRefreshSessionByTokenID(gomock.Any(), "token_id").
+				authMockRepo.EXPECT().FindRefreshSessionByTokenID(gomock.Any(), "token_id", "user").
 					Times(1).Return(domain.RefreshSession{}, errors.New("error when finding refresh token"))
 			},
 			expectedOutput: domain.RefreshSession{},
@@ -315,7 +338,7 @@ func TestVerifyAndGetRefreshTokenSession(t *testing.T) {
 
 				tokenMockAuth.EXPECT().VerifyToken(token.VerifyTokenRequest{TokenString: "NonExistingRefreshToken", UsedFor: token.User}).
 					Times(1).Return(token.VerifyTokenResponse{TokenID: "no_existing_token_id", UserID: 12}, nil)
-				authMockRepo.EXPECT().FindRefreshSessionByTokenID(gomock.Any(), "no_existing_token_id").
+				authMockRepo.EXPECT().FindRefreshSessionByTokenID(gomock.Any(), "no_existing_token_id", "user").
 					Times(1).Return(domain.RefreshSession{}, nil)
 			},
 			expectedOutput: domain.RefreshSession{},
@@ -327,7 +350,7 @@ func TestVerifyAndGetRefreshTokenSession(t *testing.T) {
 			buildStub: func(authMockRepo *mockrepo.MockAuthRepository, tokenMockAuth *mockservice.MockTokenService) {
 				tokenMockAuth.EXPECT().VerifyToken(token.VerifyTokenRequest{TokenString: "validRefreshToken", UsedFor: tokenUser}).
 					Times(1).Return(token.VerifyTokenResponse{TokenID: "token_id", UserID: 12}, nil)
-				authMockRepo.EXPECT().FindRefreshSessionByTokenID(gomock.Any(), "token_id").
+				authMockRepo.EXPECT().FindRefreshSessionByTokenID(gomock.Any(), "token_id", "user").
 					Times(1).Return(domain.RefreshSession{TokenID: "token_id", IsBlocked: true,
 					ExpireAt: time.Now().Add(time.Hour * 2)}, nil)
 			},
@@ -344,7 +367,7 @@ func TestVerifyAndGetRefreshTokenSession(t *testing.T) {
 				expiredTokenSession := domain.RefreshSession{TokenID: "token_id",
 					ExpireAt: time.Date(2000, 12, 12, 12, 12, 12, 12, time.UTC)}
 
-				authMockRepo.EXPECT().FindRefreshSessionByTokenID(gomock.Any(), "token_id").
+				authMockRepo.EXPECT().FindRefreshSessionByTokenID(gomock.Any(), "token_id", "user").
 					Times(1).Return(expiredTokenSession, nil)
 			},
 			expectedOutput: domain.RefreshSession{},
@@ -361,7 +384,7 @@ func TestVerifyAndGetRefreshTokenSession(t *testing.T) {
 				refreshSession := domain.RefreshSession{TokenID: "token_id", IsBlocked: false,
 					ExpireAt: time.Date(3000, 12, 12, 12, 12, 12, 12, time.UTC)}
 
-				authMockRepo.EXPECT().FindRefreshSessionByTokenID(gomock.Any(), "token_id").
+				authMockRepo.EXPECT().FindRefreshSessionByTokenID(gomock.Any(), "token_id", "user").
 					Times(1).Return(refreshSession, nil)
 			},
 			expectedOutput: domain.RefreshSession{TokenID: "token_id", IsBlocked: false,

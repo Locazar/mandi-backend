@@ -8,6 +8,7 @@ type Job struct {
 	Location    string `gorm:"type:varchar(255);not null"`
 	Salary      uint   `gorm:"not null"`
 	CategoryID  uint   `gorm:"not null"`
+	UserID      uint   `gorm:"not null"`
 	Category    JobCategory
 	PostedDate  string `gorm:"type:varchar(50);not null"`
 	ExpiryDate  string `gorm:"type:varchar(50);not null"`
@@ -19,6 +20,7 @@ type JobCategory struct {
 	JobSubCategories []JobSubCategory
 	CategoryID       uint
 	ParentID         *uint
+	Jobs             []Job `gorm:"foreignKey:CategoryID"`
 }
 type JobSubCategory struct {
 	ID         uint   `gorm:"primaryKey;autoIncrement"`

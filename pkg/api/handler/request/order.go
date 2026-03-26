@@ -34,3 +34,13 @@ type OrderPayment struct {
 // 	UserID            uint   `json:"user_id"`
 // 	ShopOrderID       uint   `json:"shop_order_id"`
 // }
+
+type ShoppingFeedback struct {
+	ShopOrderID    uint   `json:"shop_order_id" binding:"required"`
+	Rating         uint   `json:"rating" binding:"required,min=1,max=5"`
+	Comment        string `json:"comment" binding:"omitempty,max=255"`
+	ShopID         uint   `json:"shop_id" `
+	Amount         int    `json:"amount" binding:"required"`
+	AdminID        uint   `json:"admin_id" `
+	SellerVerified bool   `json:"verified" default:"false"`
+}

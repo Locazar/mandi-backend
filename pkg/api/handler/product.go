@@ -1,11 +1,21 @@
 package handler
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"mime/multipart"
 	"net/http"
+	"os"
+	"path/filepath"
+	"runtime"
 	"strconv"
+	"strings"
+	"time"
 
+	"github.com/disintegration/imaging"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jinzhu/copier"
@@ -13,18 +23,136 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
+	service "github.com/rohit221990/mandi-backend/pkg/service/ai"
+	"github.com/rohit221990/mandi-backend/pkg/service/token"
 	"github.com/rohit221990/mandi-backend/pkg/usecase"
 	usecaseInterface "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
+	"github.com/rohit221990/mandi-backend/pkg/utils"
 )
+
+// semaphore limits concurrent image processing operations
+var semaphore = make(chan struct{}, runtime.NumCPU())
+
+type ModerationResponse struct {
+	Status string `json:"status"`
+	Nudity struct {
+		SexualActivity   float64 `json:"sexual_activity"`
+		SexualDisplay    float64 `json:"sexual_display"`
+		Erotica          float64 `json:"erotica"`
+		VerySuggestive   float64 `json:"very_suggestive"`
+		Suggestive       float64 `json:"suggestive"`
+		MildlySuggestive float64 `json:"mildly_suggestive"`
+		None             float64 `json:"none"`
+	} `json:"nudity"`
+}
+
+type EmbeddingResponse struct {
+	Vector []float32 `json:"vector"`
+}
+
+// Helper function to get minimum of two integers
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
 
 type ProductHandler struct {
 	productUseCase usecaseInterface.ProductUseCase
+	tokenService   token.TokenService
+	aiClient       service.Client
 }
 
-func NewProductHandler(productUsecase usecaseInterface.ProductUseCase) interfaces.ProductHandler {
+func NewProductHandler(productUsecase usecaseInterface.ProductUseCase, tokenService token.TokenService, aiClient *service.Client) interfaces.ProductHandler {
 	return &ProductHandler{
 		productUseCase: productUsecase,
+		tokenService:   tokenService,
+		aiClient:       *aiClient,
 	}
+}
+
+// callCompareImages validates that two images match by category using the AI service
+// It returns nil if images match, or an AppError if they don't match or service fails
+func (p *ProductHandler) callCompareImages(imagePath1, imagePath2 string) *domain.AppError {
+	payload := map[string]string{
+		"image_path1": imagePath1,
+		"image_path2": imagePath2,
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return domain.InternalError("failed to prepare image comparison request", err)
+	}
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Post("http://localhost:3001/api/ai/compare-images", "application/json", bytes.NewReader(body))
+	if err != nil {
+		return domain.ExternalServiceError("compare-images", "failed to connect to AI service", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return domain.ExternalServiceError("compare-images", "failed to read AI service response", err)
+	}
+
+	// Check HTTP status code first before parsing response
+	if resp.StatusCode >= 400 {
+		// Try to parse error response, but handle non-JSON responses gracefully
+		var compareResult map[string]interface{}
+		if err := json.Unmarshal(respBody, &compareResult); err != nil {
+			// If response is not JSON, create a generic error message
+			return domain.ExternalServiceError("compare-images", fmt.Sprintf("AI service returned status %d: %s", resp.StatusCode, string(respBody)), nil)
+		}
+
+		// Handle JSON error responses
+		serviceMessage, _ := compareResult["message"].(string)
+		if serviceMessage != "" {
+			// Check if we have detailed reason in data field
+			data, _ := compareResult["data"].(map[string]interface{})
+			if data != nil {
+				reason, _ := data["reason"].(string)
+				if reason != "" {
+					return domain.ImageMismatchError(reason)
+				}
+			}
+			// Use the service's error message
+			return domain.ImageMismatchError(serviceMessage)
+		}
+		return domain.ExternalServiceError("compare-images", fmt.Sprintf("service returned status %d", resp.StatusCode), nil)
+	}
+
+	// Parse successful response
+	var compareResult map[string]interface{}
+	if err := json.Unmarshal(respBody, &compareResult); err != nil {
+		return domain.ExternalServiceError("compare-images", "invalid response format from AI service", err)
+	}
+
+	// Check if comparison was successful
+	success, ok := compareResult["success"].(bool)
+	if !ok || !success {
+		return domain.ExternalServiceError("compare-images", "comparison operation failed", nil)
+	}
+
+	// Extract the data field containing comparison results
+	data, ok := compareResult["data"].(map[string]interface{})
+	if !ok {
+		return domain.ExternalServiceError("compare-images", "invalid response structure: missing data field", nil)
+	}
+
+	// Check if images match by category
+	sameCategory, ok := data["same_category"].(bool)
+	if !ok {
+		return domain.ExternalServiceError("compare-images", "invalid response structure: missing same_category field", nil)
+	}
+
+	// If categories don't match, return user-friendly error
+	if !sameCategory {
+		reason, _ := data["reason"].(string)
+		return domain.ImageMismatchError(reason)
+	}
+
+	return nil
 }
 
 // GetAllCategories godoc
@@ -48,12 +176,16 @@ func (p *ProductHandler) GetAllCategories(ctx *gin.Context) {
 	categories, err := p.productUseCase.FindAllCategories(ctx, pagination)
 
 	if err != nil {
-		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to retrieve categories", err, nil)
+		appErr := utils.ConvertDBError(err, "categories")
+		if appErr == nil {
+			appErr = domain.InternalError("failed to retrieve categories", err)
+		}
+		response.ErrorResponse(ctx, appErr.StatusCode, appErr.Message, appErr.Err, nil)
 		return
 	}
 
 	if len(categories) == 0 {
-		response.SuccessResponse(ctx, http.StatusOK, "No categories found", nil)
+		response.SuccessResponse(ctx, http.StatusOK, "No categories found", []interface{}{})
 		return
 	}
 
@@ -76,7 +208,8 @@ func (p *ProductHandler) GetAllCategories(ctx *gin.Context) {
 //	@Failure		409	{object}	response.Response{}	"Category already exist"
 //	@Failure		409	{object}	response.Response{}	"Failed to save category"
 func (p *ProductHandler) SaveCategory(ctx *gin.Context) {
-
+	var department_id string = ctx.Param("department_id")
+	print("department id in handler", department_id)
 	var body request.Category
 
 	if err := ctx.ShouldBindJSON(&body); err != nil {
@@ -84,7 +217,7 @@ func (p *ProductHandler) SaveCategory(ctx *gin.Context) {
 		return
 	}
 
-	err := p.productUseCase.SaveCategory(ctx, body.Name)
+	err := p.productUseCase.SaveCategory(ctx, body, department_id)
 
 	if err != nil {
 
@@ -116,14 +249,15 @@ func (p *ProductHandler) SaveCategory(ctx *gin.Context) {
 //	@Failure		409	{object}	response.Response{}	"Sub category already exist"
 //	@Failure		500	{object}	response.Response{}	"Failed to add subcategory"
 func (p *ProductHandler) SaveSubCategory(ctx *gin.Context) {
-
+	var department_id string = ctx.Param("department_id")
+	var category_id string = ctx.Param("category_id")
 	var body request.SubCategory
 	if err := ctx.ShouldBindJSON(&body); err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
 		return
 	}
 
-	err := p.productUseCase.SaveSubCategory(ctx, body)
+	err := p.productUseCase.SaveSubCategory(ctx, body, department_id, category_id)
 
 	if err != nil {
 
@@ -255,7 +389,7 @@ func (c *ProductHandler) GetAllVariations(ctx *gin.Context) {
 	}
 
 	if len(variations) == 0 {
-		response.SuccessResponse(ctx, http.StatusOK, "No variations found")
+		response.SuccessResponse(ctx, http.StatusOK, "No variations found", []interface{}{})
 		return
 	}
 
@@ -264,60 +398,151 @@ func (c *ProductHandler) GetAllVariations(ctx *gin.Context) {
 
 // SaveProduct godoc
 //
-//	@Summary		Add a new product (Admin)
+//	@Summary		Add a new product with image (Admin)
 //	@Security		BearerAuth
-//	@Description	API for admin to add a new product
+//	@Description	API for admin to add a new product with image file upload (multipart/form-data)
 //	@ID				SaveProduct
 //	@Tags			Admin Products
+//	@Accept			mpfd
 //	@Produce		json
-//	@Param			name		formData	string				true	"Product Name"
-//	@Param			description	formData	string				true	"Product Description"
-//	@Param			category_id	formData	int					true	"Category Id"
-//	@Param			brand_id	formData	int					true	"Brand Id"
-//	@Param			price		formData	int					true	"Product Price"
-//	@Param			image		formData	file				true	"Product Description"
-//	@Success		200			{object}	response.Response{}	"successfully product added"
+//	@Param			product_name	formData	string				true	"Product Name"
+//	@Param			description		formData	string				true	"Product Description"
+//	@Param			department		formData	string				true	"Department Name"
+//	@Param			department_id	formData	int					true	"Department ID"
+//	@Param			category_id		formData	int					true	"Category ID"
+//	@Param			brand_id		formData	int					true	"Brand ID"
+//	@Param			price			formData	int					true	"Product Price"
+//	@Param			condition		formData	string				false	"Product Condition"
+//	@Param			specification	formData	string				false	"Product Specification"
+//	@Param			highlights		formData	string				false	"Product Highlights"
+//	@Param			image			formData	file				true	"Product Image"
+//	@Success		201				{object}	response.Response{}	"successfully product added"
 //	@Router			/admin/products [post]
 //	@Failure		400	{object}	response.Response{}	"invalid input"
 //	@Failure		409	{object}	response.Response{}	"Product name already exist"
 func (p *ProductHandler) SaveProduct(ctx *gin.Context) {
 
-	name, err1 := request.GetFormValuesAsString(ctx, "name")
+	tokenString := ctx.GetHeader("Authorization")
+
+	adminID := p.tokenService.DecodeTokenData(tokenString)
+	// Check if this is a JSON request (without file upload)
+	contentType := ctx.GetHeader("Content-Type")
+	if contentType == "application/json" || contentType == "" {
+		p.SaveProductJSON(ctx, adminID)
+		return
+	}
+
+	// Handle multipart/form-data request
+	name, err1 := request.GetFormValuesAsString(ctx, "category")
+	departmentID, errDeptID := request.GetFormValuesAsUint(ctx, "department_id")
 	description, err2 := request.GetFormValuesAsString(ctx, "description")
 	categoryID, err3 := request.GetFormValuesAsUint(ctx, "category_id")
-	price, err4 := request.GetFormValuesAsUint(ctx, "price")
-	brandID, err5 := request.GetFormValuesAsUint(ctx, "brand_id")
-
 	fileHeader, err6 := ctx.FormFile("image")
 
-	err := errors.Join(err1, err2, err3, err4, err5, err6)
-
+	// Only check required fields
+	err := errors.Join(err1, err2, err3, err6, errDeptID)
 	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindFormValueMessage, err, nil)
+		appErr := domain.ValidationError("product fields", "missing or invalid required fields")
+		response.ErrorResponseAppError(ctx, appErr)
 		return
 	}
 
 	product := request.Product{
 		Name:            name,
+		DepartmentID:    departmentID,
 		Description:     description,
 		CategoryID:      categoryID,
-		BrandID:         brandID,
-		Price:           price,
 		ImageFileHeader: fileHeader,
 	}
 
-	err = p.productUseCase.SaveProduct(ctx, product)
+	productID, err := p.productUseCase.SaveProduct(ctx, product, adminID)
 
 	if err != nil {
-		statusCode := http.StatusInternalServerError
+		appErr := domain.InternalError("failed to save product", err)
 		if errors.Is(err, usecase.ErrProductAlreadyExist) {
-			statusCode = http.StatusConflict
+			appErr = domain.AlreadyExistsError("product")
 		}
-		response.ErrorResponse(ctx, statusCode, "Failed to add product", err, nil)
+		response.ErrorResponseAppError(ctx, appErr)
 		return
 	}
 
-	response.SuccessResponse(ctx, http.StatusCreated, "Successfully product added")
+	response.SuccessResponse(ctx, http.StatusCreated, "Successfully added product", map[string]uint{"product_id": productID})
+}
+
+// SaveProductJSON handles JSON requests without image uploa
+func (p *ProductHandler) SaveProductJSON(ctx *gin.Context, adminID string) {
+	// Debug: Log raw request body
+	rawData, _ := ctx.GetRawData()
+
+	// Check if the body starts with a quote (indicating it's a string-wrapped JSON)
+	if len(rawData) > 0 && rawData[0] == '"' {
+		// Unwrap the double-encoded JSON string
+		var unwrappedJSON string
+		if err := json.Unmarshal(rawData, &unwrappedJSON); err != nil {
+			appErr := domain.ValidationError("request body", "invalid JSON format (double-encoded)")
+			response.ErrorResponseAppError(ctx, appErr)
+			return
+		}
+		rawData = []byte(unwrappedJSON)
+	}
+
+	// Additional validation: Check if it's valid JSON before binding
+	var testJSON interface{}
+	if err := json.Unmarshal(rawData, &testJSON); err != nil {
+		appErr := domain.ValidationError("request body", "invalid JSON syntax")
+		response.ErrorResponseAppError(ctx, appErr)
+		return
+	}
+
+	// Re-bind the body since we read it
+	ctx.Request.Body = io.NopCloser(bytes.NewBuffer(rawData))
+
+	var body struct {
+		Name           string      `json:"category" binding:"min=3,max=50"`
+		Description    string      `json:"description"`
+		CategoryID     uint        `json:"category_id"`
+		DepartmentID   uint        `json:"department_id"`
+		Condition      string      `json:"condition" binding:"omitempty"`
+		Specifications interface{} `json:"specifications" binding:"omitempty"` // Can be string or object
+		Highlights     interface{} `json:"highlights" binding:"omitempty"`     // Can be string or array
+		ImageURL       string      `json:"image_url" binding:"omitempty"`      // For existing image URL
+	}
+
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		appErr := domain.ValidationError("request body", "failed to parse JSON request")
+		response.ErrorResponseAppError(ctx, appErr)
+		return
+	}
+
+	// For JSON requests without file upload, you need to provide image_url or handle it differently
+	if body.ImageURL == "" {
+		appErr := domain.ValidationError("image_url", "image_url is required for JSON requests")
+		response.ErrorResponseAppError(ctx, appErr)
+		return
+	}
+
+	// Convert highlights to string
+
+	product := request.Product{
+		Name:         body.Name,
+		DepartmentID: body.DepartmentID,
+		Description:  body.Description,
+		CategoryID:   body.CategoryID,
+		// Note: ImageFileHeader is nil, you'll need to handle this in the usecase
+	}
+
+	productID, err := p.productUseCase.SaveProduct(ctx, product, adminID)
+
+	if err != nil {
+		appErr := domain.InternalError("failed to save product", err)
+		if errors.Is(err, usecase.ErrProductAlreadyExist) {
+			appErr = domain.AlreadyExistsError("product")
+		}
+		response.ErrorResponseAppError(ctx, appErr)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusCreated, "Successfully added product", map[string]uint{"product_id": productID})
 }
 
 // GetAllProductsAdmin godoc
@@ -327,13 +552,14 @@ func (p *ProductHandler) SaveProduct(ctx *gin.Context) {
 //	@Description	API for admin to get all products
 //	@ID				GetAllProductsAdmin
 //	@Tags			Admin Products
-//	@Param			page_number	query	int	false	"Page Number"
-//	@Param			count		query	int	false	"Count"
+//	@Param			page_number	query	int		false	"Page Number"
+//	@Param			count		query	int		false	"Count"
+//	@Param			search		query	string	false	"Search term to filter products by name"
 //	@Router			/admin/products [get]
 //	@Success		200	{object}	response.Response{}	"Successfully found all products"
 //	@Failure		500	{object}	response.Response{}	"Failed to Get all products"
-func (p *ProductHandler) GetAllProductsAdmin() func(ctx *gin.Context) {
-	return p.getAllProducts()
+func (p *ProductHandler) GetAllProductsAdmin(ctx *gin.Context) {
+	p.getAllProducts()(ctx)
 }
 
 // GetAllProductsUser godoc
@@ -343,13 +569,14 @@ func (p *ProductHandler) GetAllProductsAdmin() func(ctx *gin.Context) {
 //	@Description	API for user to get all products
 //	@ID				GetAllProductsUser
 //	@Tags			User Products
-//	@Param			page_number	query	int	false	"Page Number"
-//	@Param			count		query	int	false	"Count"
+//	@Param			page_number	query	int		false	"Page Number"
+//	@Param			count		query	int		false	"Count"
+//	@Param			search		query	string	false	"Search term to filter products by name"
 //	@Router			/products [get]
 //	@Success		200	{object}	response.Response{}	"Successfully found all products"
 //	@Failure		500	{object}	response.Response{}	"Failed to get all products"
-func (p *ProductHandler) GetAllProductsUser() func(ctx *gin.Context) {
-	return p.getAllProducts()
+func (p *ProductHandler) GetAllProductsUser(ctx *gin.Context) {
+	p.getAllProducts()(ctx)
 }
 
 // Get products is common for user and admin so this function is to get the common Get all products func for them
@@ -358,8 +585,9 @@ func (p *ProductHandler) getAllProducts() func(ctx *gin.Context) {
 	return func(ctx *gin.Context) {
 
 		pagination := request.GetPagination(ctx)
+		search := ctx.Query("search") // Get optional search parameter
 
-		products, err := p.productUseCase.FindAllProducts(ctx, pagination)
+		products, err := p.productUseCase.FindAllProducts(ctx, pagination, search)
 
 		if err != nil {
 			response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to Get all products", err, nil)
@@ -367,13 +595,42 @@ func (p *ProductHandler) getAllProducts() func(ctx *gin.Context) {
 		}
 
 		if len(products) == 0 {
-			response.SuccessResponse(ctx, http.StatusOK, "No products found", nil)
+			response.SuccessResponse(ctx, http.StatusOK, "No products found", []interface{}{})
 			return
 		}
 
 		response.SuccessResponse(ctx, http.StatusOK, "Successfully found all products", products)
 	}
 
+}
+
+// GetProductByID godoc
+//
+//	@Summary		Get product by ID (Admin)
+//	@Security		BearerAuth
+//	@Description	API for admin to get a single product by ID with all details
+//	@ID				GetProductByID
+//	@Tags			Admin Products
+//	@Param			product_id	path	int	true	"Product ID"
+//	@Router			/admin/products/{product_id} [get]
+//	@Success		200	{object}	response.Response{}	"Successfully found product"
+//	@Failure		400	{object}	response.Response{}	"Invalid product ID"
+//	@Failure		404	{object}	response.Response{}	"Product not found"
+//	@Failure		500	{object}	response.Response{}	"Failed to get product"
+func (p *ProductHandler) GetProductByID(ctx *gin.Context) {
+	productID, err := request.GetParamAsUint(ctx, "product_id")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid product ID", err, nil)
+		return
+	}
+
+	product, err := p.productUseCase.FindProductByID(ctx, productID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get product", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully found product", product)
 }
 
 // UpdateProduct godoc
@@ -436,33 +693,149 @@ func (c *ProductHandler) UpdateProduct(ctx *gin.Context) {
 //	@Failure		409	{object}	response.Response{}	"Product have already this configured product items exist"
 func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 
-	productID, err := request.GetParamAsUint(ctx, "product_id")
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+	tokenString := ctx.GetHeader("Authorization")
+
+	adminID := p.tokenService.DecodeTokenData(tokenString)
+
+	shopIDStr := ctx.PostForm("shop_id")
+	var shopID uint
+	if shopIDStr != "" {
+		if n, err := strconv.Atoi(shopIDStr); err == nil {
+			shopID = uint(n)
+		} else {
+			response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid shop_id", err, nil)
+			return
+		}
+	} else {
+		if n, err := strconv.Atoi(adminID); err == nil {
+			shopID = uint(n)
+		} else {
+			response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid admin_id", err, nil)
+			return
+		}
 	}
 
-	price, err1 := request.GetFormValuesAsUint(ctx, "price")
-	qtyInStock, err2 := request.GetFormValuesAsUint(ctx, "qty_in_stock")
-	variationOptionIDS, err3 := request.GetArrayFormValueAsUint(ctx, "variation_option_ids")
-	imageFileHeaders, err4 := request.GetArrayOfFromFiles(ctx, "images")
-
-	err = errors.Join(err1, err2, err3, err4)
-
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindFormValueMessage, err, nil)
-		return
+	subCategoryIDStr := ctx.PostForm("sub_category_id")
+	var subCategoryID uint
+	if subCategoryIDStr != "" {
+		if n, err := strconv.Atoi(subCategoryIDStr); err == nil {
+			subCategoryID = uint(n)
+		} else {
+			response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid sub_category_id", err, nil)
+			return
+		}
 	}
 
+	categoryIDStr := ctx.PostForm("category_id")
+	var categoryID uint
+	if categoryIDStr != "" {
+		if n, err := strconv.Atoi(categoryIDStr); err == nil {
+			categoryID = uint(n)
+		} else {
+			response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid category_id", err, nil)
+			return
+		}
+	}
+
+	departmentIDStr := ctx.PostForm("department_id")
+	var departmentID uint
+	if departmentIDStr != "" {
+		if n, err := strconv.Atoi(departmentIDStr); err == nil {
+			departmentID = uint(n)
+		} else {
+			response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid department_id", err, nil)
+			return
+		}
+	}
+
+	subCategoryName := ctx.PostForm("sub_category_name")
+	categoryName := ctx.PostForm("category_name")
+	dynamicFieldsStr := ctx.PostForm("dynamic_fields")
+	// Try to resolve subcategory image URL (if subCategoryID provided)
+	var subCatImageURL string
+	if subCategoryID != 0 && categoryID != 0 {
+		subs, err := p.productUseCase.GetAllSubCategoriesByCategoryID(ctx, categoryID)
+		if err == nil {
+			for _, sc := range subs {
+				if sc.ID == subCategoryID {
+					subCatImageURL = sc.ImageUrl
+					break
+				}
+			}
+		}
+	}
+	files := ctx.Request.MultipartForm.File["images[]"]
+
+	var imagePaths []string
+	for _, fileHeader := range files {
+
+		localPath, err := handleUpload(fileHeader)
+		if err != nil {
+			response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to process image", err, nil)
+			return
+		}
+
+		// Validate product image matches category using AI service if available
+		if categoryName != "" {
+			// Get absolute path for validation
+			wd, _ := os.Getwd()
+			absolutePath := filepath.Join(wd, localPath)
+
+			//validationResult, err := p.aiClient.ValidateProduct(absolutePath, categoryName)
+			_, err := p.aiClient.ValidateProduct(absolutePath, categoryName)
+			if err != nil {
+				response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to validate product image", err, nil)
+				return
+			}
+
+			// If validation failed (valid is false) and confidence is high, reject the upload
+
+			// if !validationResult.Valid && validationResult.Confidence > 0.6 {
+			// 	response.ErrorResponse(ctx, http.StatusBadRequest,
+			// 		fmt.Sprintf("Product image does not match '%s' category. Reason: %s", categoryName, validationResult.Reason),
+			// 		nil, nil)
+			// 	return
+			// }
+		}
+
+		imagePaths = append(imagePaths, localPath)
+
+		// If we have a subcategory image, ask the compare-images service to compare
+		// the uploaded product image with the subcategory reference image so external
+		// services can validate or index similarity.
+		if subCatImageURL != "" {
+			// Build publicly accessible URLs that other services can fetch
+			prodURL := buildPublicURL(localPath)
+			subURL := buildPublicURL(subCatImageURL)
+			if err := p.callCompareImages(subURL, prodURL); err != nil {
+				// Return error if image doesn't match category
+				response.ErrorResponseAppError(ctx, err)
+				return
+			}
+		}
+	}
+
+	var dynamicFields map[string]interface{}
+	if err := json.Unmarshal([]byte(dynamicFieldsStr), &dynamicFields); err != nil {
+		// handle error
+	}
 	productItem := request.ProductItem{
-		Price:              price,
-		VariationOptionIDs: variationOptionIDS,
-		QtyInStock:         qtyInStock,
-		ImageFileHeaders:   imageFileHeaders,
+		SubCategoryName:   subCategoryName,
+		SubCategoryID:     subCategoryID,
+		DynamicFields:     dynamicFields,
+		CategoryID:        categoryID,
+		DepartmentID:      departmentID,
+		ProductItemImages: imagePaths,
 	}
 
-	fmt.Println(productItem, productID)
+	// // Convert request.ProductItem to domain.ProductItem
+	// var domainProductItem domain.ProductItem
+	// if err := copier.Copy(&domainProductItem, &productItem); err != nil {
+	// 	response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to map product item", err, nil)
+	// 	return
+	// }
 
-	err = p.productUseCase.SaveProductItem(ctx, productID, productItem)
+	err := p.productUseCase.SaveProductItem(ctx, productItem, adminID, shopID)
 
 	if err != nil {
 
@@ -482,6 +855,51 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 	}
 
 	response.SuccessResponse(ctx, http.StatusCreated, "Successfully product item added", nil)
+
+	// if err := ctx.ShouldBindJSON(&body); err != nil {
+	// 	response.ErrorResponse(ctx, http.StatusBadRequest, "invalid request body", err, nil)
+	// 	return
+	// }
+
+	// Map request to domain model
+	// (Removed redeclaration of imageFileHeader)
+
+	// 	productItem = request.ProductItem{
+	// 		SubCategoryName:  subCategoryName,
+	// 		SubCategoryID:    subCategoryID,
+	// 		DynamicFields:    dynamicFields,
+	// 		ProductItemImage: imagePaths,
+	// 	}
+
+	// 	// Convert request.ProductItem to domain.ProductItem
+	// 	var domainProductItem2 domain.ProductItem
+	// 	if err := copier.Copy(&domainProductItem2, &productItem); err != nil {
+	// 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to map product item", err, nil)
+	// 		return
+	// 	}
+
+	// 	err = p.productUseCase.SaveProductItem(ctx, domainProductItem2, productID)
+
+	// 	if err != nil {
+
+	// 		var statusCode int
+
+	// 		switch {
+	// 		case errors.Is(err, usecase.ErrProductItemAlreadyExist):
+	// 			statusCode = http.StatusConflict
+	// 		case errors.Is(err, usecase.ErrNotEnoughVariations):
+	// 			statusCode = http.StatusBadRequest
+	// 		default:
+	// 			statusCode = http.StatusInternalServerError
+	// 		}
+
+	// 		response.ErrorResponse(ctx, statusCode, "Failed to add product item", err, nil)
+	// 		return
+	// 	}
+
+	// 	response.SuccessResponse(ctx, http.StatusCreated, "Successfully product item added", nil)
+	// }
+
 }
 
 // GetAllProductItemsAdmin godoc
@@ -498,8 +916,13 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 //	@Success		200	{object}	response.Response{}	"Successfully get all product items"
 //	@Failure		400	{object}	response.Response{}	"Invalid input"
 //	@Failure		400	{object}	response.Response{}	"Failed to get all product items"
-func (p *ProductHandler) GetAllProductItemsAdmin() func(ctx *gin.Context) {
-	return p.getAllProductItems()
+func (p *ProductHandler) GetAllProductItemsAdmin() func(*gin.Context) {
+	return func(ctx *gin.Context) {
+		tokenString := ctx.GetHeader("Authorization")
+
+		adminID := p.tokenService.DecodeTokenData(tokenString)
+		p.getAllProductItems(adminID)(ctx)
+	}
 }
 
 // GetAllProductItemsUser godoc
@@ -516,35 +939,362 @@ func (p *ProductHandler) GetAllProductItemsAdmin() func(ctx *gin.Context) {
 //	@Success		200	{object}	response.Response{}	"Successfully get all product items"
 //	@Failure		400	{object}	response.Response{}	"Invalid input"
 //	@Failure		400	{object}	response.Response{}	"Failed to get all product items"
-func (p *ProductHandler) GetAllProductItemsUser() func(ctx *gin.Context) {
-	return p.getAllProductItems()
+func (p *ProductHandler) GetAllProductItemsUser() func(*gin.Context) {
+	return func(ctx *gin.Context) {
+		p.getAllProductItems("")(ctx)
+	}
 }
 
 // same functionality of get all product items for admin and user
-func (p *ProductHandler) getAllProductItems() func(ctx *gin.Context) {
-
+func (p *ProductHandler) getAllProductItems(adminID string) func(ctx *gin.Context) {
 	return func(ctx *gin.Context) {
 
-		productID, err := request.GetParamAsUint(ctx, "product_id")
-		if err != nil {
-			response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+		shopID := ctx.Param("shop_id")
+
+		// Parse optional query params
+		keyword := ctx.Query("q")
+		var catIDPtr, brandIDPtr, locIDPtr *string
+		if cid := ctx.Query("category_id"); cid != "" {
+			if _, err := strconv.ParseUint(cid, 10, 64); err == nil {
+				s := cid
+				catIDPtr = &s
+			}
+		}
+		if bid := ctx.Query("brand_id"); bid != "" {
+			if _, err := strconv.ParseUint(bid, 10, 64); err == nil {
+				s := bid
+				brandIDPtr = &s
+			}
+		}
+		if lid := ctx.Query("location_id"); lid != "" {
+			if _, err := strconv.ParseUint(lid, 10, 64); err == nil {
+				s := lid
+				locIDPtr = &s
+			}
 		}
 
-		productItems, err := p.productUseCase.FindAllProductItems(ctx, productID)
+		sortby := ctx.Query("sortby")
+		if sortby == "" {
+			sortby = ctx.Query("sortBy")
+		}
 
+		var pagination *request.Pagination
+		limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "0"))
+		offset, _ := strconv.Atoi(ctx.DefaultQuery("offset", "0"))
+		if limit > 0 {
+			if limit <= 0 {
+				limit = 20
+			}
+			if offset < 0 {
+				offset = 0
+			}
+			limitUint64, err := SafeIntToUint64(limit)
+			if err != nil {
+				response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid limit", err, nil)
+				return
+			}
+			offsetUint64, err := SafeIntToUint64(offset)
+			if err != nil {
+				response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid offset", err, nil)
+				return
+			}
+			pagination = &request.Pagination{
+				Limit:  limitUint64,
+				Offset: offsetUint64,
+			}
+		}
+
+		// Define offer with a default value
+		offer := ctx.Query("offers")
+
+		// Concurrent search strategies: Elasticsearch + Database
+		type searchResult struct {
+			items   []response.ProductItems
+			err     error
+			source  string
+			latency time.Duration
+		}
+
+		resultChan := make(chan searchResult, 2)
+
+		// Goroutine 1: Primary search (could be Elasticsearch if available, otherwise database)
+		go func() {
+			start := time.Now()
+			items, err := p.productUseCase.FindAllProductItems(ctx, adminID, keyword, catIDPtr, brandIDPtr, locIDPtr, offer, sortby, pagination, shopID)
+			resultChan <- searchResult{
+				items:   items,
+				err:     err,
+				source:  "primary",
+				latency: time.Since(start),
+			}
+		}()
+
+		// Goroutine 2: Fallback search (database)
+		go func() {
+			start := time.Now()
+			// Add small delay to prefer primary search
+			time.Sleep(50 * time.Millisecond)
+			items, err := p.productUseCase.FindAllProductItems(ctx, adminID, keyword, catIDPtr, brandIDPtr, locIDPtr, offer, sortby, pagination, shopID)
+			resultChan <- searchResult{
+				items:   items,
+				err:     err,
+				source:  "fallback",
+				latency: time.Since(start),
+			}
+		}()
+
+		// Wait for first successful result with timeout
+		var productItems []response.ProductItems
+		var err error
+
+		timeout := time.After(5 * time.Second) // 5 second timeout
+
+	selectLoop:
+		for i := 0; i < 2; i++ {
+			select {
+			case result := <-resultChan:
+				if result.err == nil {
+					productItems = result.items
+					break selectLoop
+				} else {
+				}
+			case <-timeout:
+				err = fmt.Errorf("search timeout after 5 seconds")
+				break selectLoop
+			}
+		}
+
+		// If both searches failed or timed out, return error
 		if err != nil {
 			response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get all product items", err, nil)
 			return
 		}
 
-		// check the product have productItem exist or not
+		// If no results found
 		if len(productItems) == 0 {
-			response.SuccessResponse(ctx, http.StatusOK, "No product items found")
+			response.SuccessResponse(ctx, http.StatusOK, "No product items found", []interface{}{})
 			return
 		}
 
-		response.SuccessResponse(ctx, http.StatusOK, "Successfully get all product items ", productItems)
+		// Log search query asynchronously (non-blocking)
+		go func() {
+			// This runs in background without blocking the response
+
+			// Here you could also:
+			// - Save to analytics database
+			// - Update search popularity metrics
+			// - Log to external monitoring service
+		}()
+
+		// Background analytics and caching
+		go func() {
+			if keyword != "" && len(productItems) > 0 {
+				// Implement caching logic here
+			}
+		}()
+
+		go func() {
+			// Implement analytics logic here
+		}()
+
+		response.SuccessResponse(ctx, http.StatusOK, "Successfully get all product items", productItems)
 	}
+}
+
+// GetProductItemsByShopID godoc
+//
+//	@Summary		Get product items by shop ID (Admin)
+//	@Security		BearerAuth
+//	@Description	API for admin to get product items for a specific shop, including category names
+//	@Tags			Admin Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			shop_id	path	int	true	"Shop ID"
+//	@Router			/admin/items/shop/{shop_id} [get]
+//	@Success		200	{object}	response.Response{}	"Successfully get product items for shop"
+//	@Failure		400	{object}	response.Response{}	"Invalid input"
+//	@Failure		400	{object}	response.Response{}	"Failed to get product items"
+func (p *ProductHandler) GetProductItemsByShopID() func(ctx *gin.Context) {
+	return func(ctx *gin.Context) {
+		tokenString := ctx.GetHeader("Authorization")
+
+		adminID := p.tokenService.DecodeTokenData(tokenString)
+
+		shopID := ctx.Param("shop_id")
+
+		// Parse optional query params
+		keyword := ctx.Query("q")
+		var catIDPtr, brandIDPtr, locIDPtr *string
+		var offer *string
+		if offerStr := ctx.Query("offers"); offerStr != "" {
+			offer = &offerStr
+		}
+		if cid := ctx.Query("category_id"); cid != "" {
+			if _, err := strconv.ParseUint(cid, 10, 64); err == nil {
+				s := cid
+				catIDPtr = &s
+			}
+		}
+		if bid := ctx.Query("brand_id"); bid != "" {
+			if _, err := strconv.ParseUint(bid, 10, 64); err == nil {
+				s := bid
+				brandIDPtr = &s
+			}
+		}
+		if lid := ctx.Query("location_id"); lid != "" {
+			if _, err := strconv.ParseUint(lid, 10, 64); err == nil {
+				s := lid
+				locIDPtr = &s
+			}
+		}
+
+		sortby := ctx.Query("sortby")
+		if sortby == "" {
+			sortby = ctx.Query("sortBy")
+		}
+
+		var pagination *request.Pagination
+		limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "0"))
+		offset, _ := strconv.Atoi(ctx.DefaultQuery("offset", "0"))
+		if limit > 0 {
+			if limit <= 0 {
+				limit = 20
+			}
+			if offset < 0 {
+				offset = 0
+			}
+			limitUint64, err := SafeIntToUint64(limit)
+			if err != nil {
+				response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid limit", err, nil)
+				return
+			}
+			offsetUint64, err := SafeIntToUint64(offset)
+			if err != nil {
+				response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid offset", err, nil)
+				return
+			}
+			pagination = &request.Pagination{
+				Limit:  limitUint64,
+				Offset: offsetUint64,
+			}
+		}
+
+		var offerVal string
+		if offer != nil {
+			offerVal = *offer
+		}
+		productItems, err := p.productUseCase.FindAllProductItems(ctx, adminID, keyword, catIDPtr, brandIDPtr, locIDPtr, offerVal, sortby, pagination, shopID)
+
+		if err != nil {
+			response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get product items", err, nil)
+			return
+		}
+
+		// check the product have productItem exist or not
+		if len(productItems) == 0 {
+			response.SuccessResponse(ctx, http.StatusOK, "No product items found for this shop", []response.ProductItems{})
+			return
+		}
+
+		response.SuccessResponse(ctx, http.StatusOK, "Successfully get product items for shop", productItems)
+	}
+}
+
+// FindLowViewProductItems godoc
+// @Summary Find low view product items (less than 5 views in days 10-20 after creation)
+// @Description Get product items with low views for a specific shop in the 10-20 day period after creation
+// @Tags Product Items
+// @Accept json
+// @Produce json
+// @Param Authorization header string true "Bearer token"
+// @Param q query string false "Search keyword"
+// @Param category_id query string false "Category ID"
+// @Param brand_id query string false "Brand ID"
+// @Param location_id query string false "Location ID"
+// @Param sortby query string false "Sort by: created_at, updated_at, name, views"
+// @Param limit query integer false "Pagination limit"
+// @Param offset query integer false "Pagination offset"
+// @Success 200 {object} response.ProductItems "Successfully retrieved low view product items"
+// @Failure 400 {object} response.ErrorResponse "Bad request"
+// @Failure 500 {object} response.ErrorResponse "Internal server error"
+// @Router /api/admin/items/lowViewproductitems [get]
+func (p *ProductHandler) FindLowViewProductItems(ctx *gin.Context) {
+	tokenString := ctx.GetHeader("Authorization")
+	adminID := p.tokenService.DecodeTokenData(tokenString)
+
+	// Parse optional query params
+	keyword := ctx.Query("q")
+	var catIDPtr, brandIDPtr, locIDPtr *string
+
+	if cid := ctx.Query("category_id"); cid != "" {
+		if _, err := strconv.ParseUint(cid, 10, 64); err == nil {
+			s := cid
+			catIDPtr = &s
+		}
+	}
+	if bid := ctx.Query("brand_id"); bid != "" {
+		if _, err := strconv.ParseUint(bid, 10, 64); err == nil {
+			s := bid
+			brandIDPtr = &s
+		}
+	}
+	if lid := ctx.Query("location_id"); lid != "" {
+		if _, err := strconv.ParseUint(lid, 10, 64); err == nil {
+			s := lid
+			locIDPtr = &s
+		}
+	}
+
+	sortby := ctx.Query("sortby")
+	if sortby == "" {
+		sortby = ctx.Query("sortBy")
+	}
+
+	var pagination *request.Pagination
+	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "25"))
+	offset, _ := strconv.Atoi(ctx.DefaultQuery("offset", "0"))
+
+	if limit <= 0 {
+		limit = 25
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	limitUint64, err := SafeIntToUint64(limit)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid limit", err, nil)
+		return
+	}
+	offsetUint64, err := SafeIntToUint64(offset)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid offset", err, nil)
+		return
+	}
+	pagination = &request.Pagination{
+		Limit:  limitUint64,
+		Offset: offsetUint64,
+	}
+
+	// Get shopID from token/admin details
+	var shopID *string
+	if sid := ctx.Query("shop_id"); sid != "" {
+		shopID = &sid
+	}
+
+	productItems, err := p.productUseCase.FindLowViewProductItems(ctx, adminID, keyword, catIDPtr, brandIDPtr, locIDPtr, sortby, pagination, shopID)
+
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get low view product items", err, nil)
+		return
+	}
+
+	if len(productItems) == 0 {
+		response.SuccessResponse(ctx, http.StatusOK, "No low view product items found", []response.ProductItems{})
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved low view product items", productItems)
 }
 
 // Helper to convert *uuid.UUID to *string
@@ -566,7 +1316,7 @@ func SafeIntToUint64(i int) (uint64, error) {
 //
 //	@Summary		Search products
 //	@Security		BearerAuth
-//	@Description	API for user to search products with filters
+//	@Description	API for user to search products with filters. Supports: 1) Search by name + lat + lng + radius, 2) Search by name + pincode
 //	@ID				SearchProducts
 //	@Tags			User Products
 //	@Accept			json
@@ -575,53 +1325,116 @@ func SafeIntToUint64(i int) (uint64, error) {
 //	@Param			category_id	query	string	false	"Category ID"
 //	@Param			brand_id	query	string	false	"Brand ID"
 //	@Param			location_id	query	string	false	"Location ID"
+//	@Param			lat			query	float64	false	"Latitude for geolocation search"
+//	@Param			long		query	float64	false	"Longitude for geolocation search"
+//	@Param			radius		query	float64	false	"Radius in kilometers for geolocation search"
+//	@Param			pincode		query	uint	false	"Pincode for location-based search"
 //	@Param			limit		query	int		false	"Limit"
 //	@Param			offset		query	int		false	"Offset"
 //	@Router			/products/search [get]
 //	@Success		200	{object}	response.Response{}	"Successfully searched products"
-//	@Failure		500	{object}	response.Response{}	"Failed to search products
+//	@Failure		500	{object}	response.Response{}	"Failed to search products"
 func (h *ProductHandler) SearchProducts(c *gin.Context) {
 
+	// Support both 'q' and 'name' as search keyword parameter
 	keyword := c.Query("q")
+	if keyword == "" {
+		keyword = c.Query("name")
+	}
 
-	var categoryID, brandID, locationID *uuid.UUID
+	// Parse numeric filter IDs (category_id, brand_id, location_id) as unsigned integers.
+	// The DB uses numeric IDs for these fields; parsing as UUIDs caused type mismatches.
+	var catIDPtr, brandIDPtr, locIDPtr, shopIDPtr *string
 	if cid := c.Query("category_id"); cid != "" {
-		id, err := uuid.Parse(cid)
-		if err == nil {
-			categoryID = &id
+		if _, err := strconv.ParseUint(cid, 10, 64); err == nil {
+			s := cid
+			catIDPtr = &s
 		}
 	}
 	if bid := c.Query("brand_id"); bid != "" {
-		id, err := uuid.Parse(bid)
-		if err == nil {
-			brandID = &id
+		if _, err := strconv.ParseUint(bid, 10, 64); err == nil {
+			s := bid
+			brandIDPtr = &s
 		}
 	}
 	if lid := c.Query("location_id"); lid != "" {
-		id, err := uuid.Parse(lid)
-		if err == nil {
-			locationID = &id
+		if _, err := strconv.ParseUint(lid, 10, 64); err == nil {
+			s := lid
+			locIDPtr = &s
+		}
+	}
+	if sid := c.Query("shop_id"); sid != "" {
+		if _, err := strconv.ParseUint(sid, 10, 64); err == nil {
+			s := sid
+			shopIDPtr = &s
+		}
+	}
+
+	// Parse geolocation parameters (optional)
+	// Support both 'lng' and 'long' for longitude
+	var latitude, longitude, radius float64
+	latStr := c.Query("lat")
+	lngStr := c.Query("lng")
+	if lngStr == "" {
+		lngStr = c.Query("long")
+	}
+	radiusStr := c.Query("radius")
+
+	if latStr != "" {
+		if lat, err := strconv.ParseFloat(latStr, 64); err == nil {
+			latitude = lat
+		}
+	}
+	if lngStr != "" {
+		if lng, err := strconv.ParseFloat(lngStr, 64); err == nil {
+			longitude = lng
+		}
+	}
+	if radiusStr != "" {
+		if r, err := strconv.ParseFloat(radiusStr, 64); err == nil {
+			radius = r
+		}
+	}
+
+	// Parse pincode parameter (optional)
+	var pincode *uint
+	pincodeStr := c.Query("pincode")
+	if pincodeStr != "" {
+		if p, err := strconv.ParseUint(pincodeStr, 10, 32); err == nil {
+			pincodeVal := uint(p)
+			pincode = &pincodeVal
 		}
 	}
 
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 
-	catIDPtr := uuidToStringPtr(categoryID)
-	brandIDPtr := uuidToStringPtr(brandID)
-	locIDPtr := uuidToStringPtr(locationID)
-
-	// Assuming request.Pagination looks like:
-	pageNumber, err := SafeIntToUint64(offset)
-
-	limitUint64, err := SafeIntToUint64(limit)
-
-	pagination := request.Pagination{
-		PageNumber: pageNumber,
-		Count:      limitUint64,
+	// Convert limit/offset into pageNumber for request.Pagination
+	if limit <= 0 {
+		limit = 20
+	}
+	if offset < 0 {
+		offset = 0
 	}
 
-	products, err := h.productUseCase.SearchProducts(c, keyword, catIDPtr, brandIDPtr, locIDPtr, int(pagination.Count), int(pagination.PageNumber))
+	limitUint64, err := SafeIntToUint64(limit)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	offsetUint64, err := SafeIntToUint64(offset)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	pagination := request.Pagination{
+		Limit:  limitUint64,
+		Offset: offsetUint64,
+	}
+
+	products, err := h.productUseCase.SearchProducts(c, keyword, catIDPtr, brandIDPtr, locIDPtr, shopIDPtr, latitude, longitude, radius, pincode, int(pagination.Limit), int(pagination.Offset))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -673,6 +1486,7 @@ func (h *ProductHandler) GetProductSearchSuggestions(c *gin.Context) {
 //	@Success		200	{object}	response.Response{}	"Successfully retrieved product search filters"
 //	@Failure		500	{object}	response.Response{}	"Failed to retrieve product search filters"
 func (h *ProductHandler) GetProductSearchFilters(c *gin.Context) {
+	// userID := h.tokenService.DecodeTokenData(c.GetHeader("Authorization"))
 	filters, err := h.productUseCase.GetProductFilters(c)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -1090,10 +1904,8 @@ func (h *ProductHandler) GetLocationByPincode(c *gin.Context) {
 //	@Router			/products/nearby [get]
 func (h *ProductHandler) GetNearbyProductsByPincode(c *gin.Context) {
 	pincode := c.Query("pincode")
-	if pincode == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "query parameter pincode is required"})
-		return
-	}
+	latStr := c.Query("lat")
+	lngStr := c.Query("lng")
 
 	radiusKmStr := c.DefaultQuery("radius_km", "10")
 	radiusKm, err := strconv.ParseFloat(radiusKmStr, 64)
@@ -1101,11 +1913,99 @@ func (h *ProductHandler) GetNearbyProductsByPincode(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid radius_km"})
 		return
 	}
-
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 
-	products, err := h.productUseCase.GetNearbyProductsByPincode(c, pincode, limit, offset)
+	// If latitude and longitude are provided, use them for search
+	if latStr != "" && lngStr != "" {
+		latitude, err := strconv.ParseFloat(latStr, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid latitude"})
+			return
+		}
+		longitude, err := strconv.ParseFloat(lngStr, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid longitude"})
+			return
+		}
+		// Call radius-based search
+		products, err := h.productUseCase.GetProductsByRadius(c, latitude, longitude, radiusKm, limit, offset)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"products": products})
+		return
+	} else if pincode != "" {
+		products, err := h.productUseCase.GetNearbyProductsByPincode(c, pincode, limit, offset)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"products": products})
+		return
+	} else {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "query parameter pincode or latitude/longitude is required"})
+		return
+	}
+}
+
+// GetProductsByRadius godoc
+//
+//	@Summary		Get products by geographic radius
+//	@Description	Retrieve a paginated list of products available within a specified radius (in kilometers) from given latitude and longitude coordinates.
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			lat		query		number	true	"Latitude coordinate"
+//	@Param			lng		query		number	true	"Longitude coordinate"
+//	@Param			radius	query		number	true	"Radius in kilometers to search within"
+//	@Param			limit	query		int		false	"Limit number of results"	default(20)
+//	@Param			offset	query		int		false	"Offset for pagination"		default(0)
+//	@Success		200		{object}	map[string]interface{}	"List of products within the specified radius"
+//	@Failure		400		{object}	map[string]string		"Invalid input parameters"
+//	@Failure		500		{object}	map[string]string		"Internal server error"
+//	@Router			/products/radius [get]
+func (h *ProductHandler) GetProductsByRadius(c *gin.Context) {
+	latStr := c.Query("lat")
+	lngStr := c.Query("lng")
+	radiusStr := c.Query("radius")
+
+	if latStr == "" || lngStr == "" || radiusStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "lat, lng, and radius query parameters are required"})
+		return
+	}
+
+	lat, err := strconv.ParseFloat(latStr, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid lat"})
+		return
+	}
+
+	lng, err := strconv.ParseFloat(lngStr, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid lng"})
+		return
+	}
+
+	radius, err := strconv.ParseFloat(radiusStr, 64)
+	if err != nil || radius <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid radius"})
+		return
+	}
+
+	limit, err := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid limit"})
+		return
+	}
+	offset, err := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid offset"})
+		return
+	}
+
+	products, err := h.productUseCase.GetProductsByRadius(c, lat, lng, radius, limit, offset)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -1113,4 +2013,948 @@ func (h *ProductHandler) GetNearbyProductsByPincode(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"products": products})
 
+}
+
+// SaveDepartment godoc
+//
+//	@Summary		Save a new department
+//	@Description	API endpoint to create a new product department.
+//	@Tags			Admin Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			department	body		request.Department	true	"Department to be created"
+//	@Success		201			{object}	response.Response{}	"Successfully department saved"
+//	@Failure		400			{object}	response.Response{}	"Invalid input"
+//	@Failure		500			{object}	response.Response{}	"Failed to save department"
+//	@Router			/admin/departments [post]
+func (a *ProductHandler) SaveDepartment(ctx *gin.Context) {
+	var body request.Department
+
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+
+	err := a.productUseCase.SaveDepartment(ctx, body.Name)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to save department", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusCreated, "Successfully department saved", nil)
+}
+
+// GetAllDepartments godoc
+//
+//	@Summary		Get all departments
+//	@Description	API endpoint to retrieve all product departments.
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	response.Response{}	"Successfully retrieved all departments"
+//	@Failure		500	{object}	response.Response{}	"Failed to get departments"
+//	@Router			/departments [get]
+
+func (a *ProductHandler) GetAllDepartments(ctx *gin.Context) {
+
+	tokenString := ctx.GetHeader("Authorization")
+	adminId := a.tokenService.DecodeTokenData(tokenString)
+	fmt.Printf("Admin ID from token: %d\n", adminId)
+	departments, err := a.productUseCase.GetAllDepartments(ctx)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get departments", err, nil)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, response.Response{
+		Status:  true,
+		Message: "Successfully get all departments",
+		Data:    departments,
+	})
+}
+
+// GetDepartmentByID godoc
+//
+//	@Summary		Get department by ID
+//	@Description	API endpoint to retrieve a product department by its ID.
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			id	path		uint	true	"Department ID"
+//	@Success		200	{object}	response.Response{}	"Successfully retrieved department"
+//	@Failure		400	{object}	response.Response{}	"Invalid department ID"
+//	@Failure		500	{object}	response.Response{}	"Failed to get department"
+//	@Router			/departments/{id} [get]
+func (a *ProductHandler) GetDepartmentByID(ctx *gin.Context) {
+	departmentID, err := request.GetParamAsUint(ctx, "department_id")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+		return
+	}
+
+	department, err := a.productUseCase.GetDepartmentByID(ctx, departmentID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get department", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully get department", department)
+}
+
+// GetAllCategoriesByDepartmentID godoc
+//
+//	@Summary		Get all categories by department ID
+//	@Description	API endpoint to retrieve all product categories under a specific department.
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			department_id	path		uint	true	"Department ID"
+//	@Success		200				{object}	response.Response{}	"Successfully retrieved all categories"
+//	@Failure		400				{object}	response.Response{}	"Invalid department ID"
+//	@Failure		500				{object}	response.Response{}	"Failed to get categories"
+//	@Router			/departments/{department_id}/categories [get]
+func (a *ProductHandler) GetAllCategoriesByDepartmentID(ctx *gin.Context) {
+	departmentID, err := request.GetParamAsUint(ctx, "department_id")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+		return
+	}
+
+	categories, err := a.productUseCase.GetAllCategoriesByDepartmentID(ctx, departmentID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get categories", err, nil)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, response.Response{
+		Status:  true,
+		Message: "Successfully get all categories",
+		Data:    categories,
+	})
+}
+
+// GetAllSubCategoriesByCategoryID godoc
+//
+//	@Summary		Get all sub-categories by category ID
+//	@Description	API endpoint to retrieve all product sub-categories under a specific category.
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			category_id	path		uint	true	"Category ID"
+//	@Success		200			{object}	response.Response{}	"Successfully retrieved all sub-categories"
+//	@Failure		400			{object}	response.Response{}	"Invalid category ID"
+//	@Failure		500			{object}	response.Response{}	"Failed to get sub-categories"
+//	@Router			/categories/{category_id}/sub-categories [get]
+func (a *ProductHandler) GetAllSubCategoriesByCategoryID(ctx *gin.Context) {
+	categoryID, err := request.GetParamAsUint(ctx, "category_id")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+		return
+	}
+
+	subCategories, err := a.productUseCase.GetAllSubCategoriesByCategoryID(ctx, categoryID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get sub-categories", err, nil)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, response.Response{
+		Status:  true,
+		Message: "Successfully get all sub-categories",
+		Data:    subCategories,
+	})
+}
+
+// SaveSubTypeAttribute godoc
+//
+//	@Summary		Save a new sub type attribute
+//	@Description	API endpoint to create a new sub type attribute for a specific subcategory.
+//	@Tags			Admin Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			sub_category_id	path		uint					true	"Subcategory ID"
+//	@Param			attribute		body		request.SubTypeAttribute	true	"Sub type attribute to be created"
+//	@Success		201				{object}	response.Response{}	"Successfully sub type attribute created"
+//	@Failure		400				{object}	response.Response{}	"Invalid input"
+//	@Failure		500				{object}	response.Response{}	"Failed to save sub type attribute"
+//	@Router			/admin/sub-categories/{sub_category_id}/attributes [post]
+func (p *ProductHandler) SaveSubTypeAttribute(ctx *gin.Context) {
+	subCategoryID, err := request.GetParamAsUint(ctx, "sub_category_id")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+		return
+	}
+
+	var body request.SubTypeAttribute
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+
+	if err := p.productUseCase.SaveSubTypeAttribute(ctx, subCategoryID, body); err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to save sub type attribute", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusCreated, "Sub type attribute created successfully", nil)
+}
+
+// GetAllSubTypeAttributes godoc
+//
+//	@Summary		Get all sub type attributes
+//	@Description	API endpoint to retrieve all sub type attributes for a specific subcategory.
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			sub_category_id	path		uint	true	"Subcategory ID"
+//	@Success		200				{object}	response.Response{}	"Successfully retrieved sub type attributes"
+//	@Failure		400				{object}	response.Response{}	"Invalid subcategory ID"
+//	@Failure		500				{object}	response.Response{}	"Failed to get sub type attributes"
+//	@Router			/sub-categories/{sub_category_id}/attributes [get]
+func (p *ProductHandler) GetAllSubTypeAttributes(ctx *gin.Context) {
+	subCategoryID, err := request.GetParamAsUint(ctx, "sub_category_id")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+		return
+	}
+
+	attributes, err := p.productUseCase.GetAllSubTypeAttributes(ctx, subCategoryID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get sub type attributes", err, nil)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, response.Response{
+		Status:  true,
+		Message: "Successfully retrieved sub type attributes",
+		Data:    attributes,
+	})
+}
+
+// GetSubTypeAttributeByID godoc
+//
+//	@Summary		Get sub type attribute by ID
+//	@Description	API endpoint to retrieve a sub type attribute by its ID.
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			attribute_id	path		uint	true	"Sub type attribute ID"
+//	@Success		200				{object}	response.Response{}	"Successfully retrieved sub type attribute"
+//	@Failure		400				{object}	response.Response{}	"Invalid attribute ID"
+//	@Failure		500				{object}	response.Response{}	"Failed to get sub type attribute"
+//	@Router			/attributes/{attribute_id} [get]
+func (p *ProductHandler) GetSubTypeAttributeByID(ctx *gin.Context) {
+	attributeID, err := request.GetParamAsUint(ctx, "attribute_id")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+		return
+	}
+
+	attribute, err := p.productUseCase.GetSubTypeAttributeByID(ctx, attributeID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get sub type attribute", err, nil)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, response.Response{
+		Status:  true,
+		Message: "Successfully retrieved sub type attribute",
+		Data:    attribute,
+	})
+}
+
+// SaveSubTypeAttributeOption godoc
+//
+//	@Summary		Save a new sub type attribute option
+//	@Description	API endpoint to create a new option for a specific sub type attribute.
+//	@Tags			Admin Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			attribute_id	path		uint						true	"Sub type attribute ID"
+//	@Param			option			body		request.SubTypeAttributeOption	true	"Sub type attribute option to be created"
+//	@Success		201				{object}	response.Response{}	"Successfully sub type attribute option created"
+//	@Failure		400				{object}	response.Response{}	"Invalid input"
+//	@Failure		500				{object}	response.Response{}	"Failed to save sub type attribute option"
+//	@Router			/admin/attributes/{attribute_id}/options [post]
+func (p *ProductHandler) SaveSubTypeAttributeOption(ctx *gin.Context) {
+	attributeID, err := request.GetParamAsUint(ctx, "attribute_id")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+		return
+	}
+
+	var body request.SubTypeAttributeOption
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+
+	if err := p.productUseCase.SaveSubTypeAttributeOption(ctx, attributeID, body); err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to save sub type attribute option", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusCreated, "Sub type attribute option created successfully", nil)
+}
+
+// GetAllSubTypeAttributeOptions godoc
+//
+//	@Summary		Get all sub type attribute options
+//	@Description	API endpoint to retrieve all options for a specific sub type attribute.
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			attribute_id	path		uint	true	"Sub type attribute ID"
+//	@Success		200				{object}	response.Response{}	"Successfully retrieved sub type attribute options"
+//	@Failure		400				{object}	response.Response{}	"Invalid attribute ID"
+//	@Failure		500				{object}	response.Response{}	"Failed to get sub type attribute options"
+//	@Router			/attributes/{attribute_id}/options [get]
+func (p *ProductHandler) GetAllSubTypeAttributeOptions(ctx *gin.Context) {
+	attributeID, err := request.GetParamAsUint(ctx, "attribute_id")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+		return
+	}
+
+	options, err := p.productUseCase.GetAllSubTypeAttributeOptions(ctx, attributeID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get sub type attribute options", err, nil)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, response.Response{
+		Status:  true,
+		Message: "Successfully retrieved sub type attribute options",
+		Data:    options,
+	})
+}
+
+// GetSubTypeAttributeOptionByID godoc
+//
+//	@Summary		Get sub type attribute option by ID
+//	@Description	API endpoint to retrieve a sub type attribute option by its ID.
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			option_id	path		uint	true	"Sub type attribute option ID"
+//	@Success		200			{object}	response.Response{}	"Successfully retrieved sub type attribute option"
+//	@Failure		400			{object}	response.Response{}	"Invalid option ID"
+//	@Failure		500			{object}	response.Response{}	"Failed to get sub type attribute option"
+//	@Router			/options/{option_id} [get]
+func (p *ProductHandler) GetSubTypeAttributeOptionByID(ctx *gin.Context) {
+	optionID, err := request.GetParamAsUint(ctx, "option_id")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+		return
+	}
+
+	option, err := p.productUseCase.GetSubTypeAttributeOptionByID(ctx, optionID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get sub type attribute option", err, nil)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, response.Response{
+		Status:  true,
+		Message: "Successfully retrieved sub type attribute option",
+		Data:    option,
+	})
+}
+
+// SaveCategoryImage godoc
+//
+//	@Summary		Save category image
+//	@Description	API endpoint to save an image for a specific product category.
+//	@Tags			Admin Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			category_id	path		uint				true	"Category ID"
+//	@Param			image		body		request.CategoryImage	true	"Category image to be saved"
+//	@Success		201			{object}	response.Response{}	"Successfully saved category image"
+//	@Failure		400			{object}	response.Response{}	"Invalid input"
+//	@Failure		500			{object}	response.Response{}	"Failed to save category image"
+//	@Router			/admin/categories/{category_id}/images [post]
+func (p *ProductHandler) SaveCategoryImage(ctx *gin.Context) {
+	categoryID, err := request.GetParamAsUint(ctx, "category_id")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+		return
+	}
+
+	var image request.CategoryImage
+	if err := ctx.ShouldBindJSON(&image); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+
+	err = p.productUseCase.SaveCategoryImage(ctx, categoryID, image)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to save category image", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusCreated, "Successfully saved category image", nil)
+}
+
+// GetAllCategoryImages godoc
+//
+//	@Summary		Get all category images
+//	@Description	API endpoint to retrieve all images for a specific product category.
+//	@Tags			Admin Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			category_id	path		uint	true	"Category ID"
+//	@Success		200			{object}	response.Response{}	"Successfully retrieved category images"
+//	@Failure		400			{object}	response.Response{}	"Invalid category ID"
+//	@Failure		500			{object}	response.Response{}	"Failed to get category images"
+//	@Router			/admin/categories/{category_id}/images [get]
+func (p *ProductHandler) GetAllCategoryImages(ctx *gin.Context) {
+	categoryID, err := request.GetParamAsUint(ctx, "category_id")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+		return
+	}
+
+	images, err := p.productUseCase.GetAllCategoryImages(ctx, categoryID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get category images", err, nil)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, response.Response{
+		Status:  true,
+		Message: "Successfully retrieved category images",
+		Data:    images,
+	})
+}
+
+// GetCategoryImageByID godoc
+//
+//	@Summary		Get category image by ID
+//	@Description	API endpoint to retrieve a category image by its ID.
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			image_id	path		uint	true	"Category Image ID"
+//	@Success		200			{object}	response.Response{}	"Successfully retrieved category image"
+//	@Failure		400			{object}	response.Response{}	"Invalid category image ID"
+//	@Failure		500			{object}	response.Response{}	"Failed to get category image"
+//	@Router			/products/category/image/{image_id} [get]
+func (p *ProductHandler) GetCategoryImageByID(ctx *gin.Context) {
+	imageID, err := request.GetParamAsUint(ctx, "image_id")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+		return
+	}
+
+	image, err := p.productUseCase.GetCategoryImageByID(ctx, imageID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get category image", err, nil)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, response.Response{
+		Status:  true,
+		Message: "Successfully retrieved category image",
+		Data:    image,
+	})
+}
+
+// UpdateCategoryImage godoc
+//
+//	@Summary		Update category image
+//	@Description	API endpoint to update a category image by its ID.
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			image_id	path		int	true	"Category Image ID"
+//	@Param			image		body		request.CategoryImage	true	"Updated category image data"
+//	@Success		200			{object}	response.Response{}	"Successfully updated category image"
+//	@Failure		400			{object}	response.Response{}	"Invalid input"
+//	@Failure		500			{object}	response.Response{}	"Failed to update category image"
+//	@Router			/products/category/image/{image_id} [put]
+func (p *ProductHandler) UpdateCategoryImage(ctx *gin.Context) {
+	imageID, err := request.GetParamAsUint(ctx, "image_id")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+		return
+	}
+
+	var image request.CategoryImage
+	if err := ctx.ShouldBindJSON(&image); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+
+	err = p.productUseCase.UpdateCategoryImage(ctx, imageID, image)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to update category image", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully updated category image", nil)
+}
+
+// DeleteCategoryImage godoc
+//	@Summary		Delete category image
+//	@Description	Delete a category image by its ID.
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			image_id	path		int	true	"Category Image ID"
+//	@Success		200			{object}	response.Response{}	"Successfully deleted category image"
+//	@Failure		400			{object}	response.Response{}	"Invalid category image ID"
+//	@Failure		500			{object}	response.Response{}	"Internal server error"
+//	@Router			/products/category/image/{image_id} [delete]
+
+func (p *ProductHandler) DeleteCategoryImage(ctx *gin.Context) {
+	imageID, err := request.GetParamAsUint(ctx, "image_id")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+		return
+	}
+
+	err = p.productUseCase.DeleteCategoryImage(ctx, imageID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to delete category image", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully deleted category image", nil)
+}
+
+// GetProductItemByID godoc
+// /	@Summary		Get product item by ID
+//
+//	@Description	Retrieve a product item by its unique ID.
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			product_item_id	path		int	true	"Product Item ID"
+//	@Success		200				{object}	response.Response{}	"Successfully retrieved product item"
+//	@Failure		400				{object}	response.Response{}	"Invalid product item ID"
+//	@Failure		500				{object}	response.Response{}	"Internal server error"
+//	@Router			/products/item/{product_item_id} [get]
+func (p *ProductHandler) GetProductItemByID(ctx *gin.Context) {
+	productItemIDStr, err := request.GetParamAsUint(ctx, "product_item_id")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+		return
+	}
+
+	//convert productItemID to uint
+	productItemID := uint(productItemIDStr)
+	// Fetch product item
+
+	productItem, err := p.productUseCase.GetProductItemByID(ctx, productItemID)
+	fmt.Printf("Fetched product item: %+v\n", productItem)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get product item", err, nil)
+		return
+	}
+
+	// Increment view count
+	tokenString := ctx.GetHeader("Authorization")
+	adminId := p.tokenService.DecodeTokenData(tokenString)
+	err = p.productUseCase.IncrementProductItemViewCount(ctx, productItemID, adminId)
+	if err != nil {
+		// Log the error but don't fail the request
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully get product item", productItem)
+}
+
+func (p *ProductHandler) IncrementProductItemViewCount(ctx *gin.Context) {
+	productItemID, err := request.GetParamAsUint(ctx, "product_item_id")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+		return
+	}
+
+	tokenString := ctx.GetHeader("Authorization")
+	adminId := p.tokenService.DecodeTokenData(tokenString)
+
+	err = p.productUseCase.IncrementProductItemViewCount(ctx, productItemID, adminId)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to increment view count", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully incremented view count", nil)
+}
+
+func (p *ProductHandler) GetProductItemViewCount(ctx *gin.Context) {
+	productItemID, err := request.GetParamAsUint(ctx, "product_item_id")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+		return
+	}
+
+	tokenString := ctx.GetHeader("Authorization")
+	adminId := p.tokenService.DecodeTokenData(tokenString)
+
+	viewCount, err := p.productUseCase.GetProductItemViewCount(ctx, productItemID, adminId)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get view count", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved view count", map[string]interface{}{
+		"product_item_id": productItemID,
+		"view_count":      viewCount,
+	})
+}
+
+// DeleteProductItem godoc
+//
+//	@Summary		Delete a product item
+//	@Security		BearerAuth
+//	@Description	API for admin to delete a product item by ID
+//	@ID				DeleteProductItem
+//	@Tags			Admin Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			product_item_id	path	int	true	"Product Item ID"
+//	@Success		200				{object}	response.Response{}	"Successfully deleted product item"
+//	@Failure		400				{object}	response.Response{}	"Bad request"
+//	@Failure		500				{object}	response.Response{}	"Internal server error"
+//	@Router			/items/{product_item_id} [delete]
+func (p *ProductHandler) DeleteProductItem(ctx *gin.Context) {
+	productItemID, err := request.GetParamAsUint(ctx, "product_item_id")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+		return
+	}
+
+	err = p.productUseCase.DeleteProductItem(ctx, productItemID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to delete product item", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully deleted product item", nil)
+}
+
+func (p *ProductHandler) UpdateProductItem(ctx *gin.Context) {
+	productItemID, err := request.GetParamAsUint(ctx, "product_item_id")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+		return
+	}
+
+	subCategoryIDStr := ctx.PostForm("sub_category_id")
+	var subCategoryID uint
+	if subCategoryIDStr != "" {
+		if n, err := strconv.Atoi(subCategoryIDStr); err == nil {
+			subCategoryID = uint(n)
+		} else {
+			response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid sub_category_id", err, nil)
+			return
+		}
+	}
+
+	categoryIDStr := ctx.PostForm("category_id")
+	var categoryID uint
+	if categoryIDStr != "" {
+		if n, err := strconv.Atoi(categoryIDStr); err == nil {
+			categoryID = uint(n)
+		} else {
+			response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid category_id", err, nil)
+			return
+		}
+	}
+
+	departmentIDStr := ctx.PostForm("department_id")
+	var departmentID uint
+	if departmentIDStr != "" {
+		if n, err := strconv.Atoi(departmentIDStr); err == nil {
+			departmentID = uint(n)
+		} else {
+			response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid department_id", err, nil)
+			return
+		}
+	}
+
+	subCategoryName := ctx.PostForm("sub_category_name")
+	dynamicFieldsStr := ctx.PostForm("dynamic_fields")
+	categoryName := ctx.PostForm("category_name")
+	files := ctx.Request.MultipartForm.File["images[]"]
+
+	var imagePaths []string
+	for _, fileHeader := range files {
+
+		localPath, err := handleUpload(fileHeader)
+		if err != nil {
+			response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to process image", err, nil)
+			return
+		}
+
+		// Validate product image matches category using AI service if available
+		if categoryName != "" {
+			// Get absolute path for validation
+			wd, _ := os.Getwd()
+			absolutePath := filepath.Join(wd, localPath)
+
+			validationResult, err := p.aiClient.ValidateProduct(absolutePath, categoryName)
+			if err != nil {
+				response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to validate product image", err, nil)
+				return
+			}
+
+			// If validation failed (valid is false) and confidence is high, reject the upload
+			if !validationResult.Valid && validationResult.Confidence > 0.1 {
+				response.ErrorResponse(ctx, http.StatusBadRequest,
+					fmt.Sprintf("Product image does not match '%s' category. Reason: %s", categoryName, validationResult.Reason),
+					nil, nil)
+				return
+			}
+		}
+
+		imagePaths = append(imagePaths, localPath)
+	}
+
+	type uploadResult struct {
+		path  string
+		err   error
+		index int // preserve order
+	}
+
+	uploadChan := make(chan uploadResult, len(files))
+	for i, fileHeader := range files {
+		go func(idx int, fh *multipart.FileHeader) {
+			path, err := utils.SaveFileLocally(fh, "uploads/products")
+			uploadChan <- uploadResult{path: path, err: err, index: idx}
+		}(i, fileHeader)
+	}
+
+	// Collect results in order
+	results := make([]uploadResult, len(files))
+	for i := 0; i < len(files); i++ {
+		result := <-uploadChan
+		results[result.index] = result
+		if result.err != nil {
+			// handle error
+			return
+		}
+		imagePaths = append(imagePaths, result.path)
+	}
+
+	var dynamicFields map[string]interface{}
+	if dynamicFieldsStr != "" {
+		if err := json.Unmarshal([]byte(dynamicFieldsStr), &dynamicFields); err != nil {
+			response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid dynamic_fields JSON", err, nil)
+			return
+		}
+	}
+
+	req := request.ProductItem{
+		SubCategoryName:   subCategoryName,
+		SubCategoryID:     subCategoryID,
+		DynamicFields:     dynamicFields,
+		CategoryID:        categoryID,
+		DepartmentID:      departmentID,
+		ProductItemImages: imagePaths,
+	}
+
+	err = p.productUseCase.UpdateProductItem(ctx, productItemID, req)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to update product item", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully updated product item", nil)
+}
+
+// FindProductItemFilters godoc
+//
+//	@Summary		Find product item filters
+//	@Description	API endpoint to retrieve available filters for product items based on provided criteria.
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Success		200				{object}	response.Response{}	"Successfully retrieved product item filters"
+
+func (p *ProductHandler) FindProductItemFilters(ctx *gin.Context) {
+	shopID, err := request.GetParamAsUint(ctx, "shop_id")
+
+	tokenString := ctx.GetHeader("Authorization")
+	adminID := p.tokenService.DecodeTokenData(tokenString)
+
+	filters, err := p.productUseCase.FindProductItemFilters(ctx, adminID, shopID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get product item filters", err, nil)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, response.Response{
+		Status:  true,
+		Message: "Successfully retrieved product item filters",
+		Data:    filters,
+	})
+}
+
+func (p *ProductHandler) GetProductItemsByOfferID(ctx *gin.Context) {
+	// Get Offer ID, Category ID, Department ID, Sub category ID, Lattitde, Longitude, Radius, Pincode, Limit, Offset from query parameters
+	offerID, err := request.GetParamAsUint(ctx, "offer_id")
+	CategoryId, _ := strconv.Atoi(ctx.Query("category_id"))
+	DepartmentId, _ := strconv.Atoi(ctx.Query("department_id"))
+	SubCategoryId, _ := strconv.Atoi(ctx.Query("sub_category_id"))
+	latStr := ctx.Query("lat")
+	lngStr := ctx.Query("lng")
+	pincode := ctx.Query("pincode")
+
+	// Accept both radius_km and radius parameters
+	radiusKmStr := ctx.Query("radius_km")
+	if radiusKmStr == "" {
+		radiusKmStr = ctx.Query("radius")
+	}
+
+	var radiusKm float64
+	if radiusKmStr != "" {
+		var err error
+		radiusKm, err = strconv.ParseFloat(radiusKmStr, 64)
+		if err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid radius parameter"})
+			return
+		}
+		if radiusKm < 0 {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "radius must be non-negative"})
+			return
+		}
+	}
+	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "20"))
+	offset, _ := strconv.Atoi(ctx.DefaultQuery("offset", "0"))
+
+	products, err := p.productUseCase.GetProductItemsByOfferID(ctx, offerID, CategoryId, DepartmentId, SubCategoryId, latStr, lngStr, pincode, radiusKm, limit, offset)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get product items by offer ID", err, nil)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, response.Response{
+		Status:  true,
+		Message: "Successfully retrieved product items by offer ID",
+		Data:    products,
+	})
+
+}
+
+// handleUpload validates the file header for adult content and security checks
+func handleUpload(fileHeader *multipart.FileHeader) (string, error) {
+	// Check for adult content
+	savedPath, err := handleSecureMagic(fileHeader)
+	if err != nil {
+		return "", err
+	}
+	// Check for adult content
+	isAdult, err := utils.CheckNudity(savedPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to check nudity: %w", err)
+	}
+
+	if isAdult {
+		return "", fmt.Errorf("image contains adult content and cannot be uploaded")
+	}
+
+	return savedPath, nil
+}
+
+// func handleAdultContent(fileName string) (bool, error) {
+// 	isAdult, err := checkAdultContent(fileName)
+// 	if err != nil {
+// 		return false, err
+// 	}
+
+// 	if isAdult {
+// 		return false, fmt.Errorf("content policy violation: adult image detected")
+// 	}
+// 	return isAdult, nil
+// }
+
+// handleSecureMagic validates and enhances the image, returns the file path as a string
+func handleSecureMagic(fileHeader *multipart.FileHeader) (string, error) {
+	file, err := fileHeader.Open()
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	buffer := make([]byte, 512)
+	_, err = file.Read(buffer)
+	if err != nil && err != io.EOF {
+		return "", err
+	}
+
+	contentType := http.DetectContentType(buffer)
+	file.Seek(0, 0)
+
+	if contentType != "image/jpeg" && contentType != "image/png" {
+		return "", fmt.Errorf("unsupported file type: %s", contentType)
+	}
+
+	semaphore <- struct{}{}
+	defer func() { <-semaphore }()
+
+	src, err := imaging.Decode(file)
+	if err != nil {
+		return "", err
+	}
+
+	// Resize first (important for file size)
+	processed := imaging.Resize(src, 1080, 0, imaging.Lanczos)
+
+	// Improve brightness slightly
+	processed = imaging.AdjustBrightness(processed, 5)
+
+	// Add contrast for punch
+	processed = imaging.AdjustContrast(processed, 18)
+
+	// Boost saturation carefully (avoid oversaturation)
+	processed = imaging.AdjustSaturation(processed, 12)
+
+	// Light sharpening for product clarity
+	processed = imaging.Sharpen(processed, 0.6)
+
+	// Get the server root directory
+	wd, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("failed to get working directory: %w", err)
+	}
+
+	// Save processed image directly to uploads/products with a unique filename
+	saveDir := filepath.Join(wd, "uploads", "products")
+	if err := os.MkdirAll(saveDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create directory: %w", err)
+	}
+	filename := fmt.Sprintf("%s_tweak.jpg", uuid.New().String())
+	savePath := filepath.Join(saveDir, filename)
+	outFile, err := os.Create(savePath)
+	if err != nil {
+		return "", err
+	}
+	defer outFile.Close()
+	err = imaging.Encode(outFile, processed, imaging.JPEG, imaging.JPEGQuality(20))
+	if err != nil {
+		return "", err
+	}
+	// Return the relative path for database storage with forward slashes
+	relativePath := "uploads/products/" + filename
+	return filepath.ToSlash(relativePath), nil
+}
+
+// buildPublicURL converts a local relative path (uploads/...) or absolute path
+// to a HTTP URL that other services can fetch from this API server.
+func buildPublicURL(path string) string {
+	if path == "" {
+		return ""
+	}
+	// If already a full URL, return as-is
+	if strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") {
+		return path
+	}
+	// Ensure leading slash and forward slashes
+	p := filepath.ToSlash(path)
+	if !strings.HasPrefix(p, "/") {
+		p = "/" + p
+	}
+	return fmt.Sprintf("http://localhost:3000%s", p)
 }

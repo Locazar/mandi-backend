@@ -7,30 +7,30 @@ import (
 )
 
 type Pagination struct {
-	PageNumber uint64
-	Count      uint64
+	Limit  uint64
+	Offset uint64
 }
 
 const (
-	defaultPageNumber = 1
-	defaultPageCount  = 10
+	defaultLimit  = 25
+	defaultOffset = 0
 )
 
 func GetPagination(ctx *gin.Context) Pagination {
 
 	pagination := Pagination{
-		PageNumber: defaultPageNumber,
-		Count:      defaultPageCount,
+		Limit:  defaultLimit,
+		Offset: defaultOffset,
 	}
 
-	num, err := strconv.ParseUint(ctx.Query("page_number"), 10, 64)
+	num, err := strconv.ParseUint(ctx.Query("limit"), 10, 64)
 	if err == nil {
-		pagination.PageNumber = num
+		pagination.Limit = num
 	}
 
-	num, err = strconv.ParseUint(ctx.Query("count"), 10, 64)
+	num, err = strconv.ParseUint(ctx.Query("offset"), 10, 64)
 	if err == nil {
-		pagination.Count = num
+		pagination.Offset = num
 	}
 	return pagination
 }

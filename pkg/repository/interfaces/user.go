@@ -3,6 +3,7 @@ package interfaces
 import (
 	"context"
 
+	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 )
@@ -14,7 +15,7 @@ type UserRepository interface {
 	FindUserByUserName(ctx context.Context, userName string) (user domain.User, err error)
 	FindUserByPhoneNumber(ctx context.Context, phoneNumber string) (user domain.User, err error)
 	FindUserByUserNameEmailOrPhoneNotID(ctx context.Context, user domain.User) (domain.User, error)
-
+	UpdateAdminVerified(ctx context.Context, adminID uint) error
 	SaveUser(ctx context.Context, user domain.User) (userID uint, err error)
 	UpdateVerified(ctx context.Context, userID uint) error
 	UpdateUser(ctx context.Context, user domain.User) (err error)
@@ -37,4 +38,10 @@ type UserRepository interface {
 	FindAllWishListItemsByUserID(ctx context.Context, userID uint) ([]response.WishListItem, error)
 	SaveWishListItem(ctx context.Context, wishList domain.WishList) error
 	RemoveWishListItem(ctx context.Context, userID, productItemID uint) error
+	FindSellersByRadius(ctx context.Context, reqData request.SellerRadiusRequest) (sellers []response.Shop, err error)
+	FindSellersByPincode(ctx context.Context, reqData request.SellerPincodeRequest) (sellers []response.Shop, err error)
+	SearchShopList(ctx context.Context, reqData request.SearchShopListRequest) (shops []response.Shop, err error)
+	DeleteRefreshSessionByUserID(ctx context.Context, adminID string, userType string) error
+	FindShopByID(ctx context.Context, shopID uint) (response.Shop, error)
+	GetShopSocialDetails(ctx context.Context, shopID uint) ([]domain.ShopSocial, error)
 }

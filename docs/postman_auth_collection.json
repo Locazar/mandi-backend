@@ -1,0 +1,49 @@
+{
+    "info": {
+        "name": "Auth Service",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "Register",
+            "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"secret\"\n}"
+                },
+                "url": {
+                    "raw": "http://localhost:8080/auth/register",
+                    "host": [
+                        "http://localhost:8080"
+                    ],
+                    "path": [
+                        "auth",
+                        "register"
+                    ]
+                }
+            }
+        },
+        {
+            "name": "Login",
+            "request": {
+                "method": "POST",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"secret\"\n}"
+                },
+                "url": {
+                    "raw": "http://localhost:8080/auth/login",
+                    "host": [
+                        "http://localhost:8080"
+                    ],
+                    "path": [
+                        "auth",
+                        "login"
+                    ]
+                }
+            }
+        }
+    ]
+}

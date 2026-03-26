@@ -24,4 +24,7 @@ type OrderHandler interface {
 	// wallet
 	GetUserWallet(ctx *gin.Context)
 	GetUserWalletTransactions(ctx *gin.Context)
+
+	//feedback
+	SubmitShoppingFeedback(ctx *gin.Context)
 }

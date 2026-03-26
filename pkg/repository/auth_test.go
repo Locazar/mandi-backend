@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/driver/postgres"
@@ -19,14 +20,14 @@ func TestSaveRefreshSession(t *testing.T) {
 VALUES \(\$1, \$2, \$3, \$4\)`
 	tests := []struct {
 		testName      string
-		inputField    domain.RefreshSession
-		buildStub     func(mock sqlmock.Sqlmock, input domain.RefreshSession)
+		inputField    request.RefreshSession
+		buildStub     func(mock sqlmock.Sqlmock, input request.RefreshSession)
 		expectedError error
 	}{
 		{
 			testName:   "EmptyInputFieldShouldReturnError",
-			inputField: domain.RefreshSession{},
-			buildStub: func(mock sqlmock.Sqlmock, input domain.RefreshSession) {
+			inputField: request.RefreshSession{},
+			buildStub: func(mock sqlmock.Sqlmock, input request.RefreshSession) {
 				mock.ExpectExec(refreshInsertQuery).
 					WithArgs(input.TokenID, input.UserID, input.RefreshToken, input.ExpireAt).
 					WillReturnError(errors.New("insert into refresh_table violate not null constraints"))
@@ -35,8 +36,8 @@ VALUES \(\$1, \$2, \$3, \$4\)`
 		},
 		{
 			testName:   "ValidInputShouldExecuteAndNoError",
-			inputField: domain.RefreshSession{TokenID: "token_id", RefreshToken: "refreshTokenString", ExpireAt: time.Now()},
-			buildStub: func(mock sqlmock.Sqlmock, input domain.RefreshSession) {
+			inputField: request.RefreshSession{TokenID: "token_id", RefreshToken: "refreshTokenString", ExpireAt: time.Now().Format(time.RFC3339)},
+			buildStub: func(mock sqlmock.Sqlmock, input request.RefreshSession) {
 				mock.ExpectExec(refreshInsertQuery).
 					WithArgs(input.TokenID, input.UserID, input.RefreshToken, input.ExpireAt).
 					WillReturnResult(driver.ResultNoRows)
@@ -72,6 +73,7 @@ func TestFindRefreshSessionByTokenID(t *testing.T) {
 	tests := []struct {
 		testName               string
 		tokenID                string
+		userType               string
 		expectedRefreshSession domain.RefreshSession
 		buildStub              func(mock sqlmock.Sqlmock)
 		expectedError          error
@@ -79,6 +81,7 @@ func TestFindRefreshSessionByTokenID(t *testing.T) {
 		{
 			testName:               "NonExistingTokenIDReturnEmptyRefreshSession",
 			tokenID:                "non_existing_token_id",
+			userType:               "user",
 			expectedRefreshSession: domain.RefreshSession{},
 			buildStub: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(findRefreshSessionQuery).
@@ -90,6 +93,7 @@ func TestFindRefreshSessionByTokenID(t *testing.T) {
 		{
 			testName: "ExistingTokenIDReturnRefreshSession",
 			tokenID:  "existing_token_id",
+			userType: "user",
 			expectedRefreshSession: domain.RefreshSession{
 				TokenID:      "existing_token_id",
 				RefreshToken: "db_refresh_token_token",
@@ -120,7 +124,7 @@ func TestFindRefreshSessionByTokenID(t *testing.T) {
 			test.buildStub(mock)
 
 			authRepo := NewAuthRepository(gormDB)
-			refreshSession, err := authRepo.FindRefreshSessionByTokenID(context.Background(), test.tokenID)
+			refreshSession, err := authRepo.FindRefreshSessionByTokenID(context.Background(), test.tokenID, test.userType)
 			assert.Equal(t, test.expectedError, err)
 			assert.Equal(t, test.expectedRefreshSession.TokenID, refreshSession.TokenID)
 			assert.Equal(t, test.expectedRefreshSession.RefreshToken, refreshSession.RefreshToken)

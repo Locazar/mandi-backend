@@ -1,6 +1,8 @@
 package config
 
 import (
+	"os"
+
 	"github.com/go-playground/validator/v10"
 	"github.com/spf13/viper"
 )
@@ -8,7 +10,6 @@ import (
 // to store env variables
 type Config struct {
 	AdminEmail    string `mapstructure:"ADMIN_EMAIL"`
-	AdminUserName string `mapstructure:"ADMIN_USER_NAME"`
 	AdminPassword string `mapstructure:"ADMIN_PASSWORD"`
 	DBHost        string `mapstructure:"DB_HOST"`
 	DBName        string `mapstructure:"DB_NAME"`
@@ -38,11 +39,30 @@ type Config struct {
 	AwsSecretKey   string `mapstructure:"AWS_SECRET_ACCESS_KEY"`
 	AwsRegion      string `mapstructure:"AWS_REGION"`
 	AwsBucketName  string `mapstructure:"AWS_BUCKET_NAME"`
+
+	SharedUploadsPath string `mapstructure:"SHARED_UPLOADS_PATH"`
+
+	ElasticsearchURL string `mapstructure:"ELASTICSEARCH_URL"`
+
+	AIServiceURL string `mapstructure:"AI_SERVICE_URL"`
+}
+
+var firbaseConfig = map[string]interface{}{
+	"type":                        "service_account",
+	"project_id":                  "mandi-backend-379522",
+	"private_key_id":              "some_key_id",
+	"private_key":                 "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n",
+	"client_email":                "some_email@mandi-backend-379522.iam.gserviceaccount.com",
+	"client_id":                   "some_client_id",
+	"auth_uri":                    "https://accounts.google.com/o/oauth2/auth",
+	"token_uri":                   "https://oauth2.googleapis.com/token",
+	"auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+	"client_x509_cert_url":        "some_cert_url",
 }
 
 // name of envs and used to read from system envs
 var envsNames = []string{
-	"ADMIN_EMAIL", "ADMIN_USER_NAME", "ADMIN_PASSWORD",
+	"ADMIN_EMAIL", "ADMIN_PASSWORD",
 	"DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD", "DB_PORT", // database
 	"ADMIN_AUTH_KEY", "USER_AUTH_KEY", // token auth
 	"AUTH_TOKEN", "ACCOUNT_SID", "SERVICE_SID", // twilio
@@ -50,6 +70,12 @@ var envsNames = []string{
 	"STRIPE_SECRET", "STRIPE_PUBLISH_KEY", "STRIPE_WEBHOOK", // stripe
 	"GOAUTH_CLIENT_ID", "GOAUTH_CLIENT_SECRET", "GOAUTH_CALL_BACK_URL", //goath
 	"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_REGION", "AWS_BUCKET_NAME", // aws s3
+	"SHARED_UPLOADS_PATH", // shared uploads directory
+	"ELASTICSEARCH_URL",   // elasticsearch
+	"AI_SERVICE_URL",      // ai service
+	// Firebase — either an ADC credentials file path or inline JSON
+	"GOOGLE_APPLICATION_CREDENTIALS",
+	"FIREBASE_CONFIG",
 }
 
 func LoadConfig() (config Config, err error) {
@@ -75,5 +101,16 @@ func LoadConfig() (config Config, err error) {
 	if err := validator.New().Struct(config); err != nil {
 		return config, err
 	}
+
+	//firebase config
+	viper.Set("FIREBASE_CONFIG", firbaseConfig)
+
+	// Propagate Firebase credentials file path into the OS environment so the
+	// Firebase Admin Go SDK can find them via os.Getenv (Viper doesn't do this
+	// automatically).
+	if credPath := viper.GetString("GOOGLE_APPLICATION_CREDENTIALS"); credPath != "" {
+		_ = os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", credPath)
+	}
+
 	return config, nil
 }

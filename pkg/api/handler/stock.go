@@ -45,7 +45,7 @@ func (c *stockHandler) GetAllStocks(ctx *gin.Context) {
 	}
 
 	if len(stocks) == 0 {
-		response.SuccessResponse(ctx, http.StatusNoContent, "No stocks found", nil)
+		response.SuccessResponse(ctx, http.StatusNoContent, "No stocks found", []interface{}{})
 		return
 	}
 

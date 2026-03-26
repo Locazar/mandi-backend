@@ -22,9 +22,6 @@ definitions:
         type: string
       email:
         type: string
-      gstin:
-        description: GST number (optional)
-        type: string
       id:
         type: integer
       latitude:
@@ -41,11 +38,6 @@ definitions:
         type: string
       pincode:
         type: string
-      shop_id:
-        description: Shop registration number
-        type: string
-      shop_name:
-        type: string
       state:
         type: string
       status:
@@ -57,7 +49,7 @@ definitions:
         maxLength: 15
         minLength: 3
         type: string
-      verified:
+      verified_seller:
         description: e.g. "yes", "no", "pending"
         type: string
     required:
@@ -66,14 +58,153 @@ definitions:
     - city
     - country
     - email
-    - latitude
-    - longitude
     - mobile
     - password
     - pincode
-    - shop_name
     - state
     - user_name
+    type: object
+  domain.Advertisement:
+    properties:
+      admin_id:
+        type: integer
+      area_targeted:
+        type: string
+      content:
+        type: string
+      created_at:
+        type: string
+      created_by_admin:
+        type: integer
+      distance_km:
+        type: number
+      end_date:
+        type: string
+      id:
+        type: integer
+      image_url:
+        type: string
+      latitude:
+        type: number
+      longitude:
+        type: number
+      pincode_targeted:
+        type: string
+      priority:
+        description: e.g. "high", "medium", "low"
+        type: string
+      start_date:
+        type: string
+      status:
+        description: e.g. "active", "inactive", "expired"
+        type: string
+      target_url:
+        type: string
+      title:
+        type: string
+      updated_at:
+        type: string
+    required:
+    - content
+    - end_date
+    - start_date
+    - title
+    type: object
+  domain.ShopDetails:
+    properties:
+      address_line1:
+        type: string
+      address_line2:
+        type: string
+      bank_account_number:
+        type: string
+      bank_ifsc:
+        type: string
+      city:
+        type: string
+      country:
+        type: string
+      created_at:
+        type: string
+      electricity_bill:
+        type: string
+      email:
+        type: string
+      gstin:
+        type: string
+      id:
+        type: integer
+      itr_documents:
+        type: string
+      latitude:
+        type: number
+      longitude:
+        type: number
+      mobile:
+        type: string
+      msme_registration_number:
+        type: string
+      owner_id:
+        type: integer
+      owner_name:
+        type: string
+      pan_number:
+        type: string
+      pincode:
+        type: string
+      shop_description:
+        type: string
+      shop_id:
+        type: string
+      shop_name:
+        type: string
+      shop_status:
+        type: string
+      shop_type:
+        type: string
+      shop_verification_docs:
+        type: string
+      shop_verification_remarks:
+        type: string
+      shop_verification_status:
+        type: string
+      state:
+        type: string
+      updated_at:
+        type: string
+    required:
+    - address_line1
+    - city
+    - country
+    - pincode
+    - state
+    type: object
+  domain.ShopVerification:
+    properties:
+      admin_id:
+        type: integer
+      agent_id:
+        type: integer
+      created_at:
+        type: string
+      id:
+        type: integer
+      remarks:
+        type: string
+      shop_id:
+        type: string
+      shop_name:
+        type: string
+      updated_at:
+        type: string
+      verification_status:
+        description: e.g. "verified", "unverified", "under_review"
+        type: string
+    required:
+    - admin_id
+    - shop_id
+    - shop_name
+    - verification_status
     type: object
   request.Address:
     properties:
@@ -81,12 +212,18 @@ definitions:
         type: string
       city:
         type: string
+      country_id:
+        type: integer
       house:
         type: string
       is_default:
         type: boolean
       land_mark:
         type: string
+      latitude:
+        type: number
+      longitude:
+        type: number
       name:
         maxLength: 50
         minLength: 2
@@ -98,6 +235,7 @@ definitions:
       pincode:
         type: integer
     required:
+    - country_id
     - house
     - land_mark
     - name
@@ -175,12 +313,18 @@ definitions:
         type: string
       city:
         type: string
+      country_id:
+        type: integer
       house:
         type: string
       is_default:
         type: boolean
       land_mark:
         type: string
+      latitude:
+        type: number
+      longitude:
+        type: number
       name:
         maxLength: 50
         minLength: 2
@@ -193,6 +337,7 @@ definitions:
         type: integer
     required:
     - address_id
+    - country_id
     - house
     - land_mark
     - name
@@ -244,8 +389,6 @@ definitions:
         maxLength: 50
         minLength: 2
         type: string
-      google_profile_image:
-        type: string
       last_name:
         maxLength: 50
         minLength: 1
@@ -287,6 +430,112 @@ definitions:
     required:
     - password
     type: object
+  request.Notification:
+    properties:
+      body:
+        maxLength: 500
+        minLength: 5
+        type: string
+      category_id:
+        type: integer
+      created_at:
+        type: string
+      is_read:
+        type: boolean
+      message:
+        maxLength: 500
+        minLength: 5
+        type: string
+      notification_meta_data:
+        type: string
+      offer_id:
+        type: integer
+      order_id:
+        type: integer
+      product_id:
+        type: integer
+      receiver_id:
+        type: integer
+      receiver_type:
+        enum:
+        - user
+        - seller
+        type: string
+      sender_id:
+        type: integer
+      sender_type:
+        enum:
+        - user
+        - seller
+        type: string
+      shop_id:
+        type: integer
+      status:
+        description: e.g. "accepted", "pending", "rejected"
+        maxLength: 50
+        minLength: 2
+        type: string
+      title:
+        maxLength: 100
+        minLength: 2
+        type: string
+      updated_at:
+        type: string
+      variation_id:
+        type: integer
+    required:
+    - body
+    - category_id
+    - message
+    - offer_id
+    - order_id
+    - product_id
+    - receiver_id
+    - receiver_type
+    - sender_id
+    - sender_type
+    - shop_id
+    - status
+    - title
+    - variation_id
+    type: object
+  request.NotificationDeviceToken:
+    properties:
+      owner_id:
+        type: string
+      owner_type:
+        enum:
+        - user
+        - seller
+        type: string
+      platform:
+        type: string
+      token:
+        type: string
+    required:
+    - owner_id
+    - owner_type
+    - token
+    type: object
+  request.NotificationRadiusRequest:
+    properties:
+      body:
+        type: string
+      latitude:
+        type: number
+      longitude:
+        type: number
+      radius_meters:
+        type: number
+      title:
+        type: string
+    required:
+    - body
+    - latitude
+    - longitude
+    - radius_meters
+    - title
+    type: object
   request.OTPLogin:
     properties:
       email:
@@ -299,6 +548,13 @@ definitions:
         maxLength: 16
         minLength: 3
         type: string
+    type: object
+  request.OTPLoginEmail:
+    properties:
+      email:
+        type: string
+    required:
+    - email
     type: object
   request.OTPVerify:
     properties:
@@ -859,6 +1115,110 @@ paths:
       summary: Add to whish list (User)
       tags:
       - User Profile
+  /admin/advertisements:
+    get:
+      description: API for admin to get all advertisements
+      operationId: GetAllAdvertisements
+      parameters:
+      - description: Page Number
+        in: query
+        name: page_number
+        type: integer
+      - description: Count
+        in: query
+        name: count
+        type: integer
+      responses:
+        "200":
+          description: Successfully got all advertisements
+          schema:
+            $ref: '#/definitions/response.Response'
+        "204":
+          description: No advertisements found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to get all advertisements
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all advertisements
+      tags:
+      - Advertisement Management
+    post:
+      operationId: CreateAdvertisement
+      parameters:
+      - description: inputs
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/domain.Advertisement'
+      responses:
+        "200":
+          description: Successfully created advertisement
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: api for admin to create advertisement
+      tags:
+      - Advertisement Management
+    put:
+      operationId: UpdateAdvertisement
+      parameters:
+      - description: inputs
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/domain.Advertisement'
+      responses:
+        "200":
+          description: Successfully updated advertisement
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: api for admin to update advertisement
+      tags:
+      - Advertisement Management
+  /admin/advertisements/{advertisement_id}:
+    delete:
+      operationId: DeleteAdvertisement
+      parameters:
+      - description: Advertisement ID
+        in: path
+        name: advertisement_id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Successfully deleted advertisement
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid advertisement ID
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to delete advertisement
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: api for admin to delete advertisement
+      tags:
+      - Advertisement Management
   /admin/auth/renew-access-token:
     post:
       description: API for admin to renew access token using refresh token
@@ -1382,6 +1742,58 @@ paths:
       summary: Update Coupon (Admin)
       tags:
       - Admin Coupon
+  /admin/notifications/radius:
+    get:
+      operationId: SendNotificationToUsersInRadius
+      parameters:
+      - description: inputs
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.NotificationRadiusRequest'
+      responses:
+        "200":
+          description: Successfully sent notification to users in radius
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: api for admin to send notification to users in radius
+      tags:
+      - Admin Notification
+  /admin/notifications/user/{user_id}:
+    get:
+      operationId: SendNotificationToUser
+      parameters:
+      - description: User ID
+        in: path
+        name: user_id
+        required: true
+        type: integer
+      - description: Notification Message
+        in: query
+        name: message
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Successfully sent notification to user
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: api for admin to send notification to a user
+      tags:
+      - Admin Notification
   /admin/offers:
     get:
       description: API for admin to get all offers
@@ -2132,6 +2544,163 @@ paths:
       summary: Get full sales report (Admin)
       tags:
       - Admin Sales
+  /admin/shops:
+    get:
+      description: API for admin to get all shop details
+      operationId: GetAllShops
+      parameters:
+      - description: Page Number
+        in: query
+        name: page_number
+        type: integer
+      - description: Count
+        in: query
+        name: count
+        type: integer
+      responses:
+        "200":
+          description: Successfully got all shops
+          schema:
+            $ref: '#/definitions/response.Response'
+        "204":
+          description: No shops found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to get all shops
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all shops
+      tags:
+      - Admin Shop
+    post:
+      operationId: CreateShop
+      parameters:
+      - description: inputs
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/domain.ShopDetails'
+      responses:
+        "200":
+          description: Successfully created shop
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: api for admin to create shop
+      tags:
+      - Admin Shop
+    put:
+      operationId: UpdateShop
+      parameters:
+      - description: inputs
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/domain.ShopDetails'
+      responses:
+        "200":
+          description: Successfully updated shop
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: api for admin to update shop
+      tags:
+      - Admin Shop
+  /admin/shops/{shop_id}:
+    get:
+      description: API for admin to get shop details by shop ID
+      operationId: GetShopByID
+      parameters:
+      - description: Shop ID
+        in: path
+        name: shop_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: Successfully got shop by ID
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid shop ID
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to get shop by ID
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get shop by ID
+      tags:
+      - Admin Shop
+  /admin/shops/owner/{owner_id}:
+    get:
+      description: API for admin to get shop details by owner ID
+      operationId: GetShopByOwnerID
+      parameters:
+      - description: Owner ID
+        in: path
+        name: owner_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: Successfully got shop by owner ID
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid owner ID
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to get shop by owner ID
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get shop by owner ID
+      tags:
+      - Admin Shop
+  /admin/shops/verify:
+    patch:
+      operationId: VerifyShop
+      parameters:
+      - description: inputs
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/domain.ShopVerification'
+      responses:
+        "200":
+          description: Successfully updated shop verification status
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: api for admin to verify shop
+      tags:
+      - Admin Shop
   /admin/signUp:
     post:
       operationId: AdminSignUp
@@ -2272,43 +2841,6 @@ paths:
       summary: api for admin to block or unblock user
       tags:
       - Admin User
-  /api/upload-profile-image:
-    post:
-      consumes:
-      - multipart/form-data
-      description: API endpoint to upload a user profile image file and save it to
-        AWS S3 storage.
-      parameters:
-      - description: Profile image file to upload
-        in: formData
-        name: image
-        required: true
-        type: file
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Returns URL of the uploaded image
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "400":
-          description: Image file is required or invalid request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Failed to upload image to storage
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Upload profile image to S3
-      tags:
-      - User Profile
-      - File Upload
   /auth/google-auth:
     get:
       description: API for user to load google login page
@@ -2466,6 +2998,42 @@ paths:
       summary: Login with Otp send (User)
       tags:
       - User Authentication
+  /auth/sign-in/otp/send-email:
+    post:
+      description: 'API for user to send otp for login enter email : otp will send
+        to user registered email'
+      operationId: UserLoginOtpSendEmail
+      parameters:
+      - description: Login credentials
+        in: body
+        name: inputs
+        required: true
+        schema:
+          $ref: '#/definitions/request.OTPLoginEmail'
+      responses:
+        "200":
+          description: Successfully otp send to user's registered email
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid Otp
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: User not exist with given login credentials
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: User blocked by admin
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to send otp
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Login with Otp send email (User)
+      tags:
+      - User Authentication
   /auth/sign-in/otp/verify:
     post:
       description: API for user to verify otp
@@ -2504,6 +3072,46 @@ paths:
           schema:
             $ref: '#/definitions/response.Response'
       summary: Login with Otp verify (User)
+      tags:
+      - User Authentication
+  /auth/sign-in/otp/verify-email:
+    post:
+      description: API for user to verify otp
+      operationId: UserLoginOtpVerifyEmail
+      parameters:
+      - description: Otp Verify Details
+        in: body
+        name: inputs
+        required: true
+        schema:
+          $ref: '#/definitions/request.OTPVerify'
+      responses:
+        "200":
+          description: Successfully user logged in
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.TokenResponse'
+              type: object
+        "400":
+          description: Invalid inputs
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: Otp not matched
+          schema:
+            $ref: '#/definitions/response.Response'
+        "410":
+          description: Otp Expired
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to verify otp
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Login with Otp verify email (User)
       tags:
       - User Authentication
   /auth/sign-up:
@@ -3216,6 +3824,126 @@ paths:
       summary: Get cities by state ID
       tags:
       - Filters
+  /notifications/:
+    get:
+      operationId: GetNotificationsBy
+      parameters:
+      - in: query
+        name: admin_id
+        required: true
+        type: integer
+      - in: query
+        name: is_read
+        type: boolean
+      - in: query
+        name: order_id
+        type: integer
+      - in: query
+        name: product_id
+        type: integer
+      - in: query
+        name: shop_id
+        required: true
+        type: integer
+      - in: query
+        name: status
+        type: string
+      - in: query
+        name: user_id
+        required: true
+        type: integer
+      - format: int64
+        in: query
+        name: count
+        type: integer
+      - format: int64
+        in: query
+        name: pageNumber
+        type: integer
+      responses:
+        "200":
+          description: Successfully got notifications
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: api for getting notifications with filters
+      tags:
+      - Notification
+    post:
+      operationId: SaveNotification
+      parameters:
+      - description: inputs
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.Notification'
+      responses:
+        "200":
+          description: Successfully sent notification
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: api for sending notification
+      tags:
+      - Notification
+  /notifications/{notification_id}/read:
+    put:
+      operationId: MarkNotificationAsRead
+      parameters:
+      - description: Notification ID
+        in: path
+        name: notification_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: Successfully marked notification as read
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: api for marking notification as read
+      tags:
+      - Notification
+  /notifications/generateFCMToken:
+    post:
+      operationId: GenerateFCMToken
+      parameters:
+      - description: inputs
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.NotificationDeviceToken'
+      responses:
+        "200":
+          description: Successfully generated FCM token
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: api for generating FCM token
+      tags:
+      - Notification
   /orders:
     get:
       description: API to get order for user user orders
@@ -3590,6 +4318,61 @@ paths:
       summary: Get nearby products by pincode within a radius
       tags:
       - Products
+  /products/radius:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a paginated list of products available within a specified
+        radius (in kilometers) from given latitude and longitude coordinates.
+      parameters:
+      - description: Latitude coordinate
+        in: query
+        name: lat
+        required: true
+        type: number
+      - description: Longitude coordinate
+        in: query
+        name: lng
+        required: true
+        type: number
+      - description: Radius in kilometers to search within
+        in: query
+        name: radius
+        required: true
+        type: number
+      - default: 20
+        description: Limit number of results
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Offset for pagination
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of products within the specified radius
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid input parameters
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get products by geographic radius
+      tags:
+      - Products
   /products/search:
     get:
       consumes:
@@ -3713,10 +4496,56 @@ paths:
       summary: Get product search suggestions
       tags:
       - User Products
+  /shop/search/radius:
+    get:
+      description: API for user to get sellers within a specified radius from given
+        latitude and longitude
+      operationId: GetSellerByRadius
+      parameters:
+      - description: Latitude
+        format: float64
+        in: query
+        name: latitude
+        required: true
+        type: number
+      - description: Longitude
+        format: float64
+        in: query
+        name: longitude
+        required: true
+        type: number
+      - description: Radius in kilometers
+        format: float64
+        in: query
+        name: radius_km
+        required: true
+        type: number
+      responses:
+        "200":
+          description: Successfully found sellers in the given radius
+          schema:
+            $ref: '#/definitions/response.Response'
+        "204":
+          description: No sellers found in the given radius
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to get sellers by radius
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get sellers by radius (User)
+      tags:
+      - User Profile
 securityDefinitions:
   BearerAuth:
     description: 'Add prefix of Bearer before  token Ex: "Bearer token"'
-    in: header
+    in: headerNewServerHTTP
     name: Authorization
     type: apiKey
 swagger: "2.0"

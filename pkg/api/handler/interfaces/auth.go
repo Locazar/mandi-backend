@@ -14,10 +14,12 @@ type AuthHandler interface {
 
 	UserLoginOtpVerify(ctx *gin.Context)
 	UserLoginOtpSend(ctx *gin.Context)
+	UserLoginOtpSendEmail(ctx *gin.Context)
 
 	UserRenewAccessToken() gin.HandlerFunc
 
 	//admin side
 	AdminLogin(ctx *gin.Context)
 	AdminRenewAccessToken() gin.HandlerFunc
+	AdminLogout(ctx *gin.Context)
 }

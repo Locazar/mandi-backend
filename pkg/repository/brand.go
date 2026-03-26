@@ -41,7 +41,7 @@ func (c *brandDatabase) Update(brand domain.Brand) error {
 
 func (c *brandDatabase) FindAll(pagination request.Pagination) (brands []domain.Brand, err error) {
 
-	err = c.DB.Limit(int(pagination.Count)).Offset(int(pagination.PageNumber) - 1).Find(&brands).Error
+	err = c.DB.Limit(int(pagination.Limit)).Offset(int(pagination.Offset)).Find(&brands).Error
 
 	return
 }

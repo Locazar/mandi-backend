@@ -35,3 +35,14 @@ go.work
 
 # Code Coverage
 code-coverage.*
+
+# Firebase / Google Cloud service account credentials
+locazar-*.json
+*-credentials.json
+*-service-account.json
+service-account*.json
+
+# Log files
+*.log
+stderr.log
+stdout.log

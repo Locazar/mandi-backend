@@ -44,7 +44,7 @@ func (c *OrderHandler) GetAllOrderStatuses(ctx *gin.Context) {
 	}
 
 	if orderStatuses == nil {
-		response.SuccessResponse(ctx, 200, "No order statuses found")
+		response.SuccessResponse(ctx, 200, "No order statuses found", []interface{}{})
 		return
 	}
 
@@ -124,7 +124,7 @@ func (c *OrderHandler) GetUserOrder(ctx *gin.Context) {
 	}
 
 	if orders == nil {
-		response.SuccessResponse(ctx, http.StatusNoContent, "No shop orders found", nil)
+		response.SuccessResponse(ctx, http.StatusNoContent, "No shop orders found", []interface{}{})
 		return
 	}
 
@@ -155,7 +155,7 @@ func (c *OrderHandler) GetAllShopOrders(ctx *gin.Context) {
 	}
 
 	if len(shopOrders) == 0 {
-		response.SuccessResponse(ctx, http.StatusNoContent, "No shop order found", nil)
+		response.SuccessResponse(ctx, http.StatusNoContent, "No shop order found", []interface{}{})
 		return
 	}
 
@@ -214,7 +214,7 @@ func (c *OrderHandler) findAllOrderItems() func(ctx *gin.Context) {
 		}
 
 		if orderItems == nil {
-			response.SuccessResponse(ctx, http.StatusNoContent, "No order items found", nil)
+			response.SuccessResponse(ctx, http.StatusNoContent, "No order items found", []interface{}{})
 			return
 		}
 
@@ -330,7 +330,7 @@ func (c *OrderHandler) GetAllOrderReturns(ctx *gin.Context) {
 	}
 
 	if len(orderReturns) == 0 {
-		response.SuccessResponse(ctx, http.StatusOK, "No order returns found", nil)
+		response.SuccessResponse(ctx, http.StatusOK, "No order returns found", []interface{}{})
 		return
 	}
 
@@ -360,7 +360,7 @@ func (c *OrderHandler) GetAllPendingReturns(ctx *gin.Context) {
 	}
 
 	if len(orderReturns) == 0 {
-		response.SuccessResponse(ctx, 200, "No pending order returns requests found", nil)
+		response.SuccessResponse(ctx, 200, "No pending order returns requests found", []interface{}{})
 		return
 	}
 
@@ -394,4 +394,31 @@ func (c *OrderHandler) UpdateReturnRequest(ctx *gin.Context) {
 	}
 
 	response.SuccessResponse(ctx, http.StatusOK, "successfully order return updated")
+}
+
+// SubmitShoppingFeedback godoc
+//
+//	@summary		Submit shopping feedback (User)
+//	@Security		BearerAuth
+//	@description	API for user to submit shopping feedback for an order
+//	@id				SubmitShoppingFeedback
+//	@tags			User Feedback
+//	@Param			input	body	request.ShoppingFeedback	true	"Input Fields"
+//	@Router			/feedback/shop [post]
+//	@Success		200	{object}	response.Response{}	"Successfully submitted shopping feedback"
+//	@Failure		400	{object}	response.Response{}	"invalid input"
+func (c *OrderHandler) SubmitShoppingFeedback(ctx *gin.Context) {
+	var body request.ShoppingFeedback
+
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	err := c.orderUseCase.SubmitShoppingFeedback(ctx, body)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to submit shopping feedback", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully submitted shopping feedback", nil)
 }

@@ -2,15 +2,35 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
 	"gorm.io/gorm"
 )
+
+// NotificationService abstracts sending notifications.
+type NotificationService interface {
+	SendNotification(userID uint, message string) error
+}
+
+// noopNotificationService is a placeholder implementation; replace with real logic.
+type noopNotificationService struct{}
+
+func (n *noopNotificationService) SendNotification(userID uint, message string) error {
+	// TODO: integrate actual notification provider (email, SMS, push, etc.)
+	return nil
+}
+
+// notificationService is a package-level variable used by repository methods.
+var notificationService NotificationService = &noopNotificationService{}
 
 type adminDatabase struct {
 	DB *gorm.DB
@@ -28,34 +48,95 @@ func (c *adminDatabase) FindAdminByEmail(ctx context.Context, email string) (dom
 	return admin, err
 }
 
-func (c *adminDatabase) FindAdminByUserName(ctx context.Context, userName string) (domain.Admin, error) {
-
+func (c *adminDatabase) FindAdminByPhone(ctx context.Context, phone string) (domain.Admin, error) {
+	fmt.Printf("Finding admin by phone number: %s\n", phone)
 	var admin domain.Admin
-	err := c.DB.Raw("SELECT * FROM admins WHERE user_name = $1", userName).Scan(&admin).Error
-
+	err := c.DB.Raw("SELECT * FROM admins WHERE mobile = $1", phone).Scan(&admin).Error
+	fmt.Printf("Admin found: %+v\n", admin)
 	return admin, err
 }
 
+func (c *adminDatabase) FindAdminWithShopVerificationByPhone(ctx context.Context, phone string) (domain.Admin, domain.ShopVerification, error) {
+	var admin domain.Admin
+	var shopVerification domain.ShopVerification
+
+	// First get admin data
+	query := `SELECT a.id, a.full_name, a.email, a.password, a.address_line1, a.address_line2, 
+		a.city, a.state, a.country, a.pincode, a.mobile, a.latitude, a.longitude,
+		a.payment_status, a.payment_type, a.payment_date, a.start_date, a.expiry_date,
+		a.bank_account_number, a.bank_ifsc, a.pan, a.aadhar, a.agree_to_terms,
+		a.created_at, a.updated_at, a.verified_seller, a.status
+	FROM admins a 
+	WHERE a.mobile = $1`
+
+	err := c.DB.Raw(query, phone).Scan(&admin).Error
+	if err != nil {
+		return admin, shopVerification, err
+	}
+
+	// Then get shop verification data
+	shopQuery := `SELECT sv.id, sv.admin_id, sv.shop_id, sv.shop_name, sv.verification_status, 
+		sv.remarks, sv.agent_id, sv.created_at, sv.updated_at
+	FROM shop_verifications sv 
+	WHERE sv.admin_id = $1`
+
+	// Use string conversion of admin ID
+	adminIDStr := fmt.Sprintf("%d", admin.ID)
+	shopErr := c.DB.Raw(shopQuery, adminIDStr).Scan(&shopVerification).Error
+	// Shop verification might not exist, so don't treat as error
+	if shopErr != nil {
+	}
+
+	return admin, shopVerification, nil
+}
+
 func (c *adminDatabase) SaveAdmin(ctx context.Context, admin domain.Admin) error {
-	fmt.Println(admin)
-	query := `INSERT INTO admins (user_name, email, mobile, password, shop_name, gstin, shop_id,
+	tx := c.DB.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+	// First insert into admins table
+	query := `INSERT INTO admins (full_name, email, mobile, password,
 		address_line1, address_line2, city, state, country, pincode,
 		bank_account_number, bank_ifsc, pan, aadhar, agree_to_terms,
-		verified, status, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-		$11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)`
+		verified_seller, status, latitude, longitude, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+		$11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21) RETURNING id`
 
-	err := c.DB.Exec(query, admin.UserName, admin.Email, admin.Mobile, admin.Password, admin.ShopName, admin.GSTIN, admin.ShopID,
+	var adminID = uuid.NewString()
+	err := tx.Raw(query, admin.FullName, admin.Email, admin.Mobile, admin.Password,
 		admin.AddressLine1, admin.AddressLine2, admin.City, admin.State, admin.Country, admin.Pincode,
 		admin.BankAccountNumber, admin.BankIFSC, admin.PAN, admin.Aadhar, admin.AgreeToTerms,
-		admin.Verified, admin.Status, time.Now(), time.Now()).Error
+		admin.VerifiedSeller, admin.Status, admin.Latitude, admin.Longitude, time.Now(), time.Now()).Scan(&adminID).Error
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
 
-	return err
+	shopVerification := domain.ShopVerification{
+		AdminID: adminID,
+		Remarks: "Shop registration under review",
+	}
+
+	queryShops := `INSERT INTO shop_verifications (admin_id, verification_status, remarks, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5)`
+
+	if err := tx.Exec(queryShops, adminID, shopVerification.VerificationStatus, shopVerification.Remarks, time.Now(), time.Now()).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// Commit transaction if both inserts succeed
+	if err := tx.Commit().Error; err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (c *adminDatabase) FindAllUser(ctx context.Context, pagination request.Pagination) (users []response.User, err error) {
 
-	limit := pagination.Count
-	offset := (pagination.PageNumber - 1) * limit
+	limit := pagination.Limit
+	offset := pagination.Offset
 
 	query := `SELECT * FROM users ORDER BY created_at DESC LIMIT $1 OFFSET $2`
 	err = c.DB.Raw(query, limit, offset).Scan(&users).Error
@@ -66,8 +147,8 @@ func (c *adminDatabase) FindAllUser(ctx context.Context, pagination request.Pagi
 // sales report from order // !add  product wise report
 func (c *adminDatabase) CreateFullSalesReport(ctc context.Context, salesReq request.SalesReport) (salesReport []response.SalesReport, err error) {
 
-	limit := salesReq.Pagination.Count
-	offset := (salesReq.Pagination.PageNumber - 1) * limit
+	limit := salesReq.Pagination.Limit
+	offset := salesReq.Pagination.Offset
 
 	query := `SELECT u.first_name, u.email,  so.id AS shop_order_id, so.user_id, so.order_date, 
 	so.order_total_price, so.discount, os.status AS order_status, pm.payment_type FROM shop_orders so
@@ -84,7 +165,7 @@ func (c *adminDatabase) CreateFullSalesReport(ctc context.Context, salesReq requ
 
 // stock side
 func (c *adminDatabase) FindStockBySKU(ctx context.Context, sku string) (stock response.Stock, err error) {
-	query := `SELECT pi.sku, pi.qty_in_stock, pi.price, p.name AS product_name, vo.value AS variation_value  
+	query := `SELECT p.name AS product_name, vo.value AS variation_value  
 	FROM product_items pi 
 	INNER JOIN products p ON p.id = pi.product_id 
 	INNER JOIN product_configurations pc ON pc.product_item_id = pi.id 
@@ -94,4 +175,427 @@ func (c *adminDatabase) FindStockBySKU(ctx context.Context, sku string) (stock r
 	err = c.DB.Raw(query, sku).Scan(&stock).Error
 
 	return stock, err
+}
+
+func (c *adminDatabase) VerifyShop(ctx context.Context, shopVerification request.ShopVerification, adminId string, verificationStatus bool) error {
+	// Get shop Id and shop name using admin Id and Insert the table firsttime and next time just update the status
+	var verificationStatusValue bool
+	query := `SELECT id, shop_name, document_type FROM shop_details WHERE admin_id = $1`
+	var shopID *string
+	var shopName *string
+	var Document_Type *string
+	err := c.DB.Raw(query, adminId).Scan(&struct {
+		ShopID        *string `gorm:"column:id"`
+		ShopName      *string `gorm:"column:shop_name"`
+		Document_Type *string `gorm:"column:document_type"`
+	}{shopID, shopName, Document_Type}).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return fmt.Errorf("failed to fetch shop details for admin %s: %v", adminId, err)
+	}
+
+	// Check if Document_Type is nil before dereferencing
+	if Document_Type != nil && *Document_Type != "manual" {
+		verificationStatusValue = verificationStatus
+	} else {
+		// If Document_Type is nil or "manual", use the provided verificationStatus
+		verificationStatusValue = verificationStatus
+	}
+
+	insertQuery := `INSERT INTO shop_details (admin_id, shop_verification_status, photo_shop_verification, business_doc_verification, identity_doc_verification, address_proof_verification, updated_at, created_at)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	ON CONFLICT (admin_id) DO UPDATE SET
+	shop_verification_status = EXCLUDED.shop_verification_status,
+	photo_shop_verification = EXCLUDED.photo_shop_verification,
+	business_doc_verification = EXCLUDED.business_doc_verification,
+	identity_doc_verification = EXCLUDED.identity_doc_verification,
+	address_proof_verification = EXCLUDED.address_proof_verification,
+	updated_at = EXCLUDED.updated_at`
+	err = c.DB.Exec(insertQuery, adminId, verificationStatusValue, shopVerification.Photo_Shop_Verification, shopVerification.Business_Doc_Verification, shopVerification.Identity_Doc_Verification, shopVerification.Address_Proof_Verification, time.Now(), time.Now()).Error
+	if err != nil {
+		return fmt.Errorf("failed to upsert shop details for admin %s: %v", adminId, err)
+	}
+	return nil
+
+}
+
+func (c *adminDatabase) CreateAdvertisement(ctx context.Context, ad domain.Advertisement) (domain.Advertisement, error) {
+	query := `INSERT INTO advertisements (title, content, image_url, start_date, end_date, created_at, updated_at, created_by_admin, admin_id, area_targeted, pincode_targeted, latitude, longitude, distance_km, status, distance_km, priority)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING id`
+
+	err := c.DB.Raw(query, ad.Title, ad.Content, ad.ImageURL, ad.StartDate, ad.EndDate, time.Now(), time.Now(),
+		ad.CreatedByAdmin, ad.AdminID, ad.AreaTargeted, ad.PincodeTargeted, ad.Latitude, ad.Longitude,
+		ad.DistanceKM, ad.Status, ad.Priority).Scan(&ad.ID).Error
+
+	return ad, err
+}
+
+func (c *adminDatabase) GetAllAdvertisements(ctx context.Context, pagination request.Pagination) (ads []domain.Advertisement, err error) {
+	limit := pagination.Limit
+	offset := pagination.Offset
+
+	query := `SELECT * FROM advertisements ORDER BY created_at DESC LIMIT $1 OFFSET $2`
+	err = c.DB.Raw(query, limit, offset).Scan(&ads).Error
+
+	return ads, err
+}
+
+func (c *adminDatabase) UpdateAdvertisement(ctx context.Context, ad domain.Advertisement) (domain.Advertisement, error) {
+	query := `UPDATE advertisements SET title = $1, content = $2, image_url = $3, target_url = $4,
+	start_date = $5, end_date = $6, updated_at = $7, area_targeted = $8, pincode_targeted = $9,
+	latitude = $10, longitude = $11, distance_km = $12, status = $13, priority = $14 WHERE id = $15`
+
+	err := c.DB.Exec(query, ad.Title, ad.Content, ad.ImageURL, ad.TargetURL, ad.StartDate, ad.EndDate,
+		time.Now(), ad.AreaTargeted, ad.PincodeTargeted, ad.Latitude, ad.Longitude, ad.DistanceKM,
+		ad.Status, ad.Priority, ad.ID).Error
+
+	return ad, err
+}
+
+func (c *adminDatabase) DeleteAdvertisement(ctx context.Context, advertisementID string) error {
+	query := `DELETE FROM advertisements WHERE id = $1`
+	err := c.DB.Exec(query, advertisementID).Error
+
+	return err
+}
+
+// Shop Details
+func (c *adminDatabase) CreateShop(ctx context.Context, shop domain.ShopDetails) (domain.ShopDetails, error) {
+	tx := c.DB.Begin()
+	if tx.Error != nil {
+		return shop, tx.Error
+	}
+
+	query := `INSERT INTO shop_details (admin_id, shop_name,owner_name, address_line1, address_line2, email, phone,
+	city, state, country, pincode, latitude, longitude, bank_account_number, shop_type, shop_status, bank_ifsc, pan_number, itr_documents, document_type, document_value,  created_at, updated_at)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+	ON CONFLICT (admin_id) DO UPDATE SET
+		shop_name = EXCLUDED.shop_name,
+		owner_name = EXCLUDED.owner_name,
+		address_line1 = EXCLUDED.address_line1,
+		address_line2 = EXCLUDED.address_line2,
+		email = EXCLUDED.email,
+		phone = EXCLUDED.phone,
+		city = EXCLUDED.city,
+		state = EXCLUDED.state,
+		country = EXCLUDED.country,
+		pincode = EXCLUDED.pincode,
+		latitude = EXCLUDED.latitude,
+		longitude = EXCLUDED.longitude,
+		bank_account_number = EXCLUDED.bank_account_number,
+		shop_type = EXCLUDED.shop_type,
+		shop_status = EXCLUDED.shop_status,
+		bank_ifsc = EXCLUDED.bank_ifsc,
+		pan_number = EXCLUDED.pan_number,
+		itr_documents = EXCLUDED.itr_documents,
+		document_type = EXCLUDED.document_type,
+		document_value = EXCLUDED.document_value,
+		updated_at = EXCLUDED.updated_at
+	RETURNING id`
+
+	err := tx.Raw(query, shop.AdminID, shop.ShopName, shop.OwnerName, shop.AddressLine1,
+		shop.AddressLine2, shop.Email, shop.Phone, shop.City, shop.State, shop.Country, shop.Pincode, shop.Latitude, shop.Longitude,
+		shop.BankAccountNumber, shop.ShopType, shop.ShopStatus, shop.BankIFSC, shop.PanNumber, shop.ITRDocuments, shop.Document_Type, shop.Document_Value,
+		time.Now(), time.Now()).Scan(&shop.ID).Error
+
+	if err != nil {
+		tx.Rollback()
+		return shop, err
+	}
+
+	// Use UPSERT to handle existing admin_id (unique constraint)
+	queryVerification := `INSERT INTO shop_verifications (shop_id, admin_id, verification_status, remarks, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		ON CONFLICT (admin_id) DO UPDATE SET
+		shop_id = EXCLUDED.shop_id,
+		verification_status = EXCLUDED.verification_status,
+		remarks = EXCLUDED.remarks,
+		updated_at = EXCLUDED.updated_at`
+
+	adminIDStr := fmt.Sprintf("%d", shop.AdminID)
+	if err := tx.Exec(queryVerification, shop.ID, adminIDStr, shop.ShopVerificationStatus, shop.ShopVerificationRemarks, time.Now(), time.Now()).Error; err != nil {
+		tx.Rollback()
+		return shop, err
+	}
+
+	// Insert default shop time record
+	queryShopTime := `INSERT INTO shop_times (shop_id, status, open_time, close_time, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6)`
+
+	if err := tx.Exec(queryShopTime, shop.ID, "close", "09:00", "21:00", time.Now(), time.Now()).Error; err != nil {
+		tx.Rollback()
+		return shop, err
+	}
+
+	// Commit transaction if both inserts succeed
+	if err := tx.Commit().Error; err != nil {
+		return shop, err
+	}
+
+	return shop, err
+}
+
+func (c *adminDatabase) GetAllShops(ctx context.Context, pagination request.Pagination) (shops []domain.ShopDetails, err error) {
+	limit := pagination.Limit
+	offset := pagination.Offset
+
+	query := `SELECT sd.*, (EXISTS (SELECT 1 FROM shop_offers so WHERE so.shop_id = sd.id)) as has_offers FROM shop_details sd ORDER BY sd.created_at DESC LIMIT $1 OFFSET $2`
+	err = c.DB.Raw(query, limit, offset).Scan(&shops).Error
+
+	return shops, err
+}
+
+func (c *adminDatabase) GetShopByID(ctx context.Context, shopID uint) (shop domain.ShopDetails, err error) {
+	query := `SELECT sd.*, (EXISTS (SELECT 1 FROM shop_offers so WHERE so.shop_id = sd.id)) as has_offers FROM shop_details sd WHERE sd.id = $1`
+	err = c.DB.Raw(query, shopID).Scan(&shop).Error
+	return shop, err
+}
+
+func (c *adminDatabase) UpdateShop(ctx context.Context, shop map[string]interface{}, shopId string) (map[string]interface{}, error) {
+	// Build dynamic SET clause
+	setClauses := []string{}
+	values := []interface{}{}
+	paramCount := 1
+
+	// Map API keys to DB column names and build SET clause
+	for k, v := range shop {
+		var columnName string
+
+		print("---------------------", k, v)
+
+		switch k {
+		case "AdminID":
+			columnName = "admin_id"
+		case "ShopName":
+			columnName = "shop_name"
+		case "OwnerName":
+			columnName = "owner_name"
+		case "AddressLine1":
+			columnName = "address_line1"
+		case "AddressLine2":
+			columnName = "address_line2"
+		case "City":
+			columnName = "city"
+		case "State":
+			columnName = "state"
+		case "Country":
+			columnName = "country"
+		case "Pincode":
+			columnName = "pincode"
+		case "Email":
+			columnName = "email"
+		case "Phone":
+			columnName = "mobile"
+		case "BankAccountNumber":
+			columnName = "bank_account_number"
+		case "ShopType":
+			columnName = "shop_type"
+		case "ShopStatus":
+			columnName = "shop_status"
+		case "BankIFSC":
+			columnName = "bank_ifsc"
+		case "PanNumber":
+			columnName = "pan"
+		case "ITRDocuments":
+			columnName = "itr_documents"
+		case "Document_Type":
+			columnName = "document_type"
+		case "Document_Value":
+			columnName = "document_value"
+		default:
+			columnName = k // fallback: use as-is
+		}
+
+		setClauses = append(setClauses, fmt.Sprintf("%s = $%d", columnName, paramCount))
+		values = append(values, v)
+		paramCount++
+	}
+
+	// Add updated_at
+	setClauses = append(setClauses, fmt.Sprintf("updated_at = $%d", paramCount))
+	values = append(values, time.Now())
+	paramCount++
+
+	query := fmt.Sprintf("UPDATE shop_details SET %s WHERE id = %s",
+		strings.Join(setClauses, ", "), shopId)
+
+	result := c.DB.Exec(query, values...)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	return shop, nil
+}
+
+func (c *adminDatabase) GetShopByOwnerID(ctx context.Context, ownerID uint) (shop domain.ShopDetails, err error) {
+	query := `SELECT * FROM shop_details WHERE admin_id = $1`
+	err = c.DB.Raw(query, ownerID).Scan(&shop).Error
+
+	return shop, err
+}
+
+func (c *adminDatabase) SendNotificationToUsersInRadius(ctx context.Context, requestData request.NotificationRadiusRequest) error {
+	query := `SELECT id FROM users
+	 WHERE earth_distance(ll_to_earth($1, $2), ll_to_earth(latitude, longitude)) <= $3`
+
+	var userIDs []uint
+	err := c.DB.Raw(query, requestData.Latitude, requestData.Longitude, requestData.RadiusM*1000).Scan(&userIDs).Error
+	if err != nil {
+		return err
+	}
+
+	// Here, you would integrate with your notification service to send notifications to the userIDs
+	// For example:
+	// for _, userID := range userIDs {
+	//     err := notificationService.SendNotification(userID, requestData.Message)
+	//     if err != nil {
+	//         // Handle notification sending error
+	//     }
+	// }
+
+	return nil
+}
+
+func (c *adminDatabase) SendNotificationToUser(ctx context.Context, userID uint, message string) error {
+	// Here, you would integrate with your notification service to send a notification to the userID
+	// For example:
+	err := notificationService.SendNotification(userID, message)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *adminDatabase) UploadAdminProfileImage(ctx context.Context, adminID string, imagePath string, shopId string) (string, error) {
+	var idToUpdate string
+	if shopId != "" {
+		idToUpdate = shopId
+	} else {
+		idToUpdate = adminID
+	}
+
+	query := `UPDATE shop_details SET shop_image_url = $1, updated_at = $2 WHERE id = $3`
+	err := c.DB.Exec(query, imagePath, time.Now(), idToUpdate).Error
+	return imagePath, err
+}
+
+func (c *adminDatabase) UploadShopDocument(ctx context.Context, shopID uint, documentType string, documentValue string) error {
+	query := `UPDATE shop_details SET document_type = $1, document_value = $2, updated_at = $3 WHERE admin_id = $4`
+	err := c.DB.Exec(query, documentType, documentValue, time.Now(), shopID).Error
+	return err
+}
+
+func (c *adminDatabase) UploadAddress(ctx context.Context, adminId string, address request.AddressRequest) error {
+	// Parse latitude and longitude from string to float64
+	latitude, err := strconv.ParseFloat(address.Latitude, 64)
+	if err != nil {
+		return fmt.Errorf("invalid latitude format: %v", err)
+	}
+
+	longitude, err := strconv.ParseFloat(address.Longitude, 64)
+	if err != nil {
+		return fmt.Errorf("invalid longitude format: %v", err)
+	}
+
+	//insert or update address in shop_details table
+	query := `INSERT INTO shop_details (admin_id, shop_name, owner_name, phone, address_line1, address_line2, city, state, pincode, latitude, longitude, created_at, updated_at)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+	ON CONFLICT (admin_id) DO UPDATE SET
+		shop_name = EXCLUDED.shop_name,
+		owner_name = EXCLUDED.owner_name,
+		phone = EXCLUDED.phone,
+		address_line1 = EXCLUDED.address_line1,
+		address_line2 = EXCLUDED.address_line2,
+		city = EXCLUDED.city,
+		state = EXCLUDED.state,
+		pincode = EXCLUDED.pincode,
+		latitude = EXCLUDED.latitude,
+		longitude = EXCLUDED.longitude,
+		updated_at = EXCLUDED.updated_at`
+
+	err = c.DB.Exec(query, adminId, address.ShopName, address.OwnerName, address.Phone, address.AddressLine1, address.AddressLine2, address.City, address.State, address.Pincode,
+		latitude, longitude, time.Now(), time.Now()).Error
+
+	return err
+}
+
+func (c *adminDatabase) UploadAdminDocumentOtpSend(ctx context.Context, adminID string, documentType string, documentValue string) error {
+	// For simplicity, assuming OTP verification is done elsewhere
+	var value string
+	if documentType == "Pan" {
+		value = documentType
+	} else {
+		value = documentType
+	}
+
+	// documentValue is a column name of admins table
+	query := `UPDATE admins SET ` + value + ` = $1, updated_at = $2 WHERE id = $3`
+	err := c.DB.Exec(query, value, time.Now(), adminID).Error
+	return err
+}
+
+func (c *adminDatabase) GetVerificationStatus(ctx context.Context, adminId string) (domain.Admin, domain.ShopVerification, error) {
+	var admin domain.Admin
+	var shopVerification domain.ShopVerification
+
+	// Get admin verification status
+	adminQuery := `SELECT verified_seller FROM admins WHERE id = $1`
+	err := c.DB.Raw(adminQuery, adminId).Scan(&admin).Error
+	if err != nil {
+		return admin, shopVerification, err
+	}
+
+	// Get shop details (shop_verification_status and document_type)
+	var shopDetails struct {
+		ShopVerificationStatus bool   `gorm:"column:shop_verification_status"`
+		DocumentType           string `gorm:"column:document_type"`
+	}
+	shopDetailsQuery := `SELECT shop_verification_status, document_type FROM shop_details WHERE admin_id = $1`
+	shopDetailsErr := c.DB.Raw(shopDetailsQuery, adminId).Scan(&shopDetails).Error
+	if shopDetailsErr != nil && !errors.Is(shopDetailsErr, gorm.ErrRecordNotFound) {
+		return admin, shopVerification, shopDetailsErr
+	}
+
+	// Get shop verification status
+	shopQuery := `SELECT verification_status FROM shop_verifications WHERE admin_id = $1`
+	err = c.DB.Raw(shopQuery, adminId).Scan(&shopVerification).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return admin, shopVerification, err
+	}
+
+	// Set the shop details values in the shopVerification struct if found
+	if shopDetailsErr == nil {
+		shopVerification.VerificationStatus = shopDetails.ShopVerificationStatus
+	}
+
+	return admin, shopVerification, nil
+}
+
+func (c *adminDatabase) GetShopProfileImageById(ctx context.Context, shopId string) (string, error) {
+	var shopProfileImage string
+	query := `SELECT shop_image_url FROM shop_details WHERE id = $1`
+	err := c.DB.Raw(query, shopId).Scan(&shopProfileImage).Error
+	if err != nil {
+		return "", err
+	}
+	return shopProfileImage, nil
+}
+
+func (c *adminDatabase) DeleteRefreshSessionByUserID(ctx context.Context, adminId string) error {
+	query := `DELETE FROM refresh_sessions WHERE user_id = $1`
+	err := c.DB.Exec(query, adminId).Error
+	return err
+}
+
+func (c *adminDatabase) GetShopSocialDetails(ctx context.Context, shopID uint) ([]domain.ShopSocial, error) {
+	var details []domain.ShopSocial
+	if err := c.DB.WithContext(ctx).Where("shop_id = ?", shopID).Find(&details).Error; err != nil {
+		return nil, err
+	}
+	return details, nil
+}
+
+func (c *adminDatabase) GetAdminByID(ctx context.Context, adminID uint) (domain.Admin, error) {
+	var admin domain.Admin
+	err := c.DB.Raw("SELECT * FROM admins WHERE id = $1", adminID).Scan(&admin).Error
+	return admin, err
 }

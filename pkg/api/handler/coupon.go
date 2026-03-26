@@ -77,7 +77,7 @@ func (c *CouponHandler) GetAllCouponsAdmin(ctx *gin.Context) {
 	}
 
 	if len(coupons) == 0 {
-		response.SuccessResponse(ctx, http.StatusOK, "No Coupons found", nil)
+		response.SuccessResponse(ctx, http.StatusOK, "No Coupons found", []interface{}{})
 		return
 	}
 
@@ -109,7 +109,7 @@ func (c *CouponHandler) GetAllCouponsForUser(ctx *gin.Context) {
 	}
 
 	if len(coupons) == 0 {
-		response.SuccessResponse(ctx, http.StatusOK, "No coupons found", nil)
+		response.SuccessResponse(ctx, http.StatusOK, "No coupons found", []interface{}{})
 		return
 	}
 

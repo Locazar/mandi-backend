@@ -1,0 +1,8 @@
+go run ./cmd/api/main.go
+# github.com/rohit221990/mandi-backend/pkg/utils
+pkg\utils\compare.go:5:2: "fmt" imported and not used
+# github.com/rohit221990/mandi-backend/pkg/repository
+pkg\repository\product.go:266:53: syntax error: unexpected ), expected := or = or comma
+pkg\repository\product.go:660:95: syntax error: unexpected ), expected := or = or comma
+pkg\repository\user.go:59:55: syntax error: unexpected ), expected := or = or comma
+make: *** [makefile:24: run] Error 1

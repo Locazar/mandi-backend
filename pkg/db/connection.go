@@ -1,8 +1,10 @@
 package db
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/rohit221990/mandi-backend/pkg/config"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
@@ -23,11 +25,29 @@ func ConnectDatabase(cfg config.Config) (*gorm.DB, error) {
 		return nil, err
 	}
 
+	// configure underlying sql.DB for connection pooling
+	sqlDB, err := db.DB()
+	if err == nil {
+		// use ~80% of Postgres max_connections as safe pool size
+		sqlDB.SetMaxOpenConns(240)
+		// keep a fraction of connections idle for quick bursts
+		sqlDB.SetMaxIdleConns(60)
+		// recycle connections periodically (avoid stale network state)
+		sqlDB.SetConnMaxLifetime(30 * time.Minute)
+		sqlDB.SetConnMaxIdleTime(5 * time.Minute)
+
+		// verify connectivity with a short timeout
+		pingCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = sqlDB.PingContext(pingCtx) // record error if necessary
+	}
+
 	// migrate the database tables
 	err = db.AutoMigrate(
 
 		//auth
-		domain.RefreshSession{},
+		domain.AdminRefreshSession{},
+		domain.UserRefreshSession{},
 		domain.OtpSession{},
 		//user
 		domain.User{},
@@ -37,6 +57,8 @@ func ConnectDatabase(cfg config.Config) (*gorm.DB, error) {
 
 		//admin
 		domain.Admin{},
+		domain.ShopVerification{},
+		domain.ShopVerificationHistory{},
 
 		//product
 		domain.Category{},
@@ -72,33 +94,64 @@ func ConnectDatabase(cfg config.Config) (*gorm.DB, error) {
 		//wallet
 		domain.Wallet{},
 		domain.Transaction{},
+
+		//Advertisement
+		domain.Advertisement{},
+
+		//Notification
+		domain.Notification{},
+
+		//Shop Details
+		domain.ShopDetails{},
+		domain.ShopOffer{},
+
+		//Payment Methods
+		domain.PaymentMethod{},
+
+		// department
+		domain.Department{},
+		domain.SubCategory{},
+
+		domain.SubTypeAttributes{},
+		domain.SubTypeAttributeOptions{},
+		domain.SubCategoryDetails{},
+		domain.ProductItemView{},
+		domain.ProductItemFilterType{},
+		domain.PromotionsType{},
+		domain.PromotionCategory{},
+		domain.Promotion{},
+		domain.Banner{},
+		domain.ShopTime{},
+		// Shop social (followers, ratings, reviews)
+		domain.ShopSocial{},
 	)
 
 	if err != nil {
-		log.Printf("failed to migrate database models")
-		return nil, err
+		log.Printf("Warning: failed to migrate database models: %v. Continuing with existing schema.", err)
+		// Don't return error - continue with existing database schema
 	}
 
 	// setup the triggers
 	if err := SetUpDBTriggers(db); err != nil {
-		log.Printf("failed to setup database triggers")
-		return nil, err
+		log.Printf("Warning: failed to setup database triggers: %v. Continuing without triggers.", err)
+		// Don't return error - continue without triggers
 	}
 
-	if err := saveAdmin(db, cfg.AdminEmail, cfg.AdminUserName, cfg.AdminPassword); err != nil {
-		return nil, err
+	if err := saveAdmin(db, cfg.AdminEmail, cfg.AdminPassword); err != nil {
+		log.Printf("Warning: failed to save admin: %v. Continuing without admin setup.", err)
+		// Don't return error - continue without admin setup
 	}
 
 	if err := saveOrderStatuses(db); err != nil {
-		return nil, err
+		log.Printf("Warning: failed to save order statuses: %v. Continuing.", err)
 	}
 	if err := savePaymentMethods(db); err != nil {
-		return nil, err
+		log.Printf("Warning: failed to save payment methods: %v. Continuing.", err)
 	}
 
 	if err := SeedCountries(db); err != nil {
-		return nil, err
+		log.Printf("Warning: failed to seed countries: %v. Continuing.", err)
 	}
 
-	return db, err
+	return db, nil
 }

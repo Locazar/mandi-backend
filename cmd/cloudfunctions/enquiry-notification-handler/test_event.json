@@ -1,0 +1,43 @@
+{
+  "id": "test-event-001",
+  "data": {
+    "value": {
+      "name": "projects/locazar-f20b6/databases/(default)/documents/enquiries/ENQ-123",
+      "fields": {
+        "id": { "stringValue": "ENQ-123" },
+        "queryId": { "stringValue": "Q-123" },
+        "userId": { "stringValue": "USER-001" },
+        "status": { "stringValue": "in_progress" },
+        "assignedTo": { "stringValue": "ADMIN-001" },
+        "assignedToName": { "stringValue": "John Doe" },
+        "priority": { "stringValue": "high" },
+        "subject": { "stringValue": "Product Inquiry" },
+        "description": { "stringValue": "I have a question about product X" },
+        "createdAt": { "timestampValue": "2024-01-01T00:00:00Z" },
+        "updatedAt": { "timestampValue": "2024-01-02T12:30:45Z" }
+      },
+      "createTime": "2024-01-01T00:00:00Z",
+      "updateTime": "2024-01-02T12:30:45Z"
+    },
+    "oldValue": {
+      "name": "projects/locazar-f20b6/databases/(default)/documents/enquiries/ENQ-123",
+      "fields": {
+        "id": { "stringValue": "ENQ-123" },
+        "queryId": { "stringValue": "Q-123" },
+        "userId": { "stringValue": "USER-001" },
+        "status": { "stringValue": "new" },
+        "assignedTo": { "nullValue": "NULL_VALUE" },
+        "priority": { "stringValue": "medium" },
+        "subject": { "stringValue": "Product Inquiry" },
+        "description": { "stringValue": "I have a question about product X" },
+        "createdAt": { "timestampValue": "2024-01-01T00:00:00Z" },
+        "updatedAt": { "timestampValue": "2024-01-01T00:00:00Z" }
+      },
+      "createTime": "2024-01-01T00:00:00Z",
+      "updateTime": "2024-01-01T00:00:00Z"
+    },
+    "updateMask": {
+      "fieldPaths": ["status", "assignedTo", "assignedToName"]
+    }
+  }
+}

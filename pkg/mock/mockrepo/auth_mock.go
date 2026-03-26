@@ -9,6 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	request "github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	domain "github.com/rohit221990/mandi-backend/pkg/domain"
 )
 
@@ -50,19 +51,34 @@ func (mr *MockAuthRepositoryMockRecorder) FindOtpSession(ctx, otpID interface{})
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindOtpSession", reflect.TypeOf((*MockAuthRepository)(nil).FindOtpSession), ctx, otpID)
 }
 
-// FindRefreshSessionByTokenID mocks base method.
-func (m *MockAuthRepository) FindRefreshSessionByTokenID(ctx context.Context, tokenID string) (domain.RefreshSession, error) {
+// FindOtpSessionEmail mocks base method.
+func (m *MockAuthRepository) FindOtpSessionEmail(ctx context.Context, otpID string) (domain.OtpSessionEmail, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FindRefreshSessionByTokenID", ctx, tokenID)
+	ret := m.ctrl.Call(m, "FindOtpSessionEmail", ctx, otpID)
+	ret0, _ := ret[0].(domain.OtpSessionEmail)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindOtpSessionEmail indicates an expected call of FindOtpSessionEmail.
+func (mr *MockAuthRepositoryMockRecorder) FindOtpSessionEmail(ctx, otpID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindOtpSessionEmail", reflect.TypeOf((*MockAuthRepository)(nil).FindOtpSessionEmail), ctx, otpID)
+}
+
+// FindRefreshSessionByTokenID mocks base method.
+func (m *MockAuthRepository) FindRefreshSessionByTokenID(ctx context.Context, tokenID, userType string) (domain.RefreshSession, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindRefreshSessionByTokenID", ctx, tokenID, userType)
 	ret0, _ := ret[0].(domain.RefreshSession)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // FindRefreshSessionByTokenID indicates an expected call of FindRefreshSessionByTokenID.
-func (mr *MockAuthRepositoryMockRecorder) FindRefreshSessionByTokenID(ctx, tokenID interface{}) *gomock.Call {
+func (mr *MockAuthRepositoryMockRecorder) FindRefreshSessionByTokenID(ctx, tokenID, userType interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindRefreshSessionByTokenID", reflect.TypeOf((*MockAuthRepository)(nil).FindRefreshSessionByTokenID), ctx, tokenID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindRefreshSessionByTokenID", reflect.TypeOf((*MockAuthRepository)(nil).FindRefreshSessionByTokenID), ctx, tokenID, userType)
 }
 
 // SaveOtpSession mocks base method.
@@ -79,8 +95,22 @@ func (mr *MockAuthRepositoryMockRecorder) SaveOtpSession(ctx, otpSession interfa
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveOtpSession", reflect.TypeOf((*MockAuthRepository)(nil).SaveOtpSession), ctx, otpSession)
 }
 
+// SaveOtpSessionEmail mocks base method.
+func (m *MockAuthRepository) SaveOtpSessionEmail(ctx context.Context, otpSession domain.OtpSessionEmail) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SaveOtpSessionEmail", ctx, otpSession)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SaveOtpSessionEmail indicates an expected call of SaveOtpSessionEmail.
+func (mr *MockAuthRepositoryMockRecorder) SaveOtpSessionEmail(ctx, otpSession interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveOtpSessionEmail", reflect.TypeOf((*MockAuthRepository)(nil).SaveOtpSessionEmail), ctx, otpSession)
+}
+
 // SaveRefreshSession mocks base method.
-func (m *MockAuthRepository) SaveRefreshSession(ctx context.Context, refreshSession domain.RefreshSession) error {
+func (m *MockAuthRepository) SaveRefreshSession(ctx context.Context, refreshSession request.RefreshSession) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SaveRefreshSession", ctx, refreshSession)
 	ret0, _ := ret[0].(error)

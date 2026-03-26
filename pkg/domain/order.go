@@ -54,6 +54,7 @@ type ShopOrder struct {
 	OrderStatus     OrderStatus   `json:"-"`
 	PaymentMethodID uint          `json:"payment_method_id"`
 	PaymentMethod   PaymentMethod `json:"-"`
+	ShopID          uint          `json:"shop_id"`
 }
 
 type OrderLine struct {
@@ -77,4 +78,16 @@ type OrderReturn struct {
 	ReturnDate   time.Time `json:"return_date"`
 	ApprovalDate time.Time `json:"approval_date"`
 	AdminComment string    `json:"admin_comment"`
+}
+
+type FeedbackDetails struct {
+	ID          uint      `json:"id" gorm:"primaryKey;not null"`
+	ShopOrderID uint      `json:"shop_order_id" gorm:"not null"`
+	ShopOrder   ShopOrder `json:"-"`
+	Rating      uint      `json:"rating" gorm:"not null"`
+	Comment     string    `json:"comment"`
+	ShopID      uint      `json:"shop_id" gorm:"not null"`
+	Amount      int       `json:"amount" gorm:"not null"`
+	AdminID     uint      `json:"admin_id" gorm:"not null"`
+	CreatedAt   time.Time `json:"created_at" gorm:"not null"`
 }

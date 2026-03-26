@@ -4,43 +4,43 @@ import "time"
 
 type User struct {
 	ID          uint      `json:"id" gorm:"primaryKey;unique"`
-	Age         uint      `json:"age" binding:"required,numeric"`
-	GoogleImage string    `json:"google_profile_image"`
-	FirstName   string    `json:"first_name" gorm:"not null" binding:"required,min=2,max=50"`
-	LastName    string    `json:"last_name" gorm:"not null" binding:"required,min=1,max=50"`
-	UserName    string    `json:"user_name" gorm:"not null;unique" binding:"required,min=3,max=15"`
-	Email       string    `json:"email" gorm:"unique;not null" binding:"required,email"`
-	Phone       string    `json:"phone" gorm:"unique" binding:"required,min=10,max=10"`
-	Password    string    `json:"password" binding:"required"`
+	Age         uint      `json:"age"`
+	FirstName   string    `json:"first_name"`
+	LastName    string    `json:"last_name"`
+	Email       string    `json:"email"`
+	Phone       string    `json:"phone" gorm:"unique"`
+	Password    string    `json:"password"`
 	Verified    bool      `json:"verified" gorm:"default:false"`
-	BlockStatus bool      `json:"block_status" gorm:"not null;default:false"`
-	CreatedAt   time.Time `json:"created_at" gorm:"not null"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	BlockStatus bool      `json:"block_status" gorm:"default:false"`
+	CreatedAt   time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt   time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }
 
 // many to many join
 type UserAddress struct {
 	ID        uint `json:"id" gorm:"primaryKey;unique"`
 	UserID    uint `json:"user_id" gorm:"not null"`
-	User      User
 	AddressID uint `json:"address_id" gorm:"not null"`
-	Address   Address
 	IsDefault bool `json:"is_default"`
 }
 
 type Address struct {
-	ID          uint   `json:"id" gorm:"primaryKey;unique"`
-	Name        string `json:"name" gorm:"not null" binding:"required,min=2,max=50"`
-	PhoneNumber string `json:"phone_number" gorm:"not null" binding:"required,min=10,max=10"`
-	House       string `json:"house" gorm:"not null" binding:"required"`
-	Area        string `json:"area" gorm:"not null"`
-	LandMark    string `json:"land_mark" gorm:"not null" binding:"required"`
-	City        string `json:"city" gorm:"not null"`
-	Pincode     uint   `json:"pincode" gorm:"not null" binding:"required,numeric,min=6,max=6"`
-	CountryID   uint   `json:"country_id" gorm:"not null" binding:"required,numeric"`
-	Country     Country
-	CreatedAt   time.Time `json:"created_at" gorm:"not null"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID           uint      `json:"id" gorm:"primaryKey;unique"`
+	UserID       uint      `json:"user_id" gorm:"not null"`
+	LandMark     string    `json:"land_mark" gorm:"not null"`
+	Area         *string   `json:"area" gorm:"type:varchar(255);default:null"`
+	City         string    `json:"city" gorm:"not null"`
+	Pincode      int64     `json:"pincode" gorm:"not null"`
+	CountryID    uint      `json:"country_id" gorm:"not null"`
+	Country      Country   `json:"country"`
+	Latitude     *float64  `json:"latitude" gorm:"type:decimal(10,7);"`
+	Longitude    *float64  `json:"longitude" gorm:"type:decimal(10,7);"`
+	PhoneNumber  string    `json:"phone_number" gorm:"not null"`
+	AddressType  string    `json:"address_type" gorm:"not null"`
+	AddressLine1 string    `json:"address_line1" gorm:"not null"`
+	AddressLine2 string    `json:"address_line2" gorm:"not null"`
+	IsDefault    *bool     `json:"is_default" gorm:"type:boolean"`
+	UpdatedAt    time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }
 
 type Country struct {
@@ -53,6 +53,8 @@ type Country struct {
 type WishList struct {
 	ID            uint `json:"id" gorm:"primaryKey;not null"`
 	UserID        uint `json:"user_id" gorm:"not null"`
+	ShopID        uint `json:"shop_id" gorm:"not null"`
+	AdminID       uint `json:"admin_id" gorm:"not null"`
 	User          User
 	ProductItemID uint `json:"product_item_id" gorm:"not null"`
 	ProductItem   ProductItem
@@ -102,3 +104,14 @@ type Transaction struct {
 }
 
 // wallet end
+
+// UserOfferHistory tracks user interactions with offers for frequency capping and analytics
+type UserOfferHistory struct {
+	ID            uint      `json:"id" gorm:"primaryKey;not null"`
+	UserID        uint      `json:"user_id" gorm:"not null"`
+	OfferID       uint      `json:"offer_id" gorm:"not null"`
+	EventType     string    `json:"event_type" gorm:"not null"` // 'shown', 'clicked', 'dismissed', 'applied'
+	ExperimentVariant string `json:"experiment_variant" gorm:"not null"` // 'A', 'B', etc.
+	CreatedAt     time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt     time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+}

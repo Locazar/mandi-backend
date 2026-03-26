@@ -48,8 +48,8 @@ func (c *OrderDatabase) SaveWalletTransaction(ctx context.Context, walletTrx dom
 func (c *OrderDatabase) FindWalletTransactions(ctx context.Context, walletID uint,
 	pagination request.Pagination) (transaction []domain.Transaction, err error) {
 
-	limit := pagination.Count
-	offset := (pagination.PageNumber - 1) * limit
+	limit := pagination.Limit
+	offset := pagination.Offset
 
 	query := `SELECT * FROM transactions WHERE wallet_id = $1
 	ORDER BY transaction_date DESC LIMIT $2 OFFSET $3`

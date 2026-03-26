@@ -4,37 +4,70 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/rohit221990/mandi-backend/pkg/domain"
 )
 
 // response for product
 type Product struct {
-	ID               uint       `json:"product_id"`
-	CategoryID       uint       `json:"category_id"`
-	Price            uint       `json:"price"`
-	DiscountPrice    uint       `json:"discount_price"`
-	Name             string     `json:"product_name"`
-	Description      string     `json:"description" `
-	CategoryName     string     `json:"category_name"`
-	MainCategoryName string     `json:"main_category_name"`
-	BrandID          uint       `json:"brand_id"`
-	BrandName        string     `json:"brand_name"`
-	Image            string     `json:"image"`
-	CreatedAt        time.Time  `json:"created_at"`
-	UpdatedAt        time.Time  `json:"updated_at"`
-	LocationID       *uuid.UUID `json:"location_id,omitempty"`
-	Stock            int        `json:"stock"`
+	ID               uint           `json:"product_id"`
+	CategoryID       uint           `json:"category_id"`
+	Price            uint           `json:"price"`
+	DiscountPrice    uint           `json:"discount_price"`
+	Name             string         `json:"product_name"`
+	Description      string         `json:"description" `
+	CategoryName     string         `json:"category_name"`
+	CategoryImageURL string         `json:"category_image_url"`
+	MainCategoryName string         `json:"main_category_name"`
+	BrandID          uint           `json:"brand_id"`
+	BrandName        string         `json:"brand_name"`
+	Image            string         `json:"image"`
+	CreatedAt        time.Time      `json:"created_at"`
+	UpdatedAt        time.Time      `json:"updated_at"`
+	LocationID       *uuid.UUID     `json:"location_id,omitempty"`
+	Stock            int            `json:"stock"`
+	ProductItems     []ProductItems `json:"product_items"`
 }
 
 // for a specific category representation
 type Category struct {
-	ID          uint          `json:"category_id"`
-	Name        string        `json:"category_name"`
-	SubCategory []SubCategory `json:"sub_category" gorm:"-"`
+	ID           uint   `json:"category_id"`
+	Name         string `json:"category_name"`
+	DepartmentID uint   `json:"department_id"`
+	ImageUrl     string `json:"image_url"`
 }
 
 type SubCategory struct {
-	ID   uint   `json:"category_id"`
-	Name string `json:"category_name"`
+	ID           uint   `json:"sub_category_id"`
+	Name         string `json:"category_name"`
+	DepartmentID uint   `json:"department_id"`
+	CategoryID   uint   `json:"parent_category_id"`
+	ImageUrl     string `json:"image_url"`
+}
+
+type SubTypeAttribute struct {
+	ID            uint   `json:"id"`
+	SubCategoryID uint   `json:"sub_category_id"`
+	FieldName     string `json:"field_name"`
+	FieldType     string `json:"field_type"`
+	IsRequired    bool   `json:"is_required"`
+	SortOrder     int    `json:"sort_order"`
+	ImageUrl      string `json:"image_url"`
+}
+
+type SubTypeAttributeOption struct {
+	ID                 uint   `json:"id"`
+	SubTypeAttributeID uint   `json:"sub_type_attribute_id"`
+	OptionValue        string `json:"option_value"`
+	SortOrder          int    `json:"sort_order"`
+}
+
+type CategoryImage struct {
+	ID         uint   `json:"id"`
+	CategoryID uint   `json:"category_id"`
+	ImageURL   string `json:"image_url"`
+	AltText    string `json:"alt_text"`
+	SortOrder  int    `json:"sort_order"`
+	IsActive   bool   `json:"is_active"`
 }
 
 // for a specific variation representation
@@ -52,19 +85,23 @@ type VariationOption struct {
 
 // for response a specific products all product items
 type ProductItems struct {
-	ID               uint                    `json:"product_item_id"`
-	Name             string                  `json:"product_name"`
-	ProductID        uint                    `json:"product_id"`
-	Price            uint                    `json:"price"`
-	DiscountPrice    uint                    `json:"discount_price"`
-	SKU              string                  `json:"sku"`
-	QtyInStock       uint                    `json:"qty_in_stock"`
-	CategoryName     string                  `json:"category_name"`
-	MainCategoryName string                  `json:"main_category_name"`
-	BrandID          uint                    `json:"brand_id"`
-	BrandName        string                  `json:"brand_name"`
-	VariationValues  []ProductVariationValue `json:"variation_values" gorm:"-"`
-	Images           []string                `json:"images" gorm:"-"`
+	ID                  uint                   `json:"product_item_id"`
+	Name                string                 `json:"product_name"`
+	CategoryID          uint                   `json:"category_id"`
+	DepartmentID        uint                   `json:"department_id"`
+	SubCategoryID       uint                   `json:"sub_category_id"`
+	CategoryName        string                 `json:"category_name"`
+	MainCategoryName    string                 `json:"main_category_name"`
+	SubCategoryImageURL string                 `json:"sub_category_image_url"`
+	ProductItemImages   []string               `json:"product_item_images"`
+	DynamicFields       map[string]interface{} `json:"dynamic_fields"`
+	OfferProducts       []OfferProduct         `json:"offer_products"`
+	DiscountRate        *uint                  `json:"discount_rate,omitempty"`
+	ShopID              uint                   `json:"shop_id"`
+	CreatedAt           time.Time              `json:"created_at"`
+	UpdatedAt           time.Time              `json:"updated_at"`
+	ViewCount           uint                   `json:"view_count"`
+	Stock               bool                   `json:"stock"`
 }
 
 type ProductVariationValue struct {
@@ -85,12 +122,32 @@ type OfferCategory struct {
 }
 
 type OfferProduct struct {
-	OfferProductID uint   `json:"offer_product_id"`
-	ProductID      uint   `json:"product_id"`
-	ProductName    string `json:"product_name"`
-	DiscountRate   uint   `json:"discount_rate"`
-	OfferID        uint   `json:"offer_id"`
-	OfferName      string `json:"offer_name"`
+	OfferProductID    uint              `json:"offer_product_id"`
+	ProductName       string            `json:"product_name"`
+	OfferID           uint              `json:"offer_id"`
+	OfferName         string            `json:"offer_name"`
+	DiscountRate      uint              `json:"discount_rate"`
+	Description       string            `json:"description"`
+	StartDate         string            `json:"start_date"`
+	EndDate           string            `json:"end_date"`
+	Image             string            `json:"image"`
+	Thumbnail         string            `json:"thumbnail"`
+	PromotionCategory PromotionCategory `json:"promotion_category"`
+	PromotionType     PromotionsType    `json:"promotion_type"`
+}
+
+type Offer struct {
+	ID           uint      `json:"offer_id"`
+	Name         string    `json:"offer_name"`
+	Description  string    `json:"description"`
+	DiscountRate uint      `json:"discount_rate"`
+	OfferType    string    `json:"offer_type"`
+	StartDate    time.Time `json:"start_date"`
+	EndDate      time.Time `json:"end_date"`
+	Image        string    `json:"image_url"`
+	Thumbnail    string    `json:"thumbnail_url"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 type ProductFilters struct {
@@ -165,4 +222,64 @@ type Pincode struct {
 type Area struct {
 	ID   uint   `json:"area_id"`
 	Name string `json:"area_name"`
+}
+
+type Department struct {
+	ID       uint   `json:"department_id"`
+	Name     string `json:"department_name"`
+	ImageUrl string `json:"image_url"`
+}
+
+type PromotionCategory struct {
+	ID        uint      `json:"id"`
+	Name      string    `json:"name"`
+	ShopID    uint      `json:"shop_id"`
+	IsActive  bool      `json:"is_active"`
+	IconPath  string    `json:"icon_path"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type PromotionsType struct {
+	ID                    uint      `json:"id"`
+	Name                  string    `json:"name"`
+	IsActive              bool      `json:"is_active"`
+	ShopID                string    `json:"shop_id"`
+	PromotionCategoryID   uint      `json:"promotion_category_id"`
+	CategoryName          string    `json:"category_name"`
+	PromotionOfferDetails string    `json:"offer_details"`
+	Type                  string    `json:"type"`
+	IconPath              string    `json:"icon_path"`
+	CreatedAt             time.Time `json:"created_at"`
+	UpdatedAt             time.Time `json:"updated_at"`
+}
+
+type Promotion struct {
+	ID                     uint              `json:"id"`
+	PromotionCategoryID    uint              `json:"promotion_category_id"`
+	PromotionTypeID        uint              `json:"promotion_type_id"`
+	OfferName              string            `json:"offer_name"`
+	Description            string            `json:"description"`
+	DiscountRate           float64           `json:"discount_rate"`
+	StartDate              string            `json:"start_date"`
+	EndDate                string            `json:"end_date"`
+	MinimumPurchaseAmount  *float64          `json:"minimum_purchase_amount,omitempty"`
+	TierQuantity           *int              `json:"tier_quantity,omitempty"`
+	BogoGetQuantity        *int              `json:"bogo_get_quantity,omitempty"`
+	BogoBuyQuantity        *int              `json:"bogo_buy_quantity,omitempty"`
+	BogoCombinationEnabled *bool             `json:"bogo_combination_enabled,omitempty"`
+	GiftDescription        *string           `json:"gift_description,omitempty"`
+	ShopID                 uint              `json:"shop_id"`
+	IsActive               bool              `json:"is_active"`
+	CreatedAt              time.Time         `json:"created_at"`
+	UpdatedAt              time.Time         `json:"updated_at"`
+	PromotionCategory      PromotionCategory `json:"promotion_category" gorm:"foreignKey:PromotionCategoryID"`
+	PromotionType          PromotionsType    `json:"type" gorm:"foreignKey:PromotionTypeID"`
+	IconPath               string            `json:"icon_path"`
+	Thumbnail              string            `json:"thumbnail"`
+}
+
+type OffersAndPromotions struct {
+	Offers     []domain.Offer `json:"offers"`
+	Promotions []Promotion    `json:"promotions"`
 }

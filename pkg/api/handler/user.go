@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -36,12 +37,12 @@ func NewUserHandler(userUsecase usecaseInterface.UserUseCase) *UserHandler {
 // // @tags User Logout
 // // @Router /logout [post]
 // // @Success 200 "successfully logged out"
-// func (u *UserHandler) UserLogout(ctx *gin.Context) {
+func (u *UserHandler) UserLogout(ctx *gin.Context) {
 
-// 	ctx.SetCookie("user-auth", "", -1, "", "", false, true)
+	ctx.SetCookie("user-auth", "", -1, "", "", false, true)
 
-// 	response.SuccessResponse(ctx, http.StatusOK, "Successfully logged out", nil)
-// }
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully logged out", nil)
+}
 
 // // CheckOutCart godoc
 // // @summary api for cart checkout
@@ -157,8 +158,18 @@ func (u *UserHandler) SaveAddress(ctx *gin.Context) {
 	userID := utils.GetUserIdFromContext(ctx)
 
 	var address domain.Address
-
-	copier.Copy(&address, &body)
+	address.LandMark = body.LandMark
+	address.Area = body.Area
+	address.City = body.City
+	address.Pincode = body.Pincode
+	address.CountryID = body.CountryID
+	address.Latitude = body.Latitude
+	address.Longitude = body.Longitude
+	address.PhoneNumber = body.PhoneNumber
+	address.AddressType = body.AddressType
+	address.AddressLine1 = body.AddressLine1
+	address.AddressLine2 = body.AddressLine2
+	address.IsDefault = body.IsDefault
 
 	// check is default is null
 	if body.IsDefault == nil {
@@ -196,7 +207,7 @@ func (u *UserHandler) GetAllAddresses(ctx *gin.Context) {
 	}
 
 	if addresses == nil {
-		response.SuccessResponse(ctx, http.StatusOK, "No addresses found")
+		response.SuccessResponse(ctx, http.StatusOK, "No addresses found", []interface{}{})
 		return
 	}
 
@@ -228,8 +239,6 @@ func (u *UserHandler) UpdateAddress(ctx *gin.Context) {
 	if body.IsDefault == nil {
 		body.IsDefault = new(bool)
 	}
-
-	fmt.Printf("Update address request body: %+v\n", body)
 
 	err := u.userUseCase.UpdateAddress(ctx, body, userID)
 	if err != nil {
@@ -335,7 +344,7 @@ func (u *UserHandler) GetWishList(ctx *gin.Context) {
 	}
 
 	if len(wishListItems) == 0 {
-		response.SuccessResponse(ctx, http.StatusOK, "No wishlist items found", nil)
+		response.SuccessResponse(ctx, http.StatusOK, "No wishlist items found", []interface{}{})
 		return
 	}
 
@@ -403,21 +412,20 @@ func (u *UserHandler) GetWishList(ctx *gin.Context) {
 // 	})
 // }
 
-// UploadProfileImage godoc
-//
-//	@Summary		Upload profile image (User)
-//	@Security		BearerAuth
-//	@Description	API for user to upload profile image
-//	@Id				UploadProfileImage
-//	@Tags			User Profile
-//	@Accept			multipart/form-data
-//	@Param			image	formData	file	true	"Profile image file to upload"
-//	@Router			/account/profile-image [post]
-//	@Success		200	{object}	response.Response{}	"Successfully uploaded profile image"
-//	@Failure		400	{object}	response.Response{}	"Image file is required or invalid request"
-//	@Failure		500	{object}	response.Response{}	"Failed to upload image"
+//// UploadProfileImage godoc
+
+// @Summary		Upload profile image (User)
+// @Security		BearerAuth
+// @Description	API for user to upload profile image
+// @Id				UploadProfileImage
+// @Tags			User Profile
+// @Accept			multipart/form-data
+// @Param			image	formData	file	true	"Profile image file to upload"
+// @Router			/account/profile-image [post]
+// @Success		200	{object}	response.Response{}	"Successfully uploaded profile image"
+// @Failure		400	{object}	response.Response{}	"Image file is required or invalid request"
+// @Failure		500	{object}	response.Response{}	"Failed to upload image"
 func (h *UserHandler) UploadProfileImage(c *gin.Context) {
-	var userID = c.Param("id")
 	var req request.UploadImageRequest
 	if err := c.ShouldBind(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Image file is required"})
@@ -435,7 +443,7 @@ func (h *UserHandler) UploadProfileImage(c *gin.Context) {
 	fileName := fmt.Sprintf("user-profile/%d%s", time.Now().UnixNano(), filepath.Ext(req.Image.Filename))
 
 	ctx := context.Background()
-	imageURL, err := h.userUseCase.UploadProfileImage(ctx, userID, req.Image, req.Image.Size, fileName, req.Image.Header.Get("Content-Type"))
+	imageURL, err := h.userUseCase.UploadProfileImage(ctx, req.UserID, req.Image, req.Image.Size, fileName, req.Image.Header.Get("Content-Type"))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload image"})
 		return
@@ -445,4 +453,336 @@ func (h *UserHandler) UploadProfileImage(c *gin.Context) {
 		"message":   "Upload successful",
 		"image_url": imageURL,
 	})
+}
+
+// GetSellerByRadius godoc
+//
+//	@Summary		Get sellers by radius (User)
+//	@Security		BearerAuth
+//	@Description	API for user to get sellers within a specified radius from given latitude and longitude
+//	@Id				GetSellerByRadius
+//	@Tags			User Profile
+//	@Param			latitude	query	float64	true	"Latitude"
+//	@Param			longitude	query	float64	true	"Longitude"
+//	@Param			radius_km	query	float64	true	"Radius in kilometers"
+//	@Router			/shop/search/radius [get]
+//	@Success		200	{object}	response.Response{}	"Successfully found sellers in the given radius"
+//	@Success		204	{object}	response.Response{}	"No sellers found in the given radius"
+//	@Failure		400	{object}	response.Response{}	"Invalid input"
+//	@Failure		500	{object}	response.Response{}	"Failed to get sellers by radius"
+func (c *UserHandler) GetSellerByRadius(ctx *gin.Context) {
+	// get latitude, longitude and radius from query params
+	latitudeStr := ctx.Query("lat")
+	longitudeStr := ctx.Query("lng")
+	radiusStr := ctx.Query("radius")
+
+	latitude, err1 := strconv.ParseFloat(latitudeStr, 64)
+	longitude, err2 := strconv.ParseFloat(longitudeStr, 64)
+	radius, err3 := strconv.ParseFloat(radiusStr, 64)
+
+	// join all error and send it if its not nil
+	err := errors.Join(err1, err2, err3)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindQueryFailMessage, err, nil)
+		return
+	}
+
+	pagination := request.GetPagination(ctx)
+
+	reqData := request.SellerRadiusRequest{
+		Latitude:   latitude,
+		Longitude:  longitude,
+		RadiusKm:   radius,
+		Pagination: pagination,
+	}
+
+	sellers, err := c.userUseCase.GetSellersByRadius(ctx, reqData)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get sellers by radius", err, nil)
+		return
+	}
+
+	if len(sellers) == 0 {
+		response.SuccessResponse(ctx, http.StatusNoContent, "No sellers found in the given radius", []interface{}{})
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully found sellers in the given radius", sellers)
+}
+
+// GetSellerByPincode godoc
+//
+//	@Summary		Get sellers by pincode (User)
+//	@Security		BearerAuth
+//	@Description	API for user to get sellers in a specified pincode
+//	@Id				GetSellerByPincode
+//	@Tags			User Profile
+//	@Param			pincode	query	uint	true	"Pincode"
+//	@Router			/shop/search/pincode [get]
+//	@Success		200	{object}	response.Response{}	"Successfully found sellers in the given pincode"
+//	@Success		204	{object}	response.Response{}	"No sellers found in the given pincode"
+//	@Failure		400	{object}	response.Response{}	"Invalid input"
+//	@Failure		500	{object}	response.Response{}	"Failed to get sellers by pincode"
+func (c *UserHandler) GetSellerByPincode(ctx *gin.Context) {
+	// get pincode from query params
+	pincodeStr := ctx.Query("pincode")
+
+	pincode, err := strconv.ParseUint(pincodeStr, 10, 32)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid pincode", err, nil)
+		return
+	}
+
+	pagination := request.GetPagination(ctx)
+
+	reqData := request.SellerPincodeRequest{
+		Pincode:    uint(pincode),
+		Pagination: pagination,
+	}
+
+	sellers, err := c.userUseCase.GetSellersByPincode(ctx, reqData)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get sellers by pincode", err, nil)
+		return
+	}
+
+	if len(sellers) == 0 {
+		response.SuccessResponse(ctx, http.StatusNoContent, "No sellers found in the given pincode", []interface{}{})
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully found sellers in the given pincode", sellers)
+}
+
+// SearchShopList godoc
+//
+//	@Summary		Search shops (User)
+//	@Security		BearerAuth
+//	@Description	API for user to search shops by query, location, and radius (all optional)
+//	@Id				SearchShopList
+//	@Tags			User Profile
+//	@Param			q		query	string	false	"Search query for shop name"
+//	@Param			lat		query	float64	false	"Latitude"
+//	@Param			lng		query	float64	false	"Longitude"
+//	@Param			radius	query	float64	false	"Radius in kilometers"
+//	@Router			/shop/search [get]
+//	@Success		200	{object}	response.Response{}	"Successfully found shops"
+//	@Success		204	{object}	response.Response{}	"No shops found"
+//	@Failure		500	{object}	response.Response{}	"Failed to search shops"
+func (c *UserHandler) SearchShopList(ctx *gin.Context) {
+	// get optional query parameters
+	query := ctx.Query("q")
+	latStr := ctx.Query("lat")
+	lngStr := ctx.Query("long")
+	radiusStr := ctx.Query("radius")
+	pincodeStr := ctx.Query("pincode")
+
+	var latitude, longitude, radius float64
+	var pincode *uint
+	var err error
+
+	// parse latitude if provided
+	if latStr != "" {
+		latitude, err = strconv.ParseFloat(latStr, 64)
+		if err != nil {
+			response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid latitude", err, nil)
+			return
+		}
+	}
+
+	// parse longitude if provided
+	if lngStr != "" {
+		longitude, err = strconv.ParseFloat(lngStr, 64)
+		if err != nil {
+			response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid longitude", err, nil)
+			return
+		}
+	}
+
+	// parse radius if provided
+	if radiusStr != "" {
+		radius, err = strconv.ParseFloat(radiusStr, 64)
+		if err != nil {
+			response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid radius", err, nil)
+			return
+		}
+	}
+
+	// parse pincode if provided
+	if pincodeStr != "" {
+		if p, err := strconv.ParseUint(pincodeStr, 10, 32); err == nil {
+			pincodeVal := uint(p)
+			pincode = &pincodeVal
+		}
+	}
+
+	pagination := request.GetPagination(ctx)
+
+	reqData := request.SearchShopListRequest{
+		Query:      query,
+		Latitude:   latitude,
+		Longitude:  longitude,
+		Radius:     radius,
+		Pincode:    pincode,
+		Pagination: pagination,
+	}
+
+	shops, err := c.userUseCase.SearchShopList(ctx, reqData)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to search shops", err, nil)
+		return
+	}
+
+	if len(shops) == 0 {
+		response.SuccessResponse(ctx, http.StatusNoContent, "No shops found", []interface{}{})
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully found shops", shops)
+}
+
+func (c *UserHandler) GetProductItemsByDepartment(ctx *gin.Context) {
+	// Route may provide department_id or document_id depending on routes setup.
+	idStr := ctx.Param("department_id")
+	if idStr == "" {
+		idStr = ctx.Param("document_id")
+	}
+
+	if idStr == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid document ID", fmt.Errorf("missing id param"), nil)
+		return
+	}
+
+	documentID, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid document ID", err, nil)
+		return
+	}
+
+	products, err := c.userUseCase.GetProductItemsByDepartment(ctx, uint(documentID))
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get product items by document", err, nil)
+		return
+	}
+
+	// Ensure we return an empty array instead of null when no products found
+	if products == nil {
+		products = []response.ProductItems{}
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved product items by document", products)
+}
+
+func (c *UserHandler) GetProductItemsByCategory(ctx *gin.Context) {
+	idStr := ctx.Param("category_id")
+	if idStr == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid category ID", fmt.Errorf("missing id param"), nil)
+		return
+	}
+
+	categoryID, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid category ID", err, nil)
+		return
+	}
+
+	products, err := c.userUseCase.GetProductItemsByCategory(ctx, uint(categoryID))
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get product items by category", err, nil)
+		return
+	}
+
+	if products == nil {
+		products = []response.ProductItems{}
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved product items by category", products)
+}
+
+func (c *UserHandler) GetProductItemsBySubCategory(ctx *gin.Context) {
+	idStr := ctx.Param("sub_category_id")
+	if idStr == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid sub-category ID", fmt.Errorf("missing id param"), nil)
+		return
+	}
+
+	subCategoryID, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid sub-category ID", err, nil)
+		return
+	}
+
+	products, err := c.userUseCase.GetProductItemsBySubCategory(ctx, uint(subCategoryID))
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get product items by sub-category", err, nil)
+		return
+	}
+
+	if products == nil {
+		products = []response.ProductItems{}
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved product items by sub-category", products)
+}
+
+func (c *UserHandler) GetProductItemsByShop(ctx *gin.Context) {
+	idStr := ctx.Param("admin_id")
+	if idStr == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid admin ID", fmt.Errorf("missing id param"), nil)
+		return
+	}
+
+	adminID, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid admin ID", err, nil)
+		return
+	}
+
+	products, err := c.userUseCase.GetProductItemsByShop(ctx, uint(adminID))
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get product items by shop", err, nil)
+		return
+	}
+
+	if products == nil {
+		products = []response.ProductItems{}
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved product items by shop", products)
+}
+
+func (c *UserHandler) GetShopByID(ctx *gin.Context) {
+	shopIDStr := ctx.Param("shop_id")
+	shopID, err := strconv.ParseUint(shopIDStr, 10, 64)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid shop ID", err, nil)
+		return
+	}
+
+	shop, err := c.userUseCase.GetShopByID(ctx, uint(shopID))
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get shop by ID", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully got shop by ID", shop)
+
+}
+
+func (c *UserHandler) GetShopSocialDetails(ctx *gin.Context) {
+	shopIDStr := ctx.Param("shop_id")
+	shopID, err := strconv.ParseUint(shopIDStr, 10, 64)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid shop ID", err, nil)
+		return
+	}
+
+	socialDetails, err := c.userUseCase.GetShopSocialDetails(ctx, uint(shopID))
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get shop social details", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully got shop social details", socialDetails)
+
 }
