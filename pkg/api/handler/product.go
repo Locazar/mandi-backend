@@ -781,19 +781,21 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 			wd, _ := os.Getwd()
 			absolutePath := filepath.Join(wd, localPath)
 
-			validationResult, err := p.aiClient.ValidateProduct(absolutePath, categoryName)
+			//validationResult, err := p.aiClient.ValidateProduct(absolutePath, categoryName)
+			_, err := p.aiClient.ValidateProduct(absolutePath, categoryName)
 			if err != nil {
 				response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to validate product image", err, nil)
 				return
 			}
 
 			// If validation failed (valid is false) and confidence is high, reject the upload
-			if !validationResult.Valid && validationResult.Confidence > 0.1 {
-				response.ErrorResponse(ctx, http.StatusBadRequest,
-					fmt.Sprintf("Product image does not match '%s' category. Reason: %s", categoryName, validationResult.Reason),
-					nil, nil)
-				return
-			}
+
+			// if !validationResult.Valid && validationResult.Confidence > 0.6 {
+			// 	response.ErrorResponse(ctx, http.StatusBadRequest,
+			// 		fmt.Sprintf("Product image does not match '%s' category. Reason: %s", categoryName, validationResult.Reason),
+			// 		nil, nil)
+			// 	return
+			// }
 		}
 
 		imagePaths = append(imagePaths, localPath)
@@ -2545,6 +2547,7 @@ func (p *ProductHandler) GetProductItemByID(ctx *gin.Context) {
 	// Fetch product item
 
 	productItem, err := p.productUseCase.GetProductItemByID(ctx, productItemID)
+	fmt.Printf("Fetched product item: %+v\n", productItem)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get product item", err, nil)
 		return

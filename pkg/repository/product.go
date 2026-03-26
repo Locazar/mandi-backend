@@ -467,7 +467,7 @@ func (c *productDatabase) FindProductItemByID(ctx context.Context, productItemID
 			}
 		}
 	}
-
+	fmt.Printf("DEBUG: Fetched product item: %+v\n", productItem)
 	return productItem, nil
 }
 
@@ -1555,7 +1555,7 @@ func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID 
 	// First, get product item details (excluding images)
 	query := `SELECT pi.id, pi.sub_category_name, pi.category_id, pi.stock,
 	           sc.name AS category_name, mc.name AS main_category_name, 
-	           pi.dynamic_fields, pi.created_at, pi.updated_at,
+	           pi.dynamic_fields, pi.created_at, pi.updated_at, pi.shop_id,
 	           (SELECT COALESCE(SUM(view_count), 0) FROM product_item_views WHERE product_item_id = pi.id) AS view_count
 	       FROM product_items pi 
 	       LEFT JOIN categories sc ON pi.category_id = sc.id 
@@ -1574,6 +1574,7 @@ func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID 
 		CreatedAt        time.Time
 		UpdatedAt        time.Time
 		ViewCount        uint
+		ShopId           uint
 	}
 
 	err = c.DB.Raw(query, productItemID).Scan(&dbItem).Error
@@ -1589,6 +1590,7 @@ func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID 
 	productItem.CreatedAt = dbItem.CreatedAt
 	productItem.UpdatedAt = dbItem.UpdatedAt
 	productItem.ViewCount = dbItem.ViewCount
+	productItem.ShopID = dbItem.ShopId
 
 	// Fetch images from product_images table
 	images, imgErr := c.FindAllProductItemImages(ctx, dbItem.ID)
