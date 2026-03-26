@@ -83,6 +83,9 @@ func (uc *notificationUseCase) enquiryDataEnricher() func(ctx context.Context, d
 		if uid := resolveUintField(docData, "userId", "user_id", "customerId"); uid > 0 {
 			extra["user_id"] = strconv.FormatUint(uint64(uid), 10)
 		}
+		if uid := resolveUintField(docData, "sellerId", "shop_id", "sellerId", "seller_id", "customerId"); uid > 0 {
+			extra["user_id"] = strconv.FormatUint(uint64(uid), 10)
+		}
 
 		return extra
 	}

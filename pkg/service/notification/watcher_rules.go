@@ -314,10 +314,10 @@ func enquiryMessageBuilder(doc map[string]interface{}, changes []WatchFieldChang
 			case "completed_rejected":
 				return "Enquiry Closed",
 					fmt.Sprintf("%s has been closed without a confirmed deal. We hope to match you better next time.", enquiryRefCap)
-			case "negotiating":
+			case "pending_customer_final", "pending_seller_final", "pending_customer_price":
 				return "Negotiation Underway 🤝",
 					fmt.Sprintf("%s has entered the negotiation stage. Stay tuned — we'll notify you of every update.", enquiryRefCap)
-			case "in_progress":
+			case "seller_final_update":
 				return "Enquiry Under Review ⏳",
 					fmt.Sprintf("%s is currently being reviewed by the seller. Expect a response shortly.", enquiryRefCap)
 			case "resolved":
@@ -328,8 +328,8 @@ func enquiryMessageBuilder(doc map[string]interface{}, changes []WatchFieldChang
 					fmt.Sprintf("%s has been cancelled. If this was unexpected, please contact our support team for assistance.", enquiryRefCap)
 			default:
 				if strVal(c.NewValue) != "" {
-					return "Enquiry Update",
-						fmt.Sprintf("There's a new update on %s. We'll keep you posted as things progress.", enquiryRef)
+					return "New Enquiry Received 🛍️",
+						fmt.Sprintf("A customer is interested in this product and is asking about its availability. Open the app to review and respond promptly.")
 				}
 			}
 
