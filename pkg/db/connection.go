@@ -100,6 +100,7 @@ func ConnectDatabase(cfg config.Config) (*gorm.DB, error) {
 
 		//Notification
 		domain.Notification{},
+		domain.NotificationDeviceToken{},
 
 		//Shop Details
 		domain.ShopDetails{},
