@@ -70,6 +70,7 @@ func DefaultShopRule() WatchRule {
 //	status                 — overall enquiry state (e.g. "completed_accepted")
 //	finalStatus            — negotiation outcome  ("accepted" | "rejected")
 //	acceptedBy             — who finalised the deal ("seller" | "client")
+//	acceptedBy             — who finalised the deal ("seller" | "client")
 //	acceptedPrice          — agreed price (string)
 //	customerNegotiatedPrice — customer's latest counter-price
 //	customerFinalResponse  — customer's final price
@@ -443,6 +444,7 @@ func enquiryMessageBuilder(doc map[string]interface{}, changes []WatchFieldChang
 		case "finalStatus":
 			switch strVal(c.NewValue) {
 			case "completed_accepted":
+			case "completed_accepted":
 				price := formatPrice(doc["acceptedPrice"])
 				if price != "" {
 					return "Offer Accepted! ✅",
@@ -450,6 +452,7 @@ func enquiryMessageBuilder(doc map[string]interface{}, changes []WatchFieldChang
 				}
 				return "Offer Accepted! ✅",
 					fmt.Sprintf("Congratulations! Your offer on %s has been accepted. Please proceed to finalise the order.", enquiryRef)
+			case "completed_rejected":
 			case "completed_rejected":
 				return "Offer Not Accepted",
 					fmt.Sprintf("Your offer on %s was not accepted this time. You may revise your offer or explore other available options.", enquiryRef)
