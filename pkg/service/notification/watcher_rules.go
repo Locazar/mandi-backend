@@ -1,6 +1,9 @@
 package notification
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // DefaultOrderRule returns a WatchRule that fires when an order's status or
 // cancellation reason changes, notifying both the customer and the seller.
@@ -66,7 +69,7 @@ func DefaultShopRule() WatchRule {
 //
 //	status                 — overall enquiry state (e.g. "completed_accepted")
 //	finalStatus            — negotiation outcome  ("accepted" | "rejected")
-//	acceptedBy             — who finalised the deal ("seller" | "customer")
+//	acceptedBy             — who finalised the deal ("seller" | "client")
 //	acceptedPrice          — agreed price (string)
 //	customerNegotiatedPrice — customer's latest counter-price
 //	customerFinalResponse  — customer's final price
@@ -74,7 +77,10 @@ func DefaultShopRule() WatchRule {
 //	sellerInitialPrice     — seller's opening price
 //	availability           — product availability flag
 //
-// Both the buyer (userId) and the seller (sellerId) are notified.
+// Recipient routing is driven by the document status:
+//   - Seller-facing states   → notify seller (pending_seller_price, pending_seller_final, seller_final_update)
+//   - Customer-facing states → notify user   (pending_customer_price, pending_customer_final)
+//   - Deal finalised         → notify the other party based on acceptedBy/rejectedBy
 func DefaultEnquiryRule() WatchRule {
 	return WatchRule{
 		Collection: "enquiry",
@@ -89,14 +95,70 @@ func DefaultEnquiryRule() WatchRule {
 			"sellerInitialPrice",
 			"availability",
 		},
-		NotifyUser:     true,
-		NotifySeller:   true,
-		UserIDField:    "userId",
-		SellerIDField:  "sellerId",
-		EventType:      "enquiry_updated",
-		NotifyOnCreate: true,
-		MessageBuilder: enquiryMessageBuilder,
+		// NotifyUser / NotifySeller are overridden at runtime by RecipientResolver.
+		NotifyUser:        true,
+		NotifySeller:      true,
+		UserIDField:       "userId",
+		SellerIDField:     "sellerId",
+		EventType:         "enquiry_updated",
+		NotifyOnCreate:    true,
+		MessageBuilder:    enquiryMessageBuilder,
+		RecipientResolver: enquiryRecipientResolver,
 	}
+}
+
+// enquiryRecipientResolver decides who receives a notification for an enquiry
+// document update based on its current status and acceptedBy field.
+//
+// Routing rules:
+//
+//	Seller-facing states → notify seller:
+//	  pending_seller_price | pending_seller_final | seller_final_update
+//	  completed_accepted/rejected + acceptedBy/rejectedBy == "client"
+//
+//	Customer-facing states → notify user:
+//	  pending_customer_price | pending_customer_final
+//	  completed_accepted/rejected + acceptedBy/rejectedBy == "seller"
+func enquiryRecipientResolver(docData map[string]interface{}) (notifyUser bool, notifySeller bool) {
+	status := strings.ToLower(strings.TrimSpace(enquiryDocString(docData, "status")))
+	acceptedBy := strings.ToLower(strings.TrimSpace(enquiryDocString(docData, "acceptedBy", "accepted_by")))
+	rejectedBy := strings.ToLower(strings.TrimSpace(enquiryDocString(docData, "rejectedBy", "rejected_by")))
+
+	// Statuses that require a SELLER response.
+	sellerTargetStatuses := map[string]bool{
+		"pending_seller_price": true,
+		"pending_seller_final": true,
+		"seller_final_update":  true,
+	}
+
+	// Statuses that require a CUSTOMER response.
+	userTargetStatuses := map[string]bool{
+		"pending_customer_price": true,
+		"pending_customer_final": true,
+	}
+
+	if sellerTargetStatuses[status] {
+		notifySeller = true
+	}
+	if userTargetStatuses[status] {
+		notifyUser = true
+	}
+
+	// For completed/rejected deals, route to the OTHER party based on who finalised.
+	if status == "completed_accepted" || status == "completed_rejected" {
+		actor := acceptedBy
+		if status == "completed_rejected" && rejectedBy != "" {
+			actor = rejectedBy
+		}
+		switch actor {
+		case "seller":
+			notifyUser = true
+		case "client", "customer", "user", "buyer":
+			notifySeller = true
+		}
+	}
+
+	return
 }
 
 // NewCustomRule is a convenience builder for ad-hoc watch rules.
@@ -296,47 +358,91 @@ func enquiryMessageBuilder(doc map[string]interface{}, changes []WatchFieldChang
 		return ""
 	}
 
+	statusMessage := func(status string) (string, string) {
+		askQuantity := enquiryDocString(doc, "askQuantity", "ask_quantity")
+		availability := enquiryDocString(doc, "availability")
+		sellerInitialPrice := formatPrice(doc["sellerInitialPrice"])
+		customerNegotiatedPrice := formatPrice(doc["customerNegotiatedPrice"])
+		sellerFinalPrice := formatPrice(doc["sellerFinalPrice"])
+		customerFinalResponse := formatPrice(doc["customerFinalResponse"])
+		acceptedPrice := formatPrice(doc["acceptedPrice"])
+		acceptedBy := enquiryDocString(doc, "acceptedBy", "accepted_by")
+		rejectedBy := enquiryDocString(doc, "rejectedBy", "rejected_by")
+
+		switch status {
+		case "pending_seller_price":
+			parts := []string{fmt.Sprintf("A buyer update requires your price response for %s.", enquiryRef)}
+			if askQuantity != "" {
+				parts = append(parts, fmt.Sprintf("Requested quantity: %s.", askQuantity))
+			}
+			if availability != "" {
+				parts = append(parts, fmt.Sprintf("Availability: %s.", availability))
+			}
+			return "Price Request Pending", strings.Join(parts, " ")
+		case "pending_customer_price":
+			if sellerInitialPrice != "" {
+				return "Seller Price Shared", fmt.Sprintf("The seller has shared an initial price of Rs. %s for %s.", sellerInitialPrice, enquiryRef)
+			}
+			return "Seller Price Shared", fmt.Sprintf("The seller has shared an initial price update for %s.", enquiryRef)
+		case "pending_seller_final":
+			if customerNegotiatedPrice != "" {
+				return "Customer Counter Offer Received", fmt.Sprintf("The customer proposed Rs. %s for %s. Review and send your final response.", customerNegotiatedPrice, enquiryRef)
+			}
+			return "Customer Counter Offer Received", fmt.Sprintf("The customer updated their negotiated price for %s.", enquiryRef)
+		case "pending_customer_final":
+			if sellerFinalPrice != "" {
+				return "Seller Final Price Shared", fmt.Sprintf("The seller has shared a final price of Rs. %s for %s.", sellerFinalPrice, enquiryRef)
+			}
+			return "Seller Final Price Shared", fmt.Sprintf("The seller has shared the final price for %s.", enquiryRef)
+		case "seller_final_update":
+			if customerFinalResponse != "" {
+				return "Customer Final Response Received", fmt.Sprintf("The customer submitted a final response of Rs. %s for %s.", customerFinalResponse, enquiryRef)
+			}
+			return "Customer Final Response Received", fmt.Sprintf("The customer submitted a final response for %s.", enquiryRef)
+		case "completed_accepted":
+			msg := fmt.Sprintf("%s has been accepted", enquiryRefCap)
+			if acceptedPrice != "" {
+				msg += fmt.Sprintf(" at Rs. %s", acceptedPrice)
+			}
+			if acceptedBy != "" {
+				msg += fmt.Sprintf(" by %s", acceptedBy)
+			}
+			return "Deal Accepted", msg + "."
+		case "completed_rejected":
+			msg := fmt.Sprintf("%s has been rejected", enquiryRefCap)
+			if acceptedPrice != "" {
+				msg += fmt.Sprintf(" at Rs. %s", acceptedPrice)
+			}
+			if rejectedBy != "" {
+				msg += fmt.Sprintf(" by %s", rejectedBy)
+			} else if acceptedBy != "" {
+				msg += fmt.Sprintf(" by %s", acceptedBy)
+			}
+			return "Deal Rejected", msg + "."
+		case "resolved":
+			return "Enquiry Resolved", fmt.Sprintf("%s has been resolved.", enquiryRefCap)
+		case "cancelled":
+			return "Enquiry Cancelled", fmt.Sprintf("%s has been cancelled. Contact support if this was unexpected.", enquiryRefCap)
+		default:
+			if status != "" {
+				return "Enquiry Updated", fmt.Sprintf("%s status is now %s.", enquiryRefCap, status)
+			}
+		}
+		return "Enquiry Update", fmt.Sprintf("There is a new activity on %s.", enquiryRef)
+	}
+
 	// Evaluate fields in descending priority.
 	for _, c := range changes {
 		switch c.Field {
 
 		// ── Overall status ─────────────────────────────────────────────────────
 		case "status":
-			switch strVal(c.NewValue) {
-			case "completed_accepted":
-				price := formatPrice(doc["acceptedPrice"])
-				if price != "" {
-					return "Deal Confirmed! 🎉",
-						fmt.Sprintf("%s has been successfully finalised at ₹%s. Thank you for choosing us!", enquiryRefCap, price)
-				}
-				return "Deal Confirmed! 🎉",
-					fmt.Sprintf("Great news — %s has been accepted and completed successfully.", enquiryRef)
-			case "completed_rejected":
-				return "Enquiry Closed",
-					fmt.Sprintf("%s has been closed without a confirmed deal. We hope to match you better next time.", enquiryRefCap)
-			case "pending_customer_final", "pending_seller_final", "pending_customer_price":
-				return "Negotiation Underway 🤝",
-					fmt.Sprintf("%s has entered the negotiation stage. Stay tuned — we'll notify you of every update.", enquiryRefCap)
-			case "seller_final_update":
-				return "Enquiry Under Review ⏳",
-					fmt.Sprintf("%s is currently being reviewed by the seller. Expect a response shortly.", enquiryRefCap)
-			case "resolved":
-				return "Enquiry Resolved ✅",
-					fmt.Sprintf("%s has been resolved. Thank you for your patience throughout the process.", enquiryRefCap)
-			case "cancelled":
-				return "Enquiry Cancelled",
-					fmt.Sprintf("%s has been cancelled. If this was unexpected, please contact our support team for assistance.", enquiryRefCap)
-			default:
-				if strVal(c.NewValue) != "" {
-					return "New Enquiry Received 🛍️",
-						fmt.Sprintf("A customer is interested in this product and is asking about its availability. Open the app to review and respond promptly.")
-				}
-			}
+			return statusMessage(strings.ToLower(strings.TrimSpace(strVal(c.NewValue))))
 
 		// ── Negotiation outcome ────────────────────────────────────────────────
 		case "finalStatus":
 			switch strVal(c.NewValue) {
-			case "accepted":
+			case "completed_accepted":
 				price := formatPrice(doc["acceptedPrice"])
 				if price != "" {
 					return "Offer Accepted! ✅",
@@ -344,7 +450,7 @@ func enquiryMessageBuilder(doc map[string]interface{}, changes []WatchFieldChang
 				}
 				return "Offer Accepted! ✅",
 					fmt.Sprintf("Congratulations! Your offer on %s has been accepted. Please proceed to finalise the order.", enquiryRef)
-			case "rejected":
+			case "completed_rejected":
 				return "Offer Not Accepted",
 					fmt.Sprintf("Your offer on %s was not accepted this time. You may revise your offer or explore other available options.", enquiryRef)
 			case "counter":
@@ -439,4 +545,16 @@ func enquiryMessageBuilder(doc map[string]interface{}, changes []WatchFieldChang
 
 	return "Enquiry Update",
 		fmt.Sprintf("There's a new activity on %s. Open the app to stay up to date.", enquiryRef)
+}
+
+func enquiryDocString(doc map[string]interface{}, keys ...string) string {
+	for _, key := range keys {
+		if value, ok := doc[key]; ok && value != nil {
+			text := strings.TrimSpace(fmt.Sprintf("%v", value))
+			if text != "" && text != "<nil>" {
+				return text
+			}
+		}
+	}
+	return ""
 }

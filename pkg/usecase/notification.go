@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -265,23 +266,27 @@ func SendPushToSellerOnNewOrder(ctx context.Context, uc service.NotificationUseC
 // StartFirestoreWatcher starts background Firestore listeners that send FCM
 // push notifications when monitored document fields change.
 //
-// rules may be nil — in that case the four default e-commerce rules are used
-// (orders, products, shops, enquiries).
+// rules may be nil — in that case the default e-commerce rules are used.
+// Enquiry updates are excluded by default because a dedicated Cloud Function
+// also handles them; set ENABLE_ENQUIRY_FIRESTORE_WATCHER=true to opt in when
+// running without the Cloud Function.
 //
 // The method returns as soon as the watcher goroutines are launched; they run
 // until ctx is cancelled.
 func (uc *notificationUseCase) StartFirestoreWatcher(ctx context.Context, rules []notificationSvc.WatchRule) error {
 	if len(rules) == 0 {
-		enquiryRule := notificationSvc.DefaultEnquiryRule()
-		// Attach the product-image enricher when a DB connection is available.
-		if uc.db != nil {
-			enquiryRule.DataEnricher = uc.enquiryDataEnricher()
-		}
 		rules = []notificationSvc.WatchRule{
 			notificationSvc.DefaultOrderRule(),
 			notificationSvc.DefaultProductRule(),
 			notificationSvc.DefaultShopRule(),
-			enquiryRule,
+		}
+
+		if strings.EqualFold(os.Getenv("ENABLE_ENQUIRY_FIRESTORE_WATCHER"), "true") {
+			enquiryRule := notificationSvc.DefaultEnquiryRule()
+			if uc.db != nil {
+				enquiryRule.DataEnricher = uc.enquiryDataEnricher()
+			}
+			rules = append(rules, enquiryRule)
 		}
 	}
 

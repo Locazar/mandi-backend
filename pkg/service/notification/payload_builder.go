@@ -70,7 +70,7 @@ func (pb *PayloadBuilder) generateNotificationContent(
 
 	// Check for specific field changes and prioritize
 	if statusChange, hasStatus := changeMap["status"]; hasStatus {
-		return pb.buildStatusNotification(statusChange)
+		return pb.buildStatusNotification(statusChange, event.NewFields)
 	}
 
 	if assignedChange, hasAssigned := changeMap["assignedTo"]; hasAssigned {
@@ -105,29 +105,105 @@ func (pb *PayloadBuilder) generateNotificationContent(
 	return title, body
 }
 
-// buildStatusNotification creates notification for status changes
-func (pb *PayloadBuilder) buildStatusNotification(change domain.FieldChange) (title, body string) {
+// buildStatusNotification creates production-ready notification copy for status changes.
+func (pb *PayloadBuilder) buildStatusNotification(change domain.FieldChange, fields map[string]interface{}) (title, body string) {
 	oldStatus := fmt.Sprintf("%v", change.OldValue)
-	newStatus := fmt.Sprintf("%v", change.NewValue)
-
-	title = "Enquiry Status Updated"
-
-	switch newStatus {
-	case "new", "NEW":
-		body = "A new enquiry has been created"
-	case "in_progress", "inProgress", "IN_PROGRESS":
-		body = "Your enquiry is now being handled"
-	case "resolved", "RESOLVED":
-		body = "Your enquiry has been resolved"
-	case "closed", "CLOSED":
-		body = "Your enquiry has been closed"
-	case "rejected", "REJECTED":
-		body = fmt.Sprintf("Your enquiry status has been changed to rejected")
-	default:
-		body = fmt.Sprintf("Status changed from %s to %s", oldStatus, newStatus)
+	newStatus := strings.ToLower(strings.TrimSpace(fmt.Sprintf("%v", change.NewValue)))
+	enquiryRef := "this enquiry"
+	if enquiryID := firstNonEmptyField(fields, "queryId", "enquiryId", "id"); enquiryID != "" {
+		enquiryRef = fmt.Sprintf("enquiry #%s", enquiryID)
 	}
 
-	return title, body
+	formatPrice := func(v interface{}) string {
+		s := strings.TrimSpace(fmt.Sprintf("%v", v))
+		if s == "" || s == "<nil>" {
+			return ""
+		}
+		return "Rs. " + s
+	}
+
+	availabilityText := strings.TrimSpace(firstNonEmptyField(fields, "availability"))
+	askQuantity := strings.TrimSpace(firstNonEmptyField(fields, "askQuantity", "ask_quantity"))
+	sellerInitialPrice := formatPrice(fields["sellerInitialPrice"])
+	customerNegotiatedPrice := formatPrice(fields["customerNegotiatedPrice"])
+	sellerFinalPrice := formatPrice(fields["sellerFinalPrice"])
+	customerFinalResponse := formatPrice(fields["customerFinalResponse"])
+	acceptedPrice := formatPrice(fields["acceptedPrice"])
+	acceptedBy := firstNonEmptyField(fields, "acceptedBy", "accepted_by")
+	rejectedBy := firstNonEmptyField(fields, "rejectedBy", "rejected_by")
+
+	title = "Enquiry Updated"
+
+	switch newStatus {
+	case "pending_seller_price":
+		title = "Price Request Pending"
+		segments := []string{fmt.Sprintf("A buyer update requires your price response for %s.", enquiryRef)}
+		if askQuantity != "" {
+			segments = append(segments, fmt.Sprintf("Requested quantity: %s.", askQuantity))
+		}
+		if availabilityText != "" {
+			segments = append(segments, fmt.Sprintf("Availability: %s.", availabilityText))
+		}
+		return title, strings.Join(segments, " ")
+	case "pending_customer_price":
+		title = "Seller Price Shared"
+		if sellerInitialPrice != "" {
+			return title, fmt.Sprintf("The seller has shared an initial price of %s for %s.", sellerInitialPrice, enquiryRef)
+		}
+		return title, fmt.Sprintf("The seller has shared an initial price update for %s.", enquiryRef)
+	case "pending_seller_final":
+		title = "Customer Counter Offer Received"
+		if customerNegotiatedPrice != "" {
+			return title, fmt.Sprintf("The customer proposed %s for %s. Review and send your final response.", customerNegotiatedPrice, enquiryRef)
+		}
+		return title, fmt.Sprintf("The customer updated their negotiated price for %s.", enquiryRef)
+	case "pending_customer_final":
+		title = "Seller Final Price Shared"
+		if sellerFinalPrice != "" {
+			return title, fmt.Sprintf("The seller has shared a final price of %s for %s.", sellerFinalPrice, enquiryRef)
+		}
+		return title, fmt.Sprintf("The seller has shared the final price for %s.", enquiryRef)
+	case "seller_final_update":
+		title = "Customer Final Response Received"
+		if customerFinalResponse != "" {
+			return title, fmt.Sprintf("The customer submitted a final response of %s for %s.", customerFinalResponse, enquiryRef)
+		}
+		return title, fmt.Sprintf("The customer submitted a final response for %s.", enquiryRef)
+	case "completed_accepted":
+		title = "Deal Accepted"
+		body = fmt.Sprintf("%s has been accepted", enquiryRef)
+		if acceptedPrice != "" {
+			body += fmt.Sprintf(" at %s", acceptedPrice)
+		}
+		if acceptedBy != "" {
+			body += fmt.Sprintf(" by %s", acceptedBy)
+		}
+		return title, body + "."
+	case "completed_rejected":
+		title = "Deal Rejected"
+		body = fmt.Sprintf("%s has been rejected", enquiryRef)
+		if acceptedPrice != "" {
+			body += fmt.Sprintf(" at %s", acceptedPrice)
+		}
+		if rejectedBy != "" {
+			body += fmt.Sprintf(" by %s", rejectedBy)
+		} else if acceptedBy != "" {
+			body += fmt.Sprintf(" by %s", acceptedBy)
+		}
+		return title, body + "."
+	case "new":
+		return "Enquiry Created", "A new enquiry has been created."
+	case "in_progress", "inprogress":
+		return "Enquiry In Progress", fmt.Sprintf("%s is now being handled.", enquiryRef)
+	case "resolved":
+		return "Enquiry Resolved", fmt.Sprintf("%s has been resolved.", enquiryRef)
+	case "closed":
+		return "Enquiry Closed", fmt.Sprintf("%s has been closed.", enquiryRef)
+	case "rejected":
+		return "Enquiry Rejected", fmt.Sprintf("%s status changed to rejected.", enquiryRef)
+	default:
+		return "Enquiry Status Updated", fmt.Sprintf("Status changed from %s to %s.", oldStatus, change.NewValue)
+	}
 }
 
 // buildAssignmentNotification creates notification for assignment changes
