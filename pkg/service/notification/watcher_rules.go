@@ -66,7 +66,7 @@ func DefaultShopRule() WatchRule {
 //
 //	status                 — overall enquiry state (e.g. "completed_accepted")
 //	finalStatus            — negotiation outcome  ("accepted" | "rejected")
-//	acceptedBy             — who finalised the deal ("seller" | "customer")
+//	acceptedBy             — who finalised the deal ("seller" | "client")
 //	acceptedPrice          — agreed price (string)
 //	customerNegotiatedPrice — customer's latest counter-price
 //	customerFinalResponse  — customer's final price
@@ -74,7 +74,10 @@ func DefaultShopRule() WatchRule {
 //	sellerInitialPrice     — seller's opening price
 //	availability           — product availability flag
 //
-// Both the buyer (userId) and the seller (sellerId) are notified.
+// Recipient routing is driven by the document status:
+//   - Seller updated  → notify user  (pending_seller_price, pending_seller_final, seller_final_update)
+//   - Customer updated → notify seller (pending_customer_price, pending_customer_final, seller_final_update)
+//   - Deal finalised   → notify the other party based on acceptedBy field
 func DefaultEnquiryRule() WatchRule {
 	return WatchRule{
 		Collection: "enquiry",
@@ -89,14 +92,66 @@ func DefaultEnquiryRule() WatchRule {
 			"sellerInitialPrice",
 			"availability",
 		},
-		NotifyUser:     true,
-		NotifySeller:   true,
-		UserIDField:    "userId",
-		SellerIDField:  "sellerId",
-		EventType:      "enquiry_updated",
-		NotifyOnCreate: true,
-		MessageBuilder: enquiryMessageBuilder,
+		// NotifyUser / NotifySeller are overridden at runtime by RecipientResolver.
+		NotifyUser:        true,
+		NotifySeller:      true,
+		UserIDField:       "userId",
+		SellerIDField:     "sellerId",
+		EventType:         "enquiry_updated",
+		NotifyOnCreate:    true,
+		MessageBuilder:    enquiryMessageBuilder,
+		RecipientResolver: enquiryRecipientResolver,
 	}
+}
+
+// enquiryRecipientResolver decides who receives a notification for an enquiry
+// document update based on its current status and acceptedBy field.
+//
+// Routing rules:
+//
+//	Seller updated  → notify user:
+//	  pending_seller_price | pending_seller_final | seller_final_update
+//	  completed_accepted/rejected + acceptedBy == "seller"
+//
+//	Customer updated → notify seller:
+//	  pending_customer_price | pending_customer_final | seller_final_update
+//	  completed_accepted/rejected + acceptedBy == "client"
+func enquiryRecipientResolver(docData map[string]interface{}) (notifyUser bool, notifySeller bool) {
+	status, _ := docData["status"].(string)
+	acceptedBy, _ := docData["acceptedBy"].(string)
+
+	// Statuses that indicate the SELLER just acted → notify the USER.
+	sellerActedStatuses := map[string]bool{
+		"pending_seller_price": true,
+		"pending_seller_final": true,
+		"seller_final_update":  true,
+	}
+
+	// Statuses that indicate the CUSTOMER just acted → notify the SELLER.
+	customerActedStatuses := map[string]bool{
+		"pending_customer_price": true,
+		"pending_customer_final": true,
+		"seller_final_update":    true,
+	}
+
+	if sellerActedStatuses[status] {
+		notifyUser = true
+	}
+	if customerActedStatuses[status] {
+		notifySeller = true
+	}
+
+	// For completed/rejected deals, route to the OTHER party based on who finalised.
+	if status == "completed_accepted" || status == "completed_rejected" {
+		switch acceptedBy {
+		case "seller":
+			notifyUser = true
+		case "client":
+			notifySeller = true
+		}
+	}
+
+	return
 }
 
 // NewCustomRule is a convenience builder for ad-hoc watch rules.
@@ -336,7 +391,7 @@ func enquiryMessageBuilder(doc map[string]interface{}, changes []WatchFieldChang
 		// ── Negotiation outcome ────────────────────────────────────────────────
 		case "finalStatus":
 			switch strVal(c.NewValue) {
-			case "accepted":
+			case "completed_accepted":
 				price := formatPrice(doc["acceptedPrice"])
 				if price != "" {
 					return "Offer Accepted! ✅",
@@ -344,7 +399,7 @@ func enquiryMessageBuilder(doc map[string]interface{}, changes []WatchFieldChang
 				}
 				return "Offer Accepted! ✅",
 					fmt.Sprintf("Congratulations! Your offer on %s has been accepted. Please proceed to finalise the order.", enquiryRef)
-			case "rejected":
+			case "completed_rejected":
 				return "Offer Not Accepted",
 					fmt.Sprintf("Your offer on %s was not accepted this time. You may revise your offer or explore other available options.", enquiryRef)
 			case "counter":
