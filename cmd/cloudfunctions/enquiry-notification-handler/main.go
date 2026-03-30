@@ -16,18 +16,20 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/GoogleCloudPlatform/functions-framework-go/funcframework"
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
 	cloudevents "github.com/cloudevents/sdk-go/v2"
+	firestoredata "github.com/googleapis/google-cloudevents-go/cloud/firestoredata"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"github.com/rohit221990/mandi-backend/pkg/service/notification"
 	firestoreutil "github.com/rohit221990/mandi-backend/pkg/utils/firestore"
+	"google.golang.org/protobuf/proto"
 )
 
 // Logger provides structured logging with levels
@@ -48,30 +50,130 @@ func init() {
 func ProcessEnquiryUpdate(ctx context.Context, ce cloudevents.Event) error {
 	logger.Info("Starting ProcessEnquiryUpdate")
 
-	// Extract Firestore event data from the CloudEvent payload
-	dataJSON := ce.Data()
-	if len(dataJSON) == 0 {
+	// Extract Firestore event data from the CloudEvent payload.
+	// Firestore Eventarc events arrive as Protocol Buffer binary, NOT JSON.
+	rawData := ce.Data()
+	if len(rawData) == 0 {
 		logger.Error("CloudEvent has no data")
 		return fmt.Errorf("CloudEvent missing data")
 	}
 
-	// Parse event data
-	var eventData domain.FirestoreEventData
-	if err := json.Unmarshal(dataJSON, &eventData); err != nil {
-		logger.Error(fmt.Sprintf("Failed to unmarshal event data: %v", err))
-		return fmt.Errorf("failed to unmarshal event data: %w", err)
+	// Decode the protobuf-encoded Firestore document event.
+	var docEvent firestoredata.DocumentEventData
+	if err := proto.Unmarshal(rawData, &docEvent); err != nil {
+		logger.Error(fmt.Sprintf("Failed to unmarshal protobuf event data: %v", err))
+		return fmt.Errorf("failed to unmarshal protobuf event data: %w", err)
 	}
 
-	// Create event structure
-	event := &domain.FirestoreEvent{
-		Data: eventData,
-		ID:   ce.ID(),
-	}
+	// Convert proto types to the existing domain model.
+	event := convertProtoToFirestoreEvent(&docEvent, ce.ID())
 
 	logger.Debug(fmt.Sprintf("Received event: %s", event.ID))
 
 	// Process the event
 	return handleEnquiryUpdate(ctx, event)
+}
+
+// convertProtoToFirestoreEvent converts a firestoredata.DocumentEventData (protobuf) to
+// the domain.FirestoreEvent used by the rest of the notification pipeline.
+func convertProtoToFirestoreEvent(docEvent *firestoredata.DocumentEventData, eventID string) *domain.FirestoreEvent {
+	eventData := domain.FirestoreEventData{}
+
+	if docEvent.Value != nil {
+		eventData.Value = convertProtoDocument(docEvent.Value)
+	}
+	if docEvent.OldValue != nil {
+		eventData.OldValue = convertProtoDocument(docEvent.OldValue)
+	}
+	if docEvent.UpdateMask != nil {
+		eventData.UpdateMask = &domain.UpdateMask{
+			FieldPaths: docEvent.UpdateMask.FieldPaths,
+		}
+	}
+
+	return &domain.FirestoreEvent{
+		Data: eventData,
+		ID:   eventID,
+	}
+}
+
+// convertProtoDocument converts a Firestore proto Document to the domain model.
+func convertProtoDocument(doc *firestoredata.Document) *domain.FirestoreDocument {
+	if doc == nil {
+		return nil
+	}
+	fields := make(map[string]interface{}, len(doc.Fields))
+	for k, v := range doc.Fields {
+		fields[k] = convertProtoValue(v)
+	}
+	result := &domain.FirestoreDocument{
+		Name:   doc.Name,
+		Fields: fields,
+	}
+	if doc.CreateTime != nil {
+		result.CreateTime = doc.CreateTime.AsTime().Format(time.RFC3339)
+	}
+	if doc.UpdateTime != nil {
+		result.UpdateTime = doc.UpdateTime.AsTime().Format(time.RFC3339)
+	}
+	return result
+}
+
+// convertProtoValue converts a Firestore proto Value to a native Go value so that
+// the existing ParseFields / ExtractFirestoreValue helpers can pass it through.
+func convertProtoValue(v *firestoredata.Value) interface{} {
+	if v == nil {
+		return nil
+	}
+	switch val := v.ValueType.(type) {
+	case *firestoredata.Value_NullValue:
+		_ = val
+		return nil
+	case *firestoredata.Value_BooleanValue:
+		return val.BooleanValue
+	case *firestoredata.Value_IntegerValue:
+		return fmt.Sprintf("%d", val.IntegerValue)
+	case *firestoredata.Value_DoubleValue:
+		return val.DoubleValue
+	case *firestoredata.Value_TimestampValue:
+		if val.TimestampValue != nil {
+			return val.TimestampValue.AsTime().Format(time.RFC3339)
+		}
+		return ""
+	case *firestoredata.Value_StringValue:
+		return val.StringValue
+	case *firestoredata.Value_BytesValue:
+		return string(val.BytesValue)
+	case *firestoredata.Value_ReferenceValue:
+		return val.ReferenceValue
+	case *firestoredata.Value_GeoPointValue:
+		if val.GeoPointValue != nil {
+			return map[string]interface{}{
+				"latitude":  val.GeoPointValue.Latitude,
+				"longitude": val.GeoPointValue.Longitude,
+			}
+		}
+		return nil
+	case *firestoredata.Value_ArrayValue:
+		if val.ArrayValue == nil {
+			return []interface{}{}
+		}
+		arr := make([]interface{}, 0, len(val.ArrayValue.Values))
+		for _, item := range val.ArrayValue.Values {
+			arr = append(arr, convertProtoValue(item))
+		}
+		return arr
+	case *firestoredata.Value_MapValue:
+		if val.MapValue == nil {
+			return map[string]interface{}{}
+		}
+		m := make(map[string]interface{}, len(val.MapValue.Fields))
+		for k, mv := range val.MapValue.Fields {
+			m[k] = convertProtoValue(mv)
+		}
+		return m
+	}
+	return nil
 }
 
 // handleEnquiryUpdate processes a single enquiry update event

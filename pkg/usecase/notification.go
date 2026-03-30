@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -186,7 +185,7 @@ func (uc *notificationUseCase) RegisterDeviceToken(ctx context.Context, req requ
 	ownerCollection := ownerTypeToCollection(req.OwnerType)
 	if err := uc.fcmPush.SaveTokenToFirestore(ctx, ownerCollection, req.OwnerID, req.Token, req.Platform); err != nil {
 		// Log but don't surface Firestore errors to the client
-		_ = err
+		log.Printf("WARN [RegisterDeviceToken]: Firestore token sync failed for %s/%s: %v", ownerCollection, req.OwnerID, err)
 	}
 	return nil
 }
@@ -281,13 +280,16 @@ func (uc *notificationUseCase) StartFirestoreWatcher(ctx context.Context, rules 
 			notificationSvc.DefaultShopRule(),
 		}
 
-		if strings.EqualFold(os.Getenv("ENABLE_ENQUIRY_FIRESTORE_WATCHER"), "true") {
-			enquiryRule := notificationSvc.DefaultEnquiryRule()
-			if uc.db != nil {
-				enquiryRule.DataEnricher = uc.enquiryDataEnricher()
-			}
-			rules = append(rules, enquiryRule)
+		// Always include the enquiry rule with NotifyOnCreate so the seller is
+		// notified as soon as a new enquiry document lands in Firestore.
+		// (The ENABLE_ENQUIRY_FIRESTORE_WATCHER env var previously guarded this to
+		// avoid double-delivery when Cloud Functions were also deployed; since the
+		// backend is now the primary notification path, the rule runs unconditionally.)
+		enquiryRule := notificationSvc.DefaultEnquiryRule()
+		if uc.db != nil {
+			enquiryRule.DataEnricher = uc.enquiryDataEnricher()
 		}
+		rules = append(rules, enquiryRule)
 	}
 
 	watcher := notificationSvc.NewFirestoreWatcher(uc.fcmPush, rules...)
