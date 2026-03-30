@@ -444,7 +444,6 @@ func enquiryMessageBuilder(doc map[string]interface{}, changes []WatchFieldChang
 		case "finalStatus":
 			switch strVal(c.NewValue) {
 			case "completed_accepted":
-			case "completed_accepted":
 				price := formatPrice(doc["acceptedPrice"])
 				if price != "" {
 					return "Offer Accepted! ✅",
@@ -452,7 +451,6 @@ func enquiryMessageBuilder(doc map[string]interface{}, changes []WatchFieldChang
 				}
 				return "Offer Accepted! ✅",
 					fmt.Sprintf("Congratulations! Your offer on %s has been accepted. Please proceed to finalise the order.", enquiryRef)
-			case "completed_rejected":
 			case "completed_rejected":
 				return "Offer Not Accepted",
 					fmt.Sprintf("Your offer on %s was not accepted this time. You may revise your offer or explore other available options.", enquiryRef)

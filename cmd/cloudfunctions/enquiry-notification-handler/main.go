@@ -22,7 +22,9 @@ import (
 	"os"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/functions-framework-go/funcframework"
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
+	cloudevents "github.com/cloudevents/sdk-go/v2"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"github.com/rohit221990/mandi-backend/pkg/service/notification"
 	firestoreutil "github.com/rohit221990/mandi-backend/pkg/utils/firestore"
@@ -43,27 +45,14 @@ func init() {
 // ProcessEnquiryUpdate is the main Cloud Function that processes Firestore enquiry updates
 // It's called via Eventarc when a Firestore document in the enquiries collection is updated
 // (google.cloud.firestore.document.v1.updated)
-func ProcessEnquiryUpdate(ctx context.Context, cloudEvent interface{}) error {
+func ProcessEnquiryUpdate(ctx context.Context, ce cloudevents.Event) error {
 	logger.Info("Starting ProcessEnquiryUpdate")
 
-	// Parse CloudEvent
-	ceMap, ok := cloudEvent.(map[string]interface{})
-	if !ok {
-		logger.Error("Failed to parse CloudEvent: invalid type")
-		return fmt.Errorf("invalid CloudEvent type")
-	}
-
-	// Extract Firestore event data
-	dataVal, exists := ceMap["data"]
-	if !exists {
-		logger.Error("CloudEvent missing data field")
+	// Extract Firestore event data from the CloudEvent payload
+	dataJSON := ce.Data()
+	if len(dataJSON) == 0 {
+		logger.Error("CloudEvent has no data")
 		return fmt.Errorf("CloudEvent missing data")
-	}
-
-	dataJSON, err := json.Marshal(dataVal)
-	if err != nil {
-		logger.Error(fmt.Sprintf("Failed to marshal event data: %v", err))
-		return fmt.Errorf("failed to marshal event data: %w", err)
 	}
 
 	// Parse event data
@@ -76,7 +65,7 @@ func ProcessEnquiryUpdate(ctx context.Context, cloudEvent interface{}) error {
 	// Create event structure
 	event := &domain.FirestoreEvent{
 		Data: eventData,
-		ID:   fmt.Sprintf("%v", ceMap["id"]),
+		ID:   ce.ID(),
 	}
 
 	logger.Debug(fmt.Sprintf("Received event: %s", event.ID))
@@ -200,7 +189,7 @@ func main() {
 	}
 
 	log.Printf("Starting enquiry notification handler on port %s", port)
-	if err := functions.Start(port); err != nil {
-		log.Fatalf("functions.Start: %v", err)
+	if err := funcframework.Start(port); err != nil {
+		log.Fatalf("funcframework.Start: %v", err)
 	}
 }

@@ -752,18 +752,18 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 	categoryName := ctx.PostForm("category_name")
 	dynamicFieldsStr := ctx.PostForm("dynamic_fields")
 	// Try to resolve subcategory image URL (if subCategoryID provided)
-	var subCatImageURL string
-	if subCategoryID != 0 && categoryID != 0 {
-		subs, err := p.productUseCase.GetAllSubCategoriesByCategoryID(ctx, categoryID)
-		if err == nil {
-			for _, sc := range subs {
-				if sc.ID == subCategoryID {
-					subCatImageURL = sc.ImageUrl
-					break
-				}
-			}
-		}
-	}
+	// var subCatImageURL string
+	// if subCategoryID != 0 && categoryID != 0 {
+	// 	subs, err := p.productUseCase.GetAllSubCategoriesByCategoryID(ctx, categoryID)
+	// 	if err == nil {
+	// 		for _, sc := range subs {
+	// 			if sc.ID == subCategoryID {
+	// 				subCatImageURL = sc.ImageUrl
+	// 				break
+	// 			}
+	// 		}
+	// 	}
+	// }
 	files := ctx.Request.MultipartForm.File["images[]"]
 
 	var imagePaths []string
@@ -803,16 +803,16 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 		// If we have a subcategory image, ask the compare-images service to compare
 		// the uploaded product image with the subcategory reference image so external
 		// services can validate or index similarity.
-		if subCatImageURL != "" {
-			// Build publicly accessible URLs that other services can fetch
-			prodURL := buildPublicURL(localPath)
-			subURL := buildPublicURL(subCatImageURL)
-			if err := p.callCompareImages(subURL, prodURL); err != nil {
-				// Return error if image doesn't match category
-				response.ErrorResponseAppError(ctx, err)
-				return
-			}
-		}
+		// if subCatImageURL != "" {
+		// 	// Build publicly accessible URLs that other services can fetch
+		// 	prodURL := buildPublicURL(localPath)
+		// 	subURL := buildPublicURL(subCatImageURL)
+		// 	if err := p.callCompareImages(subURL, prodURL); err != nil {
+		// 		// Return error if image doesn't match category
+		// 		response.ErrorResponseAppError(ctx, err)
+		// 		return
+		// 	}
+		// }
 	}
 
 	var dynamicFields map[string]interface{}

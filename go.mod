@@ -5,10 +5,9 @@ go 1.23.0
 toolchain go1.24.6
 
 require (
-		cloud.google.com/go/firestore v1.18.0
-		firebase.google.com/go/v4 v4.19.0
+	cloud.google.com/go/firestore v1.18.0
+	firebase.google.com/go/v4 v4.19.0
 	github.com/DATA-DOG/go-sqlmock v1.5.0
-	github.com/GoogleCloudPlatform/functions-framework-go v1.9.2
 	github.com/aws/aws-sdk-go v1.44.319
 	github.com/aws/aws-sdk-go-v2/config v1.31.19
 	github.com/aws/aws-sdk-go-v2/credentials v1.18.23
@@ -46,7 +45,9 @@ require (
 	cel.dev/expr v0.23.1 // indirect
 	cloud.google.com/go/auth v0.16.1 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
+	cloud.google.com/go/functions v1.19.6 // indirect
 	cloud.google.com/go/monitoring v1.24.2 // indirect
+	github.com/GoogleCloudPlatform/functions-framework-go v1.9.2 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.27.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.51.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.51.0 // indirect
