@@ -23,27 +23,39 @@ func NewFcmTokenUseCase(repo interfaces.FcmTokenRepository) usecase.FcmTokenUseC
 	}
 }
 
-// SaveFcmToken persists the FCM token in Postgres and syncs it to Firestore so
-// the backend Firestore watcher can dispatch push notifications when monitored
-// documents (e.g. enquiries) are created or updated.
+// SaveFcmToken persists the FCM token in Postgres (fcm_tokens table), syncs it
+// to Firestore under sellers/{ownerID}/fcmTokens/{token}, and also writes into
+// notification_device_tokens so the direct Postgres→FCM path works without Firestore.
+//
+// Owner resolution: ShopID takes precedence over AdminID.
 func (u *fcmTokenUseCase) SaveFcmToken(fcmToken domain.FcmToken) (domain.FcmToken, error) {
 	saved, err := u.repo.SaveFcmToken(fcmToken)
 	if err != nil {
 		return saved, err
 	}
 
-	ctx := context.Background()
+	// Resolve owner: prefer ShopID, fall back to AdminID.
+	var ownerID string
 	if saved.ShopID != 0 {
-		ownerID := strconv.FormatUint(uint64(saved.ShopID), 10)
-		if syncErr := u.fcmPush.SaveTokenToFirestore(ctx, "sellers", ownerID, saved.Token, saved.Platform); syncErr != nil {
-			log.Printf("WARN [SaveFcmToken]: Firestore sync failed for seller %s: %v", ownerID, syncErr)
-		}
+		ownerID = strconv.FormatUint(uint64(saved.ShopID), 10)
 	}
-	if saved.AdminID != 0 {
-		ownerID := strconv.FormatUint(uint64(saved.AdminID), 10)
-		if syncErr := u.fcmPush.SaveTokenToFirestore(ctx, "sellers", ownerID, saved.Token, saved.Platform); syncErr != nil {
-			log.Printf("WARN [SaveFcmToken]: Firestore sync failed for admin %s: %v", ownerID, syncErr)
-		}
+
+	if ownerID == "" {
+		log.Printf("WARN [SaveFcmToken]: token saved but no ShopID/AdminID — skipping sync (token=%s)", saved.Token)
+		return saved, nil
+	}
+
+	ctx := context.Background()
+
+	// 1. Sync to Firestore so the Firestore watcher can deliver push notifications.
+	if syncErr := u.fcmPush.SaveTokenToFirestore(ctx, "sellers", ownerID, saved.Token, saved.Platform); syncErr != nil {
+		log.Printf("WARN [SaveFcmToken]: Firestore sync failed for seller %s: %v", ownerID, syncErr)
+	}
+
+	// 2. Upsert into notification_device_tokens so SendPushNotification finds the
+	//    token via the Postgres path (no Firestore dependency required at send time).
+	if syncErr := u.repo.UpsertDeviceToken(saved.Token, ownerID, "seller", saved.Platform); syncErr != nil {
+		log.Printf("WARN [SaveFcmToken]: notification_device_tokens upsert failed for seller %s: %v", ownerID, syncErr)
 	}
 
 	return saved, nil

@@ -1,9 +1,12 @@
 package repository
 
 import (
+	"time"
+
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type fcmTokenRepository struct {
@@ -32,9 +35,6 @@ func (r *fcmTokenRepository) SaveFcmToken(fcmToken domain.FcmToken) (domain.FcmT
 	if fcmToken.ShopID != 0 {
 		tx = tx.Or("shop_id = ?", fcmToken.ShopID)
 	}
-	if fcmToken.AdminID != 0 {
-		tx = tx.Or("admin_id = ?", fcmToken.AdminID)
-	}
 	err = tx.First(&existing).Error
 	if err == nil {
 		// Update existing by shop/admin
@@ -47,4 +47,24 @@ func (r *fcmTokenRepository) SaveFcmToken(fcmToken domain.FcmToken) (domain.FcmT
 	// Not found, create new
 	err = r.db.Create(&fcmToken).Error
 	return fcmToken, err
+}
+
+// UpsertDeviceToken writes the token into notification_device_tokens so that
+// SendPushNotification can look up tokens from Postgres without requiring Firestore.
+func (r *fcmTokenRepository) UpsertDeviceToken(token, ownerID, ownerType, platform string) error {
+	now := time.Now()
+	record := domain.NotificationDeviceToken{
+		OwnerID:   ownerID,
+		OwnerType: ownerType,
+		Token:     token,
+		Platform:  platform,
+		IsActive:  true,
+		UpdatedAt: &now,
+	}
+	return r.db.
+		Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "token"}},
+			DoUpdates: clause.AssignmentColumns([]string{"owner_id", "owner_type", "platform", "is_active", "updated_at"}),
+		}).
+		Create(&record).Error
 }
