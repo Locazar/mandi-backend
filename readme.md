@@ -69,3 +69,10 @@ AWS_SECRET_ACCESS_KEY="your AWS secret access key"
 AWS_REGION="your AWS region"
 AWS_BUCKET_NAME="your AWS s3 bucket name"
 ```
+
+
+### cf Deployment script
+
+PROJECT-ID : locazar-f20b6
+
+./cmd/cloudfunctions/enquiry-notification-handler/deploy.sh YOUR_PROJECT_ID us-central1

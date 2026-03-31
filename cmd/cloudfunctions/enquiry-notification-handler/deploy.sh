@@ -109,16 +109,39 @@ gcloud functions deploy "$FUNCTION_NAME" \
     exit 1
 }
 
-log_info "Cloud Function deployed successfully!"
+log_info "Cloud Function (update handler) deployed successfully!"
 
-# Create Eventarc trigger
-log_info "Setting up Eventarc trigger..."
+# Deploy the create handler as a separate Cloud Function entry point
+CREATE_FUNCTION_NAME="${FUNCTION_NAME}-create"
+
+log_info "Deploying Cloud Function (create handler): $CREATE_FUNCTION_NAME"
+
+gcloud functions deploy "$CREATE_FUNCTION_NAME" \
+    --runtime "$RUNTIME" \
+    --gen2 \
+    --region "$REGION" \
+    --source "$SCRIPT_DIR" \
+    --entry-point ProcessEnquiryCreate \
+    --memory "$MEMORY" \
+    --timeout "$TIMEOUT" \
+    --service-account "$SERVICE_ACCOUNT" \
+    --set-env-vars "LOG_LEVEL=INFO,ENABLE_IDEMPOTENCY_CHECK=true" \
+    --ingress-settings internal-only \
+    --allow-unauthenticated || {
+    log_error "Create handler function deployment failed"
+    exit 1
+}
+
+log_info "Cloud Function (create handler) deployed successfully!"
+
+# Create Eventarc trigger for document UPDATED events
+log_info "Setting up Eventarc trigger (updated)..."
 
 TRIGGER_NAME="${FUNCTION_NAME}-trigger"
 
 # Check if trigger already exists
 if gcloud eventarc triggers describe "$TRIGGER_NAME" --location "$REGION" &>/dev/null; then
-    log_warn "Trigger already exists, skipping creation"
+    log_warn "Update trigger already exists, skipping creation"
 else
     gcloud eventarc triggers create "$TRIGGER_NAME" \
         --location "$REGION" \
@@ -127,7 +150,25 @@ else
         --event-filters "type=google.cloud.firestore.document.v1.updated" \
         --event-filters "database=(default)" \
         --event-filters "document=enquiries/*" \
-        --service-account "$SERVICE_ACCOUNT" || log_warn "Trigger creation might have failed, verify in console"
+        --service-account "$SERVICE_ACCOUNT" || log_warn "Update trigger creation might have failed, verify in console"
+fi
+
+# Create Eventarc trigger for document CREATED events (new enquiry → notify seller)
+log_info "Setting up Eventarc trigger (created)..."
+
+CREATE_TRIGGER_NAME="${FUNCTION_NAME}-create-trigger"
+
+if gcloud eventarc triggers describe "$CREATE_TRIGGER_NAME" --location "$REGION" &>/dev/null; then
+    log_warn "Create trigger already exists, skipping creation"
+else
+    gcloud eventarc triggers create "$CREATE_TRIGGER_NAME" \
+        --location "$REGION" \
+        --destination-cloud-function "$CREATE_FUNCTION_NAME" \
+        --destination-cloud-function-region "$REGION" \
+        --event-filters "type=google.cloud.firestore.document.v1.created" \
+        --event-filters "database=(default)" \
+        --event-filters "document=enquiries/*" \
+        --service-account "$SERVICE_ACCOUNT" || log_warn "Create trigger creation might have failed, verify in console"
 fi
 
 # Verify deployment

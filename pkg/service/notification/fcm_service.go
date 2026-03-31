@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+
 	"cloud.google.com/go/firestore"
 	firebase "firebase.google.com/go/v4"
 	"firebase.google.com/go/v4/db"
@@ -224,6 +225,30 @@ func (s *Service) GetUserFCMTokens(ctx context.Context, userID string) ([]string
 	return s.GetOwnerFCMTokens(ctx, "users", userID)
 }
 
+// SendToTokens sends a notification directly to the provided FCM device tokens.
+func (s *Service) SendToTokens(ctx context.Context, tokens []string, title, body string, data map[string]string) error {
+	if len(tokens) == 0 {
+		return nil
+	}
+	if data == nil {
+		data = map[string]string{}
+	}
+	for _, token := range tokens {
+		if token == "" {
+			continue
+		}
+		msg := s.buildMessage(&domain.NotificationPayload{Title: title, Body: body})
+		msg.Token = token
+		if len(data) > 0 {
+			msg.Data = data
+		}
+		if _, err := s.msgClient.Send(ctx, msg); err != nil {
+			log.Printf("WARN [SendToTokens]: failed to send to token %s: %v", token, err)
+		}
+	}
+	return nil
+}
+
 // GetOwnerFCMTokens fetches active tokens for a Firestore owner path:
 // {collection}/{ownerID}/fcmTokens where collection is typically users/sellers.
 func (s *Service) GetOwnerFCMTokens(ctx context.Context, collection, ownerID string) ([]string, error) {
@@ -313,7 +338,10 @@ func resolveEnquiryRecipientTarget(
 		return "user"
 	}
 
-	return ""
+	// Fallback: new/initial enquiry (status empty, "pending", "new", or any
+	// unrecognised value) — always notify the seller so they know about
+	// incoming enquiries that don't yet have a negotiation-stage status.
+	return "seller"
 }
 
 func firstNonEmptyString(fields map[string]interface{}, keys ...string) string {

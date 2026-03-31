@@ -39,9 +39,104 @@ type Logger struct {
 
 var logger = &Logger{level: getLogLevel()}
 
-// init registers the Cloud Function entry point
+// init registers the Cloud Function entry points
 func init() {
 	functions.CloudEvent("ProcessEnquiryUpdate", ProcessEnquiryUpdate)
+	functions.CloudEvent("ProcessEnquiryCreate", ProcessEnquiryCreate)
+}
+
+// ProcessEnquiryCreate handles Firestore document.v1.created events for the enquiry collection.
+// A new enquiry always notifies the seller regardless of initial status.
+func ProcessEnquiryCreate(ctx context.Context, ce cloudevents.Event) error {
+	logger.Info("Starting ProcessEnquiryCreate")
+
+	rawData := ce.Data()
+	if len(rawData) == 0 {
+		logger.Error("CloudEvent has no data")
+		return fmt.Errorf("CloudEvent missing data")
+	}
+
+	var docEvent firestoredata.DocumentEventData
+	if err := proto.Unmarshal(rawData, &docEvent); err != nil {
+		logger.Error(fmt.Sprintf("Failed to unmarshal protobuf event data: %v", err))
+		return fmt.Errorf("failed to unmarshal protobuf event data: %w", err)
+	}
+
+	if docEvent.Value == nil {
+		logger.Warn("Created event has no document value")
+		return nil
+	}
+
+	// Convert new document fields to a plain map.
+	newDoc := convertProtoDocument(docEvent.Value)
+	if newDoc == nil {
+		return nil
+	}
+
+	fields := newDoc.Fields
+
+	// Resolve seller ID — the seller must be notified about the new enquiry.
+	sellerID := ""
+	for _, key := range []string{"sellerId", "seller_id", "shopId", "shop_id", "assignedTo"} {
+		if v, ok := fields[key]; ok {
+			if s := strings.TrimSpace(fmt.Sprintf("%v", v)); s != "" && s != "<nil>" {
+				sellerID = s
+				break
+			}
+		}
+	}
+
+	if sellerID == "" {
+		logger.Warn(fmt.Sprintf("No sellerId found in new enquiry document %s — skipping notification", newDoc.Name))
+		return nil
+	}
+
+	logger.Info(fmt.Sprintf("New enquiry created — notifying seller %s", sellerID))
+
+	notifConfig := notification.Config{
+		ProjectID:                     os.Getenv("GCP_PROJECT"),
+		EnableIdempotencyCheck:        strings.ToLower(os.Getenv("ENABLE_IDEMPOTENCY_CHECK")) == "true",
+		FCMTokenCollection:            "fcmTokens",
+		NotificationHistoryCollection: "notificationHistory",
+	}
+	if notifConfig.ProjectID == "" {
+		notifConfig.ProjectID = os.Getenv("GOOGLE_CLOUD_PROJECT")
+	}
+
+	svc, err := notification.NewService(ctx, notifConfig)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Failed to initialize notification service: %v", err))
+		return fmt.Errorf("failed to initialize notification service: %w", err)
+	}
+	defer svc.Close()
+
+	tokens, err := svc.GetOwnerFCMTokens(ctx, "sellers", sellerID)
+	if err != nil || len(tokens) == 0 {
+		logger.Info(fmt.Sprintf("No active FCM tokens for seller %s — skipping", sellerID))
+		return nil
+	}
+
+	// Build a friendly new-enquiry notification.
+	title := "New Enquiry Received"
+	body := "A buyer has sent a new enquiry. Open the app to review and respond."
+	if askQty, ok := fields["askQuantity"]; ok {
+		if s := strings.TrimSpace(fmt.Sprintf("%v", askQty)); s != "" && s != "<nil>" {
+			body = fmt.Sprintf("A buyer is enquiring for quantity %s. Open the app to respond.", s)
+		}
+	}
+
+	data := map[string]string{
+		"event_type": "enquiry_created",
+		"seller_id":  sellerID,
+	}
+
+	if err := svc.SendToTokens(ctx, tokens, title, body, data); err != nil {
+		logger.Error(fmt.Sprintf("Failed to send new-enquiry notification to seller %s: %v", sellerID, err))
+		return nil // not fatal
+	}
+
+	logger.Info(fmt.Sprintf("New-enquiry notification sent to seller %s (%d token(s))", sellerID, len(tokens)))
+	return nil
 }
 
 // ProcessEnquiryUpdate is the main Cloud Function that processes Firestore enquiry updates

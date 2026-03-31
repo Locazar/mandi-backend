@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -266,9 +267,13 @@ func SendPushToSellerOnNewOrder(ctx context.Context, uc service.NotificationUseC
 // push notifications when monitored document fields change.
 //
 // rules may be nil — in that case the default e-commerce rules are used.
-// Enquiry updates are excluded by default because a dedicated Cloud Function
-// also handles them; set ENABLE_ENQUIRY_FIRESTORE_WATCHER=true to opt in when
-// running without the Cloud Function.
+//
+// Enquiry handling is controlled by ENQUIRY_NOTIFICATION_HANDLER:
+//   "server" (default / unset) — this process watches the enquiry collection.
+//                                Use this when no Cloud Function is deployed.
+//   "cf"                       — skip the enquiry watcher here; the deployed
+//                                Cloud Function (ProcessEnquiryUpdate/Create)
+//                                is the sole handler. Prevents double delivery.
 //
 // The method returns as soon as the watcher goroutines are launched; they run
 // until ctx is cancelled.
@@ -280,16 +285,18 @@ func (uc *notificationUseCase) StartFirestoreWatcher(ctx context.Context, rules 
 			notificationSvc.DefaultShopRule(),
 		}
 
-		// Always include the enquiry rule with NotifyOnCreate so the seller is
-		// notified as soon as a new enquiry document lands in Firestore.
-		// (The ENABLE_ENQUIRY_FIRESTORE_WATCHER env var previously guarded this to
-		// avoid double-delivery when Cloud Functions were also deployed; since the
-		// backend is now the primary notification path, the rule runs unconditionally.)
-		enquiryRule := notificationSvc.DefaultEnquiryRule()
-		if uc.db != nil {
-			enquiryRule.DataEnricher = uc.enquiryDataEnricher()
+		// Include the enquiry watcher unless the operator has delegated enquiry
+		// notifications to a Cloud Function (ENQUIRY_NOTIFICATION_HANDLER=cf).
+		if !strings.EqualFold(os.Getenv("ENQUIRY_NOTIFICATION_HANDLER"), "cf") {
+			enquiryRule := notificationSvc.DefaultEnquiryRule()
+			if uc.db != nil {
+				enquiryRule.DataEnricher = uc.enquiryDataEnricher()
+			}
+			rules = append(rules, enquiryRule)
+			log.Println("INFO [FirestoreWatcher]: enquiry rule enabled (ENQUIRY_NOTIFICATION_HANDLER=server)")
+		} else {
+			log.Println("INFO [FirestoreWatcher]: enquiry rule disabled — delegated to Cloud Function (ENQUIRY_NOTIFICATION_HANDLER=cf)")
 		}
-		rules = append(rules, enquiryRule)
 	}
 
 	watcher := notificationSvc.NewFirestoreWatcher(uc.fcmPush, rules...)
