@@ -159,6 +159,13 @@ func enquiryRecipientResolver(docData map[string]interface{}) (notifyUser bool, 
 		}
 	}
 
+	// Fallback: new/initial enquiry (status empty, "pending", "new", or any
+	// unrecognised value) — always notify the seller so they know about
+	// incoming enquiries that don't yet have a negotiation-stage status.
+	if !notifyUser && !notifySeller {
+		notifySeller = true
+	}
+
 	return
 }
 
