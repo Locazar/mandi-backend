@@ -164,7 +164,9 @@ func (s *Service) SendNotification(ctx context.Context, event *domain.ParsedFire
 	return nil
 }
 
-// GetNotificationRecipients fetches all tokens for a payload
+// GetNotificationRecipients fetches tokens for both the user and seller of an enquiry.
+// Both parties always receive one notification each — the user is kept informed of the
+// seller's response and vice versa.
 func (s *Service) GetNotificationRecipients(ctx context.Context, event *domain.ParsedFirestoreEvent,
 	payload *domain.NotificationPayload, changes []domain.FieldChange) ([]*domain.NotificationRecipient, error) {
 
@@ -185,36 +187,33 @@ func (s *Service) GetNotificationRecipients(ctx context.Context, event *domain.P
 		sellerID = payload.AssignedTo
 	}
 
-	target := resolveEnquiryRecipientTarget(newFields, changes)
 	log.Printf(
-		"INFO: enquiry recipient routing document=%s status=%q acceptedBy=%q rejectedBy=%q target=%q userID=%q sellerID=%q changedFields=%s",
+		"INFO: enquiry notification document=%s status=%q userID=%q sellerID=%q changedFields=%s",
 		payload.DocumentID,
 		firstNonEmptyString(newFields, "status"),
-		firstNonEmptyString(newFields, "acceptedBy", "accepted_by"),
-		firstNonEmptyString(newFields, "rejectedBy", "rejected_by"),
-		target,
 		userID,
 		sellerID,
 		joinChangedFieldNames(changes),
 	)
-	switch target {
-	case "user":
-		if userID != "" {
-			tokens, _ := s.GetOwnerFCMTokens(ctx, "users", userID)
-			if len(tokens) > 0 {
-				recipients = append(recipients, &domain.NotificationRecipient{UserID: userID, Tokens: tokens, Type: "user"})
-			}
+
+	// Notify the user (buyer).
+	if userID != "" {
+		tokens, _ := s.GetOwnerFCMTokens(ctx, "users", userID)
+		if len(tokens) > 0 {
+			recipients = append(recipients, &domain.NotificationRecipient{UserID: userID, Tokens: tokens, Type: "user"})
+		} else {
+			log.Printf("INFO: no active FCM tokens for user %s", userID)
 		}
-	case "seller":
-		if sellerID != "" {
-			tokens, _ := s.GetOwnerFCMTokens(ctx, "sellers", sellerID)
-			if len(tokens) > 0 {
-				recipients = append(recipients, &domain.NotificationRecipient{UserID: sellerID, Tokens: tokens, Type: "seller"})
-			}
+	}
+
+	// Notify the seller.
+	if sellerID != "" {
+		tokens, _ := s.GetOwnerFCMTokens(ctx, "sellers", sellerID)
+		if len(tokens) > 0 {
+			recipients = append(recipients, &domain.NotificationRecipient{UserID: sellerID, Tokens: tokens, Type: "seller"})
+		} else {
+			log.Printf("INFO: no active FCM tokens for seller %s", sellerID)
 		}
-	default:
-		// Unknown routing state: don't fan out to both sides.
-		log.Printf("INFO: recipient target unresolved for enquiry document=%s status=%v", payload.DocumentID, newFields["status"])
 	}
 
 	return s.deduplicateRecipients(recipients), nil
@@ -280,81 +279,14 @@ func (s *Service) GetOwnerFCMTokens(ctx context.Context, collection, ownerID str
 	for _, doc := range docs {
 		data := doc.Data()
 		if t, ok := data["token"].(string); ok && t != "" {
-			active := true
-			if a, ok := data["isActive"].(bool); ok {
-				active = a
-			}
-			if active {
+			// Only include tokens that are explicitly marked isActive: true.
+			// Tokens missing the field (old registrations) are skipped.
+			if a, ok := data["isActive"].(bool); ok && a {
 				tokens = append(tokens, t)
 			}
 		}
 	}
 	return tokens, nil
-}
-
-// resolveEnquiryRecipientTarget enforces strict one-way notification routing for
-// enquiry negotiation updates, based purely on the document's status field.
-//
-// Routing rules (exactly one party is notified per update):
-//
-//	Seller-facing statuses → notify only seller:
-//	  pending_seller_price | pending_seller_final | seller_final_update
-//
-//	Customer-facing statuses → notify only user:
-//	  pending_customer_price | pending_customer_final
-//
-//	Completion statuses (completed_accepted | completed_rejected):
-//	  notify the OTHER party based on who finalised (acceptedBy / rejectedBy)
-//
-//	All other statuses → notify seller (new/initial enquiry fallback)
-//
-// Returns:
-//   - "user"   => notify only buyer/user
-//   - "seller" => notify only seller
-func resolveEnquiryRecipientTarget(
-	newFields map[string]interface{},
-	changes []domain.FieldChange,
-) string {
-	status := strings.ToLower(strings.TrimSpace(firstNonEmptyString(newFields, "status")))
-
-	// Statuses that require a SELLER response — notify only the seller.
-	sellerTargetStatuses := map[string]bool{
-		"pending_seller_price": true,
-		"pending_seller_final": true,
-		"seller_final_update":  true,
-	}
-	// Statuses that require a CUSTOMER response — notify only the user.
-	userTargetStatuses := map[string]bool{
-		"pending_customer_price": true,
-		"pending_customer_final": true,
-	}
-
-	if sellerTargetStatuses[status] {
-		return "seller"
-	}
-	if userTargetStatuses[status] {
-		return "user"
-	}
-
-	// For completed deals, route to the OTHER party based on who finalised.
-	if status == "completed_accepted" || status == "completed_rejected" {
-		acceptedBy := strings.ToLower(strings.TrimSpace(firstNonEmptyString(newFields, "acceptedBy", "accepted_by")))
-		rejectedBy := strings.ToLower(strings.TrimSpace(firstNonEmptyString(newFields, "rejectedBy", "rejected_by")))
-		actor := acceptedBy
-		if status == "completed_rejected" && rejectedBy != "" {
-			actor = rejectedBy
-		}
-		switch actor {
-		case "seller", "vendor", "shop":
-			return "user"
-		case "client", "customer", "user", "buyer":
-			return "seller"
-		}
-	}
-
-	// Fallback: new/initial enquiry (status empty, "pending", "new", or any
-	// unrecognised value) — always notify the seller.
-	return "seller"
 }
 
 func firstNonEmptyString(fields map[string]interface{}, keys ...string) string {

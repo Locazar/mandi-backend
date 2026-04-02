@@ -112,15 +112,5 @@ func LoadConfig() (config Config, err error) {
 		_ = os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", credPath)
 	}
 
-	// Propagate notification handler mode so that runtime code that calls
-	// os.Getenv("ENQUIRY_NOTIFICATION_HANDLER") (e.g. StartFirestoreWatcher)
-	// picks up the value from .env.  Without this, Viper reads the value from
-	// .env into its internal store but never calls os.Setenv, so os.Getenv
-	// always returns "" and the server-side enquiry watcher starts even when
-	// the Cloud Function is the designated handler — causing duplicate sends.
-	if v := viper.GetString("ENQUIRY_NOTIFICATION_HANDLER"); v != "" {
-		_ = os.Setenv("ENQUIRY_NOTIFICATION_HANDLER", v)
-	}
-
 	return config, nil
 }
