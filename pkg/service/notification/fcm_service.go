@@ -103,7 +103,6 @@ func (s *Service) SendNotification(ctx context.Context, event *domain.ParsedFire
 		return nil
 	}
 
-	message := s.buildMessage(payload)
 	successCount := 0
 
 	for _, recipient := range recipients {
@@ -123,25 +122,26 @@ func (s *Service) SendNotification(ctx context.Context, event *domain.ParsedFire
 			}
 		}
 
+		// Send all tokens for this recipient in a single multicast call.
+		multiMsg := s.buildMulticastMessage(recipient.Tokens, payload)
+		mresp, sendErr := s.msgClient.SendEachForMulticast(ctx, multiMsg)
+
 		recipientSuccessCount := 0
 		firstMessageID := ""
-		for _, token := range recipient.Tokens {
-			if token == "" {
-				continue
+		if sendErr != nil {
+			log.Printf("WARN: FCM multicast failed for recipient %s: %v", recipient.UserID, sendErr)
+		} else {
+			for i, r := range mresp.Responses {
+				if r.Success {
+					recipientSuccessCount++
+					if firstMessageID == "" {
+						firstMessageID = r.MessageID
+					}
+				} else {
+					log.Printf("WARN: FCM token %s failed for recipient %s: %v", recipient.Tokens[i], recipient.UserID, r.Error)
+				}
 			}
-
-			message.Token = token
-			resp, err := s.msgClient.Send(ctx, message)
-			if err != nil {
-				log.Printf("WARN: Failed to send to token %s: %v", token, err)
-				continue
-			}
-
-			successCount++
-			recipientSuccessCount++
-			if firstMessageID == "" {
-				firstMessageID = resp
-			}
+			successCount += recipientSuccessCount
 		}
 
 		if s.config.EnableIdempotencyCheck && dedupeKey != "" {
@@ -185,7 +185,7 @@ func (s *Service) GetNotificationRecipients(ctx context.Context, event *domain.P
 		sellerID = payload.AssignedTo
 	}
 
-	target := resolveEnquiryRecipientTarget(newFields, changes, userID, sellerID)
+	target := resolveEnquiryRecipientTarget(newFields, changes)
 	log.Printf(
 		"INFO: enquiry recipient routing document=%s status=%q acceptedBy=%q rejectedBy=%q target=%q userID=%q sellerID=%q changedFields=%s",
 		payload.DocumentID,
@@ -233,19 +233,31 @@ func (s *Service) SendToTokens(ctx context.Context, tokens []string, title, body
 	if data == nil {
 		data = map[string]string{}
 	}
-	for _, token := range tokens {
-		if token == "" {
-			continue
-		}
-		msg := s.buildMessage(&domain.NotificationPayload{Title: title, Body: body})
-		msg.Token = token
-		if len(data) > 0 {
-			msg.Data = data
-		}
-		if _, err := s.msgClient.Send(ctx, msg); err != nil {
-			log.Printf("WARN [SendToTokens]: failed to send to token %s: %v", token, err)
+	// Filter empty tokens.
+	valid := make([]string, 0, len(tokens))
+	for _, t := range tokens {
+		if t != "" {
+			valid = append(valid, t)
 		}
 	}
+	if len(valid) == 0 {
+		return nil
+	}
+	msg := s.buildMulticastMessage(valid, &domain.NotificationPayload{Title: title, Body: body})
+	if len(data) > 0 {
+		msg.Data = data
+	}
+	resp, err := s.msgClient.SendEachForMulticast(ctx, msg)
+	if err != nil {
+		log.Printf("WARN [SendToTokens]: multicast failed: %v", err)
+		return err
+	}
+	for i, r := range resp.Responses {
+		if !r.Success {
+			log.Printf("WARN [SendToTokens]: token %s failed: %v", valid[i], r.Error)
+		}
+	}
+	log.Printf("INFO [SendToTokens]: sent %d/%d", resp.SuccessCount, len(valid))
 	return nil
 }
 
@@ -280,43 +292,54 @@ func (s *Service) GetOwnerFCMTokens(ctx context.Context, collection, ownerID str
 	return tokens, nil
 }
 
-// resolveEnquiryRecipientTarget enforces one-way notification routing for
-// enquiry negotiation updates.
+// resolveEnquiryRecipientTarget enforces strict one-way notification routing for
+// enquiry negotiation updates, based purely on the document's status field.
+//
+// Routing rules (exactly one party is notified per update):
+//
+//	Seller-facing statuses → notify only seller:
+//	  pending_seller_price | pending_seller_final | seller_final_update
+//
+//	Customer-facing statuses → notify only user:
+//	  pending_customer_price | pending_customer_final
+//
+//	Completion statuses (completed_accepted | completed_rejected):
+//	  notify the OTHER party based on who finalised (acceptedBy / rejectedBy)
+//
+//	All other statuses → notify seller (new/initial enquiry fallback)
 //
 // Returns:
 //   - "user"   => notify only buyer/user
 //   - "seller" => notify only seller
-//   - ""       => skip when target can't be determined safely
 func resolveEnquiryRecipientTarget(
 	newFields map[string]interface{},
 	changes []domain.FieldChange,
-	userID, sellerID string,
 ) string {
 	status := strings.ToLower(strings.TrimSpace(firstNonEmptyString(newFields, "status")))
-	acceptedBy := strings.ToLower(strings.TrimSpace(firstNonEmptyString(newFields, "acceptedBy", "accepted_by")))
-	rejectedBy := strings.ToLower(strings.TrimSpace(firstNonEmptyString(newFields, "rejectedBy", "rejected_by")))
 
-	// Highest priority: if actor identity is present, always notify the opposite party.
-	actorID := firstNonEmptyString(newFields, "updatedBy", "updatedById", "lastUpdatedBy", "modifiedBy", "changedBy", "actorId")
-	if actorID != "" {
-		if userID != "" && actorID == userID {
-			return "seller"
-		}
-		if sellerID != "" && actorID == sellerID {
-			return "user"
-		}
+	// Statuses that require a SELLER response — notify only the seller.
+	sellerTargetStatuses := map[string]bool{
+		"pending_seller_price": true,
+		"pending_seller_final": true,
+		"seller_final_update":  true,
+	}
+	// Statuses that require a CUSTOMER response — notify only the user.
+	userTargetStatuses := map[string]bool{
+		"pending_customer_price": true,
+		"pending_customer_final": true,
 	}
 
-	actorRole := strings.ToLower(strings.TrimSpace(firstNonEmptyString(newFields, "updatedByRole", "updatedByType", "actorRole", "actorType")))
-	switch actorRole {
-	case "user", "customer", "client", "buyer":
+	if sellerTargetStatuses[status] {
 		return "seller"
-	case "seller", "vendor", "shop":
+	}
+	if userTargetStatuses[status] {
 		return "user"
 	}
 
-	// Explicit completion routing from acceptedBy.
+	// For completed deals, route to the OTHER party based on who finalised.
 	if status == "completed_accepted" || status == "completed_rejected" {
+		acceptedBy := strings.ToLower(strings.TrimSpace(firstNonEmptyString(newFields, "acceptedBy", "accepted_by")))
+		rejectedBy := strings.ToLower(strings.TrimSpace(firstNonEmptyString(newFields, "rejectedBy", "rejected_by")))
 		actor := acceptedBy
 		if status == "completed_rejected" && rejectedBy != "" {
 			actor = rejectedBy
@@ -329,18 +352,8 @@ func resolveEnquiryRecipientTarget(
 		}
 	}
 
-	// Status-based routing for negotiation states. These statuses represent the
-	// party expected to take the next action, so notify that side only.
-	switch status {
-	case "pending_seller_price", "pending_seller_final", "seller_final_update":
-		return "seller"
-	case "pending_customer_price", "pending_customer_final":
-		return "user"
-	}
-
 	// Fallback: new/initial enquiry (status empty, "pending", "new", or any
-	// unrecognised value) — always notify the seller so they know about
-	// incoming enquiries that don't yet have a negotiation-stage status.
+	// unrecognised value) — always notify the seller.
 	return "seller"
 }
 
@@ -439,6 +452,39 @@ func (s *Service) releaseIdempotencyLease(ctx context.Context, key string) error
 	}
 	_, err := s.fsClient.Collection(s.config.NotificationHistoryCollection).Doc(key).Delete(ctx)
 	return err
+}
+
+// buildMulticastMessage constructs a MulticastMessage for sending to multiple tokens at once.
+func (s *Service) buildMulticastMessage(tokens []string, payload *domain.NotificationPayload) *messaging.MulticastMessage {
+	data := map[string]string{
+		"enquiryId":  payload.EnquiryID,
+		"documentId": payload.DocumentID,
+		"timestamp":  payload.Timestamp,
+		"actionUrl":  payload.ActionURL,
+	}
+	return &messaging.MulticastMessage{
+		Tokens: tokens,
+		Data:   data,
+		Notification: &messaging.Notification{
+			Title: payload.Title,
+			Body:  payload.Body,
+		},
+		Android: &messaging.AndroidConfig{
+			Priority: "high",
+			TTL:      ptrDuration(24 * time.Hour),
+		},
+		APNS: &messaging.APNSConfig{
+			Payload: &messaging.APNSPayload{
+				Aps: &messaging.Aps{
+					Alert: &messaging.ApsAlert{
+						Title: payload.Title,
+						Body:  payload.Body,
+					},
+					Sound: "default",
+				},
+			},
+		},
+	}
 }
 
 // buildMessage constructs Firebase message

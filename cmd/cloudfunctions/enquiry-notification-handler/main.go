@@ -1,4 +1,4 @@
-// Package main implements a Google Cloud Function (Gen 2) that listens to Firestore
+// Package enquirynotification implements a Google Cloud Function (Gen 2) that listens to Firestore
 // enquiry document update events via Eventarc.
 //
 // The function:
@@ -12,7 +12,7 @@
 // - MONITORED_FIELDS: Comma-separated list of fields to monitor (overrides defaults)
 // - ENABLE_IDEMPOTENCY_CHECK: Set to "true" to track notification history
 // - LOG_LEVEL: DEBUG, INFO, WARN, ERROR (default: INFO)
-package main
+package enquirynotification
 
 import (
 	"context"
@@ -22,7 +22,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/GoogleCloudPlatform/functions-framework-go/funcframework"
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
 	cloudevents "github.com/cloudevents/sdk-go/v2"
 	firestoredata "github.com/googleapis/google-cloudevents-go/cloud/firestoredata"
@@ -140,7 +139,7 @@ func ProcessEnquiryCreate(ctx context.Context, ce cloudevents.Event) error {
 }
 
 // ProcessEnquiryUpdate is the main Cloud Function that processes Firestore enquiry updates
-// It's called via Eventarc when a Firestore document in the enquiries collection is updated
+// It's called via Eventarc when a Firestore document in the enquiry collection is updated
 // (google.cloud.firestore.document.v1.updated)
 func ProcessEnquiryUpdate(ctx context.Context, ce cloudevents.Event) error {
 	logger.Info("Starting ProcessEnquiryUpdate")
@@ -375,18 +374,4 @@ func getLogLevel() string {
 		}
 	}
 	return level
-}
-
-// main is required for local testing
-// For Cloud Functions deployment, only the ProcessEnquiryUpdate function is used
-func main() {
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
-
-	log.Printf("Starting enquiry notification handler on port %s", port)
-	if err := funcframework.Start(port); err != nil {
-		log.Fatalf("funcframework.Start: %v", err)
-	}
 }

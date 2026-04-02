@@ -169,8 +169,23 @@ func GetChangesSummary(changes []domain.FieldChange) string {
 // getDefaultMonitoredFields returns the default set of fields to monitor
 func getDefaultMonitoredFields() map[string]bool {
 	return map[string]bool{
-		// Enquiry status and assignment
-		"status":         true,
+		// Enquiry top-level status
+		"status":      true,
+		"finalStatus": true,
+
+		// Negotiation price fields
+		"acceptedPrice":           true,
+		"sellerInitialPrice":      true,
+		"customerNegotiatedPrice": true,
+		"sellerFinalPrice":        true,
+		"customerFinalResponse":   true,
+
+		// Negotiation outcome fields
+		"acceptedBy":   true,
+		"rejectedBy":   true,
+		"availability": true,
+
+		// Assignment / routing
 		"assignedTo":     true,
 		"assignedToName": true,
 		"assignedToRole": true,
@@ -180,21 +195,15 @@ func getDefaultMonitoredFields() map[string]bool {
 		"resolutionDate": true,
 		"closedAt":       true,
 		"tags":           true,
-
-		// Enquiry content
-		"subject":       false, // usually not needed
-		"description":   false,
-		"category":      true,
-		"type":          true,
+		"category":       true,
+		"type":           true,
 
 		// Communication
-		"notes":         false, // might be too verbose
-		"message":       false,
-		"response":      true,
-		"respondedAt":   true,
+		"response":    true,
+		"respondedAt": true,
 
-		// Custom fields (add more based on your schema)
-		"customStatus":  true,
-		"department":    true,
+		// Custom fields
+		"customStatus": true,
+		"department":   true,
 	}
 }

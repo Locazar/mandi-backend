@@ -93,10 +93,13 @@ func (s *FCMPushService) SendToTokens(
 			Priority: "high",
 			TTL:      ptrDuration(24 * time.Hour),
 			Notification: &messaging.AndroidNotification{
+				ChannelID: "high_importance_channel",
+				Priority: messaging.PriorityHigh,
 				Title:       title,
 				Body:        body,
 				ClickAction: "FLUTTER_NOTIFICATION_CLICK",
 				Sound:       "default",
+				DefaultSound: true,
 			},
 		},
 		APNS: &messaging.APNSConfig{
