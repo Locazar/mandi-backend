@@ -35,7 +35,7 @@ func (pb *PayloadBuilder) BuildPayload(
 	// Extract key fields from new values
 	payload.EnquiryID = firstNonEmptyField(event.NewFields, "queryId", "enquiryId", "id")
 	payload.UserID = firstNonEmptyField(event.NewFields, "userId", "customerId", "createdBy")
-	payload.AssignedTo = firstNonEmptyField(event.NewFields, "assignedTo", "assignedToId")
+	payload.SellerID = firstNonEmptyField(event.NewFields, "sellerId", "seller_id", "shopId", "shop_id")
 
 	// Set action URL based on enquiry ID
 	if payload.EnquiryID != "" {
@@ -44,11 +44,16 @@ func (pb *PayloadBuilder) BuildPayload(
 		payload.ActionURL = fmt.Sprintf("/documents/%s", event.DocumentID)
 	}
 
+	// If SellerID is not resolved from sellerId/shopId, fall back to AssignedTo.
+	if payload.SellerID == "" {
+		payload.SellerID = payload.AssignedTo
+	}
+
 	// Generate notification title and body based on changes
 	payload.Title, payload.Body = pb.generateNotificationContent(event, changes)
 
-	log.Printf("DEBUG: Payload generated - EnquiryID: %s, User: %s, Assigned: %s",
-		payload.EnquiryID, payload.UserID, payload.AssignedTo)
+	log.Printf("DEBUG: Payload generated - EnquiryID: %s, User: %s",
+		payload.EnquiryID, payload.UserID)
 
 	return payload
 }
@@ -169,6 +174,12 @@ func (pb *PayloadBuilder) buildStatusNotification(change domain.FieldChange, fie
 			return title, fmt.Sprintf("The customer submitted a final response of %s for %s.", customerFinalResponse, enquiryRef)
 		}
 		return title, fmt.Sprintf("The customer submitted a final response for %s.", enquiryRef)
+	case "customer_accepted_final":
+		title = "Customer Final Response Accepted"
+		if customerFinalResponse != "" {
+			return title, fmt.Sprintf("The customer accepted the final price of %s for %s.", customerFinalResponse, enquiryRef)
+		}
+		return title, fmt.Sprintf("The customer accepted the final price for %s.", enquiryRef)
 	case "completed_accepted":
 		title = "Deal Accepted"
 		body = fmt.Sprintf("%s has been accepted", enquiryRef)
@@ -201,6 +212,28 @@ func (pb *PayloadBuilder) buildStatusNotification(change domain.FieldChange, fie
 		return "Enquiry Closed", fmt.Sprintf("%s has been closed.", enquiryRef)
 	case "rejected":
 		return "Enquiry Rejected", fmt.Sprintf("%s status changed to rejected.", enquiryRef)
+	case "cancelled":
+		return "Enquiry Cancelled", fmt.Sprintf("%s has been cancelled.", enquiryRef)
+	case "expired":
+		return "Enquiry Expired", fmt.Sprintf("%s expired without a response. You can create a new enquiry.", enquiryRef)
+	case "on_hold":
+		reason := strings.TrimSpace(firstNonEmptyField(fields, "onHoldReason", "holdReason", "notes"))
+		if reason != "" {
+			return "Enquiry On Hold", fmt.Sprintf("%s has been placed on hold: %s.", enquiryRef, reason)
+		}
+		return "Enquiry On Hold", fmt.Sprintf("%s has been placed on hold.", enquiryRef)
+	case "reopened":
+		return "Enquiry Reopened", fmt.Sprintf("%s has been reopened. Please review the latest details.", enquiryRef)
+	case "counter_offer":
+		return "Counter Offer Received", fmt.Sprintf("A counter offer has been submitted for %s. Review and respond.", enquiryRef)
+	case "dispute":
+		reason := strings.TrimSpace(firstNonEmptyField(fields, "disputeReason", "dispute_reason"))
+		if reason != "" {
+			return "Dispute Raised", fmt.Sprintf("A dispute has been raised for %s: %s.", enquiryRef, reason)
+		}
+		return "Dispute Raised", fmt.Sprintf("A dispute has been raised for %s. Please contact support.", enquiryRef)
+	case "dispute_resolved":
+		return "Dispute Resolved", fmt.Sprintf("The dispute for %s has been resolved.", enquiryRef)
 	default:
 		return "Enquiry Status Updated", fmt.Sprintf("Status changed from %s to %s.", oldStatus, change.NewValue)
 	}
@@ -221,16 +254,26 @@ func (pb *PayloadBuilder) buildAssignmentNotification(
 	} else if assignedToName != "" {
 		body = fmt.Sprintf("Your enquiry has been assigned to %s", assignedToName)
 	} else {
-		body = fmt.Sprintf("Your enquiry has been assigned to an agent")
+		body = "Your enquiry has been assigned to an agent"
 	}
 
 	return title, body
 }
 
-// buildResponseNotification creates notification for response changes
+// buildResponseNotification creates notification for response/message changes.
 func (pb *PayloadBuilder) buildResponseNotification(change domain.FieldChange) (title, body string) {
 	title = "New Response"
-	body = "There's a new response to your enquiry"
+	body = "There's a new response to your enquiry."
+	// If the response text itself is available, surface a preview (max 100 chars).
+	if change.NewValue != nil {
+		preview := strings.TrimSpace(fmt.Sprintf("%v", change.NewValue))
+		if preview != "" && preview != "<nil>" {
+			if len(preview) > 100 {
+				preview = preview[:97] + "..."
+			}
+			body = fmt.Sprintf("New response: %s", preview)
+		}
+	}
 	return title, body
 }
 

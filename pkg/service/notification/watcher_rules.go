@@ -67,21 +67,22 @@ func DefaultShopRule() WatchRule {
 //
 // Actual Firestore document fields monitored:
 //
-//	status                 — overall enquiry state (e.g. "completed_accepted")
-//	finalStatus            — negotiation outcome  ("accepted" | "rejected")
-//	acceptedBy             — who finalised the deal ("seller" | "client")
-//	acceptedBy             — who finalised the deal ("seller" | "client")
-//	acceptedPrice          — agreed price (string)
+//	status                  — overall enquiry state (e.g. "completed_accepted")
+//	finalStatus             — negotiation outcome  ("accepted" | "rejected")
+//	acceptedBy              — who finalised the deal ("seller" | "client")
+//	rejectedBy              — who rejected the deal  ("seller" | "client")
+//	acceptedPrice           — agreed price (string)
 //	customerNegotiatedPrice — customer's latest counter-price
-//	customerFinalResponse  — customer's final price
-//	sellerFinalPrice       — seller's final asking price
-//	sellerInitialPrice     — seller's opening price
-//	availability           — product availability flag
+//	customerFinalResponse   — customer's final price
+//	sellerFinalPrice        — seller's final asking price
+//	sellerInitialPrice      — seller's opening price
+//	availability            — product availability flag
 //
 // Recipient routing is driven by the document status:
-//   - Seller-facing states   → notify seller (pending_seller_price, pending_seller_final, seller_final_update)
-//   - Customer-facing states → notify user   (pending_customer_price, pending_customer_final)
+//   - Seller-facing states   → notify seller only  (pending_seller_price, pending_seller_final, seller_final_update)
+//   - Customer-facing states → notify user only    (pending_customer_price, pending_customer_final)
 //   - Deal finalised         → notify the other party based on acceptedBy/rejectedBy
+//   - Admin / terminal state → notify both parties
 func DefaultEnquiryRule() WatchRule {
 	return WatchRule{
 		Collection: "enquiry",
@@ -89,6 +90,7 @@ func DefaultEnquiryRule() WatchRule {
 			"status",
 			"finalStatus",
 			"acceptedBy",
+			"rejectedBy",
 			"acceptedPrice",
 			"customerNegotiatedPrice",
 			"customerFinalResponse",
@@ -96,7 +98,7 @@ func DefaultEnquiryRule() WatchRule {
 			"sellerInitialPrice",
 			"availability",
 		},
-		// NotifyUser / NotifySeller are overridden at runtime by RecipientResolver.
+		// NotifyUser / NotifySeller defaults; overridden at runtime by RecipientResolver.
 		NotifyUser:        true,
 		NotifySeller:      true,
 		UserIDField:       "userId",
@@ -109,64 +111,66 @@ func DefaultEnquiryRule() WatchRule {
 }
 
 // enquiryRecipientResolver decides who receives a notification for an enquiry
-// document update based on its current status and acceptedBy field.
+// document update based on its current status.
 //
 // Routing rules:
 //
-//	Seller-facing states → notify seller:
+//	Seller-facing states → notify seller ONLY:
 //	  pending_seller_price | pending_seller_final | seller_final_update
-//	  completed_accepted/rejected + acceptedBy/rejectedBy == "client"
 //
-//	Customer-facing states → notify user:
+//	Customer-facing states → notify user ONLY:
 //	  pending_customer_price | pending_customer_final
-//	  completed_accepted/rejected + acceptedBy/rejectedBy == "seller"
+//
+//	Deal finalised → notify the OTHER party:
+//	  completed_accepted / completed_rejected:
+//	    acceptedBy/rejectedBy == "seller"          → notify user
+//	    acceptedBy/rejectedBy == "client|customer" → notify seller
+//	    actor unknown                               → notify both
+//
+//	Admin / terminal states → notify both:
+//	  in_progress | on_hold | resolved | closed | cancelled |
+//	  expired | reopened | counter_offer | dispute | dispute_resolved
+//
+//	Fallback (new / no status) → notify seller (new enquiry arrives in seller inbox)
 func enquiryRecipientResolver(docData map[string]interface{}) (notifyUser bool, notifySeller bool) {
 	status := strings.ToLower(strings.TrimSpace(enquiryDocString(docData, "status")))
 	acceptedBy := strings.ToLower(strings.TrimSpace(enquiryDocString(docData, "acceptedBy", "accepted_by")))
 	rejectedBy := strings.ToLower(strings.TrimSpace(enquiryDocString(docData, "rejectedBy", "rejected_by")))
 
-	// Statuses that require a SELLER response.
-	sellerTargetStatuses := map[string]bool{
-		"pending_seller_price": true,
-		"pending_seller_final": true,
-		"seller_final_update":  true,
-	}
+	switch status {
+	// ── Seller must act ───────────────────────────────────────────────────────
+	case "pending_seller_price", "pending_seller_final", "seller_final_update":
+		return false, true
 
-	// Statuses that require a CUSTOMER response.
-	userTargetStatuses := map[string]bool{
-		"pending_customer_price": true,
-		"pending_customer_final": true,
-	}
+	// ── Buyer must act ────────────────────────────────────────────────────────
+	case "pending_customer_price", "pending_customer_final":
+		return true, false
 
-	if sellerTargetStatuses[status] {
-		notifySeller = true
-	}
-	if userTargetStatuses[status] {
-		notifyUser = true
-	}
-
-	// For completed/rejected deals, route to the OTHER party based on who finalised.
-	if status == "completed_accepted" || status == "completed_rejected" {
+	// ── Deal finalised — notify the OTHER party ───────────────────────────────
+	case "completed_accepted", "completed_rejected":
 		actor := acceptedBy
 		if status == "completed_rejected" && rejectedBy != "" {
 			actor = rejectedBy
 		}
 		switch actor {
 		case "seller":
-			notifyUser = true
+			return true, false // seller finalised → notify buyer
 		case "client", "customer", "user", "buyer":
-			notifySeller = true
+			return false, true // buyer finalised → notify seller
+		default:
+			return true, true // actor unknown → notify both
 		}
-	}
 
-	// Fallback: new/initial enquiry (status empty, "pending", "new", or any
-	// unrecognised value) — always notify the seller so they know about
-	// incoming enquiries that don't yet have a negotiation-stage status.
-	if !notifyUser && !notifySeller {
-		notifySeller = true
-	}
+	// ── Admin / terminal states — notify both parties ───────────────────────────
+	case "in_progress", "on_hold", "resolved", "closed", "cancelled",
+		"expired", "reopened", "counter_offer",
+		"dispute", "dispute_resolved":
+		return true, true
 
-	return
+	default:
+		// No status or unrecognised → new enquiry arriving: notify seller.
+		return false, true
+	}
 }
 
 // NewCustomRule is a convenience builder for ad-hoc watch rules.

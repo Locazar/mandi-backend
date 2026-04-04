@@ -1,24 +1,42 @@
 // Package enquirynotification implements a Google Cloud Function (Gen 2) that listens to Firestore
-// enquiry document update events via Eventarc.
+// enquiry document creation and update events via Eventarc.
 //
-// The function:
-// 1. Receives Firestore document update events via Eventarc
-// 2. Compares old and new field values
-// 3. Identifies significant field changes (e.g., status, assignedTo)
-// 4. Sends Firebase Cloud Messaging (FCM) push notifications to relevant users
-// 5. Implements idempotent and production-grade processing
+// Registered Cloud Function entry-points:
+//   - ProcessEnquiryCreate  — google.cloud.firestore.document.v1.created
+//   - ProcessEnquiryUpdate  — google.cloud.firestore.document.v1.updated
+//
+// Business pipeline (both functions):
+//  1. Hard-deadline context enforced (FUNCTION_TIMEOUT_SECONDS, default 540 s).
+//  2. CloudEvent payload deserialised from Firestore protobuf binary.
+//  3. Old/new document fields compared; only monitored fields trigger notifications.
+//  4. Notification payloads built with context-accurate copy per status transition.
+//  5. Active FCM tokens fetched for buyer and/or seller from Firestore sub-collections.
+//  6. Multi-platform push sent (Android high-priority / APNs / Web).
+//  7. Invalid tokens automatically deactivated in Firestore after each send.
+//  8. Delivery recorded in Firestore for optional idempotency (ENABLE_IDEMPOTENCY_CHECK).
+//
+// Error-handling contract:
+//   - Non-retriable errors (malformed payload, missing IDs) return nil so Eventarc
+//     does not generate infinite retries.
+//   - Retriable errors (FCM/Firestore service unavailable) are returned so that
+//     Eventarc's exponential back-off can reprocess the event.
+//   - Panics are recovered, logged with full stack trace, and swallowed.
 //
 // Environment Variables:
-// - MONITORED_FIELDS: Comma-separated list of fields to monitor (overrides defaults)
-// - ENABLE_IDEMPOTENCY_CHECK: Set to "true" to track notification history
-// - LOG_LEVEL: DEBUG, INFO, WARN, ERROR (default: INFO)
+//   - GCP_PROJECT / GOOGLE_CLOUD_PROJECT  : GCP project ID (auto-detected on Cloud Run)
+//   - MONITORED_FIELDS                    : comma-separated override for watched fields
+//   - ENABLE_IDEMPOTENCY_CHECK            : "true" enables Firestore deduplication
+//   - LOG_LEVEL                           : DEBUG | INFO | WARN | ERROR  (default INFO)
+//   - FUNCTION_TIMEOUT_SECONDS            : per-invocation deadline in seconds (default 540)
 package enquirynotification
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"log"
 	"os"
+	"runtime/debug"
+	"strconv"
 	"strings"
 	"time"
 
@@ -31,164 +49,254 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// Logger provides structured logging with levels
-type Logger struct {
-	level string
+// ─── Structured GCP logger ────────────────────────────────────────────────────
+
+// invocationLogger writes JSON log lines to stdout.  Cloud Logging ingests these
+// lines and attaches them to the correct Cloud Function invocation via the trace ID.
+type invocationLogger struct {
+	level   string
+	traceID string // set to CloudEvent ID so all lines for one invocation share a trace
+	project string
 }
 
-var logger = &Logger{level: getLogLevel()}
+func newInvocationLogger(eventID string) *invocationLogger {
+	lvl := strings.ToUpper(os.Getenv("LOG_LEVEL"))
+	switch lvl {
+	case "DEBUG", "INFO", "WARN", "ERROR":
+	default:
+		lvl = "INFO"
+	}
+	return &invocationLogger{
+		level:   lvl,
+		traceID: eventID,
+		project: resolveProjectID(),
+	}
+}
 
-// init registers the Cloud Function entry points
+func (l *invocationLogger) emit(severity, msg string) {
+	entry := map[string]interface{}{
+		"severity": severity,
+		"message":  msg,
+		"time":     time.Now().UTC().Format(time.RFC3339Nano),
+		"eventId":  l.traceID,
+	}
+	if l.project != "" && l.traceID != "" {
+		entry["logging.googleapis.com/trace"] = fmt.Sprintf("projects/%s/traces/%s", l.project, l.traceID)
+	}
+	b, _ := json.Marshal(entry)
+	fmt.Fprintln(os.Stdout, string(b))
+}
+
+func (l *invocationLogger) Debug(msg string) {
+	if l.level == "DEBUG" {
+		l.emit("DEBUG", msg)
+	}
+}
+func (l *invocationLogger) Info(msg string)     { l.emit("INFO", msg) }
+func (l *invocationLogger) Warn(msg string)     { l.emit("WARNING", msg) }
+func (l *invocationLogger) Error(msg string)    { l.emit("ERROR", msg) }
+func (l *invocationLogger) Critical(msg string) { l.emit("CRITICAL", msg) }
+
+// ─── Configuration helpers ────────────────────────────────────────────────────
+
+// resolveProjectID returns the GCP project from well-known environment variables.
+func resolveProjectID() string {
+	if v := os.Getenv("GCP_PROJECT"); v != "" {
+		return v
+	}
+	return os.Getenv("GOOGLE_CLOUD_PROJECT")
+}
+
+// invocationTimeout returns the configured hard deadline per invocation.
+func invocationTimeout() time.Duration {
+	if s := os.Getenv("FUNCTION_TIMEOUT_SECONDS"); s != "" {
+		if n, err := strconv.Atoi(s); err == nil && n > 0 {
+			return time.Duration(n) * time.Second
+		}
+	}
+	return 540 * time.Second // Cloud Functions Gen2 maximum
+}
+
+// buildNotifConfig constructs a notification.Config from the runtime environment.
+func buildNotifConfig() notification.Config {
+	return notification.Config{
+		ProjectID:                     resolveProjectID(),
+		EnableIdempotencyCheck:        strings.ToLower(os.Getenv("ENABLE_IDEMPOTENCY_CHECK")) == "true",
+		FCMTokenCollection:            "fcmTokens",
+		NotificationHistoryCollection: "notificationHistory",
+	}
+}
+
+// firstFieldValue returns the first non-empty string found under any of the given keys
+// in fields.  Safe against nil values and the "<nil>" stringer artefact.
+func firstFieldValue(fields map[string]interface{}, keys ...string) string {
+	for _, key := range keys {
+		if v, ok := fields[key]; ok {
+			if s := strings.TrimSpace(fmt.Sprintf("%v", v)); s != "" && s != "<nil>" {
+				return s
+			}
+		}
+	}
+	return ""
+}
+
+// ─── Cloud Function registration ─────────────────────────────────────────────
+
+// init registers the Cloud Function entry points.
 func init() {
 	functions.CloudEvent("ProcessEnquiryUpdate", ProcessEnquiryUpdate)
 	functions.CloudEvent("ProcessEnquiryCreate", ProcessEnquiryCreate)
 }
 
-// ProcessEnquiryCreate handles Firestore document.v1.created events for the enquiry collection.
+// ProcessEnquiryCreate handles google.cloud.firestore.document.v1.created events.
 // A new enquiry always notifies the seller regardless of initial status.
 func ProcessEnquiryCreate(ctx context.Context, ce cloudevents.Event) error {
-	logger.Info("Starting ProcessEnquiryCreate")
+	log := newInvocationLogger(ce.ID())
+	log.Info(fmt.Sprintf("ProcessEnquiryCreate start eventId=%s source=%s", ce.ID(), ce.Source()))
 
+	// Enforce hard per-invocation deadline.
+	ctx, cancel := context.WithTimeout(ctx, invocationTimeout())
+	defer cancel()
+
+	// ── Deserialise protobuf payload ──────────────────────────────────────────
 	rawData := ce.Data()
 	if len(rawData) == 0 {
-		logger.Error("CloudEvent has no data")
-		return fmt.Errorf("CloudEvent missing data")
+		log.Error("CloudEvent data is empty — non-retriable, skipping")
+		return nil // malformed event; retrying will not help
 	}
 
 	var docEvent firestoredata.DocumentEventData
 	if err := proto.Unmarshal(rawData, &docEvent); err != nil {
-		logger.Error(fmt.Sprintf("Failed to unmarshal protobuf event data: %v", err))
-		return fmt.Errorf("failed to unmarshal protobuf event data: %w", err)
+		log.Error(fmt.Sprintf("proto.Unmarshal failed: %v — non-retriable, skipping", err))
+		return nil // corrupted protobuf will never succeed on retry
 	}
 
 	if docEvent.Value == nil {
-		logger.Warn("Created event has no document value")
+		log.Warn("document.v1.created event carries no Value field — skipping")
 		return nil
 	}
 
-	// Convert new document fields to a plain map.
 	newDoc := convertProtoDocument(docEvent.Value)
 	if newDoc == nil {
+		log.Warn("convertProtoDocument returned nil — skipping")
 		return nil
 	}
 
 	fields := newDoc.Fields
 
-	// Resolve seller ID — the seller must be notified about the new enquiry.
-	sellerID := ""
-	for _, key := range []string{"sellerId", "seller_id", "shopId", "shop_id", "assignedTo"} {
-		if v, ok := fields[key]; ok {
-			if s := strings.TrimSpace(fmt.Sprintf("%v", v)); s != "" && s != "<nil>" {
-				sellerID = s
-				break
-			}
-		}
-	}
-
+	// ── Resolve IDs from document fields ─────────────────────────────────────
+	sellerID := firstFieldValue(fields, "sellerId", "seller_id", "shopId", "shop_id", "assignedTo")
 	if sellerID == "" {
-		logger.Warn(fmt.Sprintf("No sellerId found in new enquiry document %s — skipping notification", newDoc.Name))
+		// A document without a sellerId is legitimate (e.g., admin enquiries).
+		log.Warn(fmt.Sprintf("No sellerId in document %s — skipping seller notification", newDoc.Name))
 		return nil
 	}
 
-	logger.Info(fmt.Sprintf("New enquiry created — notifying seller %s", sellerID))
+	enquiryID := firstFieldValue(fields, "queryId", "enquiryId", "id")
+	buyerID := firstFieldValue(fields, "userId", "customerId", "user_id", "buyerId")
 
-	notifConfig := notification.Config{
-		ProjectID:                     os.Getenv("GCP_PROJECT"),
-		EnableIdempotencyCheck:        strings.ToLower(os.Getenv("ENABLE_IDEMPOTENCY_CHECK")) == "true",
-		FCMTokenCollection:            "fcmTokens",
-		NotificationHistoryCollection: "notificationHistory",
-	}
-	if notifConfig.ProjectID == "" {
-		notifConfig.ProjectID = os.Getenv("GOOGLE_CLOUD_PROJECT")
-	}
+	log.Info(fmt.Sprintf("New enquiry document=%s enquiryId=%s sellerId=%s buyerId=%s",
+		newDoc.Name, enquiryID, sellerID, buyerID))
 
-	svc, err := notification.NewService(ctx, notifConfig)
+	// ── Init notification service (singleton — safe on warm starts) ───────────
+	svc, err := notification.NewService(ctx, buildNotifConfig())
 	if err != nil {
-		logger.Error(fmt.Sprintf("Failed to initialize notification service: %v", err))
-		return fmt.Errorf("failed to initialize notification service: %w", err)
+		log.Error(fmt.Sprintf("Failed to init notification service: %v", err))
+		return fmt.Errorf("init notification service: %w", err) // retriable
 	}
 	defer svc.Close()
 
+	// ── Fetch seller FCM tokens ───────────────────────────────────────────────
 	tokens, err := svc.GetOwnerFCMTokens(ctx, "sellers", sellerID)
-	if err != nil || len(tokens) == 0 {
-		logger.Info(fmt.Sprintf("No active FCM tokens for seller %s — skipping", sellerID))
+	if err != nil {
+		log.Warn(fmt.Sprintf("Error fetching FCM tokens sellerId=%s: %v — gracefully skipping", sellerID, err))
+		return nil // seller token fetch errors are non-fatal
+	}
+	if len(tokens) == 0 {
+		log.Info(fmt.Sprintf("No active FCM tokens for sellerId=%s — no notification sent", sellerID))
 		return nil
 	}
 
-	// Build a friendly new-enquiry notification.
+	// ── Build seller notification copy ───────────────────────────────────────
 	title := "New Enquiry Received"
-	body := "A buyer has sent a new enquiry. Open the app to review and respond."
-	if askQty, ok := fields["askQuantity"]; ok {
-		if s := strings.TrimSpace(fmt.Sprintf("%v", askQty)); s != "" && s != "<nil>" {
-			body = fmt.Sprintf("A buyer is enquiring for quantity %s. Open the app to respond.", s)
+	body := "A buyer has sent a new enquiry. Tap to review and respond."
+	for _, key := range []string{"askQuantity", "ask_quantity", "quantity"} {
+		if qty := firstFieldValue(fields, key); qty != "" {
+			body = fmt.Sprintf("A buyer is enquiring for quantity %s. Tap to respond.", qty)
+			break
 		}
 	}
 
 	data := map[string]string{
-		"event_type": "enquiry_created",
-		"seller_id":  sellerID,
+		"event_type":     "enquiry_created",
+		"seller_id":      sellerID,
+		"recipient_type": "seller",
+	}
+	if enquiryID != "" {
+		data["enquiry_id"] = enquiryID
+		data["action_url"] = fmt.Sprintf("/enquiry/%s", enquiryID)
+	}
+	if buyerID != "" {
+		data["buyer_id"] = buyerID
 	}
 
+	// ── Send notification ─────────────────────────────────────────────────────
 	if err := svc.SendToTokens(ctx, tokens, title, body, data); err != nil {
-		logger.Error(fmt.Sprintf("Failed to send new-enquiry notification to seller %s: %v", sellerID, err))
-		return nil // not fatal
+		// Notification failure must not cause Eventarc to re-deliver the event,
+		// which would spam the seller. Log and move on.
+		log.Error(fmt.Sprintf("SendToTokens failed sellerId=%s: %v — non-fatal", sellerID, err))
+		return nil
 	}
 
-	logger.Info(fmt.Sprintf("New-enquiry notification sent to seller %s (%d token(s))", sellerID, len(tokens)))
+	log.Info(fmt.Sprintf("ProcessEnquiryCreate done sellerId=%s enquiryId=%s tokens=%d",
+		sellerID, enquiryID, len(tokens)))
 	return nil
 }
 
-// ProcessEnquiryUpdate is the main Cloud Function that processes Firestore enquiry updates
-// It's called via Eventarc when a Firestore document in the enquiry collection is updated
-// (google.cloud.firestore.document.v1.updated)
+// ProcessEnquiryUpdate handles google.cloud.firestore.document.v1.updated events.
 func ProcessEnquiryUpdate(ctx context.Context, ce cloudevents.Event) error {
-	logger.Info("Starting ProcessEnquiryUpdate")
+	log := newInvocationLogger(ce.ID())
+	log.Info(fmt.Sprintf("ProcessEnquiryUpdate start eventId=%s source=%s", ce.ID(), ce.Source()))
 
-	// Extract Firestore event data from the CloudEvent payload.
-	// Firestore Eventarc events arrive as Protocol Buffer binary, NOT JSON.
+	// Enforce hard per-invocation deadline.
+	ctx, cancel := context.WithTimeout(ctx, invocationTimeout())
+	defer cancel()
+
 	rawData := ce.Data()
 	if len(rawData) == 0 {
-		logger.Error("CloudEvent has no data")
-		return fmt.Errorf("CloudEvent missing data")
+		log.Error("CloudEvent data is empty — non-retriable, skipping")
+		return nil
 	}
 
-	// Decode the protobuf-encoded Firestore document event.
 	var docEvent firestoredata.DocumentEventData
 	if err := proto.Unmarshal(rawData, &docEvent); err != nil {
-		logger.Error(fmt.Sprintf("Failed to unmarshal protobuf event data: %v", err))
-		return fmt.Errorf("failed to unmarshal protobuf event data: %w", err)
+		log.Error(fmt.Sprintf("proto.Unmarshal failed: %v — non-retriable, skipping", err))
+		return nil
 	}
 
-	// Convert proto types to the existing domain model.
 	event := convertProtoToFirestoreEvent(&docEvent, ce.ID())
+	log.Debug(fmt.Sprintf("Event converted eventId=%s", event.ID))
 
-	logger.Debug(fmt.Sprintf("Received event: %s", event.ID))
-
-	// Process the event
-	return handleEnquiryUpdate(ctx, event)
+	return handleEnquiryUpdate(ctx, log, event)
 }
 
-// convertProtoToFirestoreEvent converts a firestoredata.DocumentEventData (protobuf) to
-// the domain.FirestoreEvent used by the rest of the notification pipeline.
+// convertProtoToFirestoreEvent maps firestoredata.DocumentEventData → domain.FirestoreEvent.
+// UpdateMask is guarded against nil before dereferencing.
 func convertProtoToFirestoreEvent(docEvent *firestoredata.DocumentEventData, eventID string) *domain.FirestoreEvent {
-	eventData := domain.FirestoreEventData{}
-
+	ed := domain.FirestoreEventData{}
 	if docEvent.Value != nil {
-		eventData.Value = convertProtoDocument(docEvent.Value)
+		ed.Value = convertProtoDocument(docEvent.Value)
 	}
 	if docEvent.OldValue != nil {
-		eventData.OldValue = convertProtoDocument(docEvent.OldValue)
+		ed.OldValue = convertProtoDocument(docEvent.OldValue)
 	}
-	if docEvent.UpdateMask != nil {
-		eventData.UpdateMask = &domain.UpdateMask{
+	// UpdateMask is optional; guard against nil before accessing FieldPaths.
+	if docEvent.UpdateMask != nil && len(docEvent.UpdateMask.FieldPaths) > 0 {
+		ed.UpdateMask = &domain.UpdateMask{
 			FieldPaths: docEvent.UpdateMask.FieldPaths,
 		}
 	}
-
-	return &domain.FirestoreEvent{
-		Data: eventData,
-		ID:   eventID,
-	}
+	return &domain.FirestoreEvent{Data: ed, ID: eventID}
 }
 
 // convertProtoDocument converts a Firestore proto Document to the domain model.
@@ -270,108 +378,79 @@ func convertProtoValue(v *firestoredata.Value) interface{} {
 	return nil
 }
 
-// handleEnquiryUpdate processes a single enquiry update event
-func handleEnquiryUpdate(ctx context.Context, event *domain.FirestoreEvent) error {
+// handleEnquiryUpdate is the core processing pipeline for enquiry update events.
+// It is separated from ProcessEnquiryUpdate to make the logic unit-testable and to
+// allow the panic-recovery defer to cover the full business pipeline.
+func handleEnquiryUpdate(ctx context.Context, log *invocationLogger, event *domain.FirestoreEvent) (retErr error) {
+	// Recover panics with full stack trace.  A bug in any downstream library must
+	// not produce continuous Eventarc retries — swallow and log at CRITICAL.
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Error(fmt.Sprintf("PANIC in handleEnquiryUpdate: %v", r))
+			stack := string(debug.Stack())
+			log.Critical(fmt.Sprintf("PANIC recovered in handleEnquiryUpdate: %v\nStackTrace:\n%s", r, stack))
+			retErr = nil // not retriable
 		}
 	}()
 
-	// Parse and validate event
+	// ── Parse event ───────────────────────────────────────────────────────────
 	eventHandler := firestoreutil.NewEventHandler()
 	parsedEvent, err := eventHandler.ParseEvent(event)
 	if err != nil {
-		logger.Warn(fmt.Sprintf("Failed to parse event: %v", err))
-		return nil // Not an error we should fail on - may be metadata change
-	}
-
-	logger.Info(fmt.Sprintf("Parsed enquiry update: %s", parsedEvent.DocumentID))
-
-	// Detect field changes
-	changes := eventHandler.FindChanges(parsedEvent)
-	if !eventHandler.HasSignificantChanges(changes) {
-		logger.Info(fmt.Sprintf("No significant changes detected for %s - skipping notification",
-			parsedEvent.DocumentID))
-		return nil // No changes to monitored fields
-	}
-
-	logger.Info(fmt.Sprintf("Detected %d significant changes: %v",
-		len(changes), firestoreutil.GetChangedFieldNames(changes)))
-
-	// Build notification payload
-	payloadBuilder := notification.NewPayloadBuilder()
-	payload := payloadBuilder.BuildPayload(parsedEvent, changes)
-
-	// Validate payload
-	if err := notification.ValidatePayload(payload); err != nil {
-		logger.Error(fmt.Sprintf("Invalid notification payload: %v", err))
-		return err
-	}
-
-	logger.Debug(fmt.Sprintf("Payload: title=%s, body=%s, enquiryID=%s",
-		payload.Title, payload.Body, payload.EnquiryID))
-
-	// Initialize notification service
-	notifConfig := notification.Config{
-		ProjectID:                     os.Getenv("GCP_PROJECT"),
-		EnableIdempotencyCheck:        strings.ToLower(os.Getenv("ENABLE_IDEMPOTENCY_CHECK")) == "true",
-		FCMTokenCollection:            "fcmTokens",
-		NotificationHistoryCollection: "notificationHistory",
-	}
-
-	// If ProjectID not set, try to get from environment or use default
-	if notifConfig.ProjectID == "" {
-		notifConfig.ProjectID = os.Getenv("GOOGLE_CLOUD_PROJECT")
-	}
-
-	svc, err := notification.NewService(ctx, notifConfig)
-	if err != nil {
-		logger.Error(fmt.Sprintf("Failed to initialize notification service: %v", err))
-		return fmt.Errorf("failed to initialize notification service: %w", err)
-	}
-	defer svc.Close()
-
-	// Send notification
-	if err := svc.SendNotification(ctx, parsedEvent, changes, payload); err != nil {
-		logger.Error(fmt.Sprintf("Failed to send notification: %v", err))
-		// Log error but don't fail - notification is secondary to main operation
+		// Metadata-only or administrative changes often produce events with no
+		// document path.  Treat as non-retriable and skip gracefully.
+		log.Warn(fmt.Sprintf("ParseEvent failed: %v — likely metadata-only change, skipping", err))
 		return nil
 	}
 
-	logger.Info(fmt.Sprintf("Successfully processed enquiry update: %s", parsedEvent.DocumentID))
+	log.Info(fmt.Sprintf("Parsed update documentId=%s updateTime=%s updatedPaths=%d",
+		parsedEvent.DocumentID, parsedEvent.UpdateTime, len(parsedEvent.UpdatedPaths)))
+
+	// ── Detect significant field changes ──────────────────────────────────────
+	changes := eventHandler.FindChanges(parsedEvent)
+	if !eventHandler.HasSignificantChanges(changes) {
+		log.Info(fmt.Sprintf("No significant changes documentId=%s — skipping notification",
+			parsedEvent.DocumentID))
+		return nil
+	}
+
+	changedFields := firestoreutil.GetChangedFieldNames(changes)
+	log.Info(fmt.Sprintf("Significant changes documentId=%s fields=%v",
+		parsedEvent.DocumentID, changedFields))
+
+	// ── Build notification payload ────────────────────────────────────────────
+	payloadBuilder := notification.NewPayloadBuilder()
+	payload := payloadBuilder.BuildPayload(parsedEvent, changes)
+
+	if err := notification.ValidatePayload(payload); err != nil {
+		log.Error(fmt.Sprintf("Invalid notification payload documentId=%s: %v — skipping",
+			parsedEvent.DocumentID, err))
+		return nil // invalid payload is not retriable
+	}
+
+	log.Debug(fmt.Sprintf("Payload ready title=%q enquiryId=%s userId=%s sellerId=%s",
+		payload.Title, payload.EnquiryID, payload.UserID, payload.SellerID))
+
+	// ── Init notification service (singleton; safe on warm starts) ────────────
+	svc, err := notification.NewService(ctx, buildNotifConfig())
+	if err != nil {
+		log.Error(fmt.Sprintf("Failed to init notification service: %v", err))
+		return fmt.Errorf("init notification service: %w", err) // retriable
+	}
+	defer svc.Close()
+
+	// ── Deliver notifications ─────────────────────────────────────────────────
+	log.Info(fmt.Sprintf("Sending notification documentId=%s enquiryId=%s sellerId=%s",
+		parsedEvent.DocumentID, payload.EnquiryID, payload.SellerID))
+	if err := svc.SendNotification(ctx, parsedEvent, changes, payload); err != nil {
+		// A persistent FCM error must not trigger replay — it would spam users.
+		log.Error(fmt.Sprintf("SendNotification failed documentId=%s: %v — non-fatal",
+			parsedEvent.DocumentID, err))
+		return nil
+	}
+
+	log.Info(fmt.Sprintf("ProcessEnquiryUpdate done documentId=%s", parsedEvent.DocumentID))
 	return nil
 }
 
-// Logger methods
-func (l *Logger) Debug(msg string) {
-	if l.level == "DEBUG" {
-		log.Printf("[DEBUG] %s", msg)
-	}
-}
-
-func (l *Logger) Info(msg string) {
-	log.Printf("[INFO] %s", msg)
-}
-
-func (l *Logger) Warn(msg string) {
-	log.Printf("[WARN] %s", msg)
-}
-
-func (l *Logger) Error(msg string) {
-	log.Printf("[ERROR] %s", msg)
-}
-
-// getLogLevel retrieves log level from environment
-func getLogLevel() string {
-	level := os.Getenv("LOG_LEVEL")
-	if level == "" {
-		level = "INFO"
-	} else {
-		level = strings.ToUpper(level)
-		if level != "DEBUG" && level != "INFO" && level != "WARN" && level != "ERROR" {
-			level = "INFO"
-		}
-	}
-	return level
-}
+// Logger methods — kept as no-ops to satisfy any remaining references during
+// the transition period; the real logging is done via invocationLogger above.

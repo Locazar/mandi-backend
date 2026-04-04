@@ -201,6 +201,22 @@ func getDefaultMonitoredFields() map[string]bool {
 		// Communication
 		"response":    true,
 		"respondedAt": true,
+		"message":     true,
+		"notes":       true,
+
+		// Cancellation / expiry / hold
+		"cancelledAt":  true,
+		"expiredAt":    true,
+		"onHoldReason": true,
+		"holdReason":   true,
+
+		// Dispute management
+		"disputeReason":     true,
+		"disputeStatus":     true,
+		"disputeResolvedAt": true,
+
+		// Negotiation — counter offer
+		"counterOffer": true,
 
 		// Custom fields
 		"customStatus": true,

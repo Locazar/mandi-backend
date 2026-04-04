@@ -9,6 +9,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"cloud.google.com/go/firestore"
@@ -38,27 +39,56 @@ type Service struct {
 	rtdbClient *db.Client
 }
 
-// NewService creates a new notification service
+// singletonService holds the package-level Firebase clients so that Cloud
+// Function warm-starts reuse the same connection instead of calling
+// firebase.NewApp again (which would fail with "app already exists").
+var (
+	singletonOnce      sync.Once
+	singletonApp       *firebase.App
+	singletonMsgClient *messaging.Client
+	singletonFsClient  *firestore.Client
+	singletonInitErr   error
+)
+
+func initSingleton(ctx context.Context) {
+	singletonOnce.Do(func() {
+		app, err := firebase.NewApp(ctx, nil)
+		if err != nil {
+			singletonInitErr = fmt.Errorf("failed to init Firebase app: %w", err)
+			return
+		}
+		singletonApp = app
+
+		msgClient, err := app.Messaging(ctx)
+		if err != nil {
+			singletonInitErr = fmt.Errorf("failed to get messaging client: %w", err)
+			return
+		}
+		singletonMsgClient = msgClient
+
+		fsClient, err := app.Firestore(ctx)
+		if err != nil {
+			log.Printf("WARN: Firestore client not available: %v", err)
+		}
+		singletonFsClient = fsClient
+	})
+}
+
+// NewService creates (or reuses) the notification service.
+// Firebase clients are initialised only once per container process so that
+// Cloud Function warm-starts do not call firebase.NewApp a second time
+// (which would return "default Firebase app already exists").
 func NewService(ctx context.Context, config Config) (*Service, error) {
-	app, err := firebase.NewApp(ctx, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to init Firebase app: %w", err)
-	}
-
-	msgClient, err := app.Messaging(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get messaging client: %w", err)
-	}
-
-	fsClient, err := app.Firestore(ctx)
-	if err != nil {
-		log.Printf("WARN: Firestore client not available: %v", err)
+	initSingleton(ctx)
+	if singletonInitErr != nil {
+		return nil, singletonInitErr
 	}
 
 	var rtdbClient *db.Client
 	dbURL := os.Getenv("FIREBASE_DB_URL")
 	if dbURL != "" {
-		rtdbClient, err = app.Database(ctx)
+		var err error
+		rtdbClient, err = singletonApp.Database(ctx)
 		if err != nil {
 			log.Printf("WARN: Realtime DB client not available: %v", err)
 		}
@@ -75,10 +105,10 @@ func NewService(ctx context.Context, config Config) (*Service, error) {
 	}
 
 	return &Service{
-		app:        app,
+		app:        singletonApp,
 		config:     config,
-		msgClient:  msgClient,
-		fsClient:   fsClient,
+		msgClient:  singletonMsgClient,
+		fsClient:   singletonFsClient,
 		rtdbClient: rtdbClient,
 	}, nil
 }
@@ -99,8 +129,8 @@ func (s *Service) SendNotification(ctx context.Context, event *domain.ParsedFire
 		return fmt.Errorf("failed to get recipients: %w", err)
 	}
 	if len(recipients) == 0 {
-		log.Printf("INFO: No recipients found for enquiry %s", payload.EnquiryID)
-		return nil
+		log.Printf("INFO: No recipients found for enquiry %s — no notification sent", payload.EnquiryID)
+		return nil // no tokens is not an error; graceful skip
 	}
 
 	successCount := 0
@@ -110,10 +140,11 @@ func (s *Service) SendNotification(ctx context.Context, event *domain.ParsedFire
 		leaseAcquired := true
 		if s.config.EnableIdempotencyCheck {
 			dedupeKey = buildRecipientDedupeKey(payload, recipient)
-			leaseAcquired, err = s.acquireIdempotencyLease(ctx, dedupeKey, payload, recipient)
-			if err != nil {
-				log.Printf("WARN: idempotency lease error recipient=%s key=%s: %v", recipient.UserID, dedupeKey, err)
-				// Fail-open: deliver notification even if idempotency store is temporarily unavailable.
+			var leaseErr error
+			leaseAcquired, leaseErr = s.acquireIdempotencyLease(ctx, dedupeKey, payload, recipient)
+			if leaseErr != nil {
+				log.Printf("WARN: idempotency lease error recipient=%s key=%s: %v — fail-open", recipient.UserID, dedupeKey, leaseErr)
+				// Fail-open: deliver even when idempotency store is temporarily unavailable.
 				leaseAcquired = true
 			}
 			if !leaseAcquired {
@@ -122,15 +153,18 @@ func (s *Service) SendNotification(ctx context.Context, event *domain.ParsedFire
 			}
 		}
 
-		// Send all tokens for this recipient in a single multicast call.
-		multiMsg := s.buildMulticastMessage(recipient.Tokens, payload)
-		mresp, sendErr := s.msgClient.SendEachForMulticast(ctx, multiMsg)
-
+		// FCM SendEachForMulticast accepts at most 500 tokens per call.
+		// Chunk the token list to stay within the API limit.
 		recipientSuccessCount := 0
 		firstMessageID := ""
-		if sendErr != nil {
-			log.Printf("WARN: FCM multicast failed for recipient %s: %v", recipient.UserID, sendErr)
-		} else {
+
+		for _, batch := range chunkStrings(recipient.Tokens, fcmMaxTokensPerBatch) {
+			multiMsg := s.buildMulticastMessage(batch, payload)
+			mresp, sendErr := s.msgClient.SendEachForMulticast(ctx, multiMsg)
+			if sendErr != nil {
+				log.Printf("WARN: FCM multicast failed for recipient %s: %v", recipient.UserID, sendErr)
+				continue
+			}
 			for i, r := range mresp.Responses {
 				if r.Success {
 					recipientSuccessCount++
@@ -138,11 +172,15 @@ func (s *Service) SendNotification(ctx context.Context, event *domain.ParsedFire
 						firstMessageID = r.MessageID
 					}
 				} else {
-					log.Printf("WARN: FCM token %s failed for recipient %s: %v", recipient.Tokens[i], recipient.UserID, r.Error)
+					log.Printf("WARN: FCM token %s failed for recipient %s: %v", batch[i], recipient.UserID, r.Error)
+					// Deactivate unregistered / invalid tokens to keep the token store clean.
+					if isUnregisteredTokenError(r.Error) {
+						s.deactivateOwnerToken(ctx, recipient.Type+"s", recipient.UserID, batch[i])
+					}
 				}
 			}
-			successCount += recipientSuccessCount
 		}
+		successCount += recipientSuccessCount
 
 		if s.config.EnableIdempotencyCheck && dedupeKey != "" {
 			if recipientSuccessCount > 0 {
@@ -158,15 +196,26 @@ func (s *Service) SendNotification(ctx context.Context, event *domain.ParsedFire
 	}
 
 	if successCount == 0 {
-		return fmt.Errorf("failed to send notification to any recipient")
+		return fmt.Errorf("failed to send notification to any recipient (0 successful deliveries)")
 	}
-	log.Printf("INFO: Sent %d notifications", successCount)
+	log.Printf("INFO: Sent %d notifications for enquiry %s", successCount, payload.EnquiryID)
 	return nil
 }
 
-// GetNotificationRecipients fetches tokens for both the user and seller of an enquiry.
-// Both parties always receive one notification each — the user is kept informed of the
-// seller's response and vice versa.
+// GetNotificationRecipients resolves which parties (buyer and/or seller) should
+// receive a push for an enquiry event, based on the document's current status.
+//
+// Routing table (mirrors watcher_rules.go enquiryRecipientResolver):
+//
+//	pending_seller_price  → seller only   (seller must quote a price)
+//	pending_seller_final  → seller only   (seller must send final price)
+//	seller_final_update   → seller only   (seller must review buyer's final response)
+//	pending_customer_price → buyer only   (buyer must respond to seller's quote)
+//	pending_customer_final → buyer only   (buyer must accept/reject seller's final)
+//	completed_accepted    → other party   (notify the one who did NOT finalise)
+//	completed_rejected    → other party
+//	new / no status       → seller only   (new enquiry arrives in seller inbox)
+//	any other status      → both parties
 func (s *Service) GetNotificationRecipients(ctx context.Context, event *domain.ParsedFirestoreEvent,
 	payload *domain.NotificationPayload, changes []domain.FieldChange) ([]*domain.NotificationRecipient, error) {
 
@@ -177,46 +226,113 @@ func (s *Service) GetNotificationRecipients(ctx context.Context, event *domain.P
 		newFields = event.NewFields
 	}
 
-	userID := firstNonEmptyString(newFields, "userId", "customerId", "user_id", "createdBy")
+	// ── Resolve IDs ───────────────────────────────────────────────────────────
+	userID := firstNonEmptyString(newFields, "userId", "customerId", "user_id", "buyerId", "createdBy")
 	if userID == "" {
 		userID = payload.UserID
 	}
 
-	sellerID := firstNonEmptyString(newFields, "sellerId", "shopId", "shop_id", "seller_id", "assignedTo", "assignedToId")
+	// assignedTo is a support-agent field — do NOT fall through to sellerID.
+	sellerID := firstNonEmptyString(newFields, "sellerId", "seller_id", "shopId", "shop_id")
 	if sellerID == "" {
-		sellerID = payload.AssignedTo
+		sellerID = payload.SellerID
 	}
 
+	// ── Status-based routing ──────────────────────────────────────────────────
+	notifyUser, notifySeller := resolveEnquiryRecipients(newFields)
+
 	log.Printf(
-		"INFO: enquiry notification document=%s status=%q userID=%q sellerID=%q changedFields=%s",
+		"INFO: enquiry routing document=%s status=%q userID=%q sellerID=%q notifyUser=%v notifySeller=%v changedFields=%s",
 		payload.DocumentID,
 		firstNonEmptyString(newFields, "status"),
 		userID,
 		sellerID,
+		notifyUser,
+		notifySeller,
 		joinChangedFieldNames(changes),
 	)
 
-	// Notify the user (buyer).
-	if userID != "" {
-		tokens, _ := s.GetOwnerFCMTokens(ctx, "users", userID)
-		if len(tokens) > 0 {
-			recipients = append(recipients, &domain.NotificationRecipient{UserID: userID, Tokens: tokens, Type: "user"})
+	// ── Fetch tokens and build recipient list ─────────────────────────────────
+	if notifyUser {
+		if userID == "" {
+			log.Printf("WARN: notifyUser=true but userID is empty document=%s", payload.DocumentID)
 		} else {
-			log.Printf("INFO: no active FCM tokens for user %s", userID)
+			tokens, err := s.GetOwnerFCMTokens(ctx, "users", userID)
+			if err != nil {
+				log.Printf("WARN: error fetching user tokens userID=%s: %v", userID, err)
+			} else if len(tokens) > 0 {
+				recipients = append(recipients, &domain.NotificationRecipient{UserID: userID, Tokens: tokens, Type: "user"})
+				log.Printf("INFO: found %d token(s) for user %s", len(tokens), userID)
+			} else {
+				log.Printf("INFO: no active FCM tokens for userID=%s", userID)
+			}
 		}
 	}
 
-	// Notify the seller.
-	if sellerID != "" {
-		tokens, _ := s.GetOwnerFCMTokens(ctx, "sellers", sellerID)
-		if len(tokens) > 0 {
-			recipients = append(recipients, &domain.NotificationRecipient{UserID: sellerID, Tokens: tokens, Type: "seller"})
+	if notifySeller {
+		if sellerID == "" {
+			log.Printf("WARN: notifySeller=true but sellerID is empty document=%s", payload.DocumentID)
 		} else {
-			log.Printf("INFO: no active FCM tokens for seller %s", sellerID)
+			tokens, err := s.GetOwnerFCMTokens(ctx, "sellers", sellerID)
+			if err != nil {
+				log.Printf("WARN: error fetching seller tokens sellerID=%s: %v", sellerID, err)
+			} else if len(tokens) > 0 {
+				recipients = append(recipients, &domain.NotificationRecipient{UserID: sellerID, Tokens: tokens, Type: "seller"})
+				log.Printf("INFO: found %d token(s) for seller %s", len(tokens), sellerID)
+			} else {
+				log.Printf("WARN: no active FCM tokens for sellerID=%s", sellerID)
+			}
 		}
 	}
 
 	return s.deduplicateRecipients(recipients), nil
+}
+
+// resolveEnquiryRecipients returns who should be notified for an enquiry event
+// based on the document's current status field.
+//
+// This is the single source of truth for routing inside the Cloud Function
+// pipeline.  The same rules are expressed declaratively in watcher_rules.go for
+// the server-side Firestore watcher.
+func resolveEnquiryRecipients(docFields map[string]interface{}) (notifyUser, notifySeller bool) {
+	status := strings.ToLower(strings.TrimSpace(firstNonEmptyString(docFields, "status")))
+	acceptedBy := strings.ToLower(strings.TrimSpace(firstNonEmptyString(docFields, "acceptedBy", "accepted_by")))
+	rejectedBy := strings.ToLower(strings.TrimSpace(firstNonEmptyString(docFields, "rejectedBy", "rejected_by")))
+
+	switch status {
+	// ── Seller must act ───────────────────────────────────────────────────────
+	case "pending_seller_price", "pending_seller_final", "seller_final_update":
+		return false, true
+
+	// ── Buyer must act ────────────────────────────────────────────────────────
+	case "pending_customer_price", "pending_customer_final", "customer_accepted_final":
+		return true, false
+
+	// ── Deal finalised — notify the OTHER party ───────────────────────────────
+	case "completed_accepted", "completed_rejected":
+		actor := acceptedBy
+		if status == "completed_rejected" && rejectedBy != "" {
+			actor = rejectedBy
+		}
+		switch actor {
+		case "seller":
+			return true, false // seller acted → notify buyer
+		case "client", "customer", "user", "buyer":
+			return false, true // buyer acted → notify seller
+		default:
+			return true, true // actor unknown → notify both
+		}
+
+	// ── Other active / admin states — notify both ─────────────────────────────
+	case "in_progress", "on_hold", "resolved", "closed", "cancelled",
+		"expired", "reopened", "counter_offer",
+		"dispute", "dispute_resolved":
+		return true, true
+
+	default:
+		// No status or unrecognised → new enquiry arriving: notify seller.
+		return false, true
+	}
 }
 
 // GetUserFCMTokens fetches active tokens for a user
@@ -274,13 +390,16 @@ func (s *Service) GetOwnerFCMTokens(ctx context.Context, collection, ownerID str
 	}
 
 	coll := s.fsClient.Collection(collection).Doc(ownerID).Collection("fcmTokens")
-	docs, _ := coll.Documents(ctx).GetAll()
-	tokens := []string{}
+	docs, err := coll.Where("isActive", "==", true).Documents(ctx).GetAll()
+	if err != nil {
+		return nil, fmt.Errorf("fetch fcmTokens %s/%s: %w", collection, ownerID, err)
+	}
+	tokens := make([]string, 0, len(docs))
 	for _, doc := range docs {
 		data := doc.Data()
 		if t, ok := data["token"].(string); ok && t != "" {
-			// Only include tokens that are explicitly marked isActive: true.
-			// Tokens missing the field (old registrations) are skipped.
+			// Only include tokens explicitly marked isActive: true.
+			// The Firestore query already filters, but double-check the field.
 			if a, ok := data["isActive"].(bool); ok && a {
 				tokens = append(tokens, t)
 			}
@@ -301,6 +420,58 @@ func firstNonEmptyString(fields map[string]interface{}, keys ...string) string {
 		}
 	}
 	return ""
+}
+
+// ─── FCM delivery helpers ─────────────────────────────────────────────────────
+
+// fcmMaxTokensPerBatch is the documented FCM SendEachForMulticast limit.
+const fcmMaxTokensPerBatch = 500
+
+// chunkStrings splits a slice into sub-slices of at most size elements.
+func chunkStrings(s []string, size int) [][]string {
+	if size <= 0 {
+		size = fcmMaxTokensPerBatch
+	}
+	var chunks [][]string
+	for len(s) > size {
+		chunks = append(chunks, s[:size])
+		s = s[size:]
+	}
+	if len(s) > 0 {
+		chunks = append(chunks, s)
+	}
+	return chunks
+}
+
+// isUnregisteredTokenError returns true when the FCM error indicates the device
+// token is no longer valid (unregistered, app uninstalled, wrong project, etc.).
+func isUnregisteredTokenError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "unregistered") ||
+		strings.Contains(msg, "requested entity was not found") ||
+		strings.Contains(msg, "registration-token-not-registered") ||
+		strings.Contains(msg, "invalid registration") ||
+		strings.Contains(msg, "notregistered")
+}
+
+// deactivateOwnerToken marks a single FCM token as inactive in Firestore.
+// ownerCollection should be "users" or "sellers".
+func (s *Service) deactivateOwnerToken(ctx context.Context, ownerCollection, ownerID, token string) {
+	if s.fsClient == nil || ownerCollection == "" || ownerID == "" || token == "" {
+		return
+	}
+	docRef := s.fsClient.Collection(ownerCollection).Doc(ownerID).Collection("fcmTokens").Doc(token)
+	if _, err := docRef.Update(ctx, []firestore.Update{
+		{Path: "isActive", Value: false},
+		{Path: "updatedAt", Value: firestore.ServerTimestamp},
+	}); err != nil {
+		log.Printf("WARN: deactivateOwnerToken %s/%s token=%s: %v", ownerCollection, ownerID, token, err)
+	} else {
+		log.Printf("INFO: deactivatedOwnerToken %s/%s token=%s", ownerCollection, ownerID, token)
+	}
 }
 
 func joinChangedFieldNames(changes []domain.FieldChange) string {
@@ -493,11 +664,10 @@ func (s *Service) deduplicateRecipients(recipients []*domain.NotificationRecipie
 	return result
 }
 
-// Close only closes Firestore
+// Close is a no-op on the singleton service — closing the shared Firestore
+// client would break subsequent CF warm-start invocations. The process-level
+// clients are kept alive for the lifetime of the container.
 func (s *Service) Close() error {
-	if s.fsClient != nil {
-		return s.fsClient.Close()
-	}
 	return nil
 }
 
