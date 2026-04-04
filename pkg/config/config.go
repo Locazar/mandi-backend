@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strings"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/spf13/viper"
@@ -76,6 +77,7 @@ var envsNames = []string{
 	// Firebase — either an ADC credentials file path or inline JSON
 	"GOOGLE_APPLICATION_CREDENTIALS",
 	"FIREBASE_CONFIG",
+	"ENQUIRY_NOTIFICATION_HANDLER",
 }
 
 func LoadConfig() (config Config, err error) {
@@ -110,6 +112,13 @@ func LoadConfig() (config Config, err error) {
 	// automatically).
 	if credPath := viper.GetString("GOOGLE_APPLICATION_CREDENTIALS"); credPath != "" {
 		_ = os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", credPath)
+	}
+
+	// The Firestore watcher mode is read via os.Getenv at startup time.
+	// Mirror the .env / Viper value into the process environment so the server
+	// can correctly disable its enquiry watcher when Cloud Functions own that flow.
+	if mode := strings.Trim(strings.TrimSpace(viper.GetString("ENQUIRY_NOTIFICATION_HANDLER")), `"'`); mode != "" {
+		_ = os.Setenv("ENQUIRY_NOTIFICATION_HANDLER", mode)
 	}
 
 	return config, nil

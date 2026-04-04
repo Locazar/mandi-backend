@@ -287,7 +287,7 @@ func (uc *notificationUseCase) StartFirestoreWatcher(ctx context.Context, rules 
 
 		// Include the enquiry watcher unless the operator has delegated enquiry
 		// notifications to a Cloud Function (ENQUIRY_NOTIFICATION_HANDLER=cf).
-		if !strings.EqualFold(os.Getenv("ENQUIRY_NOTIFICATION_HANDLER"), "cf") {
+		if !isCloudFunctionEnquiryHandler() {
 			enquiryRule := notificationSvc.DefaultEnquiryRule()
 			if uc.db != nil {
 				enquiryRule.DataEnricher = uc.enquiryDataEnricher()
@@ -301,6 +301,11 @@ func (uc *notificationUseCase) StartFirestoreWatcher(ctx context.Context, rules 
 
 	watcher := notificationSvc.NewFirestoreWatcher(uc.fcmPush, rules...)
 	return watcher.Start(ctx)
+}
+
+func isCloudFunctionEnquiryHandler() bool {
+	mode := strings.Trim(strings.TrimSpace(os.Getenv("ENQUIRY_NOTIFICATION_HANDLER")), `"'`)
+	return strings.EqualFold(mode, "cf")
 }
 
 // --- helpers ---
