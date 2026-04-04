@@ -58,5 +58,12 @@ func (u *fcmTokenUseCase) SaveFcmToken(fcmToken domain.FcmToken) (domain.FcmToke
 		log.Printf("WARN [SaveFcmToken]: notification_device_tokens upsert failed for seller %s: %v", ownerID, syncErr)
 	}
 
+	if saved.AdminID != 0 {
+		ownerID := strconv.FormatUint(uint64(saved.AdminID), 10)
+		if syncErr := u.fcmPush.SaveTokenToFirestore(ctx, "sellers", ownerID, saved.Token, saved.Platform); syncErr != nil {
+			log.Printf("WARN [SaveFcmToken]: Firestore sync failed for admin %s: %v", ownerID, syncErr)
+		}
+	}
+
 	return saved, nil
 }
