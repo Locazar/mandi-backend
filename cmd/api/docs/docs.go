@@ -463,6 +463,143 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/account": {
+            "get": {
+                "tags": [
+                    "Admin Account"
+                ],
+                "summary": "api for admin to get profile",
+                "operationId": "GetAdminProfile",
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved admin profile",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "failed to retrieve admin profile",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "Admin Account"
+                ],
+                "summary": "api for admin to update profile",
+                "operationId": "UpdateAdminProfile",
+                "parameters": [
+                    {
+                        "description": "inputs",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully updated admin profile",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "failed to update admin profile",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Admin Account"
+                ],
+                "summary": "api for admin to add profile",
+                "operationId": "AddAdminProfile",
+                "parameters": [
+                    {
+                        "description": "inputs",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully added admin profile",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "failed to add admin profile",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/account/upload-profile-image": {
+            "post": {
+                "tags": [
+                    "Admin Account"
+                ],
+                "summary": "api for admin to upload profile image",
+                "operationId": "UploadAdminProfileImage",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "Profile Image",
+                        "name": "profile_image",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully uploaded profile image",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "failed to upload profile image",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/advertisements": {
             "get": {
                 "security": [
@@ -622,6 +759,59 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Failed to delete advertisement",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/attributes/{attribute_id}/options": {
+            "post": {
+                "description": "API endpoint to create a new option for a specific sub type attribute.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Products"
+                ],
+                "summary": "Save a new sub type attribute option",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Sub type attribute ID",
+                        "name": "attribute_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Sub type attribute option to be created",
+                        "name": "option",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.SubTypeAttributeOption"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Successfully sub type attribute option created",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to save sub type attribute option",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -1157,6 +1347,101 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/categories/{category_id}/images": {
+            "get": {
+                "description": "API endpoint to retrieve all images for a specific product category.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Products"
+                ],
+                "summary": "Get all category images",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Category ID",
+                        "name": "category_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved category images",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid category ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to get category images",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "API endpoint to save an image for a specific product category.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Products"
+                ],
+                "summary": "Save category image",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Category ID",
+                        "name": "category_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Category image to be saved",
+                        "name": "image",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.CategoryImage"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Successfully saved category image",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to save category image",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/categories/{category_id}/variations": {
             "get": {
                 "security": [
@@ -1449,6 +1734,198 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/departments": {
+            "post": {
+                "description": "API endpoint to create a new product department.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Products"
+                ],
+                "summary": "Save a new department",
+                "parameters": [
+                    {
+                        "description": "Department to be created",
+                        "name": "department",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.Department"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Successfully department saved",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to save department",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/fcm/token": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin FCM"
+                ],
+                "summary": "Save an FCM device token",
+                "operationId": "SaveFcmToken",
+                "parameters": [
+                    {
+                        "description": "FCM token payload",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/domain.FcmToken"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Token saved",
+                        "schema": {
+                            "$ref": "#/definitions/domain.FcmToken"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/graphics/offer-preview": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "API for admin to generate offer image preview for testing",
+                "tags": [
+                    "Admin Graphics"
+                ],
+                "summary": "Generate Offer Image Preview (Admin)",
+                "operationId": "GenerateOfferImagePreview",
+                "parameters": [
+                    {
+                        "description": "Offer details for image generation",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.Offer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully generated offer image",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to generate image",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/items/shop/{shop_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "API for admin to get product items for a specific shop, including category names",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Products"
+                ],
+                "summary": "Get product items by shop ID (Admin)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Shop ID",
+                        "name": "shop_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully get product items for shop",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Failed to get product items",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/notifications/radius": {
             "get": {
                 "security": [
@@ -1561,13 +2038,13 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Successfully\tfound\tall\toffers",
+                        "description": "Successfully found all promotions",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
                     },
                     "500": {
-                        "description": "Failed to get all offers",
+                        "description": "Failed to get all promotions",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -1612,6 +2089,37 @@ const docTemplate = `{
                     },
                     "409": {
                         "description": "Offer already exist",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/offers/active": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Offers"
+                ],
+                "summary": "Get currently active offers",
+                "operationId": "GetActiveOffers",
+                "responses": {
+                    "200": {
+                        "description": "Active offers retrieved",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -1829,7 +2337,7 @@ const docTemplate = `{
                     "Admin Offers"
                 ],
                 "summary": "Add product offer (Admin)",
-                "operationId": "SaveProductOffer",
+                "operationId": "SaveProductItemOffer",
                 "parameters": [
                     {
                         "description": "input field",
@@ -1926,6 +2434,120 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "invalid input on params",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/offers/shop/{shop_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Offers"
+                ],
+                "summary": "Get shop offers by shop ID (Admin)",
+                "operationId": "GetShopOffersByShopID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Shop ID",
+                        "name": "shop_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Shop offers retrieved",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid shop_id",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Offers"
+                ],
+                "summary": "Apply an offer to a shop",
+                "operationId": "ApplyOfferToShop",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Shop ID",
+                        "name": "shop_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Offer details",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.ApplyOfferToShop"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Offer applied to shop",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -2364,6 +2986,12 @@ const docTemplate = `{
                         "description": "Count",
                         "name": "count",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search term to filter products by name",
+                        "name": "search",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -2443,20 +3071,23 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "API for admin to add a new product",
+                "description": "API for admin to add a new product with image file upload (multipart/form-data)",
+                "consumes": [
+                    "multipart/form-data"
+                ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Admin Products"
                 ],
-                "summary": "Add a new product (Admin)",
+                "summary": "Add a new product with image (Admin)",
                 "operationId": "SaveProduct",
                 "parameters": [
                     {
                         "type": "string",
                         "description": "Product Name",
-                        "name": "name",
+                        "name": "product_name",
                         "in": "formData",
                         "required": true
                     },
@@ -2468,15 +3099,29 @@ const docTemplate = `{
                         "required": true
                     },
                     {
+                        "type": "string",
+                        "description": "Department Name",
+                        "name": "department",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
                         "type": "integer",
-                        "description": "Category Id",
+                        "description": "Department ID",
+                        "name": "department_id",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Category ID",
                         "name": "category_id",
                         "in": "formData",
                         "required": true
                     },
                     {
                         "type": "integer",
-                        "description": "Brand Id",
+                        "description": "Brand ID",
                         "name": "brand_id",
                         "in": "formData",
                         "required": true
@@ -2489,15 +3134,33 @@ const docTemplate = `{
                         "required": true
                     },
                     {
+                        "type": "string",
+                        "description": "Product Condition",
+                        "name": "condition",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Product Specification",
+                        "name": "specification",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Product Highlights",
+                        "name": "highlights",
+                        "in": "formData"
+                    },
+                    {
                         "type": "file",
-                        "description": "Product Description",
+                        "description": "Product Image",
                         "name": "image",
                         "in": "formData",
                         "required": true
                     }
                 ],
                 "responses": {
-                    "200": {
+                    "201": {
                         "description": "successfully product added",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
@@ -2511,6 +3174,79 @@ const docTemplate = `{
                     },
                     "409": {
                         "description": "Product name already exist",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/products/all-details": {
+            "get": {
+                "tags": [
+                    "Admin Product"
+                ],
+                "summary": "api for admin to get all product details from hardcoded JSON file",
+                "operationId": "GetAllProductDetails",
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved all product details",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to read product details",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/products/{product_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "API for admin to get a single product by ID with all details",
+                "tags": [
+                    "Admin Products"
+                ],
+                "summary": "Get product by ID (Admin)",
+                "operationId": "GetProductByID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Product ID",
+                        "name": "product_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully found product",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid product ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Product not found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to get product",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -2642,6 +3378,468 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/profile": {
+            "get": {
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "api to get admin with shop verification data by phone",
+                "operationId": "GetAdminWithShopVerificationByPhone",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Admin phone number",
+                        "name": "phone",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "successfully retrieved admin with shop verification",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid phone number",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "failed to retrieve admin data",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/promotions/": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Promotions"
+                ],
+                "summary": "Get all promotions",
+                "operationId": "GetAllPromotions",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "format": "int64",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "format": "int64",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Promotions retrieved",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Promotions"
+                ],
+                "summary": "Create a new promotion",
+                "operationId": "CreatePromotion",
+                "parameters": [
+                    {
+                        "description": "Promotion details",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.CreatePromotionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Promotion created",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/promotions/categories/": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Promotions"
+                ],
+                "summary": "Get all promotion categories",
+                "operationId": "GetAllPromotionCategories",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "format": "int64",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "format": "int64",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Promotion categories retrieved",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/promotions/categories/{category_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Promotions"
+                ],
+                "summary": "Get a promotion category by ID",
+                "operationId": "GetPromotionCategoryByID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Category ID",
+                        "name": "category_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Promotion category retrieved",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid category ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/promotions/types/": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Promotions"
+                ],
+                "summary": "Get all promotion types",
+                "operationId": "GetAllPromotionTypes",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "format": "int64",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "format": "int64",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Promotion types retrieved",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/promotions/types/category/{category_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Promotions"
+                ],
+                "summary": "Get promotion types by category ID",
+                "operationId": "GetPromotionTypesByCategoryID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Category ID",
+                        "name": "category_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "format": "int64",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "format": "int64",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Promotion types retrieved",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid category ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/promotions/types/{type_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Promotions"
+                ],
+                "summary": "Get a promotion type by ID",
+                "operationId": "GetPromotionTypeByID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Type ID",
+                        "name": "type_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Promotion type retrieved",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid type ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/promotions/{promotion_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Promotions"
+                ],
+                "summary": "Get a promotion by ID",
+                "operationId": "GetPromotionByID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Promotion ID",
+                        "name": "promotion_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Promotion retrieved",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid promotion ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Promotions"
+                ],
+                "summary": "Delete a promotion by ID",
+                "operationId": "DeletePromotion",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Promotion ID",
+                        "name": "promotion_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Promotion deleted",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid promotion ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/sales": {
             "get": {
                 "security": [
@@ -2696,6 +3894,79 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "failed to get sales report",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/shop-time": {
+            "get": {
+                "tags": [
+                    "Admin Shop"
+                ],
+                "summary": "Get shop open/close status and times",
+                "operationId": "GetShopTime",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Shop ID",
+                        "name": "shop_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved shop time",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid shop_id",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/shop/time/{shop_id}": {
+            "post": {
+                "tags": [
+                    "Admin Shop"
+                ],
+                "summary": "Set shop open/close status and times",
+                "operationId": "SetShopTime",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Shop ID",
+                        "name": "shop_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Shop Time details",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.SetShopTimeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully set shop time",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -2951,6 +4222,51 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Admin Shop"
+                ],
+                "summary": "API for admin to update shop by ID",
+                "operationId": "UploadShopById",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Shop ID",
+                        "name": "shop_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Shop details (single or multiple attributes)",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully updated shop",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
             }
         },
         "/admin/signUp": {
@@ -3086,6 +4402,59 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/sub-categories/{sub_category_id}/attributes": {
+            "post": {
+                "description": "API endpoint to create a new sub type attribute for a specific subcategory.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Products"
+                ],
+                "summary": "Save a new sub type attribute",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Subcategory ID",
+                        "name": "sub_category_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Sub type attribute to be created",
+                        "name": "attribute",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.SubTypeAttribute"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Successfully sub type attribute created",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to save sub type attribute",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/users": {
             "get": {
                 "security": [
@@ -3167,6 +4536,180 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/items/lowViewproductitems": {
+            "get": {
+                "description": "Get product items with low views for a specific shop in the 10-20 day period after creation",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Product Items"
+                ],
+                "summary": "Find low view product items (less than 5 views in days 10-20 after creation)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search keyword",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Category ID",
+                        "name": "category_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Brand ID",
+                        "name": "brand_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Location ID",
+                        "name": "location_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort by: created_at, updated_at, name, views",
+                        "name": "sortby",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination limit",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination offset",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved low view product items",
+                        "schema": {
+                            "$ref": "#/definitions/response.ProductItems"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/attributes/{attribute_id}": {
+            "get": {
+                "description": "API endpoint to retrieve a sub type attribute by its ID.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Get sub type attribute by ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Sub type attribute ID",
+                        "name": "attribute_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved sub type attribute",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid attribute ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to get sub type attribute",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/attributes/{attribute_id}/options": {
+            "get": {
+                "description": "API endpoint to retrieve all options for a specific sub type attribute.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Get all sub type attribute options",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Sub type attribute ID",
+                        "name": "attribute_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved sub type attribute options",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid attribute ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to get sub type attribute options",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -3715,6 +5258,29 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Failed to verify otp",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/banner": {
+            "get": {
+                "tags": [
+                    "Offer"
+                ],
+                "summary": "api to get banners",
+                "operationId": "GetBanners",
+                "responses": {
+                    "200": {
+                        "description": "successfully retrieved banners",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "failed to get banners",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -4289,6 +5855,178 @@ const docTemplate = `{
                 }
             }
         },
+        "/categories/{category_id}/sub-categories": {
+            "get": {
+                "description": "API endpoint to retrieve all product sub-categories under a specific category.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Get all sub-categories by category ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Category ID",
+                        "name": "category_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved all sub-categories",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid category ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to get sub-categories",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/departments/{department_id}/categories": {
+            "get": {
+                "description": "API endpoint to retrieve all product categories under a specific department.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Get all categories by department ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Department ID",
+                        "name": "department_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved all categories",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid department ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to get categories",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/departments/{id}": {
+            "get": {
+                "description": "API endpoint to retrieve a product department by its ID.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Get department by ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Department ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved department",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid department ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to get department",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/feedback/shop": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "API for user to submit shopping feedback for an order",
+                "tags": [
+                    "User Feedback"
+                ],
+                "summary": "Submit shopping feedback (User)",
+                "operationId": "SubmitShoppingFeedback",
+                "parameters": [
+                    {
+                        "description": "Input Fields",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.ShoppingFeedback"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully submitted shopping feedback",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/filters/areas": {
             "get": {
                 "description": "API endpoint to retrieve all available areas for filtering or display.",
@@ -4687,7 +6425,141 @@ const docTemplate = `{
                 }
             }
         },
-        "/notifications/": {
+        "/items/{product_item_id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "API for admin to delete a product item by ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Products"
+                ],
+                "summary": "Delete a product item",
+                "operationId": "DeleteProductItem",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Product Item ID",
+                        "name": "product_item_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully deleted product item",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/like/shop/{shop_id}": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "User Like"
+                ],
+                "summary": "Like a shop (User)",
+                "operationId": "LikeShop",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Shop ID",
+                        "name": "shop_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully liked shop",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid shop ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to like shop",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "User Like"
+                ],
+                "summary": "Unlike a shop (User)",
+                "operationId": "UnlikeShop",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Shop ID",
+                        "name": "shop_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully unliked shop",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid shop ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to unlike shop",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/like/shop/{shop_id}/is-liked": {
             "get": {
                 "security": [
                     {
@@ -4695,16 +6567,104 @@ const docTemplate = `{
                     }
                 ],
                 "tags": [
+                    "User Like"
+                ],
+                "summary": "Check if user liked a shop (User)",
+                "operationId": "IsLikedShop",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Shop ID",
+                        "name": "shop_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully fetched like status",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid shop ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to get like status",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/like/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "User Like"
+                ],
+                "summary": "Get liked shops by user (User)",
+                "operationId": "GetLikedShops",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully got liked shops",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid user ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to get liked shops",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/notifications": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
                     "Notification"
                 ],
-                "summary": "api for getting notifications with filters",
+                "summary": "Get notifications with filters and pagination",
                 "operationId": "GetNotificationsBy",
                 "parameters": [
                     {
                         "type": "integer",
                         "name": "admin_id",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     },
                     {
                         "type": "boolean",
@@ -4724,8 +6684,7 @@ const docTemplate = `{
                     {
                         "type": "integer",
                         "name": "shop_id",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     },
                     {
                         "type": "string",
@@ -4735,31 +6694,36 @@ const docTemplate = `{
                     {
                         "type": "integer",
                         "name": "user_id",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "format": "int64",
-                        "name": "count",
                         "in": "query"
                     },
                     {
                         "type": "integer",
                         "format": "int64",
-                        "name": "pageNumber",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "format": "int64",
+                        "name": "offset",
                         "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Successfully got notifications",
+                        "description": "Notifications retrieved",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
                     },
                     "400": {
-                        "description": "invalid input",
+                        "description": "Invalid query params",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -4772,14 +6736,20 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "Notification"
                 ],
-                "summary": "api for sending notification",
+                "summary": "Save a notification record",
                 "operationId": "SaveNotification",
                 "parameters": [
                     {
-                        "description": "inputs",
+                        "description": "Notification payload",
                         "name": "input",
                         "in": "body",
                         "required": true,
@@ -4789,14 +6759,20 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "Successfully sent notification",
+                    "201": {
+                        "description": "Notification saved",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
                     },
                     "400": {
-                        "description": "invalid input",
+                        "description": "Invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -4804,21 +6780,78 @@ const docTemplate = `{
                 }
             }
         },
-        "/notifications/generateFCMToken": {
+        "/notifications/push": {
             "post": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "Notification"
                 ],
-                "summary": "api for generating FCM token",
-                "operationId": "GenerateFCMToken",
+                "summary": "Send a direct FCM push notification",
+                "operationId": "SendPushNotification",
                 "parameters": [
                     {
-                        "description": "inputs",
+                        "description": "Push notification payload",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.SendPushRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Notification sent",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/notifications/register-token": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notification"
+                ],
+                "summary": "Register FCM device token",
+                "operationId": "RegisterDeviceToken",
+                "parameters": [
+                    {
+                        "description": "Device token payload",
                         "name": "input",
                         "in": "body",
                         "required": true,
@@ -4829,13 +6862,70 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Successfully generated FCM token",
+                        "description": "Token registered",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
                     },
                     "400": {
-                        "description": "invalid input",
+                        "description": "Invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/notifications/unregister-token": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notification"
+                ],
+                "summary": "Unregister FCM device token",
+                "operationId": "UnregisterDeviceToken",
+                "parameters": [
+                    {
+                        "description": "Device token payload",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.UnregisterDeviceToken"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Token unregistered",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -4844,16 +6934,19 @@ const docTemplate = `{
             }
         },
         "/notifications/{notification_id}/read": {
-            "put": {
+            "patch": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "Notification"
                 ],
-                "summary": "api for marking notification as read",
+                "summary": "Mark a notification as read",
                 "operationId": "MarkNotificationAsRead",
                 "parameters": [
                     {
@@ -4866,13 +6959,63 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Successfully marked notification as read",
+                        "description": "Marked as read",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
                     },
                     "400": {
-                        "description": "invalid input",
+                        "description": "Invalid ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/options/{option_id}": {
+            "get": {
+                "description": "API endpoint to retrieve a sub type attribute option by its ID.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Get sub type attribute option by ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Sub type attribute option ID",
+                        "name": "option_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved sub type attribute option",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid option ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to get sub type attribute option",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -5117,6 +7260,12 @@ const docTemplate = `{
                         "description": "Count",
                         "name": "count",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search term to filter products by name",
+                        "name": "search",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -5200,6 +7349,101 @@ const docTemplate = `{
                 }
             }
         },
+        "/products/category/image/{image_id}": {
+            "get": {
+                "description": "API endpoint to retrieve a category image by its ID.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Get category image by ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Category Image ID",
+                        "name": "image_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved category image",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid category image ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to get category image",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "API endpoint to update a category image by its ID.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Update category image",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Category Image ID",
+                        "name": "image_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Updated category image data",
+                        "name": "image",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.CategoryImage"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully updated category image",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to update category image",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/products/category/{category_id}": {
             "get": {
                 "description": "Retrieve a paginated list of products filtered by the given category ID.",
@@ -5260,6 +7504,49 @@ const docTemplate = `{
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        }
+                    }
+                }
+            }
+        },
+        "/products/item/{product_item_id}": {
+            "get": {
+                "description": "Retrieve a product item by its unique ID.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products"
+                ],
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Product Item ID",
+                        "name": "product_item_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved product item",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid product item ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
                         }
                     }
                 }
@@ -5488,7 +7775,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "API for user to search products with filters",
+                "description": "API for user to search products with filters. Supports: 1) Search by name + lat + lng + radius, 2) Search by name + pincode",
                 "consumes": [
                     "application/json"
                 ],
@@ -5523,6 +7810,33 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Location ID",
                         "name": "location_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "format": "float64",
+                        "description": "Latitude for geolocation search",
+                        "name": "lat",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "format": "float64",
+                        "description": "Longitude for geolocation search",
+                        "name": "long",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "format": "float64",
+                        "description": "Radius in kilometers for geolocation search",
+                        "name": "radius",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pincode for location-based search",
+                        "name": "pincode",
                         "in": "query"
                     },
                     {
@@ -5718,6 +8032,540 @@ const docTemplate = `{
                 }
             }
         },
+        "/rating/shop/{shop_id}": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User Rating"
+                ],
+                "summary": "Create or update user rating for a shop (User)",
+                "operationId": "RateShop",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Shop ID",
+                        "name": "shop_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Rating payload",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.ShopRatingRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully saved rating",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to save rating",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/rating/shop/{shop_id}/average-rating": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "User Rating"
+                ],
+                "summary": "Get average rating of a shop (User)",
+                "operationId": "GetShopAverageRating",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Shop ID",
+                        "name": "shop_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully got average rating",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid shop ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to get average rating",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/rating/shop/{shop_id}/rating-distribution": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "User Rating"
+                ],
+                "summary": "Get rating distribution of a shop (User)",
+                "operationId": "GetShopRatingDistribution",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Shop ID",
+                        "name": "shop_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully got rating distribution",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid shop ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to get rating distribution",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/rating/shop/{shop_id}/ratings": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "User Rating"
+                ],
+                "summary": "Get all ratings for a shop (User)",
+                "operationId": "GetAllShopRatings",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Shop ID",
+                        "name": "shop_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully got shop ratings",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid shop ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to get ratings",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/rating/shop/{shop_id}/user-rating": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "User Rating"
+                ],
+                "summary": "Get current user rating for a shop (User)",
+                "operationId": "GetUserShopRating",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Shop ID",
+                        "name": "shop_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully got user rating",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid shop ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to get user rating",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/review/shop/{shop_id}": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User Review"
+                ],
+                "summary": "Create or update user review for a shop (User)",
+                "operationId": "ReviewShop",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Shop ID",
+                        "name": "shop_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Review payload",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.ShopReviewRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully saved review",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to save review",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/review/shop/{shop_id}/reviews": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "User Review"
+                ],
+                "summary": "Get all reviews for a shop (User)",
+                "operationId": "GetAllShopReviews",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Shop ID",
+                        "name": "shop_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully got shop reviews",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid shop ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to get reviews",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/review/shop/{shop_id}/user-review": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "User Review"
+                ],
+                "summary": "Get current user review for a shop (User)",
+                "operationId": "GetUserShopReview",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Shop ID",
+                        "name": "shop_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully got user review",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid shop ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to get user review",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/shop-offers": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "API for user to get shop offers within a date range",
+                "tags": [
+                    "User Offers"
+                ],
+                "summary": "Get shop offers by shop ID and date range (User)",
+                "operationId": "GetShopOffers",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Shop ID",
+                        "name": "shop_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start Date (YYYY-MM-DD)",
+                        "name": "start_date",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "End Date (YYYY-MM-DD)",
+                        "name": "end_date",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved shop offers",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid inputs",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/shop/search": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "API for user to search shops by query, location, and radius (all optional)",
+                "tags": [
+                    "User Profile"
+                ],
+                "summary": "Search shops (User)",
+                "operationId": "SearchShopList",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Search query for shop name",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "format": "float64",
+                        "description": "Latitude",
+                        "name": "lat",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "format": "float64",
+                        "description": "Longitude",
+                        "name": "lng",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "format": "float64",
+                        "description": "Radius in kilometers",
+                        "name": "radius",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully found shops",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "204": {
+                        "description": "No shops found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to search shops",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/shop/search/pincode": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "API for user to get sellers in a specified pincode",
+                "tags": [
+                    "User Profile"
+                ],
+                "summary": "Get sellers by pincode (User)",
+                "operationId": "GetSellerByPincode",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Pincode",
+                        "name": "pincode",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully found sellers in the given pincode",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "204": {
+                        "description": "No sellers found in the given pincode",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to get sellers by pincode",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/shop/search/radius": {
             "get": {
                 "security": [
@@ -5784,22 +8632,297 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/social/follow/shop/{shop_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "User Social"
+                ],
+                "summary": "Get followers of a shop (User)",
+                "operationId": "GetFollowers",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Shop ID",
+                        "name": "shop_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully got followers",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid shop ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to get followers",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "User Social"
+                ],
+                "summary": "Follow a shop (User)",
+                "operationId": "FollowShop",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Shop ID",
+                        "name": "shop_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully followed shop",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid shop ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to follow shop",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "User Social"
+                ],
+                "summary": "Unfollow a shop (User)",
+                "operationId": "UnfollowShop",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Shop ID",
+                        "name": "shop_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully unfollowed shop",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid shop ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to unfollow shop",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/social/follow/shop/{shop_id}/is-following": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "User Social"
+                ],
+                "summary": "Check if user follows a shop (User)",
+                "operationId": "IsFollowingShop",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Shop ID",
+                        "name": "shop_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully fetched follow status",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid shop ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to get follow status",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/social/follow/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "User Social"
+                ],
+                "summary": "Get followed shops by user (User)",
+                "operationId": "GetFollowedShops",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully got followed shops",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid user ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to get followed shops",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/sub-categories/{sub_category_id}/attributes": {
+            "get": {
+                "description": "API endpoint to retrieve all sub type attributes for a specific subcategory.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Get all sub type attributes",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Subcategory ID",
+                        "name": "sub_category_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved sub type attributes",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid subcategory ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to get sub type attributes",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/post-login-offer": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "API to decide and return offer to show after login",
+                "tags": [
+                    "User Offers"
+                ],
+                "summary": "Get post-login offer for user",
+                "operationId": "PostLoginOffer",
+                "responses": {
+                    "200": {
+                        "description": "Offer decision",
+                        "schema": {
+                            "$ref": "#/definitions/response.PostLoginOfferResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
         "domain.Admin": {
             "type": "object",
             "required": [
-                "address_line1",
-                "agree_to_terms",
-                "city",
-                "country",
-                "email",
-                "mobile",
-                "password",
-                "pincode",
-                "state",
-                "user_name"
+                "password"
             ],
             "properties": {
                 "aadhar": {
@@ -5832,6 +8955,14 @@ const docTemplate = `{
                 "email": {
                     "type": "string"
                 },
+                "expiry_date": {
+                    "type": "string"
+                },
+                "full_name": {
+                    "type": "string",
+                    "maxLength": 50,
+                    "minLength": 2
+                },
                 "id": {
                     "type": "integer"
                 },
@@ -5852,7 +8983,22 @@ const docTemplate = `{
                     "maxLength": 30,
                     "minLength": 5
                 },
+                "payment_date": {
+                    "type": "string"
+                },
+                "payment_status": {
+                    "type": "boolean"
+                },
+                "payment_type": {
+                    "type": "string"
+                },
                 "pincode": {
+                    "type": "string"
+                },
+                "profile_image_url": {
+                    "type": "string"
+                },
+                "start_date": {
                     "type": "string"
                 },
                 "state": {
@@ -5865,14 +9011,9 @@ const docTemplate = `{
                 "updated_at": {
                     "type": "string"
                 },
-                "user_name": {
-                    "type": "string",
-                    "maxLength": 15,
-                    "minLength": 3
-                },
                 "verified_seller": {
                     "description": "e.g. \"yes\", \"no\", \"pending\"",
-                    "type": "string"
+                    "type": "boolean"
                 }
             }
         },
@@ -5886,7 +9027,7 @@ const docTemplate = `{
             ],
             "properties": {
                 "admin_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "area_targeted": {
                     "type": "string"
@@ -5943,15 +9084,87 @@ const docTemplate = `{
                 }
             }
         },
-        "domain.ShopDetails": {
+        "domain.FcmToken": {
+            "type": "object",
+            "properties": {
+                "admin_id": {
+                    "type": "integer"
+                },
+                "device": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "platform": {
+                    "type": "string"
+                },
+                "shop_id": {
+                    "type": "integer"
+                },
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.Offer": {
             "type": "object",
             "required": [
-                "address_line1",
-                "city",
-                "country",
-                "pincode",
-                "state"
+                "description",
+                "discount_rate",
+                "end_date",
+                "image_url",
+                "offer_name",
+                "offer_type",
+                "start_date",
+                "thumbnail_url"
             ],
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 50,
+                    "minLength": 6
+                },
+                "discount_rate": {
+                    "type": "integer",
+                    "maximum": 100,
+                    "minimum": 1
+                },
+                "end_date": {
+                    "type": "string"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "offer_name": {
+                    "type": "string"
+                },
+                "offer_type": {
+                    "description": "percentage,fixed",
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "start_date": {
+                    "type": "string"
+                },
+                "thumbnail_url": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.ShopDetails": {
+            "type": "object",
             "properties": {
                 "address_line1": {
                     "type": "string"
@@ -5959,11 +9172,20 @@ const docTemplate = `{
                 "address_line2": {
                     "type": "string"
                 },
+                "address_proof_verification": {
+                    "type": "boolean"
+                },
+                "admin_id": {
+                    "type": "integer"
+                },
                 "bank_account_number": {
                     "type": "string"
                 },
                 "bank_ifsc": {
                     "type": "string"
+                },
+                "business_doc_verification": {
+                    "type": "boolean"
                 },
                 "city": {
                     "type": "string"
@@ -5974,17 +9196,23 @@ const docTemplate = `{
                 "created_at": {
                     "type": "string"
                 },
-                "electricity_bill": {
+                "document_type": {
+                    "type": "string"
+                },
+                "document_value": {
                     "type": "string"
                 },
                 "email": {
                     "type": "string"
                 },
-                "gstin": {
-                    "type": "string"
+                "has_offers": {
+                    "type": "boolean"
                 },
                 "id": {
                     "type": "integer"
+                },
+                "identity_doc_verification": {
+                    "type": "boolean"
                 },
                 "itr_documents": {
                     "type": "string"
@@ -5995,14 +9223,11 @@ const docTemplate = `{
                 "longitude": {
                     "type": "number"
                 },
-                "mobile": {
-                    "type": "string"
-                },
-                "msme_registration_number": {
-                    "type": "string"
-                },
-                "owner_id": {
-                    "type": "integer"
+                "offers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.Offer"
+                    }
                 },
                 "owner_name": {
                     "type": "string"
@@ -6010,13 +9235,19 @@ const docTemplate = `{
                 "pan_number": {
                     "type": "string"
                 },
+                "phone": {
+                    "type": "string"
+                },
+                "photo_shop_verification": {
+                    "type": "boolean"
+                },
                 "pincode": {
                     "type": "string"
                 },
                 "shop_description": {
                     "type": "string"
                 },
-                "shop_id": {
+                "shop_image_url": {
                     "type": "string"
                 },
                 "shop_name": {
@@ -6035,7 +9266,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "shop_verification_status": {
-                    "type": "string"
+                    "type": "boolean"
                 },
                 "state": {
                     "type": "string"
@@ -6048,14 +9279,11 @@ const docTemplate = `{
         "domain.ShopVerification": {
             "type": "object",
             "required": [
-                "admin_id",
-                "shop_id",
-                "shop_name",
-                "verification_status"
+                "admin_id"
             ],
             "properties": {
                 "admin_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "agent_id": {
                     "type": "integer"
@@ -6070,7 +9298,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "shop_id": {
-                    "type": "string"
+                    "type": "integer"
                 },
                 "shop_name": {
                     "type": "string"
@@ -6079,22 +9307,32 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "verification_status": {
-                    "description": "e.g. \"verified\", \"unverified\", \"under_review\"",
-                    "type": "string"
+                    "type": "boolean"
                 }
             }
         },
         "request.Address": {
             "type": "object",
             "required": [
+                "address_line1",
+                "address_line2",
+                "address_type",
+                "city",
                 "country_id",
-                "house",
                 "land_mark",
-                "name",
                 "phone_number",
                 "pincode"
             ],
             "properties": {
+                "address_line1": {
+                    "type": "string"
+                },
+                "address_line2": {
+                    "type": "string"
+                },
+                "address_type": {
+                    "type": "string"
+                },
                 "area": {
                     "type": "string"
                 },
@@ -6103,9 +9341,6 @@ const docTemplate = `{
                 },
                 "country_id": {
                     "type": "integer"
-                },
-                "house": {
-                    "type": "string"
                 },
                 "is_default": {
                     "type": "boolean"
@@ -6118,11 +9353,6 @@ const docTemplate = `{
                 },
                 "longitude": {
                     "type": "number"
-                },
-                "name": {
-                    "type": "string",
-                    "maxLength": 50,
-                    "minLength": 2
                 },
                 "phone_number": {
                     "type": "string",
@@ -6145,6 +9375,20 @@ const docTemplate = `{
                 }
             }
         },
+        "request.ApplyOfferToShop": {
+            "type": "object",
+            "properties": {
+                "end_date": {
+                    "$ref": "#/definitions/request.CustomTime"
+                },
+                "promotion_id": {
+                    "type": "integer"
+                },
+                "start_date": {
+                    "$ref": "#/definitions/request.CustomTime"
+                }
+            }
+        },
         "request.BlockUser": {
             "type": "object",
             "required": [
@@ -6162,10 +9406,10 @@ const docTemplate = `{
         "request.Brand": {
             "type": "object",
             "required": [
-                "category_name"
+                "brand_name"
             ],
             "properties": {
-                "category_name": {
+                "brand_name": {
                     "type": "string",
                     "maxLength": 25,
                     "minLength": 3
@@ -6180,6 +9424,26 @@ const docTemplate = `{
             "properties": {
                 "category_name": {
                     "type": "string"
+                }
+            }
+        },
+        "request.CategoryImage": {
+            "type": "object",
+            "required": [
+                "image_url"
+            ],
+            "properties": {
+                "alt_text": {
+                    "type": "string"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "sort_order": {
+                    "type": "integer"
                 }
             }
         },
@@ -6224,20 +9488,112 @@ const docTemplate = `{
                 }
             }
         },
+        "request.CreatePromotionRequest": {
+            "type": "object",
+            "required": [
+                "description",
+                "discount_rate",
+                "end_date",
+                "offer_name",
+                "promotion_category_id",
+                "promotion_type_id",
+                "shop_id",
+                "start_date"
+            ],
+            "properties": {
+                "bogo_buy_quantity": {
+                    "type": "integer"
+                },
+                "bogo_combination_enabled": {
+                    "type": "boolean"
+                },
+                "bogo_get_quantity": {
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "discount_rate": {
+                    "type": "number"
+                },
+                "end_date": {
+                    "type": "string"
+                },
+                "gift_description": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "minimum_purchase_amount": {
+                    "type": "number"
+                },
+                "offer_name": {
+                    "type": "string"
+                },
+                "promotion_category_id": {
+                    "type": "string"
+                },
+                "promotion_type_id": {
+                    "type": "string"
+                },
+                "shop_id": {
+                    "type": "string"
+                },
+                "start_date": {
+                    "type": "string"
+                },
+                "tier_quantity": {
+                    "type": "integer"
+                }
+            }
+        },
+        "request.CustomTime": {
+            "type": "object",
+            "properties": {
+                "time.Time": {
+                    "type": "string"
+                }
+            }
+        },
+        "request.Department": {
+            "type": "object",
+            "required": [
+                "department_name"
+            ],
+            "properties": {
+                "department_name": {
+                    "type": "string",
+                    "maxLength": 25,
+                    "minLength": 3
+                }
+            }
+        },
         "request.EditAddress": {
             "type": "object",
             "required": [
                 "address_id",
+                "address_line1",
+                "address_line2",
+                "address_type",
+                "city",
                 "country_id",
-                "house",
                 "land_mark",
-                "name",
                 "phone_number",
                 "pincode"
             ],
             "properties": {
                 "address_id": {
                     "type": "integer"
+                },
+                "address_line1": {
+                    "type": "string"
+                },
+                "address_line2": {
+                    "type": "string"
+                },
+                "address_type": {
+                    "type": "string"
                 },
                 "area": {
                     "type": "string"
@@ -6247,9 +9603,6 @@ const docTemplate = `{
                 },
                 "country_id": {
                     "type": "integer"
-                },
-                "house": {
-                    "type": "string"
                 },
                 "is_default": {
                     "type": "boolean"
@@ -6262,11 +9615,6 @@ const docTemplate = `{
                 },
                 "longitude": {
                     "type": "number"
-                },
-                "name": {
-                    "type": "string",
-                    "maxLength": 50,
-                    "minLength": 2
                 },
                 "phone_number": {
                     "type": "string",
@@ -6329,8 +9677,7 @@ const docTemplate = `{
                 "email",
                 "first_name",
                 "last_name",
-                "phone",
-                "user_name"
+                "phone"
             ],
             "properties": {
                 "age": {
@@ -6359,11 +9706,6 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 10,
                     "minLength": 10
-                },
-                "user_name": {
-                    "type": "string",
-                    "maxLength": 15,
-                    "minLength": 3
                 }
             }
         },
@@ -6385,11 +9727,6 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 10,
                     "minLength": 10
-                },
-                "user_name": {
-                    "type": "string",
-                    "maxLength": 15,
-                    "minLength": 3
                 }
             }
         },
@@ -6397,19 +9734,12 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "body",
-                "category_id",
                 "message",
-                "offer_id",
-                "order_id",
-                "product_id",
                 "receiver_id",
                 "receiver_type",
                 "sender_id",
                 "sender_type",
-                "shop_id",
-                "status",
-                "title",
-                "variation_id"
+                "title"
             ],
             "properties": {
                 "body": {
@@ -6450,7 +9780,8 @@ const docTemplate = `{
                     "type": "string",
                     "enum": [
                         "user",
-                        "seller"
+                        "seller",
+                        "admin"
                     ]
                 },
                 "sender_id": {
@@ -6460,14 +9791,14 @@ const docTemplate = `{
                     "type": "string",
                     "enum": [
                         "user",
-                        "seller"
+                        "seller",
+                        "admin"
                     ]
                 },
                 "shop_id": {
                     "type": "integer"
                 },
                 "status": {
-                    "description": "e.g. \"accepted\", \"pending\", \"rejected\"",
                     "type": "string",
                     "maxLength": 50,
                     "minLength": 2
@@ -6504,7 +9835,12 @@ const docTemplate = `{
                     ]
                 },
                 "platform": {
-                    "type": "string"
+                    "type": "string",
+                    "enum": [
+                        "android",
+                        "ios",
+                        "web"
+                    ]
                 },
                 "token": {
                     "type": "string"
@@ -6545,14 +9881,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "phone": {
-                    "type": "string",
-                    "maxLength": 10,
-                    "minLength": 10
-                },
-                "user_name": {
-                    "type": "string",
-                    "maxLength": 16,
-                    "minLength": 3
+                    "type": "string"
                 }
             }
         },
@@ -6590,6 +9919,7 @@ const docTemplate = `{
                 "discount_rate",
                 "end_date",
                 "offer_name",
+                "offer_type",
                 "start_date"
             ],
             "properties": {
@@ -6607,6 +9937,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "offer_name": {
+                    "type": "string"
+                },
+                "offer_type": {
                     "type": "string"
                 },
                 "start_date": {
@@ -6633,13 +9966,13 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "offer_id",
-                "product_id"
+                "product_item_id"
             ],
             "properties": {
                 "offer_id": {
                     "type": "integer"
                 },
-                "product_id": {
+                "product_item_id": {
                     "type": "integer"
                 }
             }
@@ -6670,17 +10003,202 @@ const docTemplate = `{
                 }
             }
         },
+        "request.SendPushRequest": {
+            "type": "object",
+            "required": [
+                "body",
+                "owner_id",
+                "owner_type",
+                "title"
+            ],
+            "properties": {
+                "body": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "minLength": 1
+                },
+                "data": {
+                    "description": "Data is an optional map of key-value pairs delivered alongside the notification.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "event_type": {
+                    "description": "EventType is a hint for the client app (e.g. \"order_status_changed\").",
+                    "type": "string"
+                },
+                "owner_id": {
+                    "description": "OwnerID is the user or seller ID whose tokens to look up.",
+                    "type": "string"
+                },
+                "owner_type": {
+                    "description": "OwnerType is \"user\" or \"seller\".",
+                    "type": "string",
+                    "enum": [
+                        "user",
+                        "seller"
+                    ]
+                },
+                "title": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 1
+                }
+            }
+        },
+        "request.SetShopTimeRequest": {
+            "type": "object",
+            "required": [
+                "close_time",
+                "open_time",
+                "status"
+            ],
+            "properties": {
+                "close_time": {
+                    "type": "string"
+                },
+                "open_time": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "request.ShopRatingRequest": {
+            "type": "object",
+            "required": [
+                "rating"
+            ],
+            "properties": {
+                "rating": {
+                    "type": "integer",
+                    "maximum": 5,
+                    "minimum": 1
+                }
+            }
+        },
+        "request.ShopReviewRequest": {
+            "type": "object",
+            "required": [
+                "review"
+            ],
+            "properties": {
+                "review": {
+                    "type": "string"
+                }
+            }
+        },
+        "request.ShoppingFeedback": {
+            "type": "object",
+            "required": [
+                "amount",
+                "rating",
+                "shop_order_id"
+            ],
+            "properties": {
+                "admin_id": {
+                    "type": "integer"
+                },
+                "amount": {
+                    "type": "integer"
+                },
+                "comment": {
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "rating": {
+                    "type": "integer",
+                    "maximum": 5,
+                    "minimum": 1
+                },
+                "shop_id": {
+                    "type": "integer"
+                },
+                "shop_order_id": {
+                    "type": "integer"
+                },
+                "verified": {
+                    "type": "boolean",
+                    "default": false
+                }
+            }
+        },
         "request.SubCategory": {
             "type": "object",
             "required": [
-                "category_id",
-                "category_name"
+                "sub_category_name"
             ],
             "properties": {
-                "category_id": {
-                    "type": "integer"
+                "sub_category_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "request.SubTypeAttribute": {
+            "type": "object",
+            "required": [
+                "field_name",
+                "field_type"
+            ],
+            "properties": {
+                "field_name": {
+                    "type": "string",
+                    "maxLength": 50,
+                    "minLength": 2
                 },
-                "category_name": {
+                "field_type": {
+                    "type": "string",
+                    "enum": [
+                        "dropdown",
+                        "number",
+                        "text"
+                    ]
+                },
+                "is_required": {
+                    "type": "boolean"
+                },
+                "sort_order": {
+                    "type": "integer"
+                }
+            }
+        },
+        "request.SubTypeAttributeOption": {
+            "type": "object",
+            "required": [
+                "option_value"
+            ],
+            "properties": {
+                "option_value": {
+                    "type": "string",
+                    "maxLength": 50,
+                    "minLength": 1
+                },
+                "sort_order": {
+                    "type": "integer"
+                }
+            }
+        },
+        "request.UnregisterDeviceToken": {
+            "type": "object",
+            "required": [
+                "owner_id",
+                "owner_type",
+                "token"
+            ],
+            "properties": {
+                "owner_id": {
+                    "type": "string"
+                },
+                "owner_type": {
+                    "type": "string",
+                    "enum": [
+                        "user",
+                        "seller"
+                    ]
+                },
+                "token": {
                     "type": "string"
                 }
             }
@@ -6819,48 +10337,18 @@ const docTemplate = `{
         },
         "request.UserSignUp": {
             "type": "object",
-            "required": [
-                "age",
-                "confirm_password",
-                "email",
-                "first_name",
-                "last_name",
-                "password",
-                "phone",
-                "user_name"
-            ],
             "properties": {
-                "age": {
-                    "type": "integer"
-                },
-                "confirm_password": {
-                    "type": "string"
-                },
                 "email": {
                     "type": "string"
                 },
                 "first_name": {
-                    "type": "string",
-                    "maxLength": 50,
-                    "minLength": 2
+                    "type": "string"
                 },
                 "last_name": {
-                    "type": "string",
-                    "maxLength": 50,
-                    "minLength": 1
-                },
-                "password": {
                     "type": "string"
                 },
                 "phone": {
-                    "type": "string",
-                    "maxLength": 10,
-                    "minLength": 10
-                },
-                "user_name": {
-                    "type": "string",
-                    "maxLength": 15,
-                    "minLength": 3
+                    "type": "string"
                 }
             }
         },
@@ -6931,6 +10419,211 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "otp_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "response.OfferProduct": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "discount_rate": {
+                    "type": "integer"
+                },
+                "end_date": {
+                    "type": "string"
+                },
+                "image": {
+                    "type": "string"
+                },
+                "offer_id": {
+                    "type": "integer"
+                },
+                "offer_name": {
+                    "type": "string"
+                },
+                "offer_product_id": {
+                    "type": "integer"
+                },
+                "product_name": {
+                    "type": "string"
+                },
+                "promotion_category": {
+                    "$ref": "#/definitions/response.PromotionCategory"
+                },
+                "promotion_type": {
+                    "$ref": "#/definitions/response.PromotionsType"
+                },
+                "start_date": {
+                    "type": "string"
+                },
+                "thumbnail": {
+                    "type": "string"
+                }
+            }
+        },
+        "response.PostLoginOfferResponse": {
+            "type": "object",
+            "properties": {
+                "cta": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "discount_type": {
+                    "description": "PERCENT, FIXED",
+                    "type": "string"
+                },
+                "discount_value": {
+                    "type": "integer"
+                },
+                "experiment_variant": {
+                    "type": "string"
+                },
+                "frequency_cap_hours": {
+                    "type": "integer"
+                },
+                "offer_id": {
+                    "type": "string"
+                },
+                "offer_type": {
+                    "description": "BOTTOM_SHEET, FULL_SCREEN, BANNER, NONE",
+                    "type": "string"
+                },
+                "show_offer": {
+                    "type": "boolean"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "response.ProductItems": {
+            "type": "object",
+            "properties": {
+                "category_id": {
+                    "type": "integer"
+                },
+                "category_name": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "department_id": {
+                    "type": "integer"
+                },
+                "discount_rate": {
+                    "type": "integer"
+                },
+                "dynamic_fields": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "main_category_name": {
+                    "type": "string"
+                },
+                "offer_products": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/response.OfferProduct"
+                    }
+                },
+                "product_item_id": {
+                    "type": "integer"
+                },
+                "product_item_images": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "product_name": {
+                    "type": "string"
+                },
+                "shop_id": {
+                    "type": "integer"
+                },
+                "stock": {
+                    "type": "boolean"
+                },
+                "sub_category_id": {
+                    "type": "integer"
+                },
+                "sub_category_image_url": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "view_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "response.PromotionCategory": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "icon_path": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "shop_id": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "response.PromotionsType": {
+            "type": "object",
+            "properties": {
+                "category_name": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "icon_path": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "offer_details": {
+                    "type": "string"
+                },
+                "promotion_category_id": {
+                    "type": "integer"
+                },
+                "shop_id": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "updated_at": {
                     "type": "string"
                 }
             }

@@ -414,10 +414,3 @@ func (c *userDatabase) FindShopByID(ctx context.Context, shopID uint) (response.
 	return shop, nil
 }
 
-func (c *userDatabase) GetShopSocialDetails(ctx context.Context, shopID uint) ([]domain.ShopSocial, error) {
-	var details []domain.ShopSocial
-	if err := c.DB.WithContext(ctx).Where("shop_id = ?", shopID).Find(&details).Error; err != nil {
-		return nil, err
-	}
-	return details, nil
-}

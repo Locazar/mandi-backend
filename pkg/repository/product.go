@@ -1698,26 +1698,40 @@ func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID 
 }
 
 func (c *productDatabase) IncrementProductItemViewCount(ctx context.Context, productItemID uint, adminID string) error {
-	// Get shop ID using admin ID
-	var shopID string
-	shopQuery := `SELECT id FROM shop_details WHERE admin_id = $1`
-	err := c.DB.Raw(shopQuery, adminID).Scan(&shopID).Error
+	// Resolve the owning shop from the product item itself.
+	// This keeps view rows tied to the product owner while deduping by viewer.
+	var shopID uint
+	shopQuery := `SELECT shop_id FROM product_items WHERE id = $1`
+	err := c.DB.Raw(shopQuery, productItemID).Scan(&shopID).Error
 	if err != nil {
 		return err
 	}
+	if shopID == 0 {
+		return fmt.Errorf("product item %d has no shop_id", productItemID)
+	}
 
-	// First, try to update existing record
-	updateQuery := `UPDATE product_item_views SET view_count = view_count + 1, viewed_at = CURRENT_TIMESTAMP WHERE product_item_id = $1 AND shop_id = $2`
-	result := c.DB.Exec(updateQuery, productItemID, shopID)
+	// Per-user, per-product dedupe: if a row already exists for this viewer,
+	// do not increment view_count again.
+	updateQuery := `UPDATE product_item_views
+		SET viewed_at = CURRENT_TIMESTAMP
+		WHERE product_item_id = $1
+		  AND shop_id = $2
+		  AND (
+			  admin_id = to_jsonb($3::text)
+			  OR admin_id->>'id' = $3
+			  OR admin_id#>>'{}' = $3
+		  )`
+	result := c.DB.Exec(updateQuery, productItemID, shopID, adminID)
 	if result.Error != nil {
 		return result.Error
 	}
-	if result.RowsAffected == 0 {
-		// No existing record, insert new one
-		insertQuery := `INSERT INTO product_item_views (product_item_id, shop_id, admin_id, view_count, created_at, viewed_at) VALUES ($1, $2, $3, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
-		return c.DB.Exec(insertQuery, productItemID, shopID, adminID).Error
+	if result.RowsAffected > 0 {
+		return nil
 	}
-	return nil
+
+	insertQuery := `INSERT INTO product_item_views (product_item_id, shop_id, admin_id, view_count, created_at, viewed_at)
+		VALUES ($1, $2, to_jsonb($3::text), 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+	return c.DB.Exec(insertQuery, productItemID, shopID, adminID).Error
 }
 func (c *productDatabase) GetProductItemViewCount(ctx context.Context, productItemID uint, adminID string) (viewCount uint, err error) {
 	// Get shop ID using admin ID
@@ -1727,8 +1741,11 @@ func (c *productDatabase) GetProductItemViewCount(ctx context.Context, productIt
 	if err != nil {
 		return 0, err
 	}
+	if shopID == "" {
+		return 0, nil
+	}
 
-	query := `SELECT view_count FROM product_item_views WHERE product_item_id = $1 AND shop_id = $2`
+	query := `SELECT COALESCE(SUM(view_count), 0) FROM product_item_views WHERE product_item_id = $1 AND shop_id = $2`
 	err = c.DB.Raw(query, productItemID, shopID).Scan(&viewCount).Error
 	return
 }

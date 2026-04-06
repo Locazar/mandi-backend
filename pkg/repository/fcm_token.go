@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/rohit221990/mandi-backend/pkg/domain"
@@ -18,34 +20,32 @@ func NewFcmTokenRepository(db *gorm.DB) interfaces.FcmTokenRepository {
 }
 
 func (r *fcmTokenRepository) SaveFcmToken(fcmToken domain.FcmToken) (domain.FcmToken, error) {
-	// Try to find by Token, ShopID, or AdminID
-	var existing domain.FcmToken
-	err := r.db.Where("token = ?", fcmToken.Token).First(&existing).Error
-	if err == nil {
-		// Update existing by token
-		existing.Device = fcmToken.Device
-		existing.Platform = fcmToken.Platform
-		existing.ShopID = fcmToken.ShopID
-		existing.AdminID = fcmToken.AdminID
-		err = r.db.Save(&existing).Error
-		return existing, err
+	if fcmToken.OwnerID == "" {
+		if fcmToken.ShopID != 0 {
+			fcmToken.OwnerID = strconv.FormatUint(uint64(fcmToken.ShopID), 10)
+		} else if fcmToken.AdminID != 0 {
+			fcmToken.OwnerID = strconv.FormatUint(uint64(fcmToken.AdminID), 10)
+		}
 	}
-	// If not found by token, try by ShopID or AdminID
-	tx := r.db
-	if fcmToken.ShopID != 0 {
-		tx = tx.Or("shop_id = ?", fcmToken.ShopID)
+
+	if fcmToken.OwnerType == "" {
+		fcmToken.OwnerType = "seller"
 	}
-	err = tx.First(&existing).Error
-	if err == nil {
-		// Update existing by shop/admin
-		existing.Token = fcmToken.Token
-		existing.Device = fcmToken.Device
-		existing.Platform = fcmToken.Platform
-		err = r.db.Save(&existing).Error
-		return existing, err
+
+	if fcmToken.Token == "" || fcmToken.OwnerID == "" {
+		return fcmToken, fmt.Errorf("token and owner_id are required")
 	}
-	// Not found, create new
-	err = r.db.Create(&fcmToken).Error
+
+	fcmToken.IsActive = true
+	now := time.Now()
+	fcmToken.UpdatedAt = &now
+
+	err := r.db.
+		Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "token"}},
+			DoUpdates: clause.AssignmentColumns([]string{"device", "platform", "owner_id", "owner_type", "is_active", "updated_at"}),
+		}).
+		Create(&fcmToken).Error
 	return fcmToken, err
 }
 

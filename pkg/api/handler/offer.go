@@ -368,6 +368,21 @@ func (c *offerHandler) ChangeProductOffer(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully offer changed for  given product offer")
 }
 
+// ApplyOfferToShop godoc
+//
+//	@Summary		Apply an offer to a shop
+//	@Security		BearerAuth
+//	@ID				ApplyOfferToShop
+//	@Tags			Admin Offers
+//	@Accept			json
+//	@Produce		json
+//	@Param			shop_id	path	int						true	"Shop ID"
+//	@Param			input	body	request.ApplyOfferToShop	true	"Offer details"
+//	@Router			/admin/offers/shop/{shop_id} [post]
+//	@Success		200	{object}	response.Response{}	"Offer applied to shop"
+//	@Failure		400	{object}	response.Response{}	"Invalid input"
+//	@Failure		401	{object}	response.Response{}	"Unauthorized"
+//	@Failure		500	{object}	response.Response{}	"Internal server error"
 func (c *offerHandler) ApplyOfferToShop(ctx *gin.Context) {
 	var body request.ApplyOfferToShop
 	if err := ctx.ShouldBindJSON(&body); err != nil {
@@ -394,7 +409,16 @@ func (c *offerHandler) ApplyOfferToShop(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully offer applied to shop", nil)
 }
 
-// GetActiveOffers returns currently active offers based on start and end date
+// GetActiveOffers godoc
+//
+//	@Summary		Get currently active offers
+//	@Security		BearerAuth
+//	@ID				GetActiveOffers
+//	@Tags			Admin Offers
+//	@Produce		json
+//	@Router			/admin/offers/active [get]
+//	@Success		200	{object}	response.Response{}	"Active offers retrieved"
+//	@Failure		500	{object}	response.Response{}	"Internal server error"
 func (c *offerHandler) GetActiveOffers(ctx *gin.Context) {
 	offers, err := c.offerUseCase.FindActiveOffers(ctx)
 	if err != nil {
@@ -496,6 +520,19 @@ func (c *offerHandler) GetBanners(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Banners retrieved successfully", banners)
 }
 
+// GetShopOffersByShopID godoc
+//
+//	@Summary		Get shop offers by shop ID (Admin)
+//	@Security		BearerAuth
+//	@ID				GetShopOffersByShopID
+//	@Tags			Admin Offers
+//	@Produce		json
+//	@Param			shop_id	path	int	true	"Shop ID"
+//	@Router			/admin/offers/shop/{shop_id} [get]
+//	@Success		200	{object}	response.Response{}	"Shop offers retrieved"
+//	@Failure		400	{object}	response.Response{}	"Invalid shop_id"
+//	@Failure		401	{object}	response.Response{}	"Unauthorized"
+//	@Failure		500	{object}	response.Response{}	"Internal server error"
 func (c *offerHandler) GetShopOffersByShopID(ctx *gin.Context) {
 	tokenStr := ctx.GetHeader("Authorization")
 	if tokenStr == "" {

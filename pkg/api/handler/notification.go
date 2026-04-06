@@ -24,17 +24,17 @@ func NewNotificationHandler(notificationUsecase usecaseInterfaces.NotificationUs
 
 // RegisterDeviceToken godoc
 //
-// @SummaryRegister FCM device token
-// @SecurityBearerAuth
-// @IDRegisterDeviceToken
-// @TagsNotification
-// @Acceptjson
-// @Producejson
-// @Paraminputbodyrequest.NotificationDeviceTokentrue"Device token payload"
-// @Router/notifications/register-token [post]
-// @Success200{object}response.Response{}"Token registered"
-// @Failure400{object}response.Response{}"Invalid input"
-// @Failure500{object}response.Response{}"Internal server error"
+//	@Summary		Register FCM device token
+//	@Security		BearerAuth
+//	@ID				RegisterDeviceToken
+//	@Tags			Notification
+//	@Accept			json
+//	@Produce		json
+//	@Param			input	body	request.NotificationDeviceToken	true	"Device token payload"
+//	@Router			/notifications/register-token [post]
+//	@Success		200	{object}	response.Response{}	"Token registered"
+//	@Failure		400	{object}	response.Response{}	"Invalid input"
+//	@Failure		500	{object}	response.Response{}	"Internal server error"
 func (h *NotificationHandler) RegisterDeviceToken(ctx *gin.Context) {
 	var req request.NotificationDeviceToken
 	if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -50,17 +50,17 @@ func (h *NotificationHandler) RegisterDeviceToken(ctx *gin.Context) {
 
 // UnregisterDeviceToken godoc
 //
-// @SummaryUnregister FCM device token
-// @SecurityBearerAuth
-// @IDUnregisterDeviceToken
-// @TagsNotification
-// @Acceptjson
-// @Producejson
-// @Paraminputbodyrequest.UnregisterDeviceTokentrue"Token to remove"
-// @Router/notifications/unregister-token [delete]
-// @Success200{object}response.Response{}"Token removed"
-// @Failure400{object}response.Response{}"Invalid input"
-// @Failure500{object}response.Response{}"Internal server error"
+//	@Summary		Unregister FCM device token
+//	@Security		BearerAuth
+//	@ID				UnregisterDeviceToken
+//	@Tags			Notification
+//	@Accept			json
+//	@Produce		json
+//	@Param			input	body	request.UnregisterDeviceToken	true	"Device token payload"
+//	@Router			/notifications/unregister-token [delete]
+//	@Success		200	{object}	response.Response{}	"Token unregistered"
+//	@Failure		400	{object}	response.Response{}	"Invalid input"
+//	@Failure		500	{object}	response.Response{}	"Internal server error"
 func (h *NotificationHandler) UnregisterDeviceToken(ctx *gin.Context) {
 	var req request.UnregisterDeviceToken
 	if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -76,17 +76,17 @@ func (h *NotificationHandler) UnregisterDeviceToken(ctx *gin.Context) {
 
 // SendPushNotification godoc
 //
-// @SummarySend a direct FCM push notification
-// @SecurityBearerAuth
-// @IDSendPushNotification
-// @TagsNotification
-// @Acceptjson
-// @Producejson
-// @Paraminputbodyrequest.SendPushRequesttrue"Push notification payload"
-// @Router/notifications/push [post]
-// @Success200{object}response.Response{}"Notification sent"
-// @Failure400{object}response.Response{}"Invalid input"
-// @Failure500{object}response.Response{}"Internal server error"
+//	@Summary		Send a direct FCM push notification
+//	@Security		BearerAuth
+//	@ID				SendPushNotification
+//	@Tags			Notification
+//	@Accept			json
+//	@Produce		json
+//	@Param			input	body	request.SendPushRequest	true	"Push notification payload"
+//	@Router			/notifications/push [post]
+//	@Success		200	{object}	response.Response{}	"Notification sent"
+//	@Failure		400	{object}	response.Response{}	"Invalid input"
+//	@Failure		500	{object}	response.Response{}	"Internal server error"
 func (h *NotificationHandler) SendPushNotification(ctx *gin.Context) {
 	var req request.SendPushRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -104,17 +104,17 @@ func (h *NotificationHandler) SendPushNotification(ctx *gin.Context) {
 
 // SaveNotification godoc
 //
-// @SummarySave a notification record
-// @SecurityBearerAuth
-// @IDSaveNotification
-// @TagsNotification
-// @Acceptjson
-// @Producejson
-// @Paraminputbodyrequest.Notificationtrue"Notification payload"
-// @Router/notifications [post]
-// @Success201{object}response.Response{}"Notification saved"
-// @Failure400{object}response.Response{}"Invalid input"
-// @Failure500{object}response.Response{}"Internal server error"
+//	@Summary		Save a notification record
+//	@Security		BearerAuth
+//	@ID				SaveNotification
+//	@Tags			Notification
+//	@Accept			json
+//	@Produce		json
+//	@Param			input	body	request.Notification	true	"Notification payload"
+//	@Router			/notifications [post]
+//	@Success		201	{object}	response.Response{}	"Notification saved"
+//	@Failure		400	{object}	response.Response{}	"Invalid input"
+//	@Failure		500	{object}	response.Response{}	"Internal server error"
 func (h *NotificationHandler) SaveNotification(ctx *gin.Context) {
 	var req request.Notification
 	if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -130,17 +130,17 @@ func (h *NotificationHandler) SaveNotification(ctx *gin.Context) {
 
 // GetNotificationsBy godoc
 //
-// @SummaryGet notifications with filters and pagination
-// @SecurityBearerAuth
-// @IDGetNotificationsBy
-// @TagsNotification
-// @Producejson
-// @Paramfilterqueryrequest.GetNotificationfalse"Filters"
-// @Parampaginationqueryrequest.Paginationfalse"Pagination"
-// @Router/notifications [get]
-// @Success200{object}response.Response{}"Notifications retrieved"
-// @Failure400{object}response.Response{}"Invalid query params"
-// @Failure500{object}response.Response{}"Internal server error"
+//	@Summary		Get notifications with filters and pagination
+//	@Security		BearerAuth
+//	@ID				GetNotificationsBy
+//	@Tags			Notification
+//	@Produce		json
+//	@Param			filter		query	request.GetNotification	false	"Filters"
+//	@Param			pagination	query	request.Pagination		false	"Pagination"
+//	@Router			/notifications [get]
+//	@Success		200	{object}	response.Response{}	"Notifications retrieved"
+//	@Failure		400	{object}	response.Response{}	"Invalid query params"
+//	@Failure		500	{object}	response.Response{}	"Internal server error"
 func (h *NotificationHandler) GetNotificationsBy(ctx *gin.Context) {
 	var filter request.GetNotification
 	if err := ctx.ShouldBindQuery(&filter); err != nil {
@@ -163,16 +163,16 @@ func (h *NotificationHandler) GetNotificationsBy(ctx *gin.Context) {
 
 // MarkNotificationAsRead godoc
 //
-// @SummaryMark a notification as read
-// @SecurityBearerAuth
-// @IDMarkNotificationAsRead
-// @TagsNotification
-// @Paramnotification_idpathuinttrue"Notification ID"
-// @Producejson
-// @Router/notifications/{notification_id}/read [patch]
-// @Success200{object}response.Response{}"Marked as read"
-// @Failure400{object}response.Response{}"Invalid ID"
-// @Failure500{object}response.Response{}"Internal server error"
+//	@Summary		Mark a notification as read
+//	@Security		BearerAuth
+//	@ID				MarkNotificationAsRead
+//	@Tags			Notification
+//	@Param			notification_id	path	uint	true	"Notification ID"
+//	@Produce		json
+//	@Router			/notifications/{notification_id}/read [patch]
+//	@Success		200	{object}	response.Response{}	"Marked as read"
+//	@Failure		400	{object}	response.Response{}	"Invalid ID"
+//	@Failure		500	{object}	response.Response{}	"Internal server error"
 func (h *NotificationHandler) MarkNotificationAsRead(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("notification_id"), 10, 32)
 	if err != nil {

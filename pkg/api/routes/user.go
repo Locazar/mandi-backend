@@ -173,6 +173,52 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 			// shop.GET("/:shop_id", productHandler.GetProductItemsByShopID())
 		}
 
+		social := api.Group("/social")
+		{
+			follow := social.Group("/follow")
+			{
+				follow.POST("/shop/:shop_id", userHandler.FollowShop)
+				follow.DELETE("/shop/:shop_id", userHandler.UnfollowShop)
+				follow.GET("/shop/:shop_id/is-following", userHandler.IsFollowingShop)
+				follow.GET("/:id", userHandler.GetFollowedShops)       // get list of shops the user is following
+				follow.GET("/shop/:shop_id", userHandler.GetFollowers) // backward compat - get list of shops the user is following
+			}
+
+			rating := api.Group("/rating")
+			{
+				rating.POST("/shop/:shop_id", userHandler.RateShop)
+				rating.GET("/shop/:shop_id/user-rating", userHandler.GetUserShopRating)
+				rating.GET("/shop/:shop_id/ratings", userHandler.GetAllShopRatings)
+				//UPDATE
+				rating.PUT("/shop/:shop_id", userHandler.RateShop)   // backward compat - same endpoint for create/update
+				rating.PATCH("/shop/:shop_id", userHandler.RateShop) // backward compat - same endpoint for create/update
+				// rating.DELETE("/shop/:shop_id", userHandler.DeleteShopRating)
+				rating.GET("/shop/:shop_id/average-rating", userHandler.GetShopAverageRating)
+				rating.GET("/shop/:shop_id/rating-distribution", userHandler.GetShopRatingDistribution)
+			}
+
+			review := api.Group("/review")
+			{
+				review.POST("/shop/:shop_id", userHandler.ReviewShop)
+				review.GET("/shop/:shop_id/user-review", userHandler.GetUserShopReview)
+				//UPDATE
+				review.PUT("/shop/:shop_id", userHandler.ReviewShop)
+				review.PATCH("/shop/:shop_id", userHandler.ReviewShop)
+				// review.DELETE("/shop/:shop_id", userHandler.DeleteShopReview)
+				review.GET("/shop/:shop_id/reviews", userHandler.GetAllShopReviews) // backward compat
+				// review.GET("/shop/:shop_id/average-rating", userHandler.GetShopAverageRating) // can be derived from ratings endpoint
+			}
+
+			like := api.Group("/like")
+			{
+				like.POST("/shop/:shop_id", userHandler.LikeShop)
+				like.DELETE("/shop/:shop_id", userHandler.UnlikeShop)
+				like.GET("/shop/:shop_id/is-liked", userHandler.IsLikedShop)
+				like.GET("/:id", userHandler.GetLikedShops)
+			}
+
+			// Insert follower, following, like, rating, review count in shop details response to avoid multiple calls from client
+		}
 		// Shop by Category
 		category := api.Group("/categories")
 		{

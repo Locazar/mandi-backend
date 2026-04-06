@@ -3,8 +3,6 @@ CREATE TABLE IF NOT EXISTS fcm_tokens (
     token       TEXT        NOT NULL,
     device      VARCHAR(50) NOT NULL DEFAULT 'android',
     platform    VARCHAR(50) NOT NULL DEFAULT 'android',
-    owner_id    VARCHAR(100) NOT NULL DEFAULT '',
-    owner_type  VARCHAR(10)  NOT NULL DEFAULT 'user',
     is_active   BOOLEAN     NOT NULL DEFAULT TRUE,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -12,7 +10,6 @@ CREATE TABLE IF NOT EXISTS fcm_tokens (
 
 -- Legacy compatibility: older deployments used shop_id/admin_id without
 -- owner_id/owner_type/is_active. Convert in-place so existing tokens keep working.
-ALTER TABLE fcm_tokens ADD COLUMN IF NOT EXISTS owner_id VARCHAR(100);
 ALTER TABLE fcm_tokens ADD COLUMN IF NOT EXISTS owner_type VARCHAR(10);
 ALTER TABLE fcm_tokens ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;
 

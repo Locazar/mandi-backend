@@ -23,6 +23,17 @@ func NewPromotionHandler(promotionUseCase usecaseInterface.PromotionUseCase) *Pr
 	}
 }
 
+// GetAllPromotionCategories godoc
+//
+//	@Summary		Get all promotion categories
+//	@Security		BearerAuth
+//	@ID				GetAllPromotionCategories
+//	@Tags			Admin Promotions
+//	@Produce		json
+//	@Param			pagination	query	request.Pagination	false	"Pagination"
+//	@Router			/admin/promotions/categories/ [get]
+//	@Success		200	{object}	response.Response{}	"Promotion categories retrieved"
+//	@Failure		500	{object}	response.Response{}	"Internal server error"
 func (h *PromotionHandler) GetAllPromotionCategories(ctx *gin.Context) {
 	pagination := request.GetPagination(ctx)
 
@@ -44,6 +55,18 @@ func (h *PromotionHandler) GetAllPromotionCategories(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Promotion categories retrieved successfully", categories)
 }
 
+// GetPromotionCategoryByID godoc
+//
+//	@Summary		Get a promotion category by ID
+//	@Security		BearerAuth
+//	@ID				GetPromotionCategoryByID
+//	@Tags			Admin Promotions
+//	@Produce		json
+//	@Param			category_id	path	int	true	"Category ID"
+//	@Router			/admin/promotions/categories/{category_id} [get]
+//	@Success		200	{object}	response.Response{}	"Promotion category retrieved"
+//	@Failure		400	{object}	response.Response{}	"Invalid category ID"
+//	@Failure		500	{object}	response.Response{}	"Internal server error"
 func (h *PromotionHandler) GetPromotionCategoryByID(ctx *gin.Context) {
 	categoryIDStr := ctx.Param("category_id")
 	categoryID, err := strconv.ParseUint(categoryIDStr, 10, 32)
@@ -68,6 +91,17 @@ func (h *PromotionHandler) GetPromotionCategoryByID(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Promotion category retrieved successfully", category)
 }
 
+// GetAllPromotionTypes godoc
+//
+//	@Summary		Get all promotion types
+//	@Security		BearerAuth
+//	@ID				GetAllPromotionTypes
+//	@Tags			Admin Promotions
+//	@Produce		json
+//	@Param			pagination	query	request.Pagination	false	"Pagination"
+//	@Router			/admin/promotions/types/ [get]
+//	@Success		200	{object}	response.Response{}	"Promotion types retrieved"
+//	@Failure		500	{object}	response.Response{}	"Internal server error"
 func (h *PromotionHandler) GetAllPromotionTypes(ctx *gin.Context) {
 	pagination := request.GetPagination(ctx)
 
@@ -90,6 +124,19 @@ func (h *PromotionHandler) GetAllPromotionTypes(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Promotion types retrieved successfully", types)
 }
 
+// GetPromotionTypesByCategoryID godoc
+//
+//	@Summary		Get promotion types by category ID
+//	@Security		BearerAuth
+//	@ID				GetPromotionTypesByCategoryID
+//	@Tags			Admin Promotions
+//	@Produce		json
+//	@Param			category_id	path	int					true	"Category ID"
+//	@Param			pagination	query	request.Pagination	false	"Pagination"
+//	@Router			/admin/promotions/types/category/{category_id} [get]
+//	@Success		200	{object}	response.Response{}	"Promotion types retrieved"
+//	@Failure		400	{object}	response.Response{}	"Invalid category ID"
+//	@Failure		500	{object}	response.Response{}	"Internal server error"
 func (h *PromotionHandler) GetPromotionTypesByCategoryID(ctx *gin.Context) {
 	categoryIDStr := ctx.Param("category_id")
 	categoryID, err := strconv.ParseUint(categoryIDStr, 10, 32)
@@ -119,6 +166,18 @@ func (h *PromotionHandler) GetPromotionTypesByCategoryID(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Promotion types retrieved successfully", types)
 }
 
+// GetPromotionTypeByID godoc
+//
+//	@Summary		Get a promotion type by ID
+//	@Security		BearerAuth
+//	@ID				GetPromotionTypeByID
+//	@Tags			Admin Promotions
+//	@Produce		json
+//	@Param			type_id	path	int	true	"Type ID"
+//	@Router			/admin/promotions/types/{type_id} [get]
+//	@Success		200	{object}	response.Response{}	"Promotion type retrieved"
+//	@Failure		400	{object}	response.Response{}	"Invalid type ID"
+//	@Failure		500	{object}	response.Response{}	"Internal server error"
 func (h *PromotionHandler) GetPromotionTypeByID(ctx *gin.Context) {
 	typeIDStr := ctx.Param("type_id")
 	typeID, err := strconv.ParseUint(typeIDStr, 10, 32)
@@ -144,6 +203,19 @@ func (h *PromotionHandler) GetPromotionTypeByID(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Promotion type retrieved successfully", promotionType)
 }
 
+// CreatePromotion godoc
+//
+//	@Summary		Create a new promotion
+//	@Security		BearerAuth
+//	@ID				CreatePromotion
+//	@Tags			Admin Promotions
+//	@Accept			json
+//	@Produce		json
+//	@Param			input	body	request.CreatePromotionRequest	true	"Promotion details"
+//	@Router			/admin/promotions/ [post]
+//	@Success		201	{object}	response.Response{}	"Promotion created"
+//	@Failure		400	{object}	response.Response{}	"Invalid request body"
+//	@Failure		500	{object}	response.Response{}	"Internal server error"
 func (h *PromotionHandler) CreatePromotion(ctx *gin.Context) {
 	var reqBody request.CreatePromotionRequest
 
@@ -196,6 +268,17 @@ func (h *PromotionHandler) CreatePromotion(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusCreated, "Promotion created successfully", promotion)
 }
 
+// GetAllPromotions godoc
+//
+//	@Summary		Get all promotions
+//	@Security		BearerAuth
+//	@ID				GetAllPromotions
+//	@Tags			Admin Promotions
+//	@Produce		json
+//	@Param			pagination	query	request.Pagination	false	"Pagination"
+//	@Router			/admin/promotions/ [get]
+//	@Success		200	{object}	response.Response{}	"Promotions retrieved"
+//	@Failure		500	{object}	response.Response{}	"Internal server error"
 func (h *PromotionHandler) GetAllPromotions(ctx *gin.Context) {
 	pagination := request.GetPagination(ctx)
 
@@ -208,6 +291,18 @@ func (h *PromotionHandler) GetAllPromotions(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Promotions retrieved successfully", promotions)
 }
 
+// GetPromotionByID godoc
+//
+//	@Summary		Get a promotion by ID
+//	@Security		BearerAuth
+//	@ID				GetPromotionByID
+//	@Tags			Admin Promotions
+//	@Produce		json
+//	@Param			promotion_id	path	int	true	"Promotion ID"
+//	@Router			/admin/promotions/{promotion_id} [get]
+//	@Success		200	{object}	response.Response{}	"Promotion retrieved"
+//	@Failure		400	{object}	response.Response{}	"Invalid promotion ID"
+//	@Failure		500	{object}	response.Response{}	"Internal server error"
 func (h *PromotionHandler) GetPromotionByID(ctx *gin.Context) {
 	promotionIDStr := ctx.Param("promotion_id")
 	promotionID, err := strconv.ParseUint(promotionIDStr, 10, 32)
@@ -225,6 +320,18 @@ func (h *PromotionHandler) GetPromotionByID(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Promotion retrieved successfully", promotion)
 }
 
+// DeletePromotion godoc
+//
+//	@Summary		Delete a promotion by ID
+//	@Security		BearerAuth
+//	@ID				DeletePromotion
+//	@Tags			Admin Promotions
+//	@Produce		json
+//	@Param			promotion_id	path	int	true	"Promotion ID"
+//	@Router			/admin/promotions/{promotion_id} [delete]
+//	@Success		200	{object}	response.Response{}	"Promotion deleted"
+//	@Failure		400	{object}	response.Response{}	"Invalid promotion ID"
+//	@Failure		500	{object}	response.Response{}	"Internal server error"
 func (h *PromotionHandler) DeletePromotion(ctx *gin.Context) {
 	promotionIDStr := ctx.Param("promotion_id")
 	promotionID, err := strconv.ParseUint(promotionIDStr, 10, 32)

@@ -1215,8 +1215,8 @@ func (p *ProductHandler) GetProductItemsByShopID() func(ctx *gin.Context) {
 // @Param limit query integer false "Pagination limit"
 // @Param offset query integer false "Pagination offset"
 // @Success 200 {object} response.ProductItems "Successfully retrieved low view product items"
-// @Failure 400 {object} response.ErrorResponse "Bad request"
-// @Failure 500 {object} response.ErrorResponse "Internal server error"
+// @Failure 400 {object} response.Response{} "Bad request"
+// @Failure 500 {object} response.Response{} "Internal server error"
 // @Router /api/admin/items/lowViewproductitems [get]
 func (p *ProductHandler) FindLowViewProductItems(ctx *gin.Context) {
 	tokenString := ctx.GetHeader("Authorization")
