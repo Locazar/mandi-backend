@@ -1290,11 +1290,16 @@ func (a *adminHandler) SetShopTime(ctx *gin.Context) {
 		return
 	}
 
+	fmt.Printf("Received request to set shop time for shop_id: %d\n", shopID)
+
 	var req request.SetShopTimeRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
+		fmt.Printf("Error binding JSON: %v\n", err)
 		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
 		return
 	}
+
+	fmt.Printf("Parsed request body: %+v\n", req)
 
 	status := "close"
 	if req.Status {

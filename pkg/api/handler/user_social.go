@@ -1,12 +1,14 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
+	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
 )
 
@@ -166,6 +168,35 @@ func (c *UserHandler) GetFollowedShops(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully got followed shops", shops)
 }
 
+// GetMyFollowedShops godoc
+//
+//	@Summary		Get followed shops of logged-in user (User)
+//	@Security		BearerAuth
+//	@Id				GetMyFollowedShops
+//	@Tags			User Social
+//	@Router			/social/follow/my-shops [get]
+//	@Success		200	{object}	response.Response{}	"Successfully got followed shops"
+//	@Failure		401	{object}	response.Response{}	"Unauthorized"
+//	@Failure		500	{object}	response.Response{}	"Failed to get followed shops"
+func (c *UserHandler) GetMyFollowedShops(ctx *gin.Context) {
+	userID := utils.GetUserIdFromContext(ctx)
+	if userID == 0 {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Unauthorized", errors.New("user id not found in token"), nil)
+		return
+	}
+
+	shops, err := c.userUseCase.GetFollowedShops(ctx, userID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get followed shops", err, nil)
+		return
+	}
+	if shops == nil {
+		shops = []response.Shop{}
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully got followed shops", shops)
+}
+
 // RateShop godoc
 //
 //	@Summary		Create or update user rating for a shop (User)
@@ -215,13 +246,22 @@ func (c *UserHandler) GetUserShopRating(ctx *gin.Context) {
 		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid shop ID", err, nil)
 		return
 	}
-	userID := utils.GetUserIdFromContext(ctx)
-	rating, err := c.userUseCase.GetUserShopRating(ctx, userID, shopID)
+	ratings, err := c.userUseCase.GetAllShopRatings(ctx, shopID)
 	if err != nil {
-		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get user rating", err, nil)
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get shop ratings", err, nil)
 		return
 	}
-	response.SuccessResponse(ctx, http.StatusOK, "Successfully got user rating", gin.H{"rating": rating})
+	averageRating, err := c.userUseCase.GetShopAverageRating(ctx, shopID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get average rating", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully got shop ratings", gin.H{
+		"shop_id":        shopID,
+		"average_rating": averageRating,
+		"ratings":        ratings,
+	})
 }
 
 // GetAllShopRatings godoc
@@ -333,28 +373,34 @@ func (c *UserHandler) ReviewShop(ctx *gin.Context) {
 
 // GetUserShopReview godoc
 //
-//	@Summary		Get current user review for a shop (User)
+//	@Summary		Get all shop reviews with user_id (User)
 //	@Security		BearerAuth
 //	@Id				GetUserShopReview
 //	@Tags			User Review
 //	@Param			shop_id	path	int	true	"Shop ID"
-//	@Router			/review/shop/{shop_id}/user-review [get]
-//	@Success		200	{object}	response.Response{}	"Successfully got user review"
+//	@Router			/review/shop/{shop_id} [get]
+//	@Success		200	{object}	response.Response{}	"Successfully got shop reviews"
 //	@Failure		400	{object}	response.Response{}	"Invalid shop ID"
-//	@Failure		500	{object}	response.Response{}	"Failed to get user review"
+//	@Failure		500	{object}	response.Response{}	"Failed to get reviews"
 func (c *UserHandler) GetUserShopReview(ctx *gin.Context) {
 	shopID, err := parseShopID(ctx)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid shop ID", err, nil)
 		return
 	}
-	userID := utils.GetUserIdFromContext(ctx)
-	review, err := c.userUseCase.GetUserShopReview(ctx, userID, shopID)
+	reviews, err := c.userUseCase.GetAllShopReviews(ctx, shopID)
 	if err != nil {
-		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get user review", err, nil)
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get reviews", err, nil)
 		return
 	}
-	response.SuccessResponse(ctx, http.StatusOK, "Successfully got user review", gin.H{"review": review})
+	if reviews == nil {
+		reviews = []domain.ShopSocial{}
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully got shop reviews", gin.H{
+		"shop_id":     shopID,
+		"total_count": len(reviews),
+		"reviews":     reviews,
+	})
 }
 
 // GetAllShopReviews godoc

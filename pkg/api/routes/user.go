@@ -180,15 +180,15 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 				follow.POST("/shop/:shop_id", userHandler.FollowShop)
 				follow.DELETE("/shop/:shop_id", userHandler.UnfollowShop)
 				follow.GET("/shop/:shop_id/is-following", userHandler.IsFollowingShop)
+				follow.GET("/my-shops", userHandler.GetMyFollowedShops)
 				follow.GET("/:id", userHandler.GetFollowedShops)       // get list of shops the user is following
 				follow.GET("/shop/:shop_id", userHandler.GetFollowers) // backward compat - get list of shops the user is following
 			}
 
-			rating := api.Group("/rating")
+			rating := social.Group("/rating")
 			{
 				rating.POST("/shop/:shop_id", userHandler.RateShop)
-				rating.GET("/shop/:shop_id/user-rating", userHandler.GetUserShopRating)
-				rating.GET("/shop/:shop_id/ratings", userHandler.GetAllShopRatings)
+				rating.GET("/shop/:shop_id", userHandler.GetAllShopRatings)
 				//UPDATE
 				rating.PUT("/shop/:shop_id", userHandler.RateShop)   // backward compat - same endpoint for create/update
 				rating.PATCH("/shop/:shop_id", userHandler.RateShop) // backward compat - same endpoint for create/update
@@ -197,10 +197,10 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 				rating.GET("/shop/:shop_id/rating-distribution", userHandler.GetShopRatingDistribution)
 			}
 
-			review := api.Group("/review")
+			review := social.Group("/review")
 			{
 				review.POST("/shop/:shop_id", userHandler.ReviewShop)
-				review.GET("/shop/:shop_id/user-review", userHandler.GetUserShopReview)
+				review.GET("/shop/:shop_id", userHandler.GetUserShopReview)
 				//UPDATE
 				review.PUT("/shop/:shop_id", userHandler.ReviewShop)
 				review.PATCH("/shop/:shop_id", userHandler.ReviewShop)
@@ -209,7 +209,7 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 				// review.GET("/shop/:shop_id/average-rating", userHandler.GetShopAverageRating) // can be derived from ratings endpoint
 			}
 
-			like := api.Group("/like")
+			like := social.Group("/like")
 			{
 				like.POST("/shop/:shop_id", userHandler.LikeShop)
 				like.DELETE("/shop/:shop_id", userHandler.UnlikeShop)
@@ -218,6 +218,34 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 			}
 
 			// Insert follower, following, like, rating, review count in shop details response to avoid multiple calls from client
+		}
+
+		// Legacy social endpoints retained for backward compatibility.
+		legacyRating := api.Group("/rating")
+		{
+			legacyRating.POST("/shop/:shop_id", userHandler.RateShop)
+			legacyRating.GET("/shop/:shop_id", userHandler.GetUserShopRating)
+			legacyRating.PUT("/shop/:shop_id", userHandler.RateShop)
+			legacyRating.PATCH("/shop/:shop_id", userHandler.RateShop)
+			legacyRating.GET("/shop/:shop_id/average-rating", userHandler.GetShopAverageRating)
+			legacyRating.GET("/shop/:shop_id/rating-distribution", userHandler.GetShopRatingDistribution)
+		}
+
+		legacyReview := api.Group("/review")
+		{
+			legacyReview.POST("/shop/:shop_id", userHandler.ReviewShop)
+			legacyReview.GET("/shop/:shop_id", userHandler.GetUserShopReview)
+			legacyReview.PUT("/shop/:shop_id", userHandler.ReviewShop)
+			legacyReview.PATCH("/shop/:shop_id", userHandler.ReviewShop)
+			legacyReview.GET("/shop/:shop_id/reviews", userHandler.GetAllShopReviews)
+		}
+
+		legacyLike := api.Group("/like")
+		{
+			legacyLike.POST("/shop/:shop_id", userHandler.LikeShop)
+			legacyLike.DELETE("/shop/:shop_id", userHandler.UnlikeShop)
+			legacyLike.GET("/shop/:shop_id/is-liked", userHandler.IsLikedShop)
+			legacyLike.GET("/:id", userHandler.GetLikedShops)
 		}
 		// Shop by Category
 		category := api.Group("/categories")

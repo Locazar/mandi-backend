@@ -331,6 +331,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		fcm := api.Group("/fcm")
 		{
 			fcm.POST("/token", fcmTokenHandler.SaveFcmToken)
+			fcm.DELETE("/token", fcmTokenHandler.UnregisterFcmToken)
 		}
 	}
 }

@@ -27,11 +27,35 @@ func (c *userDatabase) getShopAdminID(ctx context.Context, shopID uint) (uint, e
 	return adminID, nil
 }
 
+func (c *userDatabase) ensureShopSocialTable() error {
+	if c.DB.Migrator().HasTable(&domain.ShopSocial{}) {
+		if !c.DB.Migrator().HasColumn(&domain.ShopSocial{}, "is_liked") {
+			return c.DB.Migrator().AddColumn(&domain.ShopSocial{}, "is_liked")
+		}
+		return nil
+	}
+	return c.DB.AutoMigrate(&domain.ShopSocial{})
+}
+
+func (c *userDatabase) isUndefinedColumnError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errMsg := strings.ToLower(err.Error())
+	return strings.Contains(errMsg, "does not exist") || strings.Contains(errMsg, "sqlstate 42703")
+}
+
 func (c *userDatabase) upsertUserShopSocial(ctx context.Context, userID uint, shopID uint, mutate func(*domain.ShopSocial)) error {
 	var social domain.ShopSocial
 	err := c.DB.WithContext(ctx).Where("shop_id = ? AND user_id = ?", shopID, userID).First(&social).Error
 	if err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			if c.isUndefinedColumnError(err) {
+				if ensureErr := c.ensureShopSocialTable(); ensureErr != nil {
+					return ensureErr
+				}
+				return c.upsertUserShopSocial(ctx, userID, shopID, mutate)
+			}
 			return err
 		}
 		adminID, adminErr := c.getShopAdminID(ctx, shopID)
@@ -40,7 +64,14 @@ func (c *userDatabase) upsertUserShopSocial(ctx context.Context, userID uint, sh
 		}
 		social = domain.ShopSocial{ShopID: shopID, UserID: userID, AdminID: adminID}
 		mutate(&social)
-		return c.DB.WithContext(ctx).Create(&social).Error
+		createErr := c.DB.WithContext(ctx).Create(&social).Error
+		if createErr != nil && c.isUndefinedColumnError(createErr) {
+			if ensureErr := c.ensureShopSocialTable(); ensureErr != nil {
+				return ensureErr
+			}
+			return c.DB.WithContext(ctx).Create(&social).Error
+		}
+		return createErr
 	}
 
 	mutate(&social)
@@ -71,9 +102,18 @@ func (c *userDatabase) IsFollowingShop(ctx context.Context, userID uint, shopID 
 
 func (c *userDatabase) GetFollowers(ctx context.Context, shopID uint) ([]response.User, error) {
 	var followers []response.User
-	query := `SELECT u.id, u.first_name, u.last_name, u.email, u.phone, u.verified, u.block_status, u.created_at, u.updated_at
-	FROM users u
-	INNER JOIN shop_socials ss ON ss.user_id = u.id
+	query := `SELECT ss.user_id AS id,
+		COALESCE(u.first_name, NULLIF(split_part(a.full_name, ' ', 1), ''), '') AS first_name,
+		COALESCE(u.last_name, NULLIF(split_part(a.full_name, ' ', 2), ''), '') AS last_name,
+		COALESCE(u.email, a.email, '') AS email,
+		COALESCE(u.phone, a.mobile, '') AS phone,
+		COALESCE(u.verified, a.verified_seller, FALSE) AS verified,
+		COALESCE(u.block_status, FALSE) AS block_status,
+		COALESCE(u.created_at, a.created_at, ss.created_at) AS created_at,
+		COALESCE(u.updated_at, a.updated_at, ss.updated_at) AS updated_at
+	FROM shop_socials ss
+	LEFT JOIN users u ON u.id = ss.user_id
+	LEFT JOIN admins a ON a.id = ss.user_id
 	WHERE ss.shop_id = ? AND ss.is_follower = TRUE
 	ORDER BY ss.updated_at DESC`
 	err := c.DB.WithContext(ctx).Raw(query, shopID).Scan(&followers).Error
@@ -82,7 +122,7 @@ func (c *userDatabase) GetFollowers(ctx context.Context, shopID uint) ([]respons
 
 func (c *userDatabase) GetFollowedShops(ctx context.Context, userID uint) ([]response.Shop, error) {
 	var shops []response.Shop
-	query := `SELECT sd.id AS shop_id, sd.shop_name, sd.email, sd.phone, sd.address_line1, sd.address_line2,
+	query := `SELECT sd.id, sd.shop_name, sd.email, sd.phone, sd.address_line1, sd.address_line2,
 		sd.city, sd.state, sd.country, sd.pincode, sd.shop_type, sd.shop_verification_status,
 		sd.shop_image_url, sd.latitude, sd.longitude, sd.created_at, sd.updated_at
 	FROM shop_details sd
@@ -117,7 +157,7 @@ func (c *userDatabase) IsLikedShop(ctx context.Context, userID uint, shopID uint
 
 func (c *userDatabase) GetLikedShops(ctx context.Context, userID uint) ([]response.Shop, error) {
 	var shops []response.Shop
-	query := `SELECT sd.id AS shop_id, sd.shop_name, sd.email, sd.phone, sd.address_line1, sd.address_line2,
+	query := `SELECT sd.id, sd.shop_name, sd.email, sd.phone, sd.address_line1, sd.address_line2,
 		sd.city, sd.state, sd.country, sd.pincode, sd.shop_type, sd.shop_verification_status,
 		sd.shop_image_url, sd.latitude, sd.longitude, sd.created_at, sd.updated_at
 	FROM shop_details sd
@@ -199,9 +239,8 @@ func (c *userDatabase) GetUserShopReview(ctx context.Context, userID uint, shopI
 func (c *userDatabase) GetAllShopReviews(ctx context.Context, shopID uint) ([]domain.ShopSocial, error) {
 	var reviews []domain.ShopSocial
 	err := c.DB.WithContext(ctx).
-		Where("shop_id = ? AND review IS NOT NULL AND TRIM(review) <> ''", shopID).
-		Order("updated_at DESC").
-		Find(&reviews).Error
+		Raw("SELECT * FROM shop_socials WHERE shop_id = ? AND review IS NOT NULL AND review <> '' ORDER BY updated_at DESC", shopID).
+		Scan(&reviews).Error
 	return reviews, err
 }
 

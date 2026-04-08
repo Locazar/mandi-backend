@@ -27,6 +27,30 @@ type fcmTokenPayload struct {
 	OwnerType string `json:"owner_type" form:"owner_type"`
 }
 
+func (h *FcmTokenHandler) resolveAdminID(c *gin.Context, payload fcmTokenPayload) uint {
+	tokenString := strings.TrimSpace(c.GetHeader("Authorization"))
+	if tokenString != "" {
+		if adminID := coerceUint(h.usecase.DecodeTokenData(tokenString)); adminID != 0 {
+			return adminID
+		}
+	}
+
+	if payload.AdminID != 0 {
+		return payload.AdminID
+	}
+
+	ctxUserID := utils.GetUserIdFromContext(c)
+	if ctxUserID != 0 {
+		return ctxUserID
+	}
+
+	if strings.TrimSpace(payload.OwnerType) == "seller" {
+		return coerceUint(payload.OwnerID)
+	}
+
+	return 0
+}
+
 func coerceString(value interface{}) string {
 	switch typed := value.(type) {
 	case string:
@@ -159,6 +183,7 @@ func (h *FcmTokenHandler) SaveFcmToken(c *gin.Context) {
 	if payload.AdminID == 0 {
 		payload.AdminID = coerceUint(c.PostForm("admin_id"))
 	}
+	payload.AdminID = h.resolveAdminID(c, payload)
 
 	token := strings.TrimSpace(payload.Token)
 	if token == "" {
@@ -211,6 +236,10 @@ func (h *FcmTokenHandler) SaveFcmToken(c *gin.Context) {
 		OwnerType: strings.TrimSpace(payload.OwnerType),
 	}
 
+	if fcmToken.AdminID == 0 && strings.EqualFold(fcmToken.OwnerType, "seller") {
+		fcmToken.AdminID = coerceUint(fcmToken.OwnerID)
+	}
+
 	if fcmToken.OwnerID == "" {
 		if fcmToken.ShopID != 0 {
 			fcmToken.OwnerID = strconv.FormatUint(uint64(fcmToken.ShopID), 10)
@@ -246,4 +275,133 @@ func (h *FcmTokenHandler) SaveFcmToken(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, fcmToken)
+}
+
+// UnregisterFcmToken godoc
+//
+//	@Summary		Unregister an FCM device token
+//	@Security		BearerAuth
+//	@ID				UnregisterFcmToken
+//	@Tags			Admin FCM
+//	@Accept			json
+//	@Produce		json
+//	@Param			input	body	domain.FcmToken	false	"FCM token payload"
+//	@Router			/admin/fcm/token [delete]
+//	@Success		200	{object}	map[string]string	"Token unregistered"
+//	@Failure		400	{object}	map[string]string	"Invalid input"
+//	@Failure		500	{object}	map[string]string	"Internal server error"
+func (h *FcmTokenHandler) UnregisterFcmToken(c *gin.Context) {
+	var payload fcmTokenPayload
+	var raw map[string]interface{}
+
+	bodyBytes, _ := c.GetRawData()
+	if len(bodyBytes) > 0 {
+		decoder := json.NewDecoder(strings.NewReader(string(bodyBytes)))
+		decoder.UseNumber()
+		if err := decoder.Decode(&raw); err == nil {
+			payload.Token = coerceString(raw["token"])
+			payload.FCMToken = coerceString(raw["fcm_token"])
+			payload.FcmToken = coerceString(raw["fcmToken"])
+			payload.DeviceTok = coerceString(raw["device_token"])
+			payload.RegToken = coerceString(raw["registration_token"])
+			payload.ShopID = coerceUint(raw["shop_id"])
+			payload.AdminID = coerceUint(raw["admin_id"])
+			payload.OwnerID = coerceString(raw["owner_id"])
+			payload.OwnerType = coerceString(raw["owner_type"])
+		}
+	}
+
+	if payload.Token == "" {
+		payload.Token = c.PostForm("token")
+	}
+	if payload.FCMToken == "" {
+		payload.FCMToken = c.PostForm("fcm_token")
+	}
+	if payload.FcmToken == "" {
+		payload.FcmToken = c.PostForm("fcmToken")
+	}
+	if payload.DeviceTok == "" {
+		payload.DeviceTok = c.PostForm("device_token")
+	}
+	if payload.RegToken == "" {
+		payload.RegToken = c.PostForm("registration_token")
+	}
+	if payload.OwnerID == "" {
+		payload.OwnerID = c.PostForm("owner_id")
+	}
+	if payload.OwnerType == "" {
+		payload.OwnerType = c.PostForm("owner_type")
+	}
+	if payload.ShopID == 0 {
+		payload.ShopID = coerceUint(c.PostForm("shop_id"))
+	}
+	if payload.AdminID == 0 {
+		payload.AdminID = coerceUint(c.PostForm("admin_id"))
+	}
+	payload.AdminID = h.resolveAdminID(c, payload)
+
+	token := strings.TrimSpace(payload.Token)
+	if token == "" {
+		token = strings.TrimSpace(payload.FCMToken)
+	}
+	if token == "" {
+		token = strings.TrimSpace(payload.FcmToken)
+	}
+	if token == "" {
+		token = strings.TrimSpace(payload.DeviceTok)
+	}
+	if token == "" {
+		token = strings.TrimSpace(payload.RegToken)
+	}
+	if token == "" {
+		token = strings.TrimSpace(c.Query("token"))
+	}
+	if token == "" {
+		token = strings.TrimSpace(c.GetHeader("X-FCM-Token"))
+	}
+	if token == "" {
+		token = strings.TrimSpace(c.GetHeader("X-Device-Token"))
+	}
+
+	if token == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing FCM token for unregister"})
+		return
+	}
+
+	fcmToken := domain.FcmToken{
+		Token:     token,
+		ShopID:    payload.ShopID,
+		AdminID:   payload.AdminID,
+		OwnerID:   strings.TrimSpace(payload.OwnerID),
+		OwnerType: strings.TrimSpace(payload.OwnerType),
+	}
+
+	if fcmToken.AdminID == 0 && strings.EqualFold(fcmToken.OwnerType, "seller") {
+		fcmToken.AdminID = coerceUint(fcmToken.OwnerID)
+	}
+
+	if fcmToken.OwnerID == "" {
+		if fcmToken.ShopID != 0 {
+			fcmToken.OwnerID = strconv.FormatUint(uint64(fcmToken.ShopID), 10)
+		} else if fcmToken.AdminID != 0 {
+			fcmToken.OwnerID = strconv.FormatUint(uint64(fcmToken.AdminID), 10)
+		} else {
+			ctxUserID := utils.GetUserIdFromContext(c)
+			if ctxUserID != 0 {
+				fcmToken.AdminID = ctxUserID
+				fcmToken.OwnerID = strconv.FormatUint(uint64(ctxUserID), 10)
+			}
+		}
+	}
+
+	if fcmToken.OwnerType == "" {
+		fcmToken.OwnerType = "seller"
+	}
+
+	if err := h.usecase.UnregisterFcmToken(fcmToken); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "FCM token unregistered successfully"})
 }

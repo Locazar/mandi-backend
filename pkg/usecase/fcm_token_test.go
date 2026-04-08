@@ -38,6 +38,10 @@ func (m *mockFcmTokenRepo) UpsertDeviceToken(token, ownerID, ownerType, platform
 	return nil
 }
 
+func (m *mockFcmTokenRepo) UnregisterFcmToken(_ domain.FcmToken) error {
+	return nil
+}
+
 // mockPushSender implements notification.PushSender.
 type mockPushSender struct {
 	sendToTokensCalled         bool

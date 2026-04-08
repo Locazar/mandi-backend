@@ -29,6 +29,7 @@ type UserHandler interface {
 	IsFollowingShop(ctx *gin.Context)
 	GetFollowers(ctx *gin.Context)
 	GetFollowedShops(ctx *gin.Context)
+	GetMyFollowedShops(ctx *gin.Context)
 	RateShop(ctx *gin.Context)
 	GetUserShopRating(ctx *gin.Context)
 	GetAllShopRatings(ctx *gin.Context)
