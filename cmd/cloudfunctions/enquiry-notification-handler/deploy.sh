@@ -81,6 +81,23 @@ fi
 
 log_info "Using service account: $SERVICE_ACCOUNT"
 
+ENV_VARS="LOG_LEVEL=INFO,ENABLE_IDEMPOTENCY_CHECK=true"
+if [ -n "$NOTIFICATION_PUBLIC_BASE_URL" ]; then
+    ENV_VARS="$ENV_VARS,NOTIFICATION_PUBLIC_BASE_URL=$NOTIFICATION_PUBLIC_BASE_URL"
+elif [ -n "$PUBLIC_BASE_URL" ]; then
+    ENV_VARS="$ENV_VARS,PUBLIC_BASE_URL=$PUBLIC_BASE_URL"
+elif [ -n "$API_BASE_URL" ]; then
+    ENV_VARS="$ENV_VARS,API_BASE_URL=$API_BASE_URL"
+else
+    log_warn "No NOTIFICATION_PUBLIC_BASE_URL/PUBLIC_BASE_URL/API_BASE_URL set. Relative uploads/... images cannot render in FCM."
+fi
+
+if [ -n "$DATABASE_DSN" ]; then
+    ENV_VARS="$ENV_VARS,DATABASE_DSN=$DATABASE_DSN"
+else
+    log_warn "DATABASE_DSN not set. Product image lookup will fall back to Firestore only."
+fi
+
 # Resolve project number (needed for service agent references)
 PROJECT_NUMBER=$(gcloud projects describe "$PROJECT_ID" --format="value(projectNumber)") || {
     log_error "Failed to resolve project number"
@@ -180,7 +197,7 @@ gcloud functions deploy "$FUNCTION_NAME" \
     --memory "$MEMORY" \
     --timeout "$TIMEOUT" \
     --service-account "$SERVICE_ACCOUNT" \
-    --set-env-vars "LOG_LEVEL=INFO,ENABLE_IDEMPOTENCY_CHECK=true" \
+    --set-env-vars "$ENV_VARS" \
     --ingress-settings internal-only \
     --trigger-event-filters "type=google.cloud.firestore.document.v1.updated" \
     --trigger-event-filters "database=(default)" \
@@ -206,7 +223,7 @@ gcloud functions deploy "$CREATE_FUNCTION_NAME" \
     --memory "$MEMORY" \
     --timeout "$TIMEOUT" \
     --service-account "$SERVICE_ACCOUNT" \
-    --set-env-vars "LOG_LEVEL=INFO,ENABLE_IDEMPOTENCY_CHECK=true" \
+    --set-env-vars "$ENV_VARS" \
     --ingress-settings internal-only \
     --trigger-event-filters "type=google.cloud.firestore.document.v1.created" \
     --trigger-event-filters "database=(default)" \

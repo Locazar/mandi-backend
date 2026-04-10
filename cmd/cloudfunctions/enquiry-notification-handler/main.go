@@ -240,6 +240,18 @@ func ProcessEnquiryCreate(ctx context.Context, ce cloudevents.Event) error {
 		data["buyer_id"] = buyerID
 	}
 
+	// ── Attach product image for rich notification ────────────────────────────
+	productID := firstFieldValue(fields, "productId", "product_id", "itemId", "item_id")
+	if productID != "" {
+		data["product_id"] = productID
+		directImageURL := firstFieldValue(fields, "imageUrl", "image_url", "productImageUrl", "product_image_url", "thumbnailUrl", "thumbnail_url")
+		if imageURL := svc.ResolveNotificationImageURL(ctx, productID, directImageURL, fields); imageURL != "" {
+			data["image_url"] = imageURL
+			data["product_image_url"] = imageURL
+			log.Info(fmt.Sprintf("Product image attached productID=%s", productID))
+		}
+	}
+
 	// ── Send notification ─────────────────────────────────────────────────────
 	if err := svc.SendToTokens(ctx, tokens, title, body, data); err != nil {
 		// Notification failure must not cause Eventarc to re-deliver the event,
