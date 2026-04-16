@@ -90,6 +90,9 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	fcmTokenRepository := repository.NewFcmTokenRepository(gormDB)
 	fcmTokenUseCase := usecase.NewFcmTokenUseCase(fcmTokenRepository, tokenService)
 	fcmTokenHandler := handler.NewFcmTokenHandler(fcmTokenUseCase)
-	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler)
+	searchRepository := repository.NewSearchRepository(gormDB, elasticService)
+	searchUseCase := usecase.NewSearchUseCase(searchRepository)
+	searchHandler := handler.NewSearchHandler(searchUseCase)
+	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler)
 	return serverHTTP, nil
 }
