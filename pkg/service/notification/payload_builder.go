@@ -36,10 +36,14 @@ func (pb *PayloadBuilder) BuildPayload(
 	payload.EnquiryID = firstNonEmptyField(event.NewFields, "queryId", "enquiryId", "id")
 	payload.UserID = firstNonEmptyField(event.NewFields, "userId", "customerId", "createdBy")
 	payload.SellerID = firstNonEmptyField(event.NewFields, "sellerId", "seller_id", "shopId", "shop_id")
+	payload.AssignedTo = firstNonEmptyField(event.NewFields, "assignedTo", "assigned_to")
+	payload.ProductID = firstNonEmptyField(event.NewFields, "productId", "product_id", "itemId", "item_id")
+	// Read image URL directly from the enquiry document if present — avoids an extra Firestore round-trip.
+	payload.ImageURL = firstNonEmptyField(event.NewFields, "imageUrl", "image_url", "productImageUrl", "product_image_url", "imageURL", "thumbnailUrl", "thumbnail_url")
 
 	// Set action URL based on enquiry ID
 	if payload.EnquiryID != "" {
-		payload.ActionURL = fmt.Sprintf("/enquiries/%s", payload.EnquiryID)
+		payload.ActionURL = fmt.Sprintf("/enquiry/%s", payload.EnquiryID)
 	} else {
 		payload.ActionURL = fmt.Sprintf("/documents/%s", event.DocumentID)
 	}

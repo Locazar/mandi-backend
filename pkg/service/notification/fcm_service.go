@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -19,6 +20,8 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"google.golang.org/grpc/codes"
 	grpcstatus "google.golang.org/grpc/status"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
 // Config holds notification service configuration
@@ -47,6 +50,8 @@ var (
 	singletonApp       *firebase.App
 	singletonMsgClient *messaging.Client
 	singletonFsClient  *firestore.Client
+	singletonSQLOnce   sync.Once
+	singletonSQLDB     *gorm.DB
 	singletonInitErr   error
 )
 
@@ -113,6 +118,23 @@ func NewService(ctx context.Context, config Config) (*Service, error) {
 	}, nil
 }
 
+func initSQLSingleton() {
+	singletonSQLOnce.Do(func() {
+		dsn := strings.TrimSpace(os.Getenv("DATABASE_DSN"))
+		if dsn == "" {
+			return
+		}
+
+		dbConn, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+		if err != nil {
+			log.Printf("WARN: Postgres client not available for notification image lookup: %v", err)
+			return
+		}
+
+		singletonSQLDB = dbConn
+	})
+}
+
 // SendNotification sends FCM notification
 func (s *Service) SendNotification(ctx context.Context, event *domain.ParsedFirestoreEvent,
 	changes []domain.FieldChange, payload *domain.NotificationPayload) error {
@@ -131,6 +153,12 @@ func (s *Service) SendNotification(ctx context.Context, event *domain.ParsedFire
 	if len(recipients) == 0 {
 		log.Printf("INFO: No recipients found for enquiry %s — no notification sent", payload.EnquiryID)
 		return nil // no tokens is not an error; graceful skip
+	}
+
+	// Resolve a renderable public image URL for rich notifications.
+	payload.ImageURL = s.ResolveNotificationImageURL(ctx, payload.ProductID, payload.ImageURL, event.NewFields)
+	if payload.ImageURL != "" {
+		log.Printf("INFO: Notification image resolved document=%s productID=%s", payload.DocumentID, payload.ProductID)
 	}
 
 	successCount := 0
@@ -360,7 +388,64 @@ func (s *Service) SendToTokens(ctx context.Context, tokens []string, title, body
 	}
 	msg := s.buildMulticastMessage(valid, &domain.NotificationPayload{Title: title, Body: body})
 	if len(data) > 0 {
-		msg.Data = data
+		mergedData := map[string]string{}
+		for k, v := range msg.Data {
+			mergedData[k] = v
+		}
+		for k, v := range data {
+			mergedData[k] = v
+		}
+
+		// Normalize common deep-link keys so client tap handlers can resolve reliably.
+		if mergedData["actionUrl"] == "" && mergedData["action_url"] != "" {
+			mergedData["actionUrl"] = mergedData["action_url"]
+		}
+		if mergedData["action_url"] == "" && mergedData["actionUrl"] != "" {
+			mergedData["action_url"] = mergedData["actionUrl"]
+		}
+		if mergedData["deep_link"] == "" {
+			if mergedData["action_url"] != "" {
+				mergedData["deep_link"] = mergedData["action_url"]
+			} else if mergedData["actionUrl"] != "" {
+				mergedData["deep_link"] = mergedData["actionUrl"]
+			}
+		}
+		if mergedData["route"] == "" {
+			if mergedData["deep_link"] != "" {
+				mergedData["route"] = mergedData["deep_link"]
+			} else if mergedData["action_url"] != "" {
+				mergedData["route"] = mergedData["action_url"]
+			}
+		}
+
+		if mergedData["enquiryId"] == "" && mergedData["enquiry_id"] != "" {
+			mergedData["enquiryId"] = mergedData["enquiry_id"]
+		}
+		if mergedData["enquiry_id"] == "" && mergedData["enquiryId"] != "" {
+			mergedData["enquiry_id"] = mergedData["enquiryId"]
+		}
+		if mergedData["documentId"] == "" && mergedData["document_id"] != "" {
+			mergedData["documentId"] = mergedData["document_id"]
+		}
+		if mergedData["document_id"] == "" && mergedData["documentId"] != "" {
+			mergedData["document_id"] = mergedData["documentId"]
+		}
+
+		if mergedData["click_action"] == "" {
+			mergedData["click_action"] = "FLUTTER_NOTIFICATION_CLICK"
+		}
+
+		msg.Data = mergedData
+
+		// Apply product image to notification fields if provided in data.
+		imageURL := mergedData["image_url"]
+		if imageURL == "" {
+			imageURL = mergedData["product_image_url"]
+		}
+		if imageURL != "" {
+			msg.Notification.ImageURL = imageURL
+			msg.Android.Notification.ImageURL = imageURL
+		}
 	}
 	resp, err := s.msgClient.SendEachForMulticast(ctx, msg)
 	if err != nil {
@@ -406,6 +491,174 @@ func (s *Service) GetOwnerFCMTokens(ctx context.Context, collection, ownerID str
 		}
 	}
 	return tokens, nil
+}
+
+// ResolveNotificationImageURL resolves the best public image URL for an enquiry notification.
+// Resolution order:
+// 1. Direct image fields on the enquiry document.
+// 2. Array-style image fields on the enquiry document.
+// 3. PostgreSQL product_items.product_item_images using productID.
+// 4. Firestore fallback for legacy mirrored documents.
+func (s *Service) ResolveNotificationImageURL(ctx context.Context, productID, directImageURL string, enquiryFields map[string]interface{}) string {
+	if normalized := s.normalizePublicImageURL(directImageURL); normalized != "" {
+		return normalized
+	}
+	if normalized := s.extractImageURLFromFields(enquiryFields); normalized != "" {
+		return normalized
+	}
+	if normalized := s.fetchProductImageURLFromPostgres(ctx, productID); normalized != "" {
+		return normalized
+	}
+	return s.fetchProductImageURLFromFirestore(ctx, productID)
+}
+
+// FetchProductImageURL preserves the previous public API while routing through
+// the full notification image resolution pipeline.
+func (s *Service) FetchProductImageURL(ctx context.Context, productID string) string {
+	return s.ResolveNotificationImageURL(ctx, productID, "", nil)
+}
+
+func (s *Service) fetchProductImageURLFromPostgres(ctx context.Context, productID string) string {
+	productID = strings.TrimSpace(productID)
+	if productID == "" {
+		return ""
+	}
+
+	initSQLSingleton()
+	if singletonSQLDB == nil {
+		return ""
+	}
+
+	fetchCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	var images []string
+	if err := singletonSQLDB.WithContext(fetchCtx).
+		Raw(`SELECT product_item_images FROM product_items WHERE id = ?`, productID).
+		Scan(&images).Error; err != nil {
+		log.Printf("WARN: postgres product image lookup failed productID=%s: %v", productID, err)
+		return ""
+	}
+
+	for _, image := range images {
+		if normalized := s.normalizePublicImageURL(image); normalized != "" {
+			return normalized
+		}
+	}
+	return ""
+}
+
+func (s *Service) fetchProductImageURLFromFirestore(ctx context.Context, productID string) string {
+	if s.fsClient == nil || productID == "" {
+		return ""
+	}
+
+	fetchCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	doc, err := s.fsClient.Collection("enquiry").Doc(productID).Get(fetchCtx)
+	if err != nil {
+		log.Printf("WARN: firestore product image lookup failed productID=%s: %v", productID, err)
+		return ""
+	}
+
+	return s.extractImageURLFromFields(doc.Data())
+}
+
+func (s *Service) extractImageURLFromFields(fields map[string]interface{}) string {
+	if len(fields) == 0 {
+		return ""
+	}
+
+	for _, key := range []string{"imageUrl", "image_url", "productImageUrl", "product_image_url", "imageURL", "thumbnailUrl", "thumbnail_url", "primaryImage", "productImage"} {
+		if normalized := s.normalizePublicImageURL(fmt.Sprint(fields[key])); normalized != "" {
+			return normalized
+		}
+	}
+
+	for _, key := range []string{"product_item_images", "productItemImages", "images", "image_urls", "imageUrls"} {
+		if normalized := s.firstImageFromValue(fields[key]); normalized != "" {
+			return normalized
+		}
+	}
+
+	return ""
+}
+
+func (s *Service) firstImageFromValue(value interface{}) string {
+	switch typed := value.(type) {
+	case []string:
+		for _, item := range typed {
+			if normalized := s.normalizePublicImageURL(item); normalized != "" {
+				return normalized
+			}
+		}
+	case []interface{}:
+		for _, item := range typed {
+			if normalized := s.normalizePublicImageURL(fmt.Sprint(item)); normalized != "" {
+				return normalized
+			}
+		}
+	case string:
+		trimmed := strings.TrimSpace(typed)
+		if trimmed == "" || trimmed == "<nil>" {
+			return ""
+		}
+
+		var images []string
+		if strings.HasPrefix(trimmed, "[") {
+			if err := json.Unmarshal([]byte(trimmed), &images); err == nil {
+				for _, item := range images {
+					if normalized := s.normalizePublicImageURL(item); normalized != "" {
+						return normalized
+					}
+				}
+			}
+		}
+
+		trimmed = strings.TrimPrefix(trimmed, "{")
+		trimmed = strings.TrimSuffix(trimmed, "}")
+		for _, item := range strings.Split(trimmed, ",") {
+			if normalized := s.normalizePublicImageURL(item); normalized != "" {
+				return normalized
+			}
+		}
+	}
+
+	return ""
+}
+
+func (s *Service) normalizePublicImageURL(raw string) string {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" || trimmed == "<nil>" {
+		return ""
+	}
+
+	trimmed = strings.Trim(trimmed, `"`)
+	trimmed = strings.ReplaceAll(trimmed, `\\`, "/")
+	trimmed = strings.ReplaceAll(trimmed, `\`, "/")
+
+	if strings.HasPrefix(trimmed, "http://") || strings.HasPrefix(trimmed, "https://") {
+		return trimmed
+	}
+
+	if !strings.Contains(trimmed, "uploads/") {
+		return ""
+	}
+
+	baseURL := firstNonEmptyString(map[string]interface{}{
+		"NOTIFICATION_PUBLIC_BASE_URL": os.Getenv("NOTIFICATION_PUBLIC_BASE_URL"),
+		"PUBLIC_BASE_URL":              os.Getenv("PUBLIC_BASE_URL"),
+		"API_BASE_URL":                 os.Getenv("API_BASE_URL"),
+		"APP_BASE_URL":                 os.Getenv("APP_BASE_URL"),
+	}, "NOTIFICATION_PUBLIC_BASE_URL", "PUBLIC_BASE_URL", "API_BASE_URL", "APP_BASE_URL")
+	if baseURL == "" {
+		log.Printf("WARN: relative image path cannot be used for FCM without PUBLIC_BASE_URL/API_BASE_URL: %s", trimmed)
+		return ""
+	}
+
+	trimmed = strings.TrimPrefix(trimmed, "/")
+	return strings.TrimRight(baseURL, "/") + "/" + trimmed
 }
 
 func firstNonEmptyString(fields map[string]interface{}, keys ...string) string {
@@ -559,65 +812,120 @@ func (s *Service) releaseIdempotencyLease(ctx context.Context, key string) error
 
 // buildMulticastMessage constructs a MulticastMessage for sending to multiple tokens at once.
 func (s *Service) buildMulticastMessage(tokens []string, payload *domain.NotificationPayload) *messaging.MulticastMessage {
+	deepLink := strings.TrimSpace(payload.ActionURL)
+	imageURL := strings.TrimSpace(payload.ImageURL)
 	data := map[string]string{
-		"enquiryId":  payload.EnquiryID,
-		"documentId": payload.DocumentID,
-		"timestamp":  payload.Timestamp,
-		"actionUrl":  payload.ActionURL,
+		"enquiryId":    payload.EnquiryID,
+		"documentId":   payload.DocumentID,
+		"timestamp":    payload.Timestamp,
+		"actionUrl":    deepLink,
+		"action_url":   deepLink,
+		"deep_link":    deepLink,
+		"route":        deepLink,
+		"click_action": "FLUTTER_NOTIFICATION_CLICK",
 	}
-	return &messaging.MulticastMessage{
+	if imageURL != "" {
+		data["image_url"] = imageURL
+		data["product_image_url"] = imageURL
+	}
+	msg := &messaging.MulticastMessage{
 		Tokens: tokens,
 		Data:   data,
 		Notification: &messaging.Notification{
-			Title: payload.Title,
-			Body:  payload.Body,
+			Title:    payload.Title,
+			Body:     payload.Body,
+			ImageURL: imageURL,
 		},
 		Android: &messaging.AndroidConfig{
 			Priority: "high",
 			TTL:      ptrDuration(24 * time.Hour),
+			Notification: &messaging.AndroidNotification{
+				ClickAction: "FLUTTER_NOTIFICATION_CLICK",
+				ImageURL:    imageURL,
+			},
 		},
 		APNS: &messaging.APNSConfig{
+			Headers: map[string]string{
+				"apns-priority": "10",
+			},
+			FCMOptions: &messaging.APNSFCMOptions{ImageURL: imageURL},
 			Payload: &messaging.APNSPayload{
 				Aps: &messaging.Aps{
 					Alert: &messaging.ApsAlert{
 						Title: payload.Title,
 						Body:  payload.Body,
 					},
-					Sound: "default",
+					MutableContent: true,
+					Sound:          "default",
 				},
 			},
 		},
+		Webpush: &messaging.WebpushConfig{
+			Notification: &messaging.WebpushNotification{
+				Title: payload.Title,
+				Body:  payload.Body,
+				Image: imageURL,
+			},
+		},
 	}
+	return msg
 }
 
 // buildMessage constructs Firebase message
 func (s *Service) buildMessage(payload *domain.NotificationPayload) *messaging.Message {
+	deepLink := strings.TrimSpace(payload.ActionURL)
+	imageURL := strings.TrimSpace(payload.ImageURL)
 	data := map[string]string{
-		"enquiryId":  payload.EnquiryID,
-		"documentId": payload.DocumentID,
-		"timestamp":  payload.Timestamp,
-		"actionUrl":  payload.ActionURL,
+		"enquiryId":    payload.EnquiryID,
+		"documentId":   payload.DocumentID,
+		"timestamp":    payload.Timestamp,
+		"actionUrl":    deepLink,
+		"action_url":   deepLink,
+		"deep_link":    deepLink,
+		"route":        deepLink,
+		"click_action": "FLUTTER_NOTIFICATION_CLICK",
+	}
+	if imageURL != "" {
+		data["image_url"] = imageURL
+		data["product_image_url"] = imageURL
 	}
 
 	msg := &messaging.Message{
 		Data: data,
 		Notification: &messaging.Notification{
-			Title: payload.Title,
-			Body:  payload.Body,
+			Title:    payload.Title,
+			Body:     payload.Body,
+			ImageURL: imageURL,
 		},
 		Android: &messaging.AndroidConfig{
 			Priority: "high",
 			TTL:      ptrDuration(24 * time.Hour),
+			Notification: &messaging.AndroidNotification{
+				ClickAction: "FLUTTER_NOTIFICATION_CLICK",
+				ImageURL:    imageURL,
+			},
 		},
 		APNS: &messaging.APNSConfig{
+			Headers: map[string]string{
+				"apns-priority": "10",
+			},
+			FCMOptions: &messaging.APNSFCMOptions{ImageURL: imageURL},
 			Payload: &messaging.APNSPayload{
 				Aps: &messaging.Aps{
 					Alert: &messaging.ApsAlert{
 						Title: payload.Title,
 						Body:  payload.Body,
 					},
-					Sound: "default",
+					MutableContent: true,
+					Sound:          "default",
 				},
+			},
+		},
+		Webpush: &messaging.WebpushConfig{
+			Notification: &messaging.WebpushNotification{
+				Title: payload.Title,
+				Body:  payload.Body,
+				Image: imageURL,
 			},
 		},
 	}

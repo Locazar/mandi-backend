@@ -301,10 +301,10 @@ func (c *authUseCase) UserSignUp(ctx context.Context, signUpDetails domain.User)
 	// This is commented as we do not have any sms
 	go func() {
 		defer wait.Done()
-		_, err := c.optAuth.SentOtp(countryCode + signUpDetails.Phone)
-		if err != nil {
-			errChan <- fmt.Errorf("failed to send otp \nerrors:%v", err.Error())
-		}
+		// _, err := c.optAuth.SentOtp(countryCode + signUpDetails.Phone)
+		// if err != nil {
+		// 	errChan <- fmt.Errorf("failed to send otp \nerrors:%v", err.Error())
+		// }
 	}()
 
 	userID := existUser.ID

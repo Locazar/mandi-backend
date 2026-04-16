@@ -59,6 +59,8 @@ type NotificationPayload struct {
 	ChangedFields []string // List of changed field names
 	Timestamp     string   // Update timestamp
 	ActionURL     string   // Deep-link URL for the app
+	ProductID     string   // Product ID linked to this enquiry
+	ImageURL      string   // Product image URL for rich notification display
 }
 
 // NotificationRecipient represents a user who should receive the notification

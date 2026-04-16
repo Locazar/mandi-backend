@@ -349,42 +349,74 @@ func (c *userDatabase) FindSellersByPincode(ctx context.Context, reqData request
 }
 
 func (c *userDatabase) SearchShopList(ctx context.Context, reqData request.SearchShopListRequest) (shops []response.Shop, err error) {
-	query := `
-		SELECT id, shop_name, email, phone, latitude, longitude,
-		owner_name, shop_image_url, address_line1, address_line2, city, country, state, pincode,
-		shop_verification_status, created_at, updated_at
-		FROM shop_details
-		WHERE 1=1
-	`
-
 	paramIndex := 1
 	args := []interface{}{}
+	whereClause := " WHERE 1=1"
+	orderBy := " ORDER BY sd.created_at DESC"
+	distanceExpr := "NULL::double precision AS distance_km"
 
-	// Add search query condition if provided
+	// Add search query condition if provided.
 	if reqData.Query != "" {
-		query += fmt.Sprintf(` AND (shop_name ILIKE $%d OR owner_name ILIKE $%d)`, paramIndex, paramIndex)
+		whereClause += fmt.Sprintf(` AND (sd.shop_name ILIKE $%d OR sd.owner_name ILIKE $%d)`, paramIndex, paramIndex)
 		args = append(args, "%"+reqData.Query+"%")
 		paramIndex++
 	}
 
-	// Filter by geolocation (lat + long + radius) OR pincode, but not both
+	// Filter by geolocation (lat + long + radius) OR pincode, but not both.
 	if reqData.Latitude != 0 && reqData.Longitude != 0 && reqData.Radius > 0 {
-		// Using Haversine formula for distance calculation (in km)
-		query += fmt.Sprintf(` AND latitude IS NOT NULL AND longitude IS NOT NULL AND (6371 * acos(cos(radians($%d)) * cos(radians(latitude)) * 
-			cos(radians(longitude) - radians($%d)) + sin(radians($%d)) * 
-			sin(radians(latitude)))) <= $%d`, paramIndex, paramIndex+1, paramIndex, paramIndex+2)
-		args = append(args, reqData.Latitude, reqData.Longitude, reqData.Radius)
+		lonIdx := paramIndex
+		latIdx := paramIndex + 1
+		radiusMetersIdx := paramIndex + 2
+
+		distanceExpr = fmt.Sprintf(
+			`ST_Distance(s.location, ST_SetSRID(ST_MakePoint($%d, $%d), 4326)::geography) / 1000.0 AS distance_km`,
+			lonIdx,
+			latIdx,
+		)
+		whereClause += fmt.Sprintf(
+			` AND s.location IS NOT NULL AND ST_DWithin(s.location, ST_SetSRID(ST_MakePoint($%d, $%d), 4326)::geography, $%d)`,
+			lonIdx,
+			latIdx,
+			radiusMetersIdx,
+		)
+		orderBy = " ORDER BY distance_km ASC NULLS LAST, sd.created_at DESC"
+
+		args = append(args, reqData.Longitude, reqData.Latitude, reqData.Radius*1000)
 		paramIndex += 3
 	} else if reqData.Pincode != nil {
-		// Use pincode filter only if geolocation is not provided
-		query += fmt.Sprintf(` AND pincode = $%d`, paramIndex)
+		whereClause += fmt.Sprintf(` AND sd.pincode = $%d`, paramIndex)
 		args = append(args, fmt.Sprintf("%d", *reqData.Pincode))
 		paramIndex++
 	}
 
-	query += fmt.Sprintf(` LIMIT $%d OFFSET $%d`, paramIndex, paramIndex+1)
-	args = append(args, reqData.Limit, reqData.Offset)
+	query := fmt.Sprintf(`
+		SELECT
+			sd.id,
+			sd.shop_name,
+			sd.email,
+			sd.phone,
+			sd.latitude,
+			sd.longitude,
+			sd.owner_name,
+			sd.shop_image_url,
+			sd.address_line1,
+			sd.address_line2,
+			sd.city,
+			sd.country,
+			sd.state,
+			sd.pincode,
+			sd.shop_verification_status,
+			%s,
+			sd.created_at,
+			sd.updated_at
+		FROM shop_details sd
+		LEFT JOIN shops s ON s.id = sd.id
+		%s
+		%s
+		LIMIT $%d OFFSET $%d
+	`, distanceExpr, whereClause, orderBy, paramIndex, paramIndex+1)
 
+	args = append(args, reqData.Limit, reqData.Offset)
 	err = c.DB.Raw(query, args...).Scan(&shops).Error
 
 	return shops, err
@@ -413,4 +445,3 @@ func (c *userDatabase) FindShopByID(ctx context.Context, shopID uint) (response.
 
 	return shop, nil
 }
-

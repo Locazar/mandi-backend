@@ -28,6 +28,7 @@ type Shop struct {
 	IsLiked                bool      `json:"is_liked"`
 	UserRating             uint      `json:"user_rating"`
 	UserReview             string    `json:"user_review"`
+	DistanceKm             *float64  `json:"distance_km,omitempty"`
 	CreatedAt              time.Time `json:"created_at"`
 	UpdatedAt              time.Time `json:"updated_at"`
 }

@@ -81,12 +81,17 @@ func (s *FCMPushService) SendToTokens(
 		data = map[string]string{}
 	}
 	data["timestamp"] = time.Now().UTC().Format(time.RFC3339)
+	imageURL := strings.TrimSpace(data["image_url"])
+	if imageURL == "" {
+		imageURL = strings.TrimSpace(data["product_image_url"])
+	}
 
 	msg := &messaging.MulticastMessage{
 		Tokens: tokens,
 		Notification: &messaging.Notification{
-			Title: title,
-			Body:  body,
+			Title:    title,
+			Body:     body,
+			ImageURL: imageURL,
 		},
 		Data: data,
 		Android: &messaging.AndroidConfig{
@@ -98,19 +103,29 @@ func (s *FCMPushService) SendToTokens(
 				Title:        title,
 				Body:         body,
 				ClickAction:  "FLUTTER_NOTIFICATION_CLICK",
+				ImageURL:     imageURL,
 				Sound:        "default",
 				DefaultSound: true,
 			},
 		},
 		APNS: &messaging.APNSConfig{
+			FCMOptions: &messaging.APNSFCMOptions{ImageURL: imageURL},
 			Payload: &messaging.APNSPayload{
 				Aps: &messaging.Aps{
 					Alert: &messaging.ApsAlert{
 						Title: title,
 						Body:  body,
 					},
-					Sound: "default",
+					MutableContent: true,
+					Sound:          "default",
 				},
+			},
+		},
+		Webpush: &messaging.WebpushConfig{
+			Notification: &messaging.WebpushNotification{
+				Title: title,
+				Body:  body,
+				Image: imageURL,
 			},
 		},
 	}
