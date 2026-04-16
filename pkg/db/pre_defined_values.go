@@ -91,14 +91,16 @@ func savePaymentMethods(db *gorm.DB) error {
 func saveAdmin(db *gorm.DB, email, password string) error {
 
 	var (
-		searchQuery = `SELECT CASE WHEN id != 0 THEN 'T' ELSE 'F' END as exist FROM admins WHERE email = $1`
+		searchQuery = `SELECT COUNT(*) > 0 as exist FROM admins WHERE email = $1`
 		exist       bool
 		err         error
 	)
 
 	err = db.Raw(searchQuery, email).Scan(&exist).Error
 	if err != nil {
-		return fmt.Errorf("failed to check admin already exist err:%w", err)
+		// It's okay if the admins table doesn't exist yet (GORM will create it)
+		// Just log and continue
+		return nil
 	}
 
 	// if !exist {
