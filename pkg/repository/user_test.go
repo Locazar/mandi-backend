@@ -164,7 +164,7 @@ func TestSearchShopList_WithGeoDistance(t *testing.T) {
 	gormDB, err := gorm.Open(postgres.New(postgres.Config{Conn: db}), &gorm.Config{})
 	assert.NoError(t, err)
 
-	queryMatcher := `(?s)SELECT\s+.*distance_km.*FROM shop_details sd\s+LEFT JOIN shops s ON s\.id = sd\.id\s+.*ST_DWithin\(s\.location, ST_SetSRID\(ST_MakePoint\(\$2, \$3\), 4326\)::geography, \$4\).*ORDER BY distance_km ASC NULLS LAST, sd\.created_at DESC\s+LIMIT \$5 OFFSET \$6`
+	queryMatcher := `(?s)SELECT\s+.*distance_km.*FROM shop_details sd\s+LEFT JOIN shop_times st ON st\.shop_id = sd\.id\s+.*sd\.latitude IS NOT NULL AND sd\.longitude IS NOT NULL.*ORDER BY distance_km ASC NULLS LAST, sd\.created_at DESC\s+LIMIT \$5 OFFSET \$6`
 
 	rows := sqlmock.NewRows([]string{
 		"id", "shop_name", "email", "phone", "latitude", "longitude",
@@ -177,7 +177,7 @@ func TestSearchShopList_WithGeoDistance(t *testing.T) {
 	)
 
 	mock.ExpectQuery(queryMatcher).
-		WithArgs("%mart%", 77.5946, 12.9716, 5000.0, 25, 0).
+		WithArgs("%mart%", 12.9716, 77.5946, 5.0, 25, 0).
 		WillReturnRows(rows)
 
 	repo := NewUserRepository(gormDB)
@@ -207,7 +207,7 @@ func TestSearchShopList_WithPincode(t *testing.T) {
 	gormDB, err := gorm.Open(postgres.New(postgres.Config{Conn: db}), &gorm.Config{})
 	assert.NoError(t, err)
 
-	queryMatcher := `(?s)SELECT\s+.*NULL::double precision AS distance_km.*FROM shop_details sd\s+LEFT JOIN shops s ON s\.id = sd\.id\s+.*sd\.pincode = \$1\s+.*ORDER BY sd\.created_at DESC\s+LIMIT \$2 OFFSET \$3`
+	queryMatcher := `(?s)SELECT\s+.*NULL::double precision AS distance_km.*FROM shop_details sd\s+LEFT JOIN shop_times st ON st\.shop_id = sd\.id\s+.*sd\.pincode = \$1\s+.*ORDER BY sd\.created_at DESC\s+LIMIT \$2 OFFSET \$3`
 
 	rows := sqlmock.NewRows([]string{
 		"id", "shop_name", "email", "phone", "latitude", "longitude",
@@ -246,7 +246,7 @@ func TestSearchShopList_WithTextOnly(t *testing.T) {
 	gormDB, err := gorm.Open(postgres.New(postgres.Config{Conn: db}), &gorm.Config{})
 	assert.NoError(t, err)
 
-	queryMatcher := `(?s)SELECT\s+.*NULL::double precision AS distance_km.*FROM shop_details sd\s+LEFT JOIN shops s ON s\.id = sd\.id\s+.*\(sd\.shop_name ILIKE \$1 OR sd\.owner_name ILIKE \$1\).*ORDER BY sd\.created_at DESC\s+LIMIT \$2 OFFSET \$3`
+	queryMatcher := `(?s)SELECT\s+.*NULL::double precision AS distance_km.*FROM shop_details sd\s+LEFT JOIN shop_times st ON st\.shop_id = sd\.id\s+.*\(sd\.shop_name ILIKE \$1 OR sd\.owner_name ILIKE \$1\).*ORDER BY sd\.created_at DESC\s+LIMIT \$2 OFFSET \$3`
 
 	rows := sqlmock.NewRows([]string{
 		"id", "shop_name", "email", "phone", "latitude", "longitude",

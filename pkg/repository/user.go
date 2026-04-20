@@ -364,24 +364,39 @@ func (c *userDatabase) SearchShopList(ctx context.Context, reqData request.Searc
 
 	// Filter by geolocation (lat + long + radius) OR pincode, but not both.
 	if reqData.Latitude != 0 && reqData.Longitude != 0 && reqData.Radius > 0 {
-		lonIdx := paramIndex
-		latIdx := paramIndex + 1
-		radiusMetersIdx := paramIndex + 2
+		latIdx := paramIndex
+		lonIdx := paramIndex + 1
+		radiusKmIdx := paramIndex + 2
 
 		distanceExpr = fmt.Sprintf(
-			`ST_Distance(s.location, ST_SetSRID(ST_MakePoint($%d, $%d), 4326)::geography) / 1000.0 AS distance_km`,
+			`(6371 * acos(
+				LEAST(1, GREATEST(-1,
+					cos(radians($%d)) * cos(radians(sd.latitude::double precision)) *
+					cos(radians(sd.longitude::double precision) - radians($%d)) +
+					sin(radians($%d)) * sin(radians(sd.latitude::double precision))
+				))
+			)) AS distance_km`,
+			latIdx,
 			lonIdx,
 			latIdx,
 		)
 		whereClause += fmt.Sprintf(
-			` AND s.location IS NOT NULL AND ST_DWithin(s.location, ST_SetSRID(ST_MakePoint($%d, $%d), 4326)::geography, $%d)`,
+			` AND sd.latitude IS NOT NULL AND sd.longitude IS NOT NULL AND
+			  (6371 * acos(
+				LEAST(1, GREATEST(-1,
+					cos(radians($%d)) * cos(radians(sd.latitude::double precision)) *
+					cos(radians(sd.longitude::double precision) - radians($%d)) +
+					sin(radians($%d)) * sin(radians(sd.latitude::double precision))
+				))
+			  )) <= $%d`,
+			latIdx,
 			lonIdx,
 			latIdx,
-			radiusMetersIdx,
+			radiusKmIdx,
 		)
 		orderBy = " ORDER BY distance_km ASC NULLS LAST, sd.created_at DESC"
 
-		args = append(args, reqData.Longitude, reqData.Latitude, reqData.Radius*1000)
+		args = append(args, reqData.Latitude, reqData.Longitude, reqData.Radius)
 		paramIndex += 3
 	} else if reqData.Pincode != nil {
 		whereClause += fmt.Sprintf(` AND sd.pincode = $%d`, paramIndex)
@@ -407,10 +422,14 @@ func (c *userDatabase) SearchShopList(ctx context.Context, reqData request.Searc
 			sd.pincode,
 			sd.shop_verification_status,
 			%s,
+			CASE
+				WHEN st.status = 'open' AND CURRENT_TIME::time BETWEEN st.open_time::time AND st.close_time::time THEN true
+				ELSE false
+			END AS is_open,
 			sd.created_at,
 			sd.updated_at
 		FROM shop_details sd
-		LEFT JOIN shops s ON s.id = sd.id
+		LEFT JOIN shop_times st ON st.shop_id = sd.id
 		%s
 		%s
 		LIMIT $%d OFFSET $%d

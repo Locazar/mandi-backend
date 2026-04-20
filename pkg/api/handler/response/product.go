@@ -101,6 +101,7 @@ type ProductItems struct {
 	CreatedAt           time.Time              `json:"created_at"`
 	UpdatedAt           time.Time              `json:"updated_at"`
 	ViewCount           uint                   `json:"view_count"`
+	DistanceKM          *float64               `json:"distance_km,omitempty"`
 	Stock               bool                   `json:"stock"`
 }
 

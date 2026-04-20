@@ -17,13 +17,7 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 ) {
 
 	// Global Search — public, no auth required
-	globalSearch := api.Group("/global-search")
-	{
-		globalSearch.GET("/", searchHandler.GlobalSearch)
-		globalSearch.GET("", searchHandler.GlobalSearch) // Support without trailing slash
-		globalSearch.GET("/autocomplete", searchHandler.Autocomplete)
-		globalSearch.GET("/autocomplete/", searchHandler.Autocomplete) // Support with trailing slash
-	}
+
 
 	auth := api.Group("/auth")
 	{
@@ -57,6 +51,14 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 
 	api.Use(middleware.AuthenticateUser())
 	{
+
+		globalSearch := api.Group("/global-search")
+		{
+			globalSearch.GET("/", searchHandler.GlobalSearch)
+			globalSearch.GET("", searchHandler.GlobalSearch) // Support without trailing slash
+			globalSearch.GET("/autocomplete", searchHandler.Autocomplete)
+			globalSearch.GET("/autocomplete/", searchHandler.Autocomplete) // Support with trailing slash
+		}
 
 		// api.POST("/logout", userHandler.UserLogout)
 

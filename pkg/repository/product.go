@@ -1199,6 +1199,45 @@ func (c *productDatabase) FindAllProductItemImages(ctx context.Context, productI
 	return
 }
 
+func buildGeoDistanceQuery(lat, lng, radius float64, startParam int, locationColumn, defaultOrderBy string) (distanceExpr string, geoFilter string, orderBy string, params []interface{}, nextParam int) {
+	distanceExpr = "NULL::double precision AS distance_km"
+	orderBy = defaultOrderBy
+	nextParam = startParam
+
+	if lat != 0 && lng != 0 {
+		lonIdx := nextParam
+		latIdx := nextParam + 1
+
+		distanceExpr = fmt.Sprintf(
+			`ST_Distance(%s, ST_SetSRID(ST_MakePoint($%d, $%d), 4326)::geography) / 1000.0 AS distance_km`,
+			locationColumn,
+			lonIdx,
+			latIdx,
+		)
+
+		params = append(params, lng, lat)
+		nextParam += 2
+
+		if radius > 0 {
+			radiusIdx := nextParam
+			geoFilter = fmt.Sprintf(
+				` AND %s IS NOT NULL AND ST_DWithin(%s, ST_SetSRID(ST_MakePoint($%d, $%d), 4326)::geography, $%d)`,
+				locationColumn,
+				locationColumn,
+				lonIdx,
+				latIdx,
+				radiusIdx,
+			)
+			params = append(params, radius*1000)
+			nextParam++
+		}
+
+		orderBy = fmt.Sprintf(" ORDER BY distance_km ASC NULLS LAST%s", defaultOrderBy)
+	}
+
+	return
+}
+
 // SearchProducts implements interfaces.ProductRepository.
 func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, categoryID, brandID, locationID, shopID *string, latitude, longitude, radius float64, pincode *uint, pagination request.Pagination) (products []response.ProductItems, err error) {
 	limit := int(pagination.Limit)
@@ -1216,10 +1255,11 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 	}
 
 	// Build the base query
-	baseQuery := `SELECT pi.sub_category_name, pi.id, pi.category_id, pi.department_id, pi.sub_category_id,
+	baseQueryTemplate := `SELECT pi.sub_category_name, pi.id, pi.category_id, pi.department_id, pi.sub_category_id,
 			pi.product_item_images, pi.dynamic_fields, pi.created_at, pi.updated_at,
 			c.name AS category_name, d.name AS department_name, sc.name AS sub_category_name_ref,
 			sc.image_url AS sub_category_image_url,
+			%s,
 			(SELECT COALESCE(SUM(view_count), 0) FROM product_item_views WHERE product_item_id = pi.id) AS view_count,
 			(
 				SELECT COALESCE(json_agg(json_build_object(
@@ -1244,7 +1284,8 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 		LEFT JOIN categories c ON pi.category_id = c.id
 		LEFT JOIN departments d ON pi.department_id = d.id
 		LEFT JOIN sub_categories sc ON pi.sub_category_id = sc.id
-		LEFT JOIN shop_details sd ON sd.id = pi.shop_id`
+		LEFT JOIN shop_details sd ON sd.id = pi.shop_id
+		LEFT JOIN shops s ON s.id = sd.id`
 
 	params := []interface{}{}
 	paramIndex := 1
@@ -1298,24 +1339,23 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 		}
 	}
 
-	// Filter by geolocation (lat + long + radius) OR pincode, but not both
-	if latitude != 0 && longitude != 0 && radius > 0 {
-		// Using Haversine formula for distance calculation (in km, using 6371 as Earth's radius)
-		// Also ensure shop_details has valid latitude and longitude
-		whereClause += fmt.Sprintf(` AND sd.latitude IS NOT NULL AND sd.longitude IS NOT NULL
-			AND (6371 * acos(cos(radians($%d)) * cos(radians(sd.latitude)) * 
-			cos(radians(sd.longitude) - radians($%d)) + sin(radians($%d)) * 
-			sin(radians(sd.latitude)))) <= $%d`, paramIndex, paramIndex+1, paramIndex, paramIndex+2)
-		params = append(params, latitude, longitude, radius)
-		paramIndex += 3
-	} else if pincode != nil {
+	distanceExpr, geoFilter, orderBy, geoArgs, paramIndex := buildGeoDistanceQuery(latitude, longitude, radius, paramIndex, "s.location", " ORDER BY pi.created_at DESC")
+	if geoFilter != "" {
+		whereClause += geoFilter
+	}
+	params = append(params, geoArgs...)
+
+	useGeoDistance := latitude != 0 && longitude != 0
+
+	if !useGeoDistance && pincode != nil {
 		// Use pincode filter only if geolocation is not provided
 		whereClause += fmt.Sprintf(" AND sd.pincode = $%d", paramIndex)
 		params = append(params, fmt.Sprintf("%d", *pincode))
 		paramIndex++
 	}
 
-	baseQuery += whereClause + " ORDER BY pi.created_at DESC LIMIT $" + fmt.Sprint(paramIndex) + " OFFSET $" + fmt.Sprint(paramIndex+1)
+	baseQuery := fmt.Sprintf(baseQueryTemplate, distanceExpr)
+	baseQuery += whereClause + orderBy + " LIMIT $" + fmt.Sprint(paramIndex) + " OFFSET $" + fmt.Sprint(paramIndex+1)
 	params = append(params, limit, offset)
 
 	// Log the final SQL and parameters for debugging
@@ -1334,6 +1374,7 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 		ProductItemImages   string    `gorm:"column:product_item_images"`
 		DynamicFields       []byte    `gorm:"column:dynamic_fields"`
 		OfferProducts       []byte    `gorm:"column:offer_products"`
+		DistanceKM          *float64  `gorm:"column:distance_km"`
 		CreatedAt           time.Time `gorm:"column:created_at"`
 		UpdatedAt           time.Time `gorm:"column:updated_at"`
 		ViewCount           uint      `gorm:"column:view_count"`
@@ -1378,6 +1419,7 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 			CreatedAt:           dbItem.CreatedAt,
 			UpdatedAt:           dbItem.UpdatedAt,
 			ViewCount:           dbItem.ViewCount,
+			DistanceKM:          dbItem.DistanceKM,
 		}
 
 		// Unmarshal offer_products if present. Handle both raw JSON bytes and JSON-as-string.
