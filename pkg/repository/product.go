@@ -1199,40 +1199,97 @@ func (c *productDatabase) FindAllProductItemImages(ctx context.Context, productI
 	return
 }
 
-func buildGeoDistanceQuery(lat, lng, radius float64, startParam int, locationColumn, defaultOrderBy string) (distanceExpr string, geoFilter string, orderBy string, params []interface{}, nextParam int) {
+func buildGeoDistanceQuery(lat, lng, radius float64, startParam int, locationColumnOrLatCol, longitudeCol string, defaultOrderBy string) (distanceExpr string, geoFilter string, orderBy string, params []interface{}, nextParam int) {
 	distanceExpr = "NULL::double precision AS distance_km"
 	orderBy = defaultOrderBy
 	nextParam = startParam
 
 	if lat != 0 && lng != 0 {
-		lonIdx := nextParam
-		latIdx := nextParam + 1
+		// Check if we're using latitude/longitude columns (both parameters provided) or PostGIS geometry
+		if longitudeCol != "" {
+			// Using latitude/longitude numeric columns with haversine formula
+			latIdx := nextParam
+			lonIdx := nextParam + 1
+			radiusIdx := nextParam + 2
 
-		distanceExpr = fmt.Sprintf(
-			`ST_Distance(%s, ST_SetSRID(ST_MakePoint($%d, $%d), 4326)::geography) / 1000.0 AS distance_km`,
-			locationColumn,
-			lonIdx,
-			latIdx,
-		)
-
-		params = append(params, lng, lat)
-		nextParam += 2
-
-		if radius > 0 {
-			radiusIdx := nextParam
-			geoFilter = fmt.Sprintf(
-				` AND %s IS NOT NULL AND ST_DWithin(%s, ST_SetSRID(ST_MakePoint($%d, $%d), 4326)::geography, $%d)`,
-				locationColumn,
-				locationColumn,
+			distanceExpr = fmt.Sprintf(
+				`(6371 * acos(
+					LEAST(1, GREATEST(-1,
+						cos(radians($%d)) * cos(radians(%s::double precision)) *
+						cos(radians(%s::double precision) - radians($%d)) +
+						sin(radians($%d)) * sin(radians(%s::double precision))
+					))
+				)) AS distance_km`,
+				latIdx,
+				locationColumnOrLatCol,
+				longitudeCol,
 				lonIdx,
 				latIdx,
-				radiusIdx,
+				locationColumnOrLatCol,
 			)
-			params = append(params, radius*1000)
-			nextParam++
-		}
 
-		orderBy = fmt.Sprintf(" ORDER BY distance_km ASC NULLS LAST%s", defaultOrderBy)
+			whereFilterTemplate := `AND %s IS NOT NULL AND %s IS NOT NULL AND
+			  (6371 * acos(
+				LEAST(1, GREATEST(-1,
+					cos(radians($%d)) * cos(radians(%s::double precision)) *
+					cos(radians(%s::double precision) - radians($%d)) +
+					sin(radians($%d)) * sin(radians(%s::double precision))
+				))
+			  )) <= $%d`
+
+			if radius > 0 {
+				geoFilter = fmt.Sprintf(whereFilterTemplate,
+					locationColumnOrLatCol,
+					longitudeCol,
+					latIdx,
+					locationColumnOrLatCol,
+					longitudeCol,
+					lonIdx,
+					latIdx,
+					locationColumnOrLatCol,
+					radiusIdx,
+				)
+				params = append(params, lat, lng, radius)
+				nextParam += 3
+			} else {
+				// No radius filter, just calculate distance
+				geoFilter = fmt.Sprintf(" AND %s IS NOT NULL AND %s IS NOT NULL", locationColumnOrLatCol, longitudeCol)
+				params = append(params, lat, lng)
+				nextParam += 2
+			}
+
+			orderBy = fmt.Sprintf(" ORDER BY distance_km ASC NULLS LAST, pi.created_at DESC")
+		} else {
+			// Using PostGIS geometry column (old behavior)
+			lonIdx := nextParam
+			latIdx := nextParam + 1
+
+			distanceExpr = fmt.Sprintf(
+				`ST_Distance(%s, ST_SetSRID(ST_MakePoint($%d, $%d), 4326)::geography) / 1000.0 AS distance_km`,
+				locationColumnOrLatCol,
+				lonIdx,
+				latIdx,
+			)
+
+			params = append(params, lng, lat)
+			nextParam += 2
+
+			if radius > 0 {
+				radiusIdx := nextParam
+				geoFilter = fmt.Sprintf(
+					` AND %s IS NOT NULL AND ST_DWithin(%s, ST_SetSRID(ST_MakePoint($%d, $%d), 4326)::geography, $%d)`,
+					locationColumnOrLatCol,
+					locationColumnOrLatCol,
+					lonIdx,
+					latIdx,
+					radiusIdx,
+				)
+				params = append(params, radius*1000)
+				nextParam++
+			}
+
+			orderBy = fmt.Sprintf(" ORDER BY distance_km ASC NULLS LAST%s", defaultOrderBy)
+		}
 	}
 
 	return
@@ -1259,6 +1316,7 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 			pi.product_item_images, pi.dynamic_fields, pi.created_at, pi.updated_at,
 			c.name AS category_name, d.name AS department_name, sc.name AS sub_category_name_ref,
 			sc.image_url AS sub_category_image_url,
+			sd.id AS shop_id, sd.shop_name,
 			%s,
 			(SELECT COALESCE(SUM(view_count), 0) FROM product_item_views WHERE product_item_id = pi.id) AS view_count,
 			(
@@ -1284,8 +1342,7 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 		LEFT JOIN categories c ON pi.category_id = c.id
 		LEFT JOIN departments d ON pi.department_id = d.id
 		LEFT JOIN sub_categories sc ON pi.sub_category_id = sc.id
-		LEFT JOIN shop_details sd ON sd.id = pi.shop_id
-		LEFT JOIN shops s ON s.id = sd.id`
+		LEFT JOIN shop_details sd ON sd.id = pi.shop_id`
 
 	params := []interface{}{}
 	paramIndex := 1
@@ -1339,7 +1396,7 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 		}
 	}
 
-	distanceExpr, geoFilter, orderBy, geoArgs, paramIndex := buildGeoDistanceQuery(latitude, longitude, radius, paramIndex, "s.location", " ORDER BY pi.created_at DESC")
+	distanceExpr, geoFilter, orderBy, geoArgs, paramIndex := buildGeoDistanceQuery(latitude, longitude, radius, paramIndex, "sd.latitude", "sd.longitude", " ORDER BY pi.created_at DESC")
 	if geoFilter != "" {
 		whereClause += geoFilter
 	}
@@ -1371,6 +1428,8 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 		DepartmentName      string    `gorm:"column:department_name"`
 		SubCategoryNameRef  string    `gorm:"column:sub_category_name_ref"`
 		SubCategoryImageURL string    `gorm:"column:sub_category_image_url"`
+		ShopID              uint      `gorm:"column:shop_id"`
+		ShopName            string    `gorm:"column:shop_name"`
 		ProductItemImages   string    `gorm:"column:product_item_images"`
 		DynamicFields       []byte    `gorm:"column:dynamic_fields"`
 		OfferProducts       []byte    `gorm:"column:offer_products"`
@@ -1415,6 +1474,8 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 			CategoryID:          dbItem.CategoryID,
 			DepartmentID:        dbItem.DepartmentID,
 			SubCategoryID:       dbItem.SubCategoryID,
+			ShopID:              dbItem.ShopID,
+			ShopName:            dbItem.ShopName,
 			ProductItemImages:   images,
 			CreatedAt:           dbItem.CreatedAt,
 			UpdatedAt:           dbItem.UpdatedAt,
