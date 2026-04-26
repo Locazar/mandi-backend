@@ -1323,6 +1323,7 @@ func SafeIntToUint64(i int) (uint64, error) {
 //	@Produce		json
 //	@Param			q			query	string	false	"Search keyword"
 //	@Param			category_id	query	string	false	"Category ID"
+//	@Param			department_id	query	string	false	"Department ID"
 //	@Param			brand_id	query	string	false	"Brand ID"
 //	@Param			location_id	query	string	false	"Location ID"
 //	@Param			lat			query	float64	false	"Latitude for geolocation search"
@@ -1342,13 +1343,19 @@ func (h *ProductHandler) SearchProducts(c *gin.Context) {
 		keyword = c.Query("name")
 	}
 
-	// Parse numeric filter IDs (category_id, brand_id, location_id) as unsigned integers.
+	// Parse numeric filter IDs (category_id, brand_id, location_id, department_id) as unsigned integers.
 	// The DB uses numeric IDs for these fields; parsing as UUIDs caused type mismatches.
-	var catIDPtr, brandIDPtr, locIDPtr, shopIDPtr *string
+	var catIDPtr, brandIDPtr, locIDPtr, shopIDPtr, deptIDPtr *string
 	if cid := c.Query("category_id"); cid != "" {
 		if _, err := strconv.ParseUint(cid, 10, 64); err == nil {
 			s := cid
 			catIDPtr = &s
+		}
+	}
+	if did := c.Query("department_id"); did != "" {
+		if _, err := strconv.ParseUint(did, 10, 64); err == nil {
+			s := did
+			deptIDPtr = &s
 		}
 	}
 	if bid := c.Query("brand_id"); bid != "" {
@@ -1434,7 +1441,7 @@ func (h *ProductHandler) SearchProducts(c *gin.Context) {
 		Offset: offsetUint64,
 	}
 
-	products, err := h.productUseCase.SearchProducts(c, keyword, catIDPtr, brandIDPtr, locIDPtr, shopIDPtr, latitude, longitude, radius, pincode, int(pagination.Limit), int(pagination.Offset))
+	products, err := h.productUseCase.SearchProducts(c, keyword, catIDPtr, deptIDPtr, brandIDPtr, locIDPtr, shopIDPtr, latitude, longitude, radius, pincode, int(pagination.Limit), int(pagination.Offset))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

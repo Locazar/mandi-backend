@@ -423,7 +423,7 @@ func SafeIntToUint64(i int) (uint64, error) {
 	return uint64(i), nil
 }
 
-func (c *productUseCase) SearchProducts(ctx context.Context, keyword string, categoryID *string, brandID *string, locationID *string, shopID *string, latitude, longitude, radius float64, pincode *uint, limit, offset int) ([]response.ProductItems, error) {
+func (c *productUseCase) SearchProducts(ctx context.Context, keyword string, categoryID *string, departmentID *string, brandID *string, locationID *string, shopID *string, latitude, longitude, radius float64, pincode *uint, limit, offset int) ([]response.ProductItems, error) {
 	limitUint64, err := SafeIntToUint64(limit)
 	if err != nil {
 		return nil, utils.PrependMessageToError(err, "invalid limit for pagination")
@@ -438,7 +438,7 @@ func (c *productUseCase) SearchProducts(ctx context.Context, keyword string, cat
 		Limit:  limitUint64,
 		Offset: offsetUint64,
 	}
-	resProducts, err := c.productRepo.SearchProducts(ctx, keyword, categoryID, brandID, locationID, shopID, latitude, longitude, radius, pincode, pagination)
+	resProducts, err := c.productRepo.SearchProducts(ctx, keyword, categoryID, departmentID, brandID, locationID, shopID, latitude, longitude, radius, pincode, pagination)
 	if err != nil {
 		return nil, utils.PrependMessageToError(err, "failed to search products")
 	}
@@ -1105,7 +1105,6 @@ func (c *productUseCase) GetProductsByRadius(ctx context.Context, latitude float
 		radiusKm = 10.0 // default 10 km
 	}
 
-
 	query := `
 		SELECT * FROM (
 			SELECT pi.id, pi.shop_id, pi.sub_category_name, pi.category_id, pi.department_id, pi.sub_category_id,
@@ -1189,7 +1188,6 @@ func (c *productUseCase) GetProductsByRadius(ctx context.Context, latitude float
 		); err != nil {
 			return nil, utils.PrependMessageToError(err, "failed to scan product row")
 		}
-
 
 		var dynamicFieldsMap map[string]interface{}
 		if len(dynamicFields) > 0 {

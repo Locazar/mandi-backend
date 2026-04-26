@@ -1296,9 +1296,12 @@ func buildGeoDistanceQuery(lat, lng, radius float64, startParam int, locationCol
 }
 
 // SearchProducts implements interfaces.ProductRepository.
-func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, categoryID, brandID, locationID, shopID *string, latitude, longitude, radius float64, pincode *uint, pagination request.Pagination) (products []response.ProductItems, err error) {
+func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, categoryID, departmentID, brandID, locationID, shopID *string, latitude, longitude, radius float64, pincode *uint, pagination request.Pagination) (products []response.ProductItems, err error) {
 	limit := int(pagination.Limit)
 	offset := int(pagination.Offset)
+
+	// Initialize products as empty slice to avoid nil in JSON response
+	products = []response.ProductItems{}
 
 	var ids []uint
 	if keyword != "" && c.ElasticClient != nil {
@@ -1368,6 +1371,14 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 		if cid, err := strconv.ParseUint(*categoryID, 10, 64); err == nil {
 			whereClause += fmt.Sprintf(" AND pi.category_id = $%d", paramIndex)
 			params = append(params, cid)
+			paramIndex++
+		}
+	}
+
+	if departmentID != nil {
+		if did, err := strconv.ParseUint(*departmentID, 10, 64); err == nil {
+			whereClause += fmt.Sprintf(" AND pi.department_id = $%d", paramIndex)
+			params = append(params, did)
 			paramIndex++
 		}
 	}
