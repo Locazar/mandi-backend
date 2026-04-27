@@ -229,7 +229,8 @@ func (es *ElasticService) SearchProducts(ctx context.Context, keyword string, ca
 }
 
 // SearchProductItems searches for product items in Elasticsearch and returns IDs
-func (es *ElasticService) SearchProductItems(ctx context.Context, keyword string, categoryID *string, shopID *string, limit, offset int) ([]uint, error) {
+// All provided parameters are combined with AND logic to narrow down results
+func (es *ElasticService) SearchProductItems(ctx context.Context, keyword string, categoryID *string, departmentID *string, brandID *string, shopID *string, limit, offset int) ([]uint, error) {
 	query := map[string]interface{}{
 		"query": map[string]interface{}{
 			"bool": map[string]interface{}{
@@ -253,11 +254,32 @@ func (es *ElasticService) SearchProductItems(ctx context.Context, keyword string
 
 	filters := query["query"].(map[string]interface{})["bool"].(map[string]interface{})["filter"].([]map[string]interface{})
 
+	// Apply all filters with AND logic - if multiple parameters are provided, all must match
 	if categoryID != nil {
 		if cid, err := strconv.ParseUint(*categoryID, 10, 64); err == nil {
 			filters = append(filters, map[string]interface{}{
 				"term": map[string]interface{}{
 					"category_id": cid,
+				},
+			})
+		}
+	}
+
+	if departmentID != nil {
+		if did, err := strconv.ParseUint(*departmentID, 10, 64); err == nil {
+			filters = append(filters, map[string]interface{}{
+				"term": map[string]interface{}{
+					"department_id": did,
+				},
+			})
+		}
+	}
+
+	if brandID != nil {
+		if bid, err := strconv.ParseUint(*brandID, 10, 64); err == nil {
+			filters = append(filters, map[string]interface{}{
+				"term": map[string]interface{}{
+					"brand_id": bid,
 				},
 			})
 		}

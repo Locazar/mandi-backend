@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -402,6 +403,19 @@ func (c *userDatabase) SearchShopList(ctx context.Context, reqData request.Searc
 		whereClause += fmt.Sprintf(` AND sd.pincode = $%d`, paramIndex)
 		args = append(args, fmt.Sprintf("%d", *reqData.Pincode))
 		paramIndex++
+	}
+
+	// Filter by department_id if provided (with AND condition)
+	if reqData.DepartmentID != nil {
+		if deptID, err := strconv.ParseUint(*reqData.DepartmentID, 10, 64); err == nil {
+			// Filter shops that have products in the specified department
+			whereClause += fmt.Sprintf(` AND sd.id IN (
+				SELECT DISTINCT pi.shop_id FROM product_items pi
+				WHERE pi.department_id = $%d
+			)`, paramIndex)
+			args = append(args, deptID)
+			paramIndex++
+		}
 	}
 
 	query := fmt.Sprintf(`

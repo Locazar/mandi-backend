@@ -40,8 +40,9 @@ type ShopDetails struct {
 	Identity_Doc_Verification  bool   `json:"identity_doc_verification" gorm:"not null;default:false" binding:"omitempty"`
 	Address_Proof_Verification bool   `json:"address_proof_verification" gorm:"not null;default:false" binding:"omitempty"`
 
-	Offers    []Offer `json:"offers" gorm:"many2many:shop_offers;"`
-	HasOffers bool    `json:"has_offers" gorm:"column:has_offers"`
+	Offers      []Offer `json:"offers" gorm:"many2many:shop_offers;"`
+	HasOffers   bool    `json:"has_offers" gorm:"column:has_offers"`
+	Departments []int   `json:"department" gorm:"column:department"`
 
 	CreatedAt time.Time `json:"created_at" gorm:";autoCreateTime"`
 	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
@@ -56,4 +57,21 @@ type ShopOffer struct {
 	EndDate   time.Time `json:"end_date" gorm:"not null"`
 	CreatedAt time.Time `json:"created_at" gorm:"not null;autoCreateTime"`
 	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+}
+
+type ShopDepartment struct {
+	ID           uint      `json:"id" gorm:"primaryKey"`
+	AdminID      uint      `json:"admin_id" gorm:"not null"`
+	ShopID       uint      `json:"shop_id" gorm:"not null;uniqueIndex:idx_shop_department"`
+	DepartmentID uint      `json:"department_id" gorm:"not null;uniqueIndex:idx_shop_department"`
+	CreatedAt    time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt    time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+
+	// Constraints
+	ShopDetails *ShopDetails `json:"shop_details,omitempty" gorm:"foreignKey:ShopID;references:ID;onDelete:CASCADE"`
+}
+
+// TableName specifies the table name for ShopDepartment
+func (ShopDepartment) TableName() string {
+	return "shop_departments"
 }

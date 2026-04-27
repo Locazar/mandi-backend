@@ -504,6 +504,41 @@ func (c *productDatabase) SaveProductConfiguration(ctx context.Context, productI
 	return err
 }
 
+// UpdateShopDepartments adds a department to the shop_departments table if not already present
+// Uses atomic PostgreSQL INSERT with ON CONFLICT to avoid race conditions and duplicates
+// Creates an entry in shop_departments table for tracking shop-department relationships
+func (c *productDatabase) UpdateShopDepartments(ctx context.Context, shopID uint, departmentID uint, adminID string) error {
+	if shopID == 0 || departmentID == 0 {
+		return fmt.Errorf("shopID and departmentID must not be zero")
+	}
+
+	// Convert adminID string to uint if possible
+	var adminIDUint uint
+	if _, err := fmt.Sscanf(adminID, "%d", &adminIDUint); err != nil {
+		// If conversion fails, use shop_id as fallback (admin_id should be from shop_details)
+		adminIDUint = shopID
+	}
+
+	// Insert into shop_departments with ON CONFLICT DO NOTHING to handle duplicates
+	query := `INSERT INTO shop_departments (admin_id, shop_id, department_id, created_at, updated_at)
+	VALUES ($1, $2, $3, NOW(), NOW())
+	ON CONFLICT (shop_id, department_id) DO NOTHING`
+
+	result := c.DB.WithContext(ctx).Exec(query, adminIDUint, shopID, departmentID)
+	if result.Error != nil {
+		log.Printf("Failed to update shop departments: shopID=%d, departmentID=%d, adminID=%s, error=%v", shopID, departmentID, adminID, result.Error)
+		return fmt.Errorf("failed to update shop departments: %w", result.Error)
+	}
+
+	if result.RowsAffected == 0 {
+		log.Printf("Department already exists for shop: shopID=%d, departmentID=%d", shopID, departmentID)
+	} else {
+		log.Printf("Shop department record created: shopID=%d, departmentID=%d, adminID=%s", shopID, departmentID, adminID)
+	}
+
+	return nil
+}
+
 func (c *productDatabase) SaveProductItem(ctx context.Context, productItem request.ProductItem, adminID string, shopID uint) (productItemID uint, err error) {
 
 	query := `INSERT INTO product_items (admin_id, sub_category_name, dynamic_fields, product_item_images, category_id, department_id, sub_category_id, shop_id, created_at, updated_at) 
@@ -536,6 +571,14 @@ VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`
 				log.Printf("Failed to index product item in Elasticsearch: %v", indexErr)
 			}
 		}()
+	}
+
+	// Update shop's departments array after successful product item save
+	if err == nil && productItem.DepartmentID > 0 {
+		if updateDeptErr := c.UpdateShopDepartments(ctx, shopID, productItem.DepartmentID, adminID); updateDeptErr != nil {
+			log.Printf("Warning: Failed to update shop departments during SaveProductItem: %v", updateDeptErr)
+			// Don't return error here - product was saved successfully, department update is a side effect
+		}
 	}
 
 	return productItemID, err
@@ -666,7 +709,7 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context, adminID strin
 			shopIDPtr = &filterByShopID
 		}
 		var err error
-		ids, err = c.ElasticClient.SearchProductItems(ctx, keyword, categoryID, shopIDPtr, limit, offset)
+		ids, err = c.ElasticClient.SearchProductItems(ctx, keyword, categoryID, nil, brandID, shopIDPtr, limit, offset)
 		if err != nil {
 			log.Printf("ES search failed, falling back to PG: %v", err)
 		} else if len(ids) == 0 {
@@ -953,7 +996,7 @@ func (c *productDatabase) FindLowViewProductItems(ctx context.Context,
 			offset = int(pagination.Offset)
 		}
 		var err error
-		ids, err = c.ElasticClient.SearchProductItems(ctx, keyword, categoryID, filterByShopID, limit, offset)
+		ids, err = c.ElasticClient.SearchProductItems(ctx, keyword, categoryID, nil, brandID, filterByShopID, limit, offset)
 		if err != nil {
 			log.Printf("ES search failed, falling back to PG: %v", err)
 		} else if len(ids) == 0 {
@@ -1305,8 +1348,8 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 
 	var ids []uint
 	if keyword != "" && c.ElasticClient != nil {
-		// Use Elasticsearch for search
-		ids, err = c.ElasticClient.SearchProductItems(ctx, keyword, categoryID, shopID, limit, offset)
+		// Use Elasticsearch for search with all filters applied with AND logic
+		ids, err = c.ElasticClient.SearchProductItems(ctx, keyword, categoryID, departmentID, brandID, shopID, limit, offset)
 		if err != nil {
 			log.Printf("ES search failed, falling back to PG: %v", err)
 		} else if len(ids) == 0 {

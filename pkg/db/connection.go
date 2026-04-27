@@ -111,6 +111,7 @@ func ConnectDatabase(cfg config.Config) (*gorm.DB, error) {
 		//Shop Details
 		domain.ShopDetails{},
 		domain.ShopOffer{},
+		domain.ShopDepartment{},
 
 		//Payment Methods
 		domain.PaymentMethod{},
