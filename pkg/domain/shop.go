@@ -62,13 +62,10 @@ type ShopOffer struct {
 type ShopDepartment struct {
 	ID           uint      `json:"id" gorm:"primaryKey"`
 	AdminID      uint      `json:"admin_id" gorm:"not null"`
-	ShopID       uint      `json:"shop_id" gorm:"not null;uniqueIndex:idx_shop_department"`
+	ShopID       uint      `json:"shop_id" gorm:"not null;uniqueIndex:idx_shop_department;foreignKey:ShopID"`
 	DepartmentID uint      `json:"department_id" gorm:"not null;uniqueIndex:idx_shop_department"`
 	CreatedAt    time.Time `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt    time.Time `json:"updated_at" gorm:"autoUpdateTime"`
-
-	// Constraints
-	ShopDetails *ShopDetails `json:"shop_details,omitempty" gorm:"foreignKey:ShopID;references:ID;onDelete:CASCADE"`
 }
 
 // TableName specifies the table name for ShopDepartment
