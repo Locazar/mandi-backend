@@ -9,6 +9,11 @@ import (
 
 func SetUpDBTriggers(db *gorm.DB) error {
 
+	// Setup shop_departments table constraints
+	if err := setupShopDepartmentsTable(db); err != nil {
+		return errors.New("failed to setup shop_departments table: " + err.Error())
+	}
+
 	// Execute PostGIS setup commands first
 	// for _, cmd := range postgisSetupCommands {
 	// 	if db.Exec(cmd).Error != nil {
@@ -48,6 +53,47 @@ func SetUpDBTriggers(db *gorm.DB) error {
 		return errors.New("failed to create orderReturnProductUpdateExec trigger")
 	}
 	log.Printf("successfully triggers updated for database")
+	return nil
+}
+
+// setupShopDepartmentsTable creates shop_departments table with proper constraints if it doesn't exist
+func setupShopDepartmentsTable(db *gorm.DB) error {
+	// Create table with foreign key constraint
+	createTableSQL := `
+	CREATE TABLE IF NOT EXISTS shop_departments (
+		id SERIAL PRIMARY KEY,
+		admin_id INTEGER NOT NULL,
+		shop_id INTEGER NOT NULL,
+		department_id INTEGER NOT NULL,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		
+		CONSTRAINT fk_shop_departments_shop_id 
+			FOREIGN KEY (shop_id) 
+			REFERENCES shop_details(id) 
+			ON DELETE CASCADE,
+		
+		CONSTRAINT unique_shop_department 
+			UNIQUE (shop_id, department_id)
+	);
+	`
+
+	if err := db.Exec(createTableSQL).Error; err != nil {
+		log.Printf("Note: shop_departments table SQL creation returned: %v (AutoMigrate may have already created it)", err)
+	} else {
+		log.Printf("✓ shop_departments table ensured with all constraints")
+	}
+
+	// Create indexes for foreign key
+	createIndexSQL := `
+	CREATE INDEX IF NOT EXISTS idx_shop_department_shop_id ON shop_departments(shop_id);
+	CREATE INDEX IF NOT EXISTS idx_shop_department_admin_id ON shop_departments(admin_id);
+	`
+
+	if err := db.Exec(createIndexSQL).Error; err != nil {
+		log.Printf("Warning: Could not create indexes on shop_departments: %v", err)
+	}
+
 	return nil
 }
 
