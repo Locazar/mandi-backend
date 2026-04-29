@@ -14,6 +14,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/repository"
 	repointerfaces "github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
 	aiservice "github.com/rohit221990/mandi-backend/pkg/service/ai"
+	"github.com/rohit221990/mandi-backend/pkg/service/alert_engine"
 	"github.com/rohit221990/mandi-backend/pkg/service/cloud"
 	elasticsearch "github.com/rohit221990/mandi-backend/pkg/service/elasticsearch"
 	"github.com/rohit221990/mandi-backend/pkg/service/graphics"
@@ -29,6 +30,17 @@ func provideElasticURL(cfg config.Config) string {
 
 func provideAIServiceClient(cfg config.Config) *aiservice.Client {
 	return aiservice.NewClient(cfg.AIServiceURL)
+}
+
+func provideAlertRuleRegistry() *alert_engine.RuleRegistry {
+	registry := alert_engine.NewRuleRegistry()
+	// Register default rules
+	registry.RegisterMultiple(
+		alert_engine.MissingShopPhotoRule{},
+		alert_engine.NoProductsRule{},
+		alert_engine.ShopNotVerifiedRule{},
+	)
+	return registry
 }
 
 func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
@@ -48,6 +60,9 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 
 		// graphics
 		graphics.NewGraphicsService,
+
+		// alert engine
+		provideAlertRuleRegistry,
 
 		// middleware
 		middleware.NewMiddleware,
@@ -85,6 +100,8 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		wire.Bind(new(repointerfaces.FcmTokenRepository), new(*repository.fcmTokenRepository)),
 		repository.NewSearchRepository,
 		wire.Bind(new(repointerfaces.SearchRepository), new(*repository.searchRepository)),
+		repository.NewAlertRepository,
+		wire.Bind(new(repointerfaces.AlertRepository), new(*repository.AlertRepositoryImpl)),
 
 		//usecase
 		usecase.NewAuthUseCase,
@@ -119,6 +136,8 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		wire.Bind(new(usecaseinterfaces.FcmTokenUseCase), new(*usecase.fcmTokenUseCase)),
 		usecase.NewSearchUseCase,
 		wire.Bind(new(usecaseinterfaces.SearchUseCase), new(*usecase.searchUseCase)),
+		usecase.NewAlertUseCase,
+		wire.Bind(new(usecaseinterfaces.AlertUseCase), new(*usecase.AlertUseCaseImpl)),
 
 		// handler
 		handler.NewAuthHandler,
@@ -151,6 +170,8 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		wire.Bind(new(interfaces.FcmTokenHandler), new(*handler.FcmTokenHandler)),
 		handler.NewSearchHandler,
 		wire.Bind(new(interfaces.SearchHandler), new(*handler.SearchHandler)),
+		handler.NewAlertHandler,
+		wire.Bind(new(interfaces.AlertHandler), new(*handler.AlertHandler)),
 
 		http.NewServerHTTP,
 	)

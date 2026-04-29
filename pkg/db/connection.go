@@ -116,6 +116,12 @@ func ConnectDatabase(cfg config.Config) (*gorm.DB, error) {
 		//Payment Methods
 		domain.PaymentMethod{},
 
+		//Alerts
+		domain.Alert{},
+		domain.AlertAction{},
+		domain.AlertTemplate{},
+		domain.SellerAlertLog{},
+
 		// department
 		domain.Department{},
 		domain.SubCategory{},

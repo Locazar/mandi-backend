@@ -87,5 +87,6 @@ type SearchShopListRequest struct {
 	Radius       float64 `form:"radius"`
 	Pincode      *uint   `form:"pincode"`
 	DepartmentID *string `form:"department_id"`
+	CategoryID   *string `form:"category_id"`
 	Pagination
 }

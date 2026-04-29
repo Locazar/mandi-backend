@@ -65,6 +65,8 @@ func setupShopDepartmentsTable(db *gorm.DB) error {
 		admin_id INTEGER NOT NULL,
 		shop_id INTEGER NOT NULL,
 		department_id INTEGER NOT NULL,
+		category_id INTEGER NOT NULL,
+		sub_category_id INTEGER NOT NULL,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 		
@@ -88,6 +90,8 @@ func setupShopDepartmentsTable(db *gorm.DB) error {
 	createIndexSQL := `
 	CREATE INDEX IF NOT EXISTS idx_shop_department_shop_id ON shop_departments(shop_id);
 	CREATE INDEX IF NOT EXISTS idx_shop_department_admin_id ON shop_departments(admin_id);
+	CREATE INDEX IF NOT EXISTS idx_shop_department_category_id ON shop_departments(category_id);
+	CREATE INDEX IF NOT EXISTS idx_shop_department_sub_category_id ON shop_departments(sub_category_id);
 	`
 
 	if err := db.Exec(createIndexSQL).Error; err != nil {

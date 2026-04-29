@@ -353,7 +353,7 @@ func (c *userDatabase) SearchShopList(ctx context.Context, reqData request.Searc
 	paramIndex := 1
 	args := []interface{}{}
 	whereClause := " WHERE 1=1"
-	orderBy := " ORDER BY sd.created_at DESC"
+	orderBy := " ORDER BY sd.id, sd.created_at DESC"
 	distanceExpr := "NULL::double precision AS distance_km"
 
 	// Add search query condition if provided.
@@ -395,7 +395,7 @@ func (c *userDatabase) SearchShopList(ctx context.Context, reqData request.Searc
 			latIdx,
 			radiusKmIdx,
 		)
-		orderBy = " ORDER BY distance_km ASC NULLS LAST, sd.created_at DESC"
+		orderBy = " ORDER BY sd.id, distance_km ASC NULLS LAST, sd.created_at DESC"
 
 		args = append(args, reqData.Latitude, reqData.Longitude, reqData.Radius)
 		paramIndex += 3
@@ -405,21 +405,57 @@ func (c *userDatabase) SearchShopList(ctx context.Context, reqData request.Searc
 		paramIndex++
 	}
 
-	// Filter by department_id if provided (with AND condition)
-	if reqData.DepartmentID != nil {
-		if deptID, err := strconv.ParseUint(*reqData.DepartmentID, 10, 64); err == nil {
-			// Filter shops that have products in the specified department
+	// Filter by department_id and/or category_id if provided (with AND condition)
+	// If both are provided, check for products matching BOTH criteria in a single subquery
+	if reqData.DepartmentID != nil || reqData.CategoryID != nil {
+		var deptID uint64
+		var catID uint64
+		deptProvided := false
+		catProvided := false
+
+		if reqData.DepartmentID != nil {
+			if id, err := strconv.ParseUint(*reqData.DepartmentID, 10, 64); err == nil {
+				deptID = id
+				deptProvided = true
+			}
+		}
+
+		if reqData.CategoryID != nil {
+			if id, err := strconv.ParseUint(*reqData.CategoryID, 10, 64); err == nil {
+				catID = id
+				catProvided = true
+			}
+		}
+
+		if deptProvided && catProvided {
+			// Both department_id and category_id provided - check for products matching BOTH
+			whereClause += fmt.Sprintf(` AND sd.id IN (
+				SELECT DISTINCT pi.shop_id FROM product_items pi
+				WHERE pi.department_id = $%d AND pi.category_id = $%d
+			)`, paramIndex, paramIndex+1)
+			args = append(args, deptID, catID)
+			paramIndex += 2
+		} else if deptProvided {
+			// Only department_id provided
 			whereClause += fmt.Sprintf(` AND sd.id IN (
 				SELECT DISTINCT pi.shop_id FROM product_items pi
 				WHERE pi.department_id = $%d
 			)`, paramIndex)
 			args = append(args, deptID)
 			paramIndex++
+		} else if catProvided {
+			// Only category_id provided
+			whereClause += fmt.Sprintf(` AND sd.id IN (
+				SELECT DISTINCT pi.shop_id FROM product_items pi
+				WHERE pi.category_id = $%d
+			)`, paramIndex)
+			args = append(args, catID)
+			paramIndex++
 		}
 	}
 
 	query := fmt.Sprintf(`
-		SELECT
+		SELECT DISTINCT ON (sd.id)
 			sd.id,
 			sd.shop_name,
 			sd.email,

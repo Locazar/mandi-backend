@@ -40,9 +40,8 @@ type ShopDetails struct {
 	Identity_Doc_Verification  bool   `json:"identity_doc_verification" gorm:"not null;default:false" binding:"omitempty"`
 	Address_Proof_Verification bool   `json:"address_proof_verification" gorm:"not null;default:false" binding:"omitempty"`
 
-	Offers      []Offer `json:"offers" gorm:"many2many:shop_offers;"`
-	HasOffers   bool    `json:"has_offers" gorm:"column:has_offers"`
-	Departments []int   `json:"department" gorm:"column:department"`
+	Offers    []Offer `json:"offers" gorm:"many2many:shop_offers;"`
+	HasOffers bool    `json:"has_offers" gorm:"column:has_offers"`
 
 	CreatedAt time.Time `json:"created_at" gorm:";autoCreateTime"`
 	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
@@ -64,6 +63,8 @@ type ShopDepartment struct {
 	AdminID      uint      `json:"admin_id" gorm:"not null;index"`
 	ShopID       uint      `json:"shop_id" gorm:"not null;index;uniqueIndex:idx_shop_department"`
 	DepartmentID uint      `json:"department_id" gorm:"not null;uniqueIndex:idx_shop_department"`
+	CategoryID   uint      `json:"category_id" gorm:"not null;uniqueIndex:idx_shop_department"`
+	SubCategoryID uint      `json:"sub_category_id" gorm:"not null;uniqueIndex:idx_shop_department"`
 	CreatedAt    time.Time `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt    time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }

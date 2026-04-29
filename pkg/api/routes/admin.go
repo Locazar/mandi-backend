@@ -13,6 +13,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 	stockHandler handlerInterface.StockHandler, branHandler handlerInterface.BrandHandler,
 	promotionHandler handlerInterface.PromotionHandler, fcmTokenHandler handlerInterface.FcmTokenHandler,
 	notificationHandler handlerInterface.NotificationHandler,
+	alertHandler handlerInterface.AlertHandler,
 ) {
 
 	auth := api.Group("/auth")
@@ -332,6 +333,16 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		{
 			fcm.POST("/token", fcmTokenHandler.SaveFcmToken)
 			fcm.DELETE("/token", fcmTokenHandler.UnregisterFcmToken)
+		}
+
+		alerts := api.Group("/alerts")
+		{
+			// GET /api/v1/seller/alerts - Get all alerts for seller
+			alerts.GET("", alertHandler.GetSellerAlerts)
+			alerts.GET("/", alertHandler.GetSellerAlerts)
+
+			// POST /api/v1/seller/alerts/:key/dismiss - Dismiss an alert
+			alerts.POST("/:key/dismiss", alertHandler.DismissAlert)
 		}
 	}
 }

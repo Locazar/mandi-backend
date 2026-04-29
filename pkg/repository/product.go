@@ -507,9 +507,9 @@ func (c *productDatabase) SaveProductConfiguration(ctx context.Context, productI
 // UpdateShopDepartments adds a department to the shop_departments table if not already present
 // Uses atomic PostgreSQL INSERT with ON CONFLICT to avoid race conditions and duplicates
 // Creates an entry in shop_departments table for tracking shop-department relationships
-func (c *productDatabase) UpdateShopDepartments(ctx context.Context, shopID uint, departmentID uint, adminID string) error {
-	if shopID == 0 || departmentID == 0 {
-		return fmt.Errorf("shopID and departmentID must not be zero")
+func (c *productDatabase) UpdateShopDepartments(ctx context.Context, shopID uint, departmentID uint, adminID string, categoryID uint, subCategoryId uint) error {
+	if shopID == 0 || departmentID == 0 || categoryID == 0 || subCategoryId == 0 {
+		return fmt.Errorf("shopID, departmentID, categoryID, and subCategoryId must not be zero")
 	}
 
 	// Convert adminID string to uint if possible
@@ -520,20 +520,19 @@ func (c *productDatabase) UpdateShopDepartments(ctx context.Context, shopID uint
 	}
 
 	// Insert into shop_departments with ON CONFLICT DO NOTHING to handle duplicates
-	query := `INSERT INTO shop_departments (admin_id, shop_id, department_id, created_at, updated_at)
-	VALUES ($1, $2, $3, NOW(), NOW())
-	ON CONFLICT (shop_id, department_id) DO NOTHING`
+	query := `INSERT INTO shop_departments (admin_id, shop_id, department_id, category_id, sub_category_id, created_at, updated_at)
+	VALUES ($1, $2, $3, $4, $5, NOW(), NOW()) ON CONFLICT (shop_id, department_id) DO NOTHING`
 
-	result := c.DB.WithContext(ctx).Exec(query, adminIDUint, shopID, departmentID)
+	result := c.DB.WithContext(ctx).Exec(query, adminIDUint, shopID, departmentID, categoryID, subCategoryId)
 	if result.Error != nil {
-		log.Printf("Failed to update shop departments: shopID=%d, departmentID=%d, adminID=%s, error=%v", shopID, departmentID, adminID, result.Error)
+		log.Printf("Failed to update shop departments: shopID=%d, departmentID=%d, adminID=%s, categoryID=%d, error=%v", shopID, departmentID, adminID, categoryID, result.Error)
 		return fmt.Errorf("failed to update shop departments: %w", result.Error)
 	}
 
 	if result.RowsAffected == 0 {
-		log.Printf("Department already exists for shop: shopID=%d, departmentID=%d", shopID, departmentID)
+		log.Printf("Department already exists for shop: shopID=%d, departmentID=%d, categoryID=%d", shopID, departmentID, categoryID)
 	} else {
-		log.Printf("Shop department record created: shopID=%d, departmentID=%d, adminID=%s", shopID, departmentID, adminID)
+		log.Printf("Shop department record created: shopID=%d, departmentID=%d, adminID=%s, categoryID=%d", shopID, departmentID, adminID, categoryID)
 	}
 
 	return nil
@@ -575,7 +574,7 @@ VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`
 
 	// Update shop's departments array after successful product item save
 	if err == nil && productItem.DepartmentID > 0 {
-		if updateDeptErr := c.UpdateShopDepartments(ctx, shopID, productItem.DepartmentID, adminID); updateDeptErr != nil {
+		if updateDeptErr := c.UpdateShopDepartments(ctx, shopID, productItem.DepartmentID, adminID, productItem.CategoryID, productItem.SubCategoryID); updateDeptErr != nil {
 			log.Printf("Warning: Failed to update shop departments during SaveProductItem: %v", updateDeptErr)
 			// Don't return error here - product was saved successfully, department update is a side effect
 		}
@@ -1347,13 +1346,14 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 	products = []response.ProductItems{}
 
 	var ids []uint
+	var useElasticsearchResults bool
 	if keyword != "" && c.ElasticClient != nil {
 		// Use Elasticsearch for search with all filters applied with AND logic
 		ids, err = c.ElasticClient.SearchProductItems(ctx, keyword, categoryID, departmentID, brandID, shopID, limit, offset)
 		if err != nil {
 			log.Printf("ES search failed, falling back to PG: %v", err)
-		} else if len(ids) == 0 {
-			return []response.ProductItems{}, nil
+		} else if len(ids) > 0 {
+			useElasticsearchResults = true
 		}
 	}
 
@@ -1395,7 +1395,7 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 	whereClause := " WHERE 1=1"
 
 	// If we have IDs from Elasticsearch, filter by them
-	if len(ids) > 0 {
+	if useElasticsearchResults && len(ids) > 0 {
 		placeholders := make([]string, len(ids))
 		for i, id := range ids {
 			placeholders[i] = fmt.Sprintf("$%d", paramIndex)
@@ -1404,11 +1404,12 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 		}
 		whereClause += " AND pi.id IN (" + strings.Join(placeholders, ",") + ")"
 	} else if keyword != "" {
-		// Fallback to keyword search if no Elasticsearch
+		// Fallback to keyword search if no Elasticsearch or ES failed
 		whereClause += fmt.Sprintf(" AND (pi.sub_category_name ILIKE $%d OR pi.dynamic_fields::text ILIKE $%d OR c.name::text ILIKE $%d OR sc.name::text ILIKE $%d OR d.name::text ILIKE $%d)", paramIndex, paramIndex, paramIndex, paramIndex, paramIndex)
 		params = append(params, "%"+keyword+"%")
 		paramIndex++
 	}
+	// Note: If keyword is empty, we continue without keyword filter but apply other filters (category, department, geo, etc.)
 
 	if categoryID != nil {
 		if cid, err := strconv.ParseUint(*categoryID, 10, 64); err == nil {
