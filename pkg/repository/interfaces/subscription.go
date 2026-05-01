@@ -12,7 +12,10 @@ type SubscriptionRepository interface {
 	FindSubscriptionOrderByRazorpayPaymentID(ctx context.Context, paymentID string) (domain.SubscriptionOrder, error)
 	UpdateSubscriptionOrderToPaid(ctx context.Context, orderID uint, razorpayPaymentID string) error
 	FindSubscriptionPlanByID(ctx context.Context, planID uint) (domain.SubscriptionPlan, error)
+	FindSubscriptionPlanByName(ctx context.Context, name string) (domain.SubscriptionPlan, error)
+	FindPaidSubscriptionPlans(ctx context.Context) ([]domain.SubscriptionPlan, error)
 	FindActiveSubscriptionByUserID(ctx context.Context, userID uint) (domain.UserSubscription, error)
 	ActivateSubscription(ctx context.Context, sub domain.UserSubscription) error
+	DeactivateTrialSubscription(ctx context.Context, userID uint) error
 	Transaction(fn func(repo SubscriptionRepository) error) error
 }

@@ -79,6 +79,8 @@ var (
 	ErrPaymentCurrencyMismatch     = errors.New("payment currency does not match order")
 	ErrPaymentOrderMismatch        = errors.New("payment order_id does not match")
 	ErrInvalidWebhookSignature     = errors.New("invalid webhook signature")
+	ErrTrialAlreadyUsed            = errors.New("free trial has already been used")
+	ErrTrialPlanNotFound           = errors.New("free trial plan not found in system")
 
 	// brand
 	ErrBrandAlreadyExist = errors.New("brand name already exist")

@@ -68,12 +68,14 @@ func (uc *subscriptionPaymentUseCase) CreateSubscriptionOrder(ctx context.Contex
 		return response.SubscriptionOrderResponse{}, ErrBlockedPayment
 	}
 
-	// 3. Check no active subscription
-	_, err = uc.subRepo.FindActiveSubscriptionByUserID(ctx, userID)
+	// 3. Check no active subscription (allow upgrade from trial)
+	activeSub, err := uc.subRepo.FindActiveSubscriptionByUserID(ctx, userID)
 	if err == nil {
-		return response.SubscriptionOrderResponse{}, ErrActiveSubscriptionExists
-	}
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		if !activeSub.IsTrial {
+			return response.SubscriptionOrderResponse{}, ErrActiveSubscriptionExists
+		}
+		// Trial active — allow upgrade to paid plan
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return response.SubscriptionOrderResponse{}, fmt.Errorf("check active sub: %w", err)
 	}
 
@@ -186,15 +188,20 @@ func (uc *subscriptionPaymentUseCase) VerifySubscriptionPayment(ctx context.Cont
 		return response.SubscriptionVerificationResponse{}, fmt.Errorf("find plan: %w", err)
 	}
 
+	orderID := order.ID
 	err = uc.subRepo.Transaction(func(trxRepo repoIface.SubscriptionRepository) error {
 		if err := trxRepo.UpdateSubscriptionOrderToPaid(ctx, order.ID, req.PaymentID); err != nil {
+			return err
+		}
+		// Deactivate any active trial before activating paid subscription
+		if err := trxRepo.DeactivateTrialSubscription(ctx, userID); err != nil {
 			return err
 		}
 		now := time.Now()
 		return trxRepo.ActivateSubscription(ctx, domain.UserSubscription{
 			UserID:              userID,
 			PlanID:              order.PlanID,
-			SubscriptionOrderID: order.ID,
+			SubscriptionOrderID: &orderID,
 			StartDate:           now,
 			EndDate:             now.AddDate(0, 0, int(plan.DurationDays)),
 			IsActive:            true,
@@ -289,15 +296,20 @@ func (uc *subscriptionPaymentUseCase) HandleWebhook(ctx context.Context, signatu
 		return fmt.Errorf("find plan: %w", err)
 	}
 
+	webhookOrderID := order.ID
 	return uc.subRepo.Transaction(func(trxRepo repoIface.SubscriptionRepository) error {
 		if err := trxRepo.UpdateSubscriptionOrderToPaid(ctx, order.ID, paymentID); err != nil {
+			return err
+		}
+		// Deactivate any active trial before activating paid subscription
+		if err := trxRepo.DeactivateTrialSubscription(ctx, order.UserID); err != nil {
 			return err
 		}
 		now := time.Now()
 		return trxRepo.ActivateSubscription(ctx, domain.UserSubscription{
 			UserID:              order.UserID,
 			PlanID:              order.PlanID,
-			SubscriptionOrderID: order.ID,
+			SubscriptionOrderID: &webhookOrderID,
 			StartDate:           now,
 			EndDate:             now.AddDate(0, 0, int(plan.DurationDays)),
 			IsActive:            true,

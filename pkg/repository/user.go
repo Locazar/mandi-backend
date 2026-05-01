@@ -421,3 +421,13 @@ func (c *userDatabase) GetShopSocialDetails(ctx context.Context, shopID uint) ([
 	}
 	return details, nil
 }
+
+func (c *userDatabase) UpdateTrialUsed(ctx context.Context, userID uint) error {
+	return c.DB.Exec("UPDATE users SET trial_used = true WHERE id = $1", userID).Error
+}
+
+func (c *userDatabase) IsTrialUsed(ctx context.Context, userID uint) (bool, error) {
+	var trialUsed bool
+	err := c.DB.Raw("SELECT trial_used FROM users WHERE id = $1", userID).Scan(&trialUsed).Error
+	return trialUsed, err
+}

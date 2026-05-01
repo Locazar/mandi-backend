@@ -14,6 +14,7 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 	branHandler handlerInterface.BrandHandler, notificationHandler handlerInterface.NotificationHandler,
 	promotionHandler handlerInterface.PromotionHandler,
 	subscriptionPaymentHandler handlerInterface.SubscriptionPaymentHandler,
+	subscriptionHandler handlerInterface.SubscriptionHandler,
 ) {
 
 	auth := api.Group("/auth")
@@ -337,6 +338,9 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 			subscription.POST("/create-order", subscriptionPaymentHandler.CreateSubscriptionOrder)
 			subscription.POST("/verify-payment", subscriptionPaymentHandler.VerifySubscriptionPayment)
 			subscription.POST("/payment-failed", subscriptionPaymentHandler.HandlePaymentFailure)
+			subscription.GET("/status", subscriptionHandler.GetSubscriptionStatus)
+			subscription.POST("/start-trial", subscriptionHandler.StartTrial)
+			subscription.GET("/plans", subscriptionHandler.GetPaidPlans)
 		}
 	}
 }

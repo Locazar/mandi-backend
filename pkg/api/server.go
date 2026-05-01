@@ -44,6 +44,7 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware middlewa
 	notificationHandler handlerInterface.NotificationHandler, promotionHandler handlerInterface.PromotionHandler,
 	fcmTokenHandler handlerInterface.FcmTokenHandler,
 	subscriptionPaymentHandler handlerInterface.SubscriptionPaymentHandler,
+	subscriptionHandler handlerInterface.SubscriptionHandler,
 ) *ServerHTTP {
 
 	engine := gin.New()
@@ -150,7 +151,7 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware middlewa
 
 	// set up routes
 	routes.UserRoutes(engine.Group("/api"), authHandler, middleware, userHandler, cartHandler,
-		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler, notificationHandler, promotionHandler, subscriptionPaymentHandler)
+		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler, notificationHandler, promotionHandler, subscriptionPaymentHandler, subscriptionHandler)
 	routes.AdminRoutes(engine.Group("/api/admin"), authHandler, middleware, adminHandler,
 		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler, promotionHandler, fcmTokenHandler, notificationHandler)
 

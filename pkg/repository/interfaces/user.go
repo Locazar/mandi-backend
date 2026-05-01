@@ -44,4 +44,6 @@ type UserRepository interface {
 	DeleteRefreshSessionByUserID(ctx context.Context, adminID string, userType string) error
 	FindShopByID(ctx context.Context, shopID uint) (response.Shop, error)
 	GetShopSocialDetails(ctx context.Context, shopID uint) ([]domain.ShopSocial, error)
+	UpdateTrialUsed(ctx context.Context, userID uint) error
+	IsTrialUsed(ctx context.Context, userID uint) (bool, error)
 }

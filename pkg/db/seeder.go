@@ -59,3 +59,19 @@ func SeedSubscriptionPlans(db *gorm.DB) error {
 	log.Println("Successfully seeded SubscriptionPlan data")
 	return nil
 }
+
+// SeedFreeTrialPlan inserts the Free Trial plan if it doesn't exist (additive, safe on existing DBs).
+func SeedFreeTrialPlan(db *gorm.DB) error {
+	plan := domain.SubscriptionPlan{
+		Name:         "Free Trial",
+		PriceMonthly: 0,
+		DurationDays: 90,
+		IsActive:     true,
+	}
+	result := db.Where("name = ?", plan.Name).FirstOrCreate(&plan)
+	if result.Error != nil {
+		return result.Error
+	}
+	log.Println("Free Trial plan seeded")
+	return nil
+}

@@ -119,6 +119,8 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		wire.Bind(new(usecaseinterfaces.FcmTokenUseCase), new(*usecase.fcmTokenUseCase)),
 		usecase.NewSubscriptionPaymentUseCase,
 		wire.Bind(new(usecaseinterfaces.SubscriptionPaymentUseCase), new(*usecase.subscriptionPaymentUseCase)),
+		usecase.NewSubscriptionUseCase,
+		wire.Bind(new(usecaseinterfaces.SubscriptionUseCase), new(*usecase.subscriptionUseCase)),
 
 		// handler
 		handler.NewAuthHandler,
@@ -151,6 +153,8 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		wire.Bind(new(interfaces.FcmTokenHandler), new(*handler.FcmTokenHandler)),
 		handler.NewSubscriptionPaymentHandler,
 		wire.Bind(new(interfaces.SubscriptionPaymentHandler), new(*handler.subscriptionPaymentHandler)),
+		handler.NewSubscriptionHandler,
+		wire.Bind(new(interfaces.SubscriptionHandler), new(*handler.subscriptionHandler)),
 
 		http.NewServerHTTP,
 	)

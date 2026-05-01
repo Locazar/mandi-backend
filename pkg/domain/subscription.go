@@ -35,7 +35,8 @@ type UserSubscription struct {
 	ID                  uint      `json:"id" gorm:"primaryKey;not null"`
 	UserID              uint      `json:"user_id" gorm:"not null;index"`
 	PlanID              uint      `json:"plan_id" gorm:"not null"`
-	SubscriptionOrderID uint      `json:"subscription_order_id" gorm:"not null"`
+	SubscriptionOrderID *uint     `json:"subscription_order_id"`
+	IsTrial             bool      `json:"is_trial" gorm:"not null;default:false"`
 	StartDate           time.Time `json:"start_date" gorm:"not null"`
 	EndDate             time.Time `json:"end_date" gorm:"not null"`
 	IsActive            bool      `json:"is_active" gorm:"not null;default:true"`

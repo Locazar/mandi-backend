@@ -19,3 +19,19 @@ type SubscriptionVerificationResponse struct {
 	Plan        string `json:"plan"`
 	ActivatedAt string `json:"activated_at,omitempty"`
 }
+
+type SubscriptionStatusResponse struct {
+	Status        string `json:"status"`
+	PlanName      string `json:"plan_name,omitempty"`
+	StartDate     string `json:"start_date,omitempty"`
+	EndDate       string `json:"end_date,omitempty"`
+	DaysRemaining int    `json:"days_remaining"`
+	IsTrial       bool   `json:"is_trial"`
+}
+
+type SubscriptionPlanResponse struct {
+	ID           uint   `json:"id"`
+	Name         string `json:"name"`
+	PriceMonthly uint   `json:"price_monthly"`
+	DurationDays uint   `json:"duration_days"`
+}

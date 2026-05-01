@@ -162,5 +162,9 @@ func ConnectDatabase(cfg config.Config) (*gorm.DB, error) {
 		log.Printf("Warning: failed to seed subscription plans: %v. Continuing.", err)
 	}
 
+	if err := SeedFreeTrialPlan(db); err != nil {
+		log.Printf("Warning: failed to seed free trial plan: %v. Continuing.", err)
+	}
+
 	return db, nil
 }

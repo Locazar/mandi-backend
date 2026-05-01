@@ -67,8 +67,26 @@ func (r *subscriptionDatabase) FindActiveSubscriptionByUserID(ctx context.Contex
 	return sub, err
 }
 
+func (r *subscriptionDatabase) FindSubscriptionPlanByName(ctx context.Context, name string) (domain.SubscriptionPlan, error) {
+	var plan domain.SubscriptionPlan
+	err := r.db.Where("name = ?", name).First(&plan).Error
+	return plan, err
+}
+
+func (r *subscriptionDatabase) FindPaidSubscriptionPlans(ctx context.Context) ([]domain.SubscriptionPlan, error) {
+	var plans []domain.SubscriptionPlan
+	err := r.db.Where("price_monthly > 0 AND is_active = true").Find(&plans).Error
+	return plans, err
+}
+
 func (r *subscriptionDatabase) ActivateSubscription(ctx context.Context, sub domain.UserSubscription) error {
 	return r.db.Create(&sub).Error
+}
+
+func (r *subscriptionDatabase) DeactivateTrialSubscription(ctx context.Context, userID uint) error {
+	return r.db.Model(&domain.UserSubscription{}).
+		Where("user_id = ? AND is_trial = ? AND is_active = ?", userID, true, true).
+		Update("is_active", false).Error
 }
 
 func (r *subscriptionDatabase) Transaction(fn func(repo interfaces.SubscriptionRepository) error) error {
