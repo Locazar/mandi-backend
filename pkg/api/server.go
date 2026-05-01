@@ -49,24 +49,12 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware middlewa
 
 	engine := gin.New()
 
-	engine.RedirectTrailingSlash = true
+	engine.RedirectTrailingSlash = false
 
 	engine.LoadHTMLGlob("views/*.html")
 
 	engine.Use(gin.Logger())
 	engine.Use(utils.RecoveryMiddleware())
-
-	// CORS
-	engine.Use(func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Authorization")
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
-		}
-		c.Next()
-	})
 
 	// swagger docs
 	engine.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
