@@ -124,6 +124,11 @@ func ConnectDatabase(cfg config.Config) (*gorm.DB, error) {
 		domain.ShopTime{},
 		// Shop social (followers, ratings, reviews)
 		domain.ShopSocial{},
+
+		// Subscriptions
+		domain.SubscriptionPlan{},
+		domain.SubscriptionOrder{},
+		domain.UserSubscription{},
 	)
 
 	if err != nil {
@@ -151,6 +156,10 @@ func ConnectDatabase(cfg config.Config) (*gorm.DB, error) {
 
 	if err := SeedCountries(db); err != nil {
 		log.Printf("Warning: failed to seed countries: %v. Continuing.", err)
+	}
+
+	if err := SeedSubscriptionPlans(db); err != nil {
+		log.Printf("Warning: failed to seed subscription plans: %v. Continuing.", err)
 	}
 
 	return db, nil

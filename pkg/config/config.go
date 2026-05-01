@@ -24,8 +24,9 @@ type Config struct {
 	TwilioAccountSID string `mapstructure:"ACCOUNT_SID"`
 	TwilioServiceID  string `mapstructure:"SERVICE_SID"`
 
-	RazorPayKey    string `mapstructure:"RAZOR_PAY_KEY"`
-	RazorPaySecret string `mapstructure:"RAZOR_PAY_SECRET"`
+	RazorPayKey           string `mapstructure:"RAZOR_PAY_KEY"`
+	RazorPaySecret        string `mapstructure:"RAZOR_PAY_SECRET"`
+	RazorPayWebhookSecret string `mapstructure:"RAZORPAY_WEBHOOK_SECRET"`
 
 	StripSecretKey      string `mapstructure:"STRIPE_SECRET"`
 	StripPublishKey     string `mapstructure:"STRIPE_PUBLISH_KEY"`
@@ -66,7 +67,7 @@ var envsNames = []string{
 	"DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD", "DB_PORT", // database
 	"ADMIN_AUTH_KEY", "USER_AUTH_KEY", // token auth
 	"AUTH_TOKEN", "ACCOUNT_SID", "SERVICE_SID", // twilio
-	"RAZOR_PAY_KEY", "RAZOR_PAY_SECRET", // razor pay
+	"RAZOR_PAY_KEY", "RAZOR_PAY_SECRET", "RAZORPAY_WEBHOOK_SECRET", // razor pay
 	"STRIPE_SECRET", "STRIPE_PUBLISH_KEY", "STRIPE_WEBHOOK", // stripe
 	"GOAUTH_CLIENT_ID", "GOAUTH_CLIENT_SECRET", "GOAUTH_CALL_BACK_URL", //goath
 	"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_REGION", "AWS_BUCKET_NAME", // aws s3

@@ -43,16 +43,29 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware middlewa
 	stockHandler handlerInterface.StockHandler, branHandler handlerInterface.BrandHandler,
 	notificationHandler handlerInterface.NotificationHandler, promotionHandler handlerInterface.PromotionHandler,
 	fcmTokenHandler handlerInterface.FcmTokenHandler,
+	subscriptionPaymentHandler handlerInterface.SubscriptionPaymentHandler,
 ) *ServerHTTP {
 
 	engine := gin.New()
 
-	engine.RedirectTrailingSlash = false
+	engine.RedirectTrailingSlash = true
 
 	engine.LoadHTMLGlob("views/*.html")
 
 	engine.Use(gin.Logger())
 	engine.Use(utils.RecoveryMiddleware())
+
+	// CORS
+	engine.Use(func(c *gin.Context) {
+		c.Header("Access-Control-Allow-Origin", "*")
+		c.Header("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS")
+		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Authorization")
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+		c.Next()
+	})
 
 	// swagger docs
 	engine.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
@@ -137,8 +150,7 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware middlewa
 
 	// set up routes
 	routes.UserRoutes(engine.Group("/api"), authHandler, middleware, userHandler, cartHandler,
-
-		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler, notificationHandler, promotionHandler)
+		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler, notificationHandler, promotionHandler, subscriptionPaymentHandler)
 	routes.AdminRoutes(engine.Group("/api/admin"), authHandler, middleware, adminHandler,
 		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler, promotionHandler, fcmTokenHandler, notificationHandler)
 

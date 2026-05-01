@@ -83,6 +83,8 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		wire.Bind(new(repointerfaces.BannerRepository), new(*repository.bannerRepository)),
 		repository.NewFcmTokenRepository,
 		wire.Bind(new(repointerfaces.FcmTokenRepository), new(*repository.fcmTokenRepository)),
+		repository.NewSubscriptionRepository,
+		wire.Bind(new(repointerfaces.SubscriptionRepository), new(*repository.subscriptionDatabase)),
 
 		//usecase
 		usecase.NewAuthUseCase,
@@ -115,6 +117,8 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		wire.Bind(new(usecaseinterfaces.ShopTimeUseCase), new(*usecase.shopTimeUseCase)),
 		usecase.NewFcmTokenUseCase,
 		wire.Bind(new(usecaseinterfaces.FcmTokenUseCase), new(*usecase.fcmTokenUseCase)),
+		usecase.NewSubscriptionPaymentUseCase,
+		wire.Bind(new(usecaseinterfaces.SubscriptionPaymentUseCase), new(*usecase.subscriptionPaymentUseCase)),
 
 		// handler
 		handler.NewAuthHandler,
@@ -145,6 +149,8 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		wire.Bind(new(interfaces.PromotionHandler), new(*handler.PromotionHandler)),
 		handler.NewFcmTokenHandler,
 		wire.Bind(new(interfaces.FcmTokenHandler), new(*handler.FcmTokenHandler)),
+		handler.NewSubscriptionPaymentHandler,
+		wire.Bind(new(interfaces.SubscriptionPaymentHandler), new(*handler.subscriptionPaymentHandler)),
 
 		http.NewServerHTTP,
 	)

@@ -13,7 +13,7 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 	offerHandle handlerInterface.OfferHandler, stockHandler handlerInterface.StockHandler,
 	branHandler handlerInterface.BrandHandler, notificationHandler handlerInterface.NotificationHandler,
 	promotionHandler handlerInterface.PromotionHandler,
-
+	subscriptionPaymentHandler handlerInterface.SubscriptionPaymentHandler,
 ) {
 
 	auth := api.Group("/auth")
@@ -45,6 +45,9 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 		// api.POST("/logout")
 
 	}
+
+	// Razorpay webhook — public, no auth middleware
+	api.POST("/webhook/razorpay", subscriptionPaymentHandler.HandleWebhook)
 
 	api.Use(middleware.AuthenticateUser())
 	{
@@ -326,6 +329,14 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 			promotion.GET("/", promotionHandler.GetAllPromotions)
 			promotion.GET("/:promotion_id", promotionHandler.GetPromotionByID)
 			promotion.DELETE("/:promotion_id", promotionHandler.DeletePromotion)
+		}
+
+		// Subscription payments
+		subscription := api.Group("/subscriptions")
+		{
+			subscription.POST("/create-order", subscriptionPaymentHandler.CreateSubscriptionOrder)
+			subscription.POST("/verify-payment", subscriptionPaymentHandler.VerifySubscriptionPayment)
+			subscription.POST("/payment-failed", subscriptionPaymentHandler.HandlePaymentFailure)
 		}
 	}
 }
