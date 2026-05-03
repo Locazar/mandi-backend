@@ -64,6 +64,7 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 			}
 
 			product.GET("/search", productHandler.SearchProducts)
+			product.POST("/visual-search", productHandler.VisualSearchProducts)
 			product.GET("/suggestions", productHandler.GetProductSearchSuggestions)
 			product.GET("/filters", productHandler.GetProductSearchFilters)
 			product.GET("/locations", productHandler.GetProductSearchLocations)

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1440,6 +1441,179 @@ func (h *ProductHandler) SearchProducts(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"products": products})
+}
+
+// visualSearchRequest is the JSON body for VisualSearchProducts.
+type visualSearchRequest struct {
+	ImageBase64   string  `json:"image_base64" binding:"required"`
+	MinConfidence float64 `json:"min_confidence"`
+}
+
+// VisualSearchProducts godoc
+//
+//	@Summary		Visual product search via object detection
+//	@Security		BearerAuth
+//	@Description	Accepts a base64-encoded JPEG image, detects the most prominent object using the AI service, and returns matching products. Falls back from label-level to category-level matching when no label results are found.
+//	@ID				VisualSearchProducts
+//	@Tags			User Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			body		body	visualSearchRequest	true	"Image and search options"
+//	@Param			category_id	query	string	false	"Category ID filter"
+//	@Param			brand_id	query	string	false	"Brand ID filter"
+//	@Param			location_id	query	string	false	"Location ID filter"
+//	@Param			shop_id		query	string	false	"Shop ID filter"
+//	@Param			lat			query	float64	false	"Latitude for geolocation search"
+//	@Param			long		query	float64	false	"Longitude for geolocation search"
+//	@Param			radius		query	float64	false	"Radius in kilometers"
+//	@Param			pincode		query	uint	false	"Pincode for location-based search"
+//	@Param			limit		query	int		false	"Limit (default 20)"
+//	@Param			offset		query	int		false	"Offset (default 0)"
+//	@Router			/products/visual-search [post]
+//	@Success		200	{object}	response.Response{}	"Visual search completed"
+//	@Failure		400	{object}	response.Response{}	"Invalid request"
+//	@Failure		503	{object}	response.Response{}	"AI service unavailable"
+func (h *ProductHandler) VisualSearchProducts(c *gin.Context) {
+	var req visualSearchRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "Invalid request body", err, nil)
+		return
+	}
+
+	// Default min_confidence to 0.7 when not provided
+	minConfidence := req.MinConfidence
+	if minConfidence <= 0 {
+		minConfidence = 0.7
+	}
+
+	// Validate JPEG magic bytes (FF D8 FF) before forwarding to AI service
+	imgBytes, err := base64.StdEncoding.DecodeString(req.ImageBase64)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "Invalid base64 encoding", err, nil)
+		return
+	}
+	if len(imgBytes) < 3 || imgBytes[0] != 0xFF || imgBytes[1] != 0xD8 || imgBytes[2] != 0xFF {
+		response.ErrorResponse(c, http.StatusBadRequest, "Invalid image format: only JPEG images are supported", nil, nil)
+		return
+	}
+
+	// Parse optional product filters (same params as SearchProducts)
+	var catIDPtr, brandIDPtr, locIDPtr, shopIDPtr *string
+	if cid := c.Query("category_id"); cid != "" {
+		if _, parseErr := strconv.ParseUint(cid, 10, 64); parseErr == nil {
+			s := cid
+			catIDPtr = &s
+		}
+	}
+	if bid := c.Query("brand_id"); bid != "" {
+		if _, parseErr := strconv.ParseUint(bid, 10, 64); parseErr == nil {
+			s := bid
+			brandIDPtr = &s
+		}
+	}
+	if lid := c.Query("location_id"); lid != "" {
+		if _, parseErr := strconv.ParseUint(lid, 10, 64); parseErr == nil {
+			s := lid
+			locIDPtr = &s
+		}
+	}
+	if sid := c.Query("shop_id"); sid != "" {
+		if _, parseErr := strconv.ParseUint(sid, 10, 64); parseErr == nil {
+			s := sid
+			shopIDPtr = &s
+		}
+	}
+
+	var latitude, longitude, radius float64
+	if latStr := c.Query("lat"); latStr != "" {
+		if lat, parseErr := strconv.ParseFloat(latStr, 64); parseErr == nil {
+			latitude = lat
+		}
+	}
+	lngStr := c.Query("lng")
+	if lngStr == "" {
+		lngStr = c.Query("long")
+	}
+	if lngStr != "" {
+		if lng, parseErr := strconv.ParseFloat(lngStr, 64); parseErr == nil {
+			longitude = lng
+		}
+	}
+	if radiusStr := c.Query("radius"); radiusStr != "" {
+		if r, parseErr := strconv.ParseFloat(radiusStr, 64); parseErr == nil {
+			radius = r
+		}
+	}
+
+	var pincode *uint
+	if pincodeStr := c.Query("pincode"); pincodeStr != "" {
+		if p, parseErr := strconv.ParseUint(pincodeStr, 10, 32); parseErr == nil {
+			pincodeVal := uint(p)
+			pincode = &pincodeVal
+		}
+	}
+
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	if limit <= 0 {
+		limit = 20
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	// Call ai-service object detection
+	detected, err := h.aiClient.DetectObjects(req.ImageBase64)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusServiceUnavailable, "AI service unavailable", err, nil)
+		return
+	}
+
+	// Return empty results when confidence is below threshold
+	if detected.Confidence < minConfidence {
+		response.SuccessResponse(c, http.StatusOK, "Detection confidence too low", response.VisualSearchResponse{
+			DetectedObject: response.DetectedObject{
+				Label:      detected.Label,
+				Category:   detected.Category,
+				Confidence: detected.Confidence,
+			},
+			Products: []response.ProductItems{},
+			Limit:    limit,
+			Offset:   offset,
+		})
+		return
+	}
+
+	// Primary search: match by detected object label
+	products, err := h.productUseCase.SearchProducts(c, detected.Label, catIDPtr, brandIDPtr, locIDPtr, shopIDPtr, latitude, longitude, radius, pincode, limit, offset)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "Failed to search products", err, nil)
+		return
+	}
+
+	// Fallback: match by detected category when label search returns nothing
+	if len(products) == 0 && detected.Category != "" {
+		products, err = h.productUseCase.SearchProducts(c, detected.Category, catIDPtr, brandIDPtr, locIDPtr, shopIDPtr, latitude, longitude, radius, pincode, limit, offset)
+		if err != nil {
+			response.ErrorResponse(c, http.StatusInternalServerError, "Failed to search products", err, nil)
+			return
+		}
+	}
+
+	if products == nil {
+		products = []response.ProductItems{}
+	}
+
+	response.SuccessResponse(c, http.StatusOK, "Visual search completed", response.VisualSearchResponse{
+		DetectedObject: response.DetectedObject{
+			Label:      detected.Label,
+			Category:   detected.Category,
+			Confidence: detected.Confidence,
+		},
+		Products: products,
+		Limit:    limit,
+		Offset:   offset,
+	})
 }
 
 // GetProductSearchSuggestions godoc

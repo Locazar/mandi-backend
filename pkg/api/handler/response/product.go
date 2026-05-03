@@ -283,3 +283,18 @@ type OffersAndPromotions struct {
 	Offers     []domain.Offer `json:"offers"`
 	Promotions []Promotion    `json:"promotions"`
 }
+
+// DetectedObject contains the AI-detected object information returned alongside visual search results.
+type DetectedObject struct {
+	Label      string  `json:"label"`
+	Category   string  `json:"category"`
+	Confidence float64 `json:"confidence"`
+}
+
+// VisualSearchResponse is the response shape for POST /api/products/visual-search.
+type VisualSearchResponse struct {
+	DetectedObject DetectedObject `json:"detected_object"`
+	Products       []ProductItems `json:"products"`
+	Limit          int            `json:"limit"`
+	Offset         int            `json:"offset"`
+}

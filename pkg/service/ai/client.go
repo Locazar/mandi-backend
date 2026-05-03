@@ -202,6 +202,61 @@ func (c *Client) GenerateEmbeddings(texts []string) (*BatchEmbeddingResponse, er
 	return &batchResp, nil
 }
 
+// ObjectDetectionRequest is the request body for object detection
+type ObjectDetectionRequest struct {
+	ImageBase64 string `json:"image_base64"`
+	DetectAll   bool   `json:"detect_all"`
+}
+
+// DetectedObject represents a single detected object
+type DetectedObject struct {
+	Label      string  `json:"label"`
+	Category   string  `json:"category"`
+	Color      string  `json:"color"`
+	Material   string  `json:"material"`
+	Brand      string  `json:"brand"`
+	Confidence float64 `json:"confidence"`
+}
+
+// ObjectDetectionResponse is the response for object detection
+type ObjectDetectionResponse struct {
+	Objects []DetectedObject `json:"objects"`
+}
+
+// DetectObjects calls the detect-objects endpoint and returns the most prominent detected object.
+// detect_all is always false — only the single most prominent object is returned.
+func (c *Client) DetectObjects(imageBase64 string) (*DetectedObject, error) {
+	req := ObjectDetectionRequest{
+		ImageBase64: imageBase64,
+		DetectAll:   false,
+	}
+
+	var result ServiceResponse
+	if err := c.post("/api/ai/detect-objects", req, &result); err != nil {
+		return nil, err
+	}
+
+	if !result.Success {
+		return nil, fmt.Errorf("object detection failed: %s", result.Error)
+	}
+
+	dataBytes, err := json.Marshal(result.Data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	var detectionResp ObjectDetectionResponse
+	if err := json.Unmarshal(dataBytes, &detectionResp); err != nil {
+		return nil, fmt.Errorf("failed to parse detection response: %w", err)
+	}
+
+	if len(detectionResp.Objects) == 0 {
+		return nil, fmt.Errorf("no objects detected in image")
+	}
+
+	return &detectionResp.Objects[0], nil
+}
+
 // HealthCheck checks if the AI service is healthy
 func (c *Client) HealthCheck() error {
 	resp, err := c.httpClient.Get(c.baseURL + "/api/health")

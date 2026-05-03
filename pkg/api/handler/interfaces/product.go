@@ -77,4 +77,5 @@ type ProductHandler interface {
 	GetProductItemViewCount(ctx *gin.Context)
 
 	GetProductItemsByOfferID(ctx *gin.Context)
+	VisualSearchProducts(ctx *gin.Context)
 }
