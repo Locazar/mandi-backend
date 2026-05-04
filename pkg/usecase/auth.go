@@ -355,6 +355,8 @@ func (c *authUseCase) SingUpOtpVerify(ctx context.Context,
 	otpVerifyDetails request.OTPVerify) (userID uint, err error) {
 
 	otpSession, err := c.authRepo.FindOtpSession(ctx, otpVerifyDetails.OtpID)
+
+	fmt.Printf("otp session details: %+v\n", otpSession)
 	if err != nil {
 		return 0, utils.PrependMessageToError(err, "failed to find otp session from database")
 	}

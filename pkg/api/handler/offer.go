@@ -507,11 +507,29 @@ func (c *offerHandler) PostLoginOffer(ctx *gin.Context) {
 // @summary api to get banners
 // @id GetBanners
 // @tags Offer
+// @Param department_id query string false "Department ID"
+// @Param category_id query string false "Category ID"
 // @Router /banner [get]
 // @Success 200 {object} response.Response{} "successfully retrieved banners"
 // @Failure 500 {object} response.Response{} "failed to get banners"
 func (c *offerHandler) GetBanners(ctx *gin.Context) {
-	banners, err := c.offerUseCase.GetBanners(ctx)
+	// Parse optional department_id and category_id parameters
+	var departmentID *string
+	var categoryID *string
+
+	if deptIDStr := ctx.Query("department_id"); deptIDStr != "" {
+		if _, err := strconv.ParseUint(deptIDStr, 10, 64); err == nil {
+			departmentID = &deptIDStr
+		}
+	}
+
+	if catIDStr := ctx.Query("category_id"); catIDStr != "" {
+		if _, err := strconv.ParseUint(catIDStr, 10, 64); err == nil {
+			categoryID = &catIDStr
+		}
+	}
+
+	banners, err := c.offerUseCase.GetBanners(ctx, departmentID, categoryID)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get banners", err, nil)
 		return

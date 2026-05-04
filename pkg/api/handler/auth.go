@@ -260,7 +260,6 @@ func (c *AuthHandler) UserSignUpVerify(ctx *gin.Context) {
 			statusCode = http.StatusInternalServerError
 		}
 		response.ErrorResponse(ctx, statusCode, "Failed to verify otp", err, nil)
-		return
 	}
 
 	c.setupTokenAndResponse(ctx, token.User, userID)
@@ -347,6 +346,7 @@ func (c *AuthHandler) setupTokenAndResponse(ctx *gin.Context, tokenUser token.Us
 	tokenRes := response.TokenResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
+		UserID:       userID,
 	}
 
 	// Merge custom response with token response if provided

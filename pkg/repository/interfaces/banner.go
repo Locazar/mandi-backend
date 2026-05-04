@@ -7,5 +7,5 @@ import (
 )
 
 type BannerRepository interface {
-	GetActiveBanners(ctx context.Context) ([]domain.Banner, error)
+	GetActiveBanners(ctx context.Context, departmentID, categoryID *string) ([]domain.Banner, error)
 }

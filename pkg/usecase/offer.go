@@ -489,9 +489,9 @@ func (c *offerUseCase) GetPostLoginOffer(ctx context.Context, userID uint) (resp
 	}, nil
 }
 
-// GetBanners returns active banners
-func (c *offerUseCase) GetBanners(ctx context.Context) ([]response.Banner, error) {
-	banners, err := c.bannerRepo.GetActiveBanners(ctx)
+// GetBanners returns active banners filtered by optional department_id and category_id
+func (c *offerUseCase) GetBanners(ctx context.Context, departmentID, categoryID *string) ([]response.Banner, error) {
+	banners, err := c.bannerRepo.GetActiveBanners(ctx, departmentID, categoryID)
 	if err != nil {
 		return nil, err
 	}

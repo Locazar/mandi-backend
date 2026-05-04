@@ -18,8 +18,17 @@ func NewBannerRepository(db *gorm.DB) repo.BannerRepository {
 	}
 }
 
-func (r *bannerRepository) GetActiveBanners(ctx context.Context) ([]domain.Banner, error) {
+func (r *bannerRepository) GetActiveBanners(ctx context.Context, departmentID, categoryID *string) ([]domain.Banner, error) {
 	var banners []domain.Banner
-	err := r.db.WithContext(ctx).Where("active = ?", true).Find(&banners).Error
+	query := r.db.WithContext(ctx).Where("active = ?", true)
+
+	if departmentID != nil && *departmentID != "" {
+		query = query.Where("department_id = ?", *departmentID)
+	}
+	if categoryID != nil && *categoryID != "" {
+		query = query.Where("category_id = ?", *categoryID)
+	}
+
+	err := query.Find(&banners).Error
 	return banners, err
 }
