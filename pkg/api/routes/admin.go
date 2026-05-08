@@ -13,7 +13,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 	stockHandler handlerInterface.StockHandler, branHandler handlerInterface.BrandHandler,
 	promotionHandler handlerInterface.PromotionHandler, fcmTokenHandler handlerInterface.FcmTokenHandler,
 	notificationHandler handlerInterface.NotificationHandler,
-	alertHandler handlerInterface.AlertHandler,
+	alertHandler handlerInterface.AlertHandler, uiHandler handlerInterface.UIHandler,
 ) {
 
 	auth := api.Group("/auth")
@@ -54,19 +54,22 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 	// Web views for admin interface
 	web := api.Group("/web")
 	{
-		web.GET("/login", func(c *gin.Context) {
-			c.HTML(200, "goauth.html", nil)
-		})
-		web.GET("/payment", func(c *gin.Context) {
-			c.HTML(200, "paymentForm.html", nil)
-		})
-		web.GET("/dashboard", func(c *gin.Context) {
-			c.HTML(200, "dashboard.html", nil)
-		})
-		web.GET("/ui", func(c *gin.Context) {
-			c.HTML(200, "dashboard.html", nil)
-		})
+		web.POST("/ui", uiHandler.SellerUIEndpoint)
 	}
+	// {
+	// 	web.GET("/login", func(c *gin.Context) {
+	// 		c.HTML(200, "goauth.html", nil)
+	// 	})
+	// 	web.GET("/payment", func(c *gin.Context) {
+	// 		c.HTML(200, "goauth.html", nil)
+	// 	})
+	// 	web.GET("/dashboard", func(c *gin.Context) {
+	// 		c.HTML(200, "goauth.html", nil)
+	// 	})
+	// 	web.GET("/ui", func(c *gin.Context) {
+	// 		c.HTML(200, "goauth.html", nil)
+	// 	})
+	// }
 
 	api.Use(middleware.AuthenticateAdmin())
 	{

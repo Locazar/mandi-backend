@@ -98,7 +98,10 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	ruleRegistry := provideAlertRuleRegistry()
 	alertUseCaseImpl := usecase.NewAlertUseCase(alertRepositoryImpl, ruleRegistry)
 	alertHandler := handler.NewAlertHandler(alertUseCaseImpl, adminUseCase)
-	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler)
+	uiHandler := handler.NewUIHandler(adminUseCase)
+	bannerUseCase := usecase.NewBannerUseCase(bannerRepository)
+	bannerUserHandler := handler.NewBannerUserHandler(bannerUseCase)
+	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, bannerUserHandler)
 	return serverHTTP, nil
 }
 

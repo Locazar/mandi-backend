@@ -1,21 +1,154 @@
-<!-- templates/index.html -->
 <!doctype html>
 <html>
 <head>
-    <title>Google SignIn</title>
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"> <!-- load bulma css -->
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css"> <!-- load fontawesome -->
+    <title>Seller Onboarding</title>
+
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+
     <style>
-        body        { padding-top:70px; }
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            height: 100vh;
+            color: #fff;
+        }
+
+        .main-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            padding: 20px;
+        }
+
+        .glass-card {
+            display: flex;
+            max-width: 1100px;
+            width: 100%;
+            border-radius: 20px;
+            overflow: hidden;
+            backdrop-filter: blur(20px);
+            background: rgba(255,255,255,0.1);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+
+        .left-section {
+            flex: 1;
+            padding: 50px;
+        }
+
+        .left-section h1 {
+            font-size: 42px;
+            font-weight: 700;
+        }
+
+        .left-section p {
+            margin-top: 20px;
+            font-size: 18px;
+            opacity: 0.9;
+        }
+
+        .btn-google {
+            margin-top: 30px;
+            padding: 12px 25px;
+            font-size: 18px;
+            border-radius: 30px;
+            background: #fff;
+            color: #333;
+            font-weight: 600;
+            transition: 0.3s;
+        }
+
+        .btn-google:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+        }
+
+        .features {
+            margin-top: 40px;
+        }
+
+        .feature {
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        .right-section {
+            flex: 1;
+            background: rgba(255,255,255,0.05);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 30px;
+        }
+
+        .right-section img {
+            width: 250px;
+            margin-bottom: 20px;
+        }
+
+        .video iframe {
+            border-radius: 15px;
+            width: 100%;
+            height: 220px;
+        }
+
+        @media(max-width: 768px){
+            .glass-card {
+                flex-direction: column;
+            }
+        }
     </style>
 </head>
+
 <body>
-<div class="container">
-    <div class="jumbotron text-center text-dark">
-        <h1>Google Authentication</h1>
-        <!-- using query parameter as google   -->
-        <a href="/api/auth/google-auth/initialize/?provider=google" class="btn btn-danger"><span class="fa fa-google"></span> SignIn with Google</a>
+
+<div class="main-container">
+
+    <div class="glass-card">
+
+        <!-- LEFT -->
+        <div class="left-section">
+
+            <h1>Turn Your Shop Into a Growth Engine 🚀</h1>
+
+            <p>
+                Reach nearby customers, boost visibility, and generate consistent sales —
+                all from one powerful platform.
+            </p>
+
+            <a href="/api/auth/google-auth/initialize/?provider=google" class="btn btn-google">
+                <span class="fa fa-google"></span> Continue with Google
+            </a>
+
+            <div class="features">
+                <div class="feature">⚡ Instant shop visibility</div>
+                <div class="feature">📍 Local customer targeting</div>
+                <div class="feature">🔒 Secure & verified onboarding</div>
+            </div>
+
+        </div>
+
+        <!-- RIGHT -->
+        <div class="right-section">
+
+            <!-- GIF -->
+            <img src="https://media.giphy.com/media/QBd2kLB5qDmysEXre9/giphy.gif" alt="Growth">
+
+            <!-- VIDEO -->
+            <div class="video">
+                <iframe src="https://www.youtube.com/embed/ysz5S6PUM-U"
+                    frameborder="0" allowfullscreen></iframe>
+            </div>
+
+        </div>
+
     </div>
+
 </div>
+
 </body>
-</html> 
+</html>

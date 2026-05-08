@@ -172,6 +172,8 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		wire.Bind(new(interfaces.SearchHandler), new(*handler.SearchHandler)),
 		handler.NewAlertHandler,
 		wire.Bind(new(interfaces.AlertHandler), new(*handler.AlertHandler)),
+		handler.NewUIHandler,
+		wire.Bind(new(interfaces.UIHandler), new(*handler.UIHandler)),
 
 		http.NewServerHTTP,
 	)
