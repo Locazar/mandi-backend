@@ -473,13 +473,17 @@ func (c *userDatabase) SearchShopList(ctx context.Context, reqData request.Searc
 			sd.shop_verification_status,
 			%s,
 			CASE
-				WHEN st.status = 'open' AND CURRENT_TIME::time BETWEEN st.open_time::time AND st.close_time::time THEN true
+				WHEN st.status = 'open' AND (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::time BETWEEN st.open_time::time AND st.close_time::time THEN true
 				ELSE false
 			END AS is_open,
 			sd.created_at,
 			sd.updated_at
 		FROM shop_details sd
-		LEFT JOIN shop_times st ON st.shop_id = sd.id
+		LEFT JOIN (
+			SELECT DISTINCT ON (shop_id) *
+			FROM shop_times
+			ORDER BY shop_id, id DESC
+		) st ON st.shop_id = sd.id
 		%s
 		%s
 		LIMIT $%d OFFSET $%d
@@ -505,9 +509,24 @@ func (c *userDatabase) DeleteRefreshSessionByUserID(ctx context.Context, userId 
 func (c *userDatabase) FindShopByID(ctx context.Context, shopID uint) (response.Shop, error) {
 
 	var shop response.Shop
-	query := `SELECT id, shop_name, email, phone, address_line1, address_line2, city, state, country, pincode,
-	shop_type, shop_verification_status, shop_image_url, latitude, longitude, created_at, updated_at
-	FROM shop_details WHERE id = $1`
+	query := `
+		SELECT
+			sd.id, sd.shop_name, sd.email, sd.phone,
+			sd.address_line1, sd.address_line2, sd.city, sd.state, sd.country, sd.pincode,
+			sd.shop_type, sd.shop_verification_status, sd.shop_image_url,
+			sd.latitude, sd.longitude,
+			sd.created_at, sd.updated_at,
+			CASE
+				WHEN st.status = 'open' AND (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::time BETWEEN st.open_time::time AND st.close_time::time THEN true
+				ELSE false
+			END AS is_open
+		FROM shop_details sd
+		LEFT JOIN (
+			SELECT DISTINCT ON (shop_id) *
+			FROM shop_times
+			ORDER BY shop_id, id DESC
+		) st ON st.shop_id = sd.id
+		WHERE sd.id = $1`
 	if c.DB.Raw(query, shopID).Scan(&shop).Error != nil {
 		return shop, errors.New("failed to find shop by ID")
 	}

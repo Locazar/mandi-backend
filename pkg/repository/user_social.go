@@ -122,13 +122,21 @@ func (c *userDatabase) GetFollowers(ctx context.Context, shopID uint) ([]respons
 
 func (c *userDatabase) GetFollowedShops(ctx context.Context, userID uint) ([]response.Shop, error) {
 	var shops []response.Shop
-	query := `SELECT sd.id, sd.shop_name, sd.email, sd.phone, sd.address_line1, sd.address_line2,
-		sd.city, sd.state, sd.country, sd.pincode, sd.shop_type, sd.shop_verification_status,
-		sd.shop_image_url, sd.latitude, sd.longitude, sd.created_at, sd.updated_at
-	FROM shop_details sd
-	INNER JOIN shop_socials ss ON ss.shop_id = sd.id
-	WHERE ss.user_id = ? AND ss.is_follower = TRUE
-	ORDER BY ss.updated_at DESC`
+	query := `
+		SELECT sd.id, sd.shop_name, sd.email, sd.phone, sd.address_line1, sd.address_line2,
+			sd.city, sd.state, sd.country, sd.pincode, sd.shop_type, sd.shop_verification_status,
+			sd.shop_image_url, sd.latitude, sd.longitude, sd.created_at, sd.updated_at,
+			CASE
+				WHEN st.status = 'open' AND (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::time BETWEEN st.open_time::time AND st.close_time::time THEN true
+				ELSE false
+			END AS is_open
+		FROM shop_details sd
+		INNER JOIN shop_socials ss ON ss.shop_id = sd.id
+		LEFT JOIN (
+			SELECT DISTINCT ON (shop_id) * FROM shop_times ORDER BY shop_id, id DESC
+		) st ON st.shop_id = sd.id
+		WHERE ss.user_id = ? AND ss.is_follower = TRUE
+		ORDER BY ss.updated_at DESC`
 	err := c.DB.WithContext(ctx).Raw(query, userID).Scan(&shops).Error
 	return shops, err
 }
@@ -157,13 +165,21 @@ func (c *userDatabase) IsLikedShop(ctx context.Context, userID uint, shopID uint
 
 func (c *userDatabase) GetLikedShops(ctx context.Context, userID uint) ([]response.Shop, error) {
 	var shops []response.Shop
-	query := `SELECT sd.id, sd.shop_name, sd.email, sd.phone, sd.address_line1, sd.address_line2,
-		sd.city, sd.state, sd.country, sd.pincode, sd.shop_type, sd.shop_verification_status,
-		sd.shop_image_url, sd.latitude, sd.longitude, sd.created_at, sd.updated_at
-	FROM shop_details sd
-	INNER JOIN shop_socials ss ON ss.shop_id = sd.id
-	WHERE ss.user_id = ? AND ss.is_liked = TRUE
-	ORDER BY ss.updated_at DESC`
+	query := `
+		SELECT sd.id, sd.shop_name, sd.email, sd.phone, sd.address_line1, sd.address_line2,
+			sd.city, sd.state, sd.country, sd.pincode, sd.shop_type, sd.shop_verification_status,
+			sd.shop_image_url, sd.latitude, sd.longitude, sd.created_at, sd.updated_at,
+			CASE
+				WHEN st.status = 'open' AND (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::time BETWEEN st.open_time::time AND st.close_time::time THEN true
+				ELSE false
+			END AS is_open
+		FROM shop_details sd
+		INNER JOIN shop_socials ss ON ss.shop_id = sd.id
+		LEFT JOIN (
+			SELECT DISTINCT ON (shop_id) * FROM shop_times ORDER BY shop_id, id DESC
+		) st ON st.shop_id = sd.id
+		WHERE ss.user_id = ? AND ss.is_liked = TRUE
+		ORDER BY ss.updated_at DESC`
 	err := c.DB.WithContext(ctx).Raw(query, userID).Scan(&shops).Error
 	return shops, err
 }
