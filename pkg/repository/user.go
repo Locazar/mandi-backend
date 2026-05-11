@@ -491,6 +491,51 @@ func (c *userDatabase) SearchShopList(ctx context.Context, reqData request.Searc
 
 	args = append(args, reqData.Limit, reqData.Offset)
 	err = c.DB.Raw(query, args...).Scan(&shops).Error
+	if err != nil {
+		return shops, err
+	}
+
+	// Batch-fetch reviews for all returned shops and attach them.
+	if len(shops) > 0 {
+		shopIDs := make([]uint, len(shops))
+		for i, s := range shops {
+			shopIDs[i] = s.ID
+		}
+
+		type reviewRow struct {
+			ShopID    uint      `gorm:"column:shop_id"`
+			UserID    uint      `gorm:"column:user_id"`
+			Rating    uint      `gorm:"column:rating"`
+			Review    string    `gorm:"column:review"`
+			CreatedAt time.Time `gorm:"column:created_at"`
+			UpdatedAt time.Time `gorm:"column:updated_at"`
+		}
+		var reviewRows []reviewRow
+		c.DB.Raw(`
+			SELECT shop_id, user_id, rating, review, created_at, updated_at
+			FROM shop_socials
+			WHERE shop_id IN (?) AND review IS NOT NULL AND TRIM(review) <> ''
+			ORDER BY updated_at DESC
+		`, shopIDs).Scan(&reviewRows)
+
+		reviewMap := make(map[uint][]response.ShopReview, len(shops))
+		for _, r := range reviewRows {
+			reviewMap[r.ShopID] = append(reviewMap[r.ShopID], response.ShopReview{
+				UserID:    r.UserID,
+				Rating:    r.Rating,
+				Review:    r.Review,
+				CreatedAt: r.CreatedAt,
+				UpdatedAt: r.UpdatedAt,
+			})
+		}
+		for i := range shops {
+			if reviews, ok := reviewMap[shops[i].ID]; ok {
+				shops[i].Reviews = reviews
+			} else {
+				shops[i].Reviews = []response.ShopReview{}
+			}
+		}
+	}
 
 	return shops, err
 }
