@@ -472,18 +472,9 @@ func (c *userDatabase) SearchShopList(ctx context.Context, reqData request.Searc
 			sd.pincode,
 			sd.shop_verification_status,
 			%s,
-			CASE
-				WHEN st.status = 'open' AND (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::time BETWEEN st.open_time::time AND st.close_time::time THEN true
-				ELSE false
-			END AS is_open,
 			sd.created_at,
 			sd.updated_at
 		FROM shop_details sd
-		LEFT JOIN (
-			SELECT DISTINCT ON (shop_id) *
-			FROM shop_times
-			ORDER BY shop_id, id DESC
-		) st ON st.shop_id = sd.id
 		%s
 		%s
 		LIMIT $%d OFFSET $%d
@@ -495,13 +486,14 @@ func (c *userDatabase) SearchShopList(ctx context.Context, reqData request.Searc
 		return shops, err
 	}
 
-	// Batch-fetch reviews for all returned shops and attach them.
+	// Batch-fetch reviews AND shop_times for all returned shops.
 	if len(shops) > 0 {
 		shopIDs := make([]uint, len(shops))
 		for i, s := range shops {
 			shopIDs[i] = s.ID
 		}
 
+		// --- Reviews ---
 		type reviewRow struct {
 			ShopID    uint      `gorm:"column:shop_id"`
 			UserID    uint      `gorm:"column:user_id"`
@@ -534,6 +526,46 @@ func (c *userDatabase) SearchShopList(ctx context.Context, reqData request.Searc
 			} else {
 				shops[i].Reviews = []response.ShopReview{}
 			}
+		}
+
+		// --- is_open: computed in Go using IST ---
+		type shopTimeRow struct {
+			ShopID    uint   `gorm:"column:shop_id"`
+			Status    string `gorm:"column:status"`
+			OpenTime  string `gorm:"column:open_time"`
+			CloseTime string `gorm:"column:close_time"`
+		}
+		var shopTimes []shopTimeRow
+		c.DB.Raw(`
+			SELECT DISTINCT ON (shop_id) shop_id, status, open_time, close_time
+			FROM shop_times
+			WHERE shop_id IN (?)
+			ORDER BY shop_id, id DESC
+		`, shopIDs).Scan(&shopTimes)
+
+		istLoc, _ := time.LoadLocation("Asia/Kolkata")
+		nowIST := time.Now().In(istLoc)
+		nowStr := nowIST.Format("15:04") // HH:MM
+
+		shopTimeMap := make(map[uint]shopTimeRow, len(shopTimes))
+		for _, st := range shopTimes {
+			shopTimeMap[st.ShopID] = st
+		}
+		for i := range shops {
+			st, ok := shopTimeMap[shops[i].ID]
+			if !ok || st.Status != "open" {
+				continue
+			}
+			// Normalise stored times to HH:MM
+			openStr := st.OpenTime
+			if len(openStr) > 5 {
+				openStr = openStr[:5]
+			}
+			closeStr := st.CloseTime
+			if len(closeStr) > 5 {
+				closeStr = closeStr[:5]
+			}
+			shops[i].IsOpen = nowStr >= openStr && nowStr <= closeStr
 		}
 	}
 
