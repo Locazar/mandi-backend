@@ -61,4 +61,7 @@ type UserRepository interface {
 	ReviewShop(ctx context.Context, userID uint, shopID uint, review string) error
 	GetUserShopReview(ctx context.Context, userID uint, shopID uint) (string, error)
 	GetAllShopReviews(ctx context.Context, shopID uint) ([]domain.ShopSocial, error)
+	// GetShopSocialDetails(ctx context.Context, shopID uint) ([]domain.ShopSocial, error)
+	UpdateTrialUsed(ctx context.Context, userID uint) error
+	IsTrialUsed(ctx context.Context, userID uint) (bool, error)
 }

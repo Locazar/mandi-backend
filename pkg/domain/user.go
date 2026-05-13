@@ -12,6 +12,7 @@ type User struct {
 	Password    string    `json:"password"`
 	Verified    bool      `json:"verified" gorm:"default:false"`
 	BlockStatus bool      `json:"block_status" gorm:"default:false"`
+	TrialUsed   bool      `json:"trial_used" gorm:"default:false"`
 	CreatedAt   time.Time `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt   time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }

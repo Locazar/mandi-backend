@@ -67,6 +67,21 @@ var (
 	ErrPaymentAmountReachedMax = errors.New("order total price reached payment method maximum amount")
 	ErrPaymentNotApproved      = errors.New("payment not approved")
 
+	// subscription
+	ErrSubscriptionPlanNotFound    = errors.New("subscription plan not found")
+	ErrSubscriptionPlanInactive    = errors.New("subscription plan is not active")
+	ErrActiveSubscriptionExists    = errors.New("you already have an active subscription")
+	ErrSubscriptionOrderNotFound   = errors.New("subscription order not found")
+	ErrSubscriptionOrderNotOwned   = errors.New("subscription order does not belong to this user")
+	ErrSubscriptionOrderNotCreated = errors.New("subscription order is not in 'created' state")
+	ErrSubscriptionOrderExpired    = errors.New("subscription order has expired")
+	ErrPaymentAmountMismatch       = errors.New("payment amount does not match order")
+	ErrPaymentCurrencyMismatch     = errors.New("payment currency does not match order")
+	ErrPaymentOrderMismatch        = errors.New("payment order_id does not match")
+	ErrInvalidWebhookSignature     = errors.New("invalid webhook signature")
+	ErrTrialAlreadyUsed            = errors.New("free trial has already been used")
+	ErrTrialPlanNotFound           = errors.New("free trial plan not found in system")
+
 	// brand
 	ErrBrandAlreadyExist = errors.New("brand name already exist")
 )

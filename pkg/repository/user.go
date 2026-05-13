@@ -610,3 +610,21 @@ func (c *userDatabase) FindShopByID(ctx context.Context, shopID uint) (response.
 
 	return shop, nil
 }
+
+// func (c *userDatabase) GetShopSocialDetails(ctx context.Context, shopID uint) ([]domain.ShopSocial, error) {
+// 	var details []domain.ShopSocial
+// 	if err := c.DB.WithContext(ctx).Where("shop_id = ?", shopID).Find(&details).Error; err != nil {
+// 		return nil, err
+// 	}
+// 	return details, nil
+// }
+
+func (c *userDatabase) UpdateTrialUsed(ctx context.Context, userID uint) error {
+	return c.DB.Exec("UPDATE users SET trial_used = true WHERE id = $1", userID).Error
+}
+
+func (c *userDatabase) IsTrialUsed(ctx context.Context, userID uint) (bool, error) {
+	var trialUsed bool
+	err := c.DB.Raw("SELECT trial_used FROM users WHERE id = $1", userID).Scan(&trialUsed).Error
+	return trialUsed, err
+}
