@@ -75,6 +75,14 @@ func (u *userRepoAdapter) DeleteRefreshSessionByUserID(ctx context.Context, admi
 	return nil
 }
 
+func (u *userRepoAdapter) UpdateTrialUsed(ctx context.Context, userID uint) error {
+	return nil
+}
+
+func (u *userRepoAdapter) IsTrialUsed(ctx context.Context, userID uint) (bool, error) {
+	return false, nil
+}
+
 func TestUserLogin(t *testing.T) {
 
 	tests := []struct {

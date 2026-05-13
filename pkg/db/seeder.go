@@ -36,3 +36,42 @@ func SeedProductItemFilters(db *gorm.DB) error {
 	log.Println("Successfully seeded ProductItemFilterType data")
 	return nil
 }
+
+// SeedSubscriptionPlans inserts default subscription plans if they don't exist.
+func SeedSubscriptionPlans(db *gorm.DB) error {
+	plans := []domain.SubscriptionPlan{
+		{Name: "Silver", PriceMonthly: 199, DurationDays: 30, IsActive: true},
+		{Name: "Gold", PriceMonthly: 499, DurationDays: 30, IsActive: true},
+		{Name: "Platinum", PriceMonthly: 999, DurationDays: 30, IsActive: true},
+	}
+
+	var count int64
+	db.Model(&domain.SubscriptionPlan{}).Count(&count)
+	if count > 0 {
+		log.Println("SubscriptionPlan data already exists, skipping seed")
+		return nil
+	}
+
+	if err := db.CreateInBatches(&plans, 10).Error; err != nil {
+		return err
+	}
+
+	log.Println("Successfully seeded SubscriptionPlan data")
+	return nil
+}
+
+// SeedFreeTrialPlan inserts the Free Trial plan if it doesn't exist (additive, safe on existing DBs).
+func SeedFreeTrialPlan(db *gorm.DB) error {
+	plan := domain.SubscriptionPlan{
+		Name:         "Free Trial",
+		PriceMonthly: 0,
+		DurationDays: 90,
+		IsActive:     true,
+	}
+	result := db.Where("name = ?", plan.Name).FirstOrCreate(&plan)
+	if result.Error != nil {
+		return result.Error
+	}
+	log.Println("Free Trial plan seeded")
+	return nil
+}
