@@ -40,7 +40,7 @@ func (u *fcmTokenUseCase) DecodeTokenData(tokenString string) string {
 //
 // Owner resolution: ShopID takes precedence over AdminID.
 func (u *fcmTokenUseCase) SaveFcmToken(fcmToken domain.FcmToken) (domain.FcmToken, error) {
-	
+
 	fmt.Printf("Saving FCM token: %s for owner_id: %s owner_type: %s\n", fcmToken.Token, fcmToken.OwnerID, fcmToken.OwnerType)
 	fmt.Printf("Received FCM token data: ShopID=%d AdminID=%d OwnerID=%s OwnerType=%s\n", fcmToken.ShopID, fcmToken.AdminID, fcmToken.OwnerID, fcmToken.OwnerType)
 	saved, err := u.repo.SaveFcmToken(fcmToken)

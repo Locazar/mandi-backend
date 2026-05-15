@@ -27,6 +27,8 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		{
 			signup.POST("/", adminHandler.AdminSignUp)
 			signup.POST("/verify", adminHandler.AdminSignUpVerify)
+			signup.POST("/otp/send", authHandler.AdminSignUpOtpSend)
+			signup.POST("/otp/verify", authHandler.AdminSignUpOtpVerify)
 		}
 
 		auth.POST("/renew-access-token", authHandler.AdminRenewAccessToken())

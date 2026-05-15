@@ -140,7 +140,7 @@ func (a *adminHandler) AdminSignUpVerify(ctx *gin.Context) {
 	}
 
 	// get the user using loginOtp useCase
-	userID, err := a.adminUseCase.AdminSignUpOtpVerify(ctx, body)
+	userID, shop, err := a.adminUseCase.AdminSignUpOtpVerify(ctx, body)
 	println("userID:", userID)
 	if err != nil {
 		var statusCode int
@@ -156,7 +156,7 @@ func (a *adminHandler) AdminSignUpVerify(ctx *gin.Context) {
 		return
 	}
 	fmt.Printf("userID: %d\n", userID)
-	a.setupTokenAndResponse(ctx, token.Admin, userID)
+	a.setupTokenAndResponse(ctx, token.Admin, userID, shop)
 }
 
 // access and refresh token generating for user and admin is same so created
@@ -222,6 +222,8 @@ func (c *adminHandler) setupTokenAndResponse(ctx *gin.Context, tokenUser token.U
 
 		responseData = mergedData
 	}
+
+	fmt.Printf("Custom response for userID: %d, userType: %s, customResponse: %+v\n", userID, tokenUser, customResponse)
 
 	if len(customResponse) > 1 {
 		if msg, ok := customResponse[1].(string); ok {

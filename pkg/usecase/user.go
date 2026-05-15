@@ -322,4 +322,3 @@ func (c *userUserCase) GetShopByID(ctx context.Context, shopID uint) (response.S
 	}
 	return shop, nil
 }
-

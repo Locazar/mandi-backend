@@ -70,10 +70,11 @@ func (c *adminDatabase) FindAdminWithShopVerificationByPhone(ctx context.Context
 	WHERE a.mobile = $1`
 
 	err := c.DB.Raw(query, phone).Scan(&admin).Error
+	fmt.Printf("Admin found: %+v\n", err)
 	if err != nil {
 		return admin, shopVerification, err
 	}
-
+	fmt.Printf("Admin found: %+v\n", admin)
 	// Then get shop verification data
 	shopQuery := `SELECT sv.id, sv.admin_id, sv.shop_id, sv.shop_name, sv.verification_status, 
 		sv.remarks, sv.agent_id, sv.created_at, sv.updated_at

@@ -150,29 +150,29 @@ func (c *adminUseCase) GetAdminWithShopVerificationByPhone(ctx context.Context, 
 }
 
 func (c *adminUseCase) AdminSignUpOtpVerify(ctx context.Context,
-	otpVerifyDetails request.OTPVerify) (userID uint, err error) {
+	otpVerifyDetails request.OTPVerify) (userID uint, shop domain.ShopDetails, err error) {
 	fmt.Printf("Starting OTP verification for OTP ID: %s\n", otpVerifyDetails.OtpID)
 	otpSession, err := c.authRepo.FindOtpSession(ctx, otpVerifyDetails.OtpID)
 	if err != nil {
-		return 0, utils.PrependMessageToError(err, "failed to find otp session from database")
+		return 0, domain.ShopDetails{}, utils.PrependMessageToError(err, "failed to find otp session from database")
 	}
 	// if time.Since(otpSession.ExpireAt) > 0 {
-	// 	return 0, ErrOtpExpired
+	// 	return 0, domain.ShopDetails{}, ErrOtpExpired
 	// }
 
 	// valid, err := c.optAuth.VerifyOtp(countryCode+otpSession.Phone, otpVerifyDetails.Otp)
 	if err != nil {
-		return 0, utils.PrependMessageToError(err, "failed to verify otp")
+		return 0, domain.ShopDetails{}, utils.PrependMessageToError(err, "failed to verify otp")
 	}
 	// if !valid {
 	// 	return 0, ErrInvalidOtp
 	// }
 
-	err = c.userRepo.UpdateAdminVerified(ctx, otpSession.AdminID)
+	shop, err = c.adminRepo.GetShopByOwnerID(ctx, otpSession.AdminID)
 	if err != nil {
-		return 0, utils.PrependMessageToError(err, "failed to update user verified on database")
+		return 0, domain.ShopDetails{}, utils.PrependMessageToError(err, "failed to find admin verified on database")
 	}
-	return otpSession.AdminID, nil
+	return otpSession.AdminID, shop, err
 
 }
 func (c *adminUseCase) GenerateAccessToken(ctx context.Context, tokenParams service.GenerateTokenParams) (string, error) {
