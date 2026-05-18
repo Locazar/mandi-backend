@@ -52,6 +52,7 @@ type Department struct {
 	Sort_Order int    `json:"sort_order" gorm:"not null;default:0"`
 	Is_Active  bool   `json:"is_active" gorm:"not null;default:true"`
 	ImageUrl   string `json:"image_url"`
+	Icon       string `json:"icon" gorm:"size:255"`
 }
 
 // for a products category main and sub category as self joining
@@ -62,6 +63,7 @@ type Category struct {
 	Sort_Order   int    `json:"sort_order" gorm:"not null;default:0"`
 	Is_Active    bool   `json:"is_active" gorm:"not null;default:true"`
 	ImageUrl     string `json:"image_url"`
+	Icon         string `json:"icon" gorm:"size:255"`
 }
 
 type SubCategory struct {
@@ -72,6 +74,7 @@ type SubCategory struct {
 	Sort_Order   int    `json:"sort_order" gorm:"not null;default:0"`
 	Is_Active    bool   `json:"is_active" gorm:"not null;default:true"`
 	ImageUrl     string `json:"image_url"`
+	Icon         string `json:"icon" gorm:"size:255"`
 }
 
 type Brand struct {

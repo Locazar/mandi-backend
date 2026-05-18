@@ -34,6 +34,7 @@ type Category struct {
 	Name         string `json:"category_name"`
 	DepartmentID uint   `json:"department_id"`
 	ImageUrl     string `json:"image_url"`
+	Icon         string `json:"icon,omitempty"`
 }
 
 type SubCategory struct {
@@ -230,6 +231,7 @@ type Department struct {
 	ID       uint   `json:"department_id"`
 	Name     string `json:"department_name"`
 	ImageUrl string `json:"image_url"`
+	Icon     string `json:"icon,omitempty"`
 }
 
 type PromotionCategory struct {

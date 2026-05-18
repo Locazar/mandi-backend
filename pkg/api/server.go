@@ -115,6 +115,11 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware middlewa
 		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler, promotionHandler, fcmTokenHandler, notificationHandler, alertHandler, uiHandler)
 	routes.UIRoutes(engine.Group("/api/web"), middleware, uiHandler)
 
+	// log registered routes for debug
+	for _, route := range engine.Routes() {
+		log.Printf("GIN route registered: %s %s -> %s", route.Method, route.Path, route.Handler)
+	}
+
 	// no handler
 	engine.NoRoute(func(ctx *gin.Context) {
 		ctx.JSON(http.StatusNotFound, gin.H{
