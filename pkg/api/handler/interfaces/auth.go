@@ -20,6 +20,8 @@ type AuthHandler interface {
 
 	//admin side
 	AdminLogin(ctx *gin.Context)
+	AdminSignUpOtpSend(ctx *gin.Context)
+	AdminSignUpOtpVerify(ctx *gin.Context)
 	AdminRenewAccessToken() gin.HandlerFunc
 	AdminLogout(ctx *gin.Context)
 }

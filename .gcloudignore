@@ -1,0 +1,58 @@
+# .gcloudignore - excludes files from gcloud builds submit uploads
+# Syntax: same as .gitignore
+
+.git
+.gitignore
+.gcloudignore
+
+# Go build artifacts
+build/
+tmp/
+*.exe
+*.test
+
+# Node / frontend artifacts
+node_modules/
+dist/
+
+# IDE files
+.idea/
+.vscode/
+*.code-workspace
+
+# Uploads directory (user content, not source)
+uploads/
+
+# Terraform state
+*.tfstate
+*.tfstate.backup
+.terraform/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local env files (never send secrets to Cloud Build)
+.env
+*.env.local
+
+# Test / coverage outputs
+coverage/
+*.out
+
+# Backup and dump files
+*.sql
+*.dump
+backup.sql
+mandi_backup.sql
+outfile.sql
+file.dump
+
+# Other cloud function subdirectories (only need enquiry-notification-handler for this build)
+# Uncomment if you want to exclude other CF dirs:
+# cmd/cloudfunctions/ecommerce-notification/
+# cmd/cloudfunctions/ecommerce-notifications/
+# cmd/cloudfunctions/enquiry-notifications/

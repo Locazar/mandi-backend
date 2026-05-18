@@ -322,11 +322,3 @@ func (c *userUserCase) GetShopByID(ctx context.Context, shopID uint) (response.S
 	}
 	return shop, nil
 }
-
-func (c *userUserCase) GetShopSocialDetails(ctx context.Context, shopID uint) ([]domain.ShopSocial, error) {
-	shopSocialDetails, err := c.userRepo.GetShopSocialDetails(ctx, shopID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get shop social details \nerror:%v", err.Error())
-	}
-	return shopSocialDetails, nil
-}

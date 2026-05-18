@@ -84,6 +84,12 @@ type WatchRule struct {
 	// Use it to attach data that is not stored in Firestore (e.g. product
 	// image URLs fetched from a SQL database).
 	DataEnricher func(ctx context.Context, docData map[string]interface{}) map[string]string
+
+	// RecipientResolver is an optional function that dynamically determines
+	// whether to notify the user and/or seller based on the live document data.
+	// When set, it overrides the static NotifyUser / NotifySeller flags, allowing
+	// per-status routing (e.g. enquiry negotiation flow).
+	RecipientResolver func(docData map[string]interface{}) (notifyUser bool, notifySeller bool)
 }
 
 // userCollection returns the Firestore collection path for end-users.
@@ -292,7 +298,14 @@ func (w *FirestoreWatcher) dispatchNotifications(
 		}
 	}
 
-	if rule.NotifyUser {
+	// Determine recipients — dynamic resolver takes precedence over static flags.
+	notifyUser := rule.NotifyUser
+	notifySeller := rule.NotifySeller
+	if rule.RecipientResolver != nil {
+		notifyUser, notifySeller = rule.RecipientResolver(docData)
+	}
+
+	if notifyUser {
 		userID := resolveID(docData, rule.UserIDField, "userId", "customerId", "user_id")
 		log.Printf("DEBUG [FirestoreWatcher]: notify user — collection=%s id=%q", rule.userCollection(), userID)
 		if userID != "" {
@@ -304,7 +317,7 @@ func (w *FirestoreWatcher) dispatchNotifications(
 		}
 	}
 
-	if rule.NotifySeller {
+	if notifySeller {
 		sellerID := resolveID(docData, rule.SellerIDField, "shopId", "sellerId", "shop_id")
 		log.Printf("DEBUG [FirestoreWatcher]: notify seller — collection=%s id=%q", rule.sellerCollection(), sellerID)
 		if sellerID != "" {

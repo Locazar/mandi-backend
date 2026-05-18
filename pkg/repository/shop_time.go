@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	repo "github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
@@ -29,5 +30,6 @@ func (r *shopTimeRepository) GetShopTimeByShopID(ctx context.Context, shopID uin
 }
 
 func (r *shopTimeRepository) UpdateShopTime(ctx context.Context, shopTime domain.ShopTime) error {
+	fmt.Printf("Updating shop time for shop ID %d: %+v\n", shopTime.ShopID, shopTime)
 	return r.db.WithContext(ctx).Save(&shopTime).Error
 }

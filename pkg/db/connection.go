@@ -10,15 +10,20 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	gormlogger "gorm.io/gorm/logger"
 )
 
 // func to connect data base using config(database config) and return address of a new instnce of gorm DB
 func ConnectDatabase(cfg config.Config) (*gorm.DB, error) {
 
-	dsn := fmt.Sprintf("host=%s user=%s dbname=%s port=%s password=%s", cfg.DBHost, cfg.DBUser, cfg.DBName, cfg.DBPort, cfg.DBPassword)
+	dsn := fmt.Sprintf("host=%s user=%s dbname=%s port=%s password=%s sslmode=disable", cfg.DBHost, cfg.DBUser, cfg.DBName, cfg.DBPort, cfg.DBPassword)
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
 		SkipDefaultTransaction: true,
+		// Silence GORM's internal "insufficient arguments" logger formatting
+		// bugs that appear during AutoMigrate schema checks on some Postgres
+		// versions.  Warnings and errors from our own code still use log.Printf.
+		Logger: gormlogger.Default.LogMode(gormlogger.Error),
 	})
 
 	if err != nil {
@@ -63,6 +68,7 @@ func ConnectDatabase(cfg config.Config) (*gorm.DB, error) {
 		//product
 		domain.Category{},
 		domain.Product{},
+		domain.Brand{},
 		domain.Variation{},
 		domain.VariationOption{},
 		domain.ProductItem{},
@@ -100,13 +106,21 @@ func ConnectDatabase(cfg config.Config) (*gorm.DB, error) {
 
 		//Notification
 		domain.Notification{},
+		domain.NotificationDeviceToken{},
 
 		//Shop Details
 		domain.ShopDetails{},
 		domain.ShopOffer{},
+		domain.ShopDepartment{},
 
 		//Payment Methods
 		domain.PaymentMethod{},
+
+		//Alerts
+		domain.Alert{},
+		domain.AlertAction{},
+		domain.AlertTemplate{},
+		domain.SellerAlertLog{},
 
 		// department
 		domain.Department{},
@@ -124,6 +138,11 @@ func ConnectDatabase(cfg config.Config) (*gorm.DB, error) {
 		domain.ShopTime{},
 		// Shop social (followers, ratings, reviews)
 		domain.ShopSocial{},
+
+		// Subscriptions
+		domain.SubscriptionPlan{},
+		domain.SubscriptionOrder{},
+		domain.UserSubscription{},
 	)
 
 	if err != nil {
@@ -135,6 +154,11 @@ func ConnectDatabase(cfg config.Config) (*gorm.DB, error) {
 	if err := SetUpDBTriggers(db); err != nil {
 		log.Printf("Warning: failed to setup database triggers: %v. Continuing without triggers.", err)
 		// Don't return error - continue without triggers
+	}
+
+	// create search indexes (must run after AutoMigrate so tables exist)
+	if err := SetupSearchIndexes(db); err != nil {
+		log.Printf("Warning: failed to setup search indexes: %v. Continuing without search indexes.", err)
 	}
 
 	if err := saveAdmin(db, cfg.AdminEmail, cfg.AdminPassword); err != nil {
@@ -151,6 +175,14 @@ func ConnectDatabase(cfg config.Config) (*gorm.DB, error) {
 
 	if err := SeedCountries(db); err != nil {
 		log.Printf("Warning: failed to seed countries: %v. Continuing.", err)
+	}
+
+	if err := SeedSubscriptionPlans(db); err != nil {
+		log.Printf("Warning: failed to seed subscription plans: %v. Continuing.", err)
+	}
+
+	if err := SeedFreeTrialPlan(db); err != nil {
+		log.Printf("Warning: failed to seed free trial plan: %v. Continuing.", err)
 	}
 
 	return db, nil

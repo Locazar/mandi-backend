@@ -98,9 +98,11 @@ type ProductItems struct {
 	OfferProducts       []OfferProduct         `json:"offer_products"`
 	DiscountRate        *uint                  `json:"discount_rate,omitempty"`
 	ShopID              uint                   `json:"shop_id"`
+	ShopName            string                 `json:"shop_name"`
 	CreatedAt           time.Time              `json:"created_at"`
 	UpdatedAt           time.Time              `json:"updated_at"`
 	ViewCount           uint                   `json:"view_count"`
+	DistanceKM          *float64               `json:"distance_km,omitempty"`
 	Stock               bool                   `json:"stock"`
 }
 

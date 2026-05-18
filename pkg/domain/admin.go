@@ -4,9 +4,9 @@ import "time"
 
 type Admin struct {
 	ID       uint   `json:"id" gorm:"primaryKey;not null"`
-	FullName string `json:"full_name"  binding:"min=2,max=50"`
+	FullName string `json:"full_name"`
 	Email    string `json:"email" binding:"omitempty,email"`
-	Password string `json:"password" gorm:"not null" binding:"required,min=5,max=30"`
+	Password string `json:"password"`
 
 	AddressLine1    string  `json:"address_line1" gorm:"size:255"`
 	AddressLine2    string  `json:"address_line2" gorm:"size:255" binding:"omitempty"`

@@ -41,18 +41,24 @@ func (eh *EventHandler) ParseEvent(event *domain.FirestoreEvent) (*domain.Parsed
 		return nil, fmt.Errorf("could not extract document ID from event")
 	}
 
+	// Guard against nil UpdateMask — events without a mask do a full field comparison.
+	var updatedPaths []string
+	if event.Data.UpdateMask != nil {
+		updatedPaths = event.Data.UpdateMask.FieldPaths
+	}
+
 	parsed := &domain.ParsedFirestoreEvent{
 		DocumentPath: documentPath,
 		DocumentID:   documentID,
 		UpdateTime:   "",
 		OldFields:    make(map[string]interface{}),
 		NewFields:    make(map[string]interface{}),
-		UpdatedPaths: event.Data.UpdateMask.FieldPaths,
+		UpdatedPaths: updatedPaths,
 	}
 
 	// Parse old value (before update)
 	if event.Data.OldValue != nil {
-		if event.Data.OldValue.Fields != nil && len(event.Data.OldValue.Fields) > 0 {
+		if len(event.Data.OldValue.Fields) > 0 {
 			parsed.OldFields = ParseFields(event.Data.OldValue.Fields)
 		}
 		if event.Data.OldValue.UpdateTime != "" {
@@ -62,7 +68,7 @@ func (eh *EventHandler) ParseEvent(event *domain.FirestoreEvent) (*domain.Parsed
 
 	// Parse new value (after update)
 	if event.Data.Value != nil {
-		if event.Data.Value.Fields != nil && len(event.Data.Value.Fields) > 0 {
+		if len(event.Data.Value.Fields) > 0 {
 			parsed.NewFields = ParseFields(event.Data.Value.Fields)
 		}
 		if event.Data.Value.UpdateTime != "" {
@@ -99,6 +105,7 @@ func (eh *EventHandler) FindChanges(event *domain.ParsedFirestoreEvent) []domain
 
 // HasSignificantChanges checks if there are any changes that warrant a notification
 func (eh *EventHandler) HasSignificantChanges(changes []domain.FieldChange) bool {
+	log.Printf("DEBUG: Checking %d changes for significance", len(changes))
 	for _, change := range changes {
 		if eh.comparator.IsSignificantChange(change) {
 			return true

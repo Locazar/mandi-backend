@@ -3,6 +3,7 @@ package response
 type TokenResponse struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
+	UserID       uint   `json:"user_id"`
 }
 type OTPResponse struct {
 	OtpID string `json:"otp_id"`

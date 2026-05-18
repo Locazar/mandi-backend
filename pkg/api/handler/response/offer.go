@@ -16,9 +16,11 @@ type PostLoginOfferResponse struct {
 
 // Banner represents a banner for display
 type Banner struct {
-	ID          uint   `json:"id"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	ImageURL    string `json:"image_url"`
-	Link        string `json:"link"`
+	ID           uint    `json:"id"`
+	Title        string  `json:"title"`
+	Description  string  `json:"description"`
+	ImageURL     string  `json:"image_url"`
+	Link         string  `json:"link"`
+	DepartmentId *string `json:"department_id"`
+	CategoryId   *string `json:"category_id"`
 }

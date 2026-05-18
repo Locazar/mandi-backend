@@ -34,7 +34,7 @@ type OfferUseCase interface {
 	GetPostLoginOffer(ctx context.Context, userID uint) (response.PostLoginOfferResponse, error)
 
 	// Banner
-	GetBanners(ctx context.Context) ([]response.Banner, error)
+	GetBanners(ctx context.Context, departmentID, categoryID *string) ([]response.Banner, error)
 
 	// Deprecated: use GetShopOffersByShopIDAndDateRange instead
 	GetShopOffersByShopID(ctx context.Context, shopID uint, adminID uint64) ([]domain.ShopOffer, error)

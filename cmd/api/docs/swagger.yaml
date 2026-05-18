@@ -22,6 +22,12 @@ definitions:
         type: string
       email:
         type: string
+      expiry_date:
+        type: string
+      full_name:
+        maxLength: 50
+        minLength: 2
+        type: string
       id:
         type: integer
       latitude:
@@ -36,7 +42,17 @@ definitions:
         maxLength: 30
         minLength: 5
         type: string
+      payment_date:
+        type: string
+      payment_status:
+        type: boolean
+      payment_type:
+        type: string
       pincode:
+        type: string
+      profile_image_url:
+        type: string
+      start_date:
         type: string
       state:
         type: string
@@ -45,29 +61,16 @@ definitions:
         type: string
       updated_at:
         type: string
-      user_name:
-        maxLength: 15
-        minLength: 3
-        type: string
       verified_seller:
         description: e.g. "yes", "no", "pending"
-        type: string
+        type: boolean
     required:
-    - address_line1
-    - agree_to_terms
-    - city
-    - country
-    - email
-    - mobile
     - password
-    - pincode
-    - state
-    - user_name
     type: object
   domain.Advertisement:
     properties:
       admin_id:
-        type: integer
+        type: string
       area_targeted:
         type: string
       content:
@@ -110,51 +113,119 @@ definitions:
     - start_date
     - title
     type: object
+  domain.FcmToken:
+    properties:
+      admin_id:
+        type: integer
+      device:
+        type: string
+      id:
+        type: integer
+      platform:
+        type: string
+      shop_id:
+        type: integer
+      token:
+        type: string
+    type: object
+  domain.Offer:
+    properties:
+      created_at:
+        type: string
+      description:
+        maxLength: 50
+        minLength: 6
+        type: string
+      discount_rate:
+        maximum: 100
+        minimum: 1
+        type: integer
+      end_date:
+        type: string
+      image_url:
+        type: string
+      is_active:
+        type: boolean
+      offer_name:
+        type: string
+      offer_type:
+        description: percentage,fixed
+        type: string
+      sort_order:
+        type: integer
+      start_date:
+        type: string
+      thumbnail_url:
+        type: string
+      updated_at:
+        type: string
+    required:
+    - description
+    - discount_rate
+    - end_date
+    - image_url
+    - offer_name
+    - offer_type
+    - start_date
+    - thumbnail_url
+    type: object
   domain.ShopDetails:
     properties:
       address_line1:
         type: string
       address_line2:
         type: string
+      address_proof_verification:
+        type: boolean
+      admin_id:
+        type: integer
       bank_account_number:
         type: string
       bank_ifsc:
         type: string
+      business_doc_verification:
+        type: boolean
       city:
         type: string
       country:
         type: string
       created_at:
         type: string
-      electricity_bill:
+      document_type:
+        type: string
+      document_value:
         type: string
       email:
         type: string
-      gstin:
-        type: string
+      has_offers:
+        type: boolean
       id:
         type: integer
+      identity_doc_verification:
+        type: boolean
       itr_documents:
         type: string
       latitude:
         type: number
       longitude:
         type: number
-      mobile:
-        type: string
-      msme_registration_number:
-        type: string
-      owner_id:
-        type: integer
+      offers:
+        items:
+          $ref: '#/definitions/domain.Offer'
+        type: array
       owner_name:
         type: string
       pan_number:
         type: string
+      phone:
+        type: string
+      photo_shop_verification:
+        type: boolean
       pincode:
         type: string
       shop_description:
         type: string
-      shop_id:
+      shop_image_url:
         type: string
       shop_name:
         type: string
@@ -167,22 +238,16 @@ definitions:
       shop_verification_remarks:
         type: string
       shop_verification_status:
-        type: string
+        type: boolean
       state:
         type: string
       updated_at:
         type: string
-    required:
-    - address_line1
-    - city
-    - country
-    - pincode
-    - state
     type: object
   domain.ShopVerification:
     properties:
       admin_id:
-        type: integer
+        type: string
       agent_id:
         type: integer
       created_at:
@@ -192,30 +257,30 @@ definitions:
       remarks:
         type: string
       shop_id:
-        type: string
+        type: integer
       shop_name:
         type: string
       updated_at:
         type: string
       verification_status:
-        description: e.g. "verified", "unverified", "under_review"
-        type: string
+        type: boolean
     required:
     - admin_id
-    - shop_id
-    - shop_name
-    - verification_status
     type: object
   request.Address:
     properties:
+      address_line1:
+        type: string
+      address_line2:
+        type: string
+      address_type:
+        type: string
       area:
         type: string
       city:
         type: string
       country_id:
         type: integer
-      house:
-        type: string
       is_default:
         type: boolean
       land_mark:
@@ -224,10 +289,6 @@ definitions:
         type: number
       longitude:
         type: number
-      name:
-        maxLength: 50
-        minLength: 2
-        type: string
       phone_number:
         maxLength: 10
         minLength: 10
@@ -235,10 +296,12 @@ definitions:
       pincode:
         type: integer
     required:
+    - address_line1
+    - address_line2
+    - address_type
+    - city
     - country_id
-    - house
     - land_mark
-    - name
     - phone_number
     - pincode
     type: object
@@ -248,6 +311,15 @@ definitions:
         type: string
     required:
     - coupon_code
+    type: object
+  request.ApplyOfferToShop:
+    properties:
+      end_date:
+        $ref: '#/definitions/request.CustomTime'
+      promotion_id:
+        type: integer
+      start_date:
+        $ref: '#/definitions/request.CustomTime'
     type: object
   request.BlockUser:
     properties:
@@ -260,12 +332,12 @@ definitions:
     type: object
   request.Brand:
     properties:
-      category_name:
+      brand_name:
         maxLength: 25
         minLength: 3
         type: string
     required:
-    - category_name
+    - brand_name
     type: object
   request.Category:
     properties:
@@ -273,6 +345,19 @@ definitions:
         type: string
     required:
     - category_name
+    type: object
+  request.CategoryImage:
+    properties:
+      alt_text:
+        type: string
+      image_url:
+        type: string
+      is_active:
+        type: boolean
+      sort_order:
+        type: integer
+    required:
+    - image_url
     type: object
   request.Coupon:
     properties:
@@ -305,18 +390,78 @@ definitions:
     - image
     - minimum_cart_price
     type: object
+  request.CreatePromotionRequest:
+    properties:
+      bogo_buy_quantity:
+        type: integer
+      bogo_combination_enabled:
+        type: boolean
+      bogo_get_quantity:
+        type: integer
+      description:
+        type: string
+      discount_rate:
+        type: number
+      end_date:
+        type: string
+      gift_description:
+        type: string
+      is_active:
+        type: boolean
+      minimum_purchase_amount:
+        type: number
+      offer_name:
+        type: string
+      promotion_category_id:
+        type: string
+      promotion_type_id:
+        type: string
+      shop_id:
+        type: string
+      start_date:
+        type: string
+      tier_quantity:
+        type: integer
+    required:
+    - description
+    - discount_rate
+    - end_date
+    - offer_name
+    - promotion_category_id
+    - promotion_type_id
+    - shop_id
+    - start_date
+    type: object
+  request.CustomTime:
+    properties:
+      time.Time:
+        type: string
+    type: object
+  request.Department:
+    properties:
+      department_name:
+        maxLength: 25
+        minLength: 3
+        type: string
+    required:
+    - department_name
+    type: object
   request.EditAddress:
     properties:
       address_id:
         type: integer
+      address_line1:
+        type: string
+      address_line2:
+        type: string
+      address_type:
+        type: string
       area:
         type: string
       city:
         type: string
       country_id:
         type: integer
-      house:
-        type: string
       is_default:
         type: boolean
       land_mark:
@@ -325,10 +470,6 @@ definitions:
         type: number
       longitude:
         type: number
-      name:
-        maxLength: 50
-        minLength: 2
-        type: string
       phone_number:
         maxLength: 10
         minLength: 10
@@ -337,10 +478,12 @@ definitions:
         type: integer
     required:
     - address_id
+    - address_line1
+    - address_line2
+    - address_type
+    - city
     - country_id
-    - house
     - land_mark
-    - name
     - phone_number
     - pincode
     type: object
@@ -399,17 +542,12 @@ definitions:
         maxLength: 10
         minLength: 10
         type: string
-      user_name:
-        maxLength: 15
-        minLength: 3
-        type: string
     required:
     - age
     - email
     - first_name
     - last_name
     - phone
-    - user_name
     type: object
   request.Login:
     properties:
@@ -422,10 +560,6 @@ definitions:
       phone:
         maxLength: 10
         minLength: 10
-        type: string
-      user_name:
-        maxLength: 15
-        minLength: 3
         type: string
     required:
     - password
@@ -460,6 +594,7 @@ definitions:
         enum:
         - user
         - seller
+        - admin
         type: string
       sender_id:
         type: integer
@@ -467,11 +602,11 @@ definitions:
         enum:
         - user
         - seller
+        - admin
         type: string
       shop_id:
         type: integer
       status:
-        description: e.g. "accepted", "pending", "rejected"
         maxLength: 50
         minLength: 2
         type: string
@@ -485,19 +620,12 @@ definitions:
         type: integer
     required:
     - body
-    - category_id
     - message
-    - offer_id
-    - order_id
-    - product_id
     - receiver_id
     - receiver_type
     - sender_id
     - sender_type
-    - shop_id
-    - status
     - title
-    - variation_id
     type: object
   request.NotificationDeviceToken:
     properties:
@@ -509,6 +637,10 @@ definitions:
         - seller
         type: string
       platform:
+        enum:
+        - android
+        - ios
+        - web
         type: string
       token:
         type: string
@@ -541,12 +673,6 @@ definitions:
       email:
         type: string
       phone:
-        maxLength: 10
-        minLength: 10
-        type: string
-      user_name:
-        maxLength: 16
-        minLength: 3
         type: string
     type: object
   request.OTPLoginEmail:
@@ -581,6 +707,8 @@ definitions:
         type: string
       offer_name:
         type: string
+      offer_type:
+        type: string
       start_date:
         type: string
     required:
@@ -588,6 +716,7 @@ definitions:
     - discount_rate
     - end_date
     - offer_name
+    - offer_type
     - start_date
     type: object
   request.OfferCategory:
@@ -604,11 +733,11 @@ definitions:
     properties:
       offer_id:
         type: integer
-      product_id:
+      product_item_id:
         type: integer
     required:
     - offer_id
-    - product_id
+    - product_item_id
     type: object
   request.RefreshToken:
     properties:
@@ -628,15 +757,147 @@ definitions:
     - return_reason
     - shop_order_id
     type: object
-  request.SubCategory:
+  request.SendPushRequest:
     properties:
-      category_id:
-        type: integer
-      category_name:
+      body:
+        maxLength: 500
+        minLength: 1
+        type: string
+      data:
+        additionalProperties:
+          type: string
+        description: Data is an optional map of key-value pairs delivered alongside
+          the notification.
+        type: object
+      event_type:
+        description: EventType is a hint for the client app (e.g. "order_status_changed").
+        type: string
+      owner_id:
+        description: OwnerID is the user or seller ID whose tokens to look up.
+        type: string
+      owner_type:
+        description: OwnerType is "user" or "seller".
+        enum:
+        - user
+        - seller
+        type: string
+      title:
+        maxLength: 100
+        minLength: 1
         type: string
     required:
-    - category_id
-    - category_name
+    - body
+    - owner_id
+    - owner_type
+    - title
+    type: object
+  request.SetShopTimeRequest:
+    properties:
+      close_time:
+        type: string
+      open_time:
+        type: string
+      status:
+        type: boolean
+    required:
+    - close_time
+    - open_time
+    - status
+    type: object
+  request.ShopRatingRequest:
+    properties:
+      rating:
+        maximum: 5
+        minimum: 1
+        type: integer
+    required:
+    - rating
+    type: object
+  request.ShopReviewRequest:
+    properties:
+      review:
+        type: string
+    required:
+    - review
+    type: object
+  request.ShoppingFeedback:
+    properties:
+      admin_id:
+        type: integer
+      amount:
+        type: integer
+      comment:
+        maxLength: 255
+        type: string
+      rating:
+        maximum: 5
+        minimum: 1
+        type: integer
+      shop_id:
+        type: integer
+      shop_order_id:
+        type: integer
+      verified:
+        default: false
+        type: boolean
+    required:
+    - amount
+    - rating
+    - shop_order_id
+    type: object
+  request.SubCategory:
+    properties:
+      sub_category_name:
+        type: string
+    required:
+    - sub_category_name
+    type: object
+  request.SubTypeAttribute:
+    properties:
+      field_name:
+        maxLength: 50
+        minLength: 2
+        type: string
+      field_type:
+        enum:
+        - dropdown
+        - number
+        - text
+        type: string
+      is_required:
+        type: boolean
+      sort_order:
+        type: integer
+    required:
+    - field_name
+    - field_type
+    type: object
+  request.SubTypeAttributeOption:
+    properties:
+      option_value:
+        maxLength: 50
+        minLength: 1
+        type: string
+      sort_order:
+        type: integer
+    required:
+    - option_value
+    type: object
+  request.UnregisterDeviceToken:
+    properties:
+      owner_id:
+        type: string
+      owner_type:
+        enum:
+        - user
+        - seller
+        type: string
+      token:
+        type: string
+    required:
+    - owner_id
+    - owner_type
+    - token
     type: object
   request.UpdateCartItem:
     properties:
@@ -731,39 +992,14 @@ definitions:
     type: object
   request.UserSignUp:
     properties:
-      age:
-        type: integer
-      confirm_password:
-        type: string
       email:
         type: string
       first_name:
-        maxLength: 50
-        minLength: 2
         type: string
       last_name:
-        maxLength: 50
-        minLength: 1
-        type: string
-      password:
         type: string
       phone:
-        maxLength: 10
-        minLength: 10
         type: string
-      user_name:
-        maxLength: 15
-        minLength: 3
-        type: string
-    required:
-    - age
-    - confirm_password
-    - email
-    - first_name
-    - last_name
-    - password
-    - phone
-    - user_name
     type: object
   request.Variation:
     properties:
@@ -809,6 +1045,142 @@ definitions:
   response.OTPResponse:
     properties:
       otp_id:
+        type: string
+    type: object
+  response.OfferProduct:
+    properties:
+      description:
+        type: string
+      discount_rate:
+        type: integer
+      end_date:
+        type: string
+      image:
+        type: string
+      offer_id:
+        type: integer
+      offer_name:
+        type: string
+      offer_product_id:
+        type: integer
+      product_name:
+        type: string
+      promotion_category:
+        $ref: '#/definitions/response.PromotionCategory'
+      promotion_type:
+        $ref: '#/definitions/response.PromotionsType'
+      start_date:
+        type: string
+      thumbnail:
+        type: string
+    type: object
+  response.PostLoginOfferResponse:
+    properties:
+      cta:
+        type: string
+      description:
+        type: string
+      discount_type:
+        description: PERCENT, FIXED
+        type: string
+      discount_value:
+        type: integer
+      experiment_variant:
+        type: string
+      frequency_cap_hours:
+        type: integer
+      offer_id:
+        type: string
+      offer_type:
+        description: BOTTOM_SHEET, FULL_SCREEN, BANNER, NONE
+        type: string
+      show_offer:
+        type: boolean
+      title:
+        type: string
+    type: object
+  response.ProductItems:
+    properties:
+      category_id:
+        type: integer
+      category_name:
+        type: string
+      created_at:
+        type: string
+      department_id:
+        type: integer
+      discount_rate:
+        type: integer
+      dynamic_fields:
+        additionalProperties: true
+        type: object
+      main_category_name:
+        type: string
+      offer_products:
+        items:
+          $ref: '#/definitions/response.OfferProduct'
+        type: array
+      product_item_id:
+        type: integer
+      product_item_images:
+        items:
+          type: string
+        type: array
+      product_name:
+        type: string
+      shop_id:
+        type: integer
+      stock:
+        type: boolean
+      sub_category_id:
+        type: integer
+      sub_category_image_url:
+        type: string
+      updated_at:
+        type: string
+      view_count:
+        type: integer
+    type: object
+  response.PromotionCategory:
+    properties:
+      created_at:
+        type: string
+      icon_path:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      name:
+        type: string
+      shop_id:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  response.PromotionsType:
+    properties:
+      category_name:
+        type: string
+      created_at:
+        type: string
+      icon_path:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      name:
+        type: string
+      offer_details:
+        type: string
+      promotion_category_id:
+        type: integer
+      shop_id:
+        type: string
+      type:
+        type: string
+      updated_at:
         type: string
     type: object
   response.Response:
@@ -1115,6 +1487,96 @@ paths:
       summary: Add to whish list (User)
       tags:
       - User Profile
+  /admin/account:
+    get:
+      operationId: GetAdminProfile
+      responses:
+        "200":
+          description: Successfully retrieved admin profile
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: failed to retrieve admin profile
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: api for admin to get profile
+      tags:
+      - Admin Account
+    post:
+      operationId: AddAdminProfile
+      parameters:
+      - description: inputs
+        in: body
+        name: input
+        required: true
+        schema:
+          type: object
+      responses:
+        "200":
+          description: Successfully added admin profile
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: failed to add admin profile
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: api for admin to add profile
+      tags:
+      - Admin Account
+    put:
+      operationId: UpdateAdminProfile
+      parameters:
+      - description: inputs
+        in: body
+        name: input
+        required: true
+        schema:
+          type: object
+      responses:
+        "200":
+          description: Successfully updated admin profile
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: failed to update admin profile
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: api for admin to update profile
+      tags:
+      - Admin Account
+  /admin/account/upload-profile-image:
+    post:
+      operationId: UploadAdminProfileImage
+      parameters:
+      - description: Profile Image
+        in: formData
+        name: profile_image
+        required: true
+        type: file
+      responses:
+        "200":
+          description: Successfully uploaded profile image
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: failed to upload profile image
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: api for admin to upload profile image
+      tags:
+      - Admin Account
   /admin/advertisements:
     get:
       description: API for admin to get all advertisements
@@ -1219,6 +1681,41 @@ paths:
       summary: api for admin to delete advertisement
       tags:
       - Advertisement Management
+  /admin/attributes/{attribute_id}/options:
+    post:
+      consumes:
+      - application/json
+      description: API endpoint to create a new option for a specific sub type attribute.
+      parameters:
+      - description: Sub type attribute ID
+        in: path
+        name: attribute_id
+        required: true
+        type: integer
+      - description: Sub type attribute option to be created
+        in: body
+        name: option
+        required: true
+        schema:
+          $ref: '#/definitions/request.SubTypeAttributeOption'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Successfully sub type attribute option created
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to save sub type attribute option
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Save a new sub type attribute option
+      tags:
+      - Admin Products
   /admin/auth/renew-access-token:
     post:
       description: API for admin to renew access token using refresh token
@@ -1518,6 +2015,69 @@ paths:
       summary: Add a new category (Admin)
       tags:
       - Admin Category
+  /admin/categories/{category_id}/images:
+    get:
+      consumes:
+      - application/json
+      description: API endpoint to retrieve all images for a specific product category.
+      parameters:
+      - description: Category ID
+        in: path
+        name: category_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved category images
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid category ID
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to get category images
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Get all category images
+      tags:
+      - Admin Products
+    post:
+      consumes:
+      - application/json
+      description: API endpoint to save an image for a specific product category.
+      parameters:
+      - description: Category ID
+        in: path
+        name: category_id
+        required: true
+        type: integer
+      - description: Category image to be saved
+        in: body
+        name: image
+        required: true
+        schema:
+          $ref: '#/definitions/request.CategoryImage'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Successfully saved category image
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to save category image
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Save category image
+      tags:
+      - Admin Products
   /admin/categories/{category_id}/variations:
     get:
       consumes:
@@ -1742,6 +2302,129 @@ paths:
       summary: Update Coupon (Admin)
       tags:
       - Admin Coupon
+  /admin/departments:
+    post:
+      consumes:
+      - application/json
+      description: API endpoint to create a new product department.
+      parameters:
+      - description: Department to be created
+        in: body
+        name: department
+        required: true
+        schema:
+          $ref: '#/definitions/request.Department'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Successfully department saved
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to save department
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Save a new department
+      tags:
+      - Admin Products
+  /admin/fcm/token:
+    post:
+      consumes:
+      - application/json
+      operationId: SaveFcmToken
+      parameters:
+      - description: FCM token payload
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/domain.FcmToken'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Token saved
+          schema:
+            $ref: '#/definitions/domain.FcmToken'
+        "400":
+          description: Invalid input
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Save an FCM device token
+      tags:
+      - Admin FCM
+  /admin/graphics/offer-preview:
+    post:
+      description: API for admin to generate offer image preview for testing
+      operationId: GenerateOfferImagePreview
+      parameters:
+      - description: Offer details for image generation
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.Offer'
+      responses:
+        "200":
+          description: Successfully generated offer image
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to generate image
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Generate Offer Image Preview (Admin)
+      tags:
+      - Admin Graphics
+  /admin/items/shop/{shop_id}:
+    get:
+      consumes:
+      - application/json
+      description: API for admin to get product items for a specific shop, including
+        category names
+      parameters:
+      - description: Shop ID
+        in: path
+        name: shop_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully get product items for shop
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Failed to get product items
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get product items by shop ID (Admin)
+      tags:
+      - Admin Products
   /admin/notifications/radius:
     get:
       operationId: SendNotificationToUsersInRadius
@@ -1809,11 +2492,11 @@ paths:
         type: integer
       responses:
         "200":
-          description: "Successfully\tfound\tall\toffers"
+          description: Successfully found all promotions
           schema:
             $ref: '#/definitions/response.Response'
         "500":
-          description: Failed to get all offers
+          description: Failed to get all promotions
           schema:
             $ref: '#/definitions/response.Response'
       security:
@@ -1871,6 +2554,25 @@ paths:
       security:
       - BearerAuth: []
       summary: Remove offer (Admin)
+      tags:
+      - Admin Offers
+  /admin/offers/active:
+    get:
+      operationId: GetActiveOffers
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Active offers retrieved
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get currently active offers
       tags:
       - Admin Offers
   /admin/offers/category:
@@ -2025,7 +2727,7 @@ paths:
       - Admin Offers
     post:
       description: API for admin to add an offer for product
-      operationId: SaveProductOffer
+      operationId: SaveProductItemOffer
       parameters:
       - description: input field
         in: body
@@ -2069,6 +2771,79 @@ paths:
       security:
       - BearerAuth: []
       summary: Remove product offer (Admin)
+      tags:
+      - Admin Offers
+  /admin/offers/shop/{shop_id}:
+    get:
+      operationId: GetShopOffersByShopID
+      parameters:
+      - description: Shop ID
+        in: path
+        name: shop_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Shop offers retrieved
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid shop_id
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get shop offers by shop ID (Admin)
+      tags:
+      - Admin Offers
+    post:
+      consumes:
+      - application/json
+      operationId: ApplyOfferToShop
+      parameters:
+      - description: Shop ID
+        in: path
+        name: shop_id
+        required: true
+        type: integer
+      - description: Offer details
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.ApplyOfferToShop'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Offer applied to shop
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Apply an offer to a shop
       tags:
       - Admin Offers
   /admin/orders/:
@@ -2317,6 +3092,10 @@ paths:
         in: query
         name: count
         type: integer
+      - description: Search term to filter products by name
+        in: query
+        name: search
+        type: string
       responses:
         "200":
           description: Successfully found all products
@@ -2332,12 +3111,14 @@ paths:
       tags:
       - Admin Products
     post:
-      description: API for admin to add a new product
+      consumes:
+      - multipart/form-data
+      description: API for admin to add a new product with image file upload (multipart/form-data)
       operationId: SaveProduct
       parameters:
       - description: Product Name
         in: formData
-        name: name
+        name: product_name
         required: true
         type: string
       - description: Product Description
@@ -2345,12 +3126,22 @@ paths:
         name: description
         required: true
         type: string
-      - description: Category Id
+      - description: Department Name
+        in: formData
+        name: department
+        required: true
+        type: string
+      - description: Department ID
+        in: formData
+        name: department_id
+        required: true
+        type: integer
+      - description: Category ID
         in: formData
         name: category_id
         required: true
         type: integer
-      - description: Brand Id
+      - description: Brand ID
         in: formData
         name: brand_id
         required: true
@@ -2360,7 +3151,19 @@ paths:
         name: price
         required: true
         type: integer
-      - description: Product Description
+      - description: Product Condition
+        in: formData
+        name: condition
+        type: string
+      - description: Product Specification
+        in: formData
+        name: specification
+        type: string
+      - description: Product Highlights
+        in: formData
+        name: highlights
+        type: string
+      - description: Product Image
         in: formData
         name: image
         required: true
@@ -2368,7 +3171,7 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "201":
           description: successfully product added
           schema:
             $ref: '#/definitions/response.Response'
@@ -2382,7 +3185,7 @@ paths:
             $ref: '#/definitions/response.Response'
       security:
       - BearerAuth: []
-      summary: Add a new product (Admin)
+      summary: Add a new product with image (Admin)
       tags:
       - Admin Products
     put:
@@ -2419,6 +3222,38 @@ paths:
       security:
       - BearerAuth: []
       summary: Update a product (Admin)
+      tags:
+      - Admin Products
+  /admin/products/{product_id}:
+    get:
+      description: API for admin to get a single product by ID with all details
+      operationId: GetProductByID
+      parameters:
+      - description: Product ID
+        in: path
+        name: product_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: Successfully found product
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid product ID
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Product not found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to get product
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get product by ID (Admin)
       tags:
       - Admin Products
   /admin/products/{product_id}/items:
@@ -2504,6 +3339,313 @@ paths:
       summary: Add a product item (Admin)
       tags:
       - Admin Products
+  /admin/products/all-details:
+    get:
+      operationId: GetAllProductDetails
+      responses:
+        "200":
+          description: Successfully retrieved all product details
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to read product details
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: api for admin to get all product details from hardcoded JSON file
+      tags:
+      - Admin Product
+  /admin/profile:
+    get:
+      operationId: GetAdminWithShopVerificationByPhone
+      parameters:
+      - description: Admin phone number
+        in: query
+        name: phone
+        required: true
+        type: string
+      responses:
+        "200":
+          description: successfully retrieved admin with shop verification
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid phone number
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: failed to retrieve admin data
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: api to get admin with shop verification data by phone
+      tags:
+      - Admin
+  /admin/promotions/:
+    get:
+      operationId: GetAllPromotions
+      parameters:
+      - format: int64
+        in: query
+        name: limit
+        type: integer
+      - format: int64
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Promotions retrieved
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all promotions
+      tags:
+      - Admin Promotions
+    post:
+      consumes:
+      - application/json
+      operationId: CreatePromotion
+      parameters:
+      - description: Promotion details
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreatePromotionRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Promotion created
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Create a new promotion
+      tags:
+      - Admin Promotions
+  /admin/promotions/{promotion_id}:
+    delete:
+      operationId: DeletePromotion
+      parameters:
+      - description: Promotion ID
+        in: path
+        name: promotion_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Promotion deleted
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid promotion ID
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Delete a promotion by ID
+      tags:
+      - Admin Promotions
+    get:
+      operationId: GetPromotionByID
+      parameters:
+      - description: Promotion ID
+        in: path
+        name: promotion_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Promotion retrieved
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid promotion ID
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get a promotion by ID
+      tags:
+      - Admin Promotions
+  /admin/promotions/categories/:
+    get:
+      operationId: GetAllPromotionCategories
+      parameters:
+      - format: int64
+        in: query
+        name: limit
+        type: integer
+      - format: int64
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Promotion categories retrieved
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all promotion categories
+      tags:
+      - Admin Promotions
+  /admin/promotions/categories/{category_id}:
+    get:
+      operationId: GetPromotionCategoryByID
+      parameters:
+      - description: Category ID
+        in: path
+        name: category_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Promotion category retrieved
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid category ID
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get a promotion category by ID
+      tags:
+      - Admin Promotions
+  /admin/promotions/types/:
+    get:
+      operationId: GetAllPromotionTypes
+      parameters:
+      - format: int64
+        in: query
+        name: limit
+        type: integer
+      - format: int64
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Promotion types retrieved
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all promotion types
+      tags:
+      - Admin Promotions
+  /admin/promotions/types/{type_id}:
+    get:
+      operationId: GetPromotionTypeByID
+      parameters:
+      - description: Type ID
+        in: path
+        name: type_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Promotion type retrieved
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid type ID
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get a promotion type by ID
+      tags:
+      - Admin Promotions
+  /admin/promotions/types/category/{category_id}:
+    get:
+      operationId: GetPromotionTypesByCategoryID
+      parameters:
+      - description: Category ID
+        in: path
+        name: category_id
+        required: true
+        type: integer
+      - format: int64
+        in: query
+        name: limit
+        type: integer
+      - format: int64
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Promotion types retrieved
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid category ID
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get promotion types by category ID
+      tags:
+      - Admin Promotions
   /admin/sales:
     get:
       description: API for admin to get all sales report for a specific period in
@@ -2544,6 +3686,54 @@ paths:
       summary: Get full sales report (Admin)
       tags:
       - Admin Sales
+  /admin/shop-time:
+    get:
+      operationId: GetShopTime
+      parameters:
+      - description: Shop ID
+        in: query
+        name: shop_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: Successfully retrieved shop time
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid shop_id
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Get shop open/close status and times
+      tags:
+      - Admin Shop
+  /admin/shop/time/{shop_id}:
+    post:
+      operationId: SetShopTime
+      parameters:
+      - description: Shop ID
+        in: path
+        name: shop_id
+        required: true
+        type: integer
+      - description: Shop Time details
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.SetShopTimeRequest'
+      responses:
+        "200":
+          description: Successfully set shop time
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Set shop open/close status and times
+      tags:
+      - Admin Shop
   /admin/shops:
     get:
       description: API for admin to get all shop details
@@ -2647,6 +3837,35 @@ paths:
       security:
       - BearerAuth: []
       summary: Get shop by ID
+      tags:
+      - Admin Shop
+    put:
+      operationId: UploadShopById
+      parameters:
+      - description: Shop ID
+        in: path
+        name: shop_id
+        required: true
+        type: string
+      - description: Shop details (single or multiple attributes)
+        in: body
+        name: input
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      responses:
+        "200":
+          description: Successfully updated shop
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: API for admin to update shop by ID
       tags:
       - Admin Shop
   /admin/shops/owner/{owner_id}:
@@ -2786,6 +4005,42 @@ paths:
       summary: Update stocks (Admin)
       tags:
       - Admin Stock
+  /admin/sub-categories/{sub_category_id}/attributes:
+    post:
+      consumes:
+      - application/json
+      description: API endpoint to create a new sub type attribute for a specific
+        subcategory.
+      parameters:
+      - description: Subcategory ID
+        in: path
+        name: sub_category_id
+        required: true
+        type: integer
+      - description: Sub type attribute to be created
+        in: body
+        name: attribute
+        required: true
+        schema:
+          $ref: '#/definitions/request.SubTypeAttribute'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Successfully sub type attribute created
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to save sub type attribute
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Save a new sub type attribute
+      tags:
+      - Admin Products
   /admin/users:
     get:
       description: API for admin to get all user details
@@ -2841,6 +4096,123 @@ paths:
       summary: api for admin to block or unblock user
       tags:
       - Admin User
+  /api/admin/items/lowViewproductitems:
+    get:
+      consumes:
+      - application/json
+      description: Get product items with low views for a specific shop in the 10-20
+        day period after creation
+      parameters:
+      - description: Bearer token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Search keyword
+        in: query
+        name: q
+        type: string
+      - description: Category ID
+        in: query
+        name: category_id
+        type: string
+      - description: Brand ID
+        in: query
+        name: brand_id
+        type: string
+      - description: Location ID
+        in: query
+        name: location_id
+        type: string
+      - description: 'Sort by: created_at, updated_at, name, views'
+        in: query
+        name: sortby
+        type: string
+      - description: Pagination limit
+        in: query
+        name: limit
+        type: integer
+      - description: Pagination offset
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved low view product items
+          schema:
+            $ref: '#/definitions/response.ProductItems'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Find low view product items (less than 5 views in days 10-20 after
+        creation)
+      tags:
+      - Product Items
+  /attributes/{attribute_id}:
+    get:
+      consumes:
+      - application/json
+      description: API endpoint to retrieve a sub type attribute by its ID.
+      parameters:
+      - description: Sub type attribute ID
+        in: path
+        name: attribute_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved sub type attribute
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid attribute ID
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to get sub type attribute
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Get sub type attribute by ID
+      tags:
+      - Products
+  /attributes/{attribute_id}/options:
+    get:
+      consumes:
+      - application/json
+      description: API endpoint to retrieve all options for a specific sub type attribute.
+      parameters:
+      - description: Sub type attribute ID
+        in: path
+        name: attribute_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved sub type attribute options
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid attribute ID
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to get sub type attribute options
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Get all sub type attribute options
+      tags:
+      - Products
   /auth/google-auth:
     get:
       description: API for user to load google login page
@@ -3190,6 +4562,21 @@ paths:
       summary: UserSingUp verify OTP  (User)
       tags:
       - User Authentication
+  /banner:
+    get:
+      operationId: GetBanners
+      responses:
+        "200":
+          description: successfully retrieved banners
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: failed to get banners
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: api to get banners
+      tags:
+      - Offer
   /brands:
     get:
       consumes:
@@ -3552,6 +4939,120 @@ paths:
       summary: Stripe verify (User)
       tags:
       - User Payment
+  /categories/{category_id}/sub-categories:
+    get:
+      consumes:
+      - application/json
+      description: API endpoint to retrieve all product sub-categories under a specific
+        category.
+      parameters:
+      - description: Category ID
+        in: path
+        name: category_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved all sub-categories
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid category ID
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to get sub-categories
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Get all sub-categories by category ID
+      tags:
+      - Products
+  /departments/{department_id}/categories:
+    get:
+      consumes:
+      - application/json
+      description: API endpoint to retrieve all product categories under a specific
+        department.
+      parameters:
+      - description: Department ID
+        in: path
+        name: department_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved all categories
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid department ID
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to get categories
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Get all categories by department ID
+      tags:
+      - Products
+  /departments/{id}:
+    get:
+      consumes:
+      - application/json
+      description: API endpoint to retrieve a product department by its ID.
+      parameters:
+      - description: Department ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved department
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid department ID
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to get department
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Get department by ID
+      tags:
+      - Products
+  /feedback/shop:
+    post:
+      description: API for user to submit shopping feedback for an order
+      operationId: SubmitShoppingFeedback
+      parameters:
+      - description: Input Fields
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.ShoppingFeedback'
+      responses:
+        "200":
+          description: Successfully submitted shopping feedback
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Submit shopping feedback (User)
+      tags:
+      - User Feedback
   /filters/areas:
     get:
       consumes:
@@ -3824,13 +5325,151 @@ paths:
       summary: Get cities by state ID
       tags:
       - Filters
-  /notifications/:
+  /items/{product_item_id}:
+    delete:
+      consumes:
+      - application/json
+      description: API for admin to delete a product item by ID
+      operationId: DeleteProductItem
+      parameters:
+      - description: Product Item ID
+        in: path
+        name: product_item_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully deleted product item
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Delete a product item
+      tags:
+      - Admin Products
+  /like/{id}:
+    get:
+      operationId: GetLikedShops
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: Successfully got liked shops
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid user ID
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to get liked shops
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get liked shops by user (User)
+      tags:
+      - User Like
+  /like/shop/{shop_id}:
+    delete:
+      operationId: UnlikeShop
+      parameters:
+      - description: Shop ID
+        in: path
+        name: shop_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: Successfully unliked shop
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid shop ID
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to unlike shop
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Unlike a shop (User)
+      tags:
+      - User Like
+    post:
+      operationId: LikeShop
+      parameters:
+      - description: Shop ID
+        in: path
+        name: shop_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: Successfully liked shop
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid shop ID
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to like shop
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Like a shop (User)
+      tags:
+      - User Like
+  /like/shop/{shop_id}/is-liked:
+    get:
+      operationId: IsLikedShop
+      parameters:
+      - description: Shop ID
+        in: path
+        name: shop_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: Successfully fetched like status
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid shop ID
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to get like status
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Check if user liked a shop (User)
+      tags:
+      - User Like
+  /notifications:
     get:
       operationId: GetNotificationsBy
       parameters:
       - in: query
         name: admin_id
-        required: true
         type: integer
       - in: query
         name: is_read
@@ -3843,62 +5482,74 @@ paths:
         type: integer
       - in: query
         name: shop_id
-        required: true
         type: integer
       - in: query
         name: status
         type: string
       - in: query
         name: user_id
-        required: true
         type: integer
       - format: int64
         in: query
-        name: count
+        name: limit
         type: integer
       - format: int64
         in: query
-        name: pageNumber
+        name: offset
         type: integer
+      produces:
+      - application/json
       responses:
         "200":
-          description: Successfully got notifications
+          description: Notifications retrieved
           schema:
             $ref: '#/definitions/response.Response'
         "400":
-          description: invalid input
+          description: Invalid query params
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal server error
           schema:
             $ref: '#/definitions/response.Response'
       security:
       - BearerAuth: []
-      summary: api for getting notifications with filters
+      summary: Get notifications with filters and pagination
       tags:
       - Notification
     post:
+      consumes:
+      - application/json
       operationId: SaveNotification
       parameters:
-      - description: inputs
+      - description: Notification payload
         in: body
         name: input
         required: true
         schema:
           $ref: '#/definitions/request.Notification'
+      produces:
+      - application/json
       responses:
-        "200":
-          description: Successfully sent notification
+        "201":
+          description: Notification saved
           schema:
             $ref: '#/definitions/response.Response'
         "400":
-          description: invalid input
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal server error
           schema:
             $ref: '#/definitions/response.Response'
       security:
       - BearerAuth: []
-      summary: api for sending notification
+      summary: Save a notification record
       tags:
       - Notification
   /notifications/{notification_id}/read:
-    put:
+    patch:
       operationId: MarkNotificationAsRead
       parameters:
       - description: Notification ID
@@ -3906,44 +5557,151 @@ paths:
         name: notification_id
         required: true
         type: integer
+      produces:
+      - application/json
       responses:
         "200":
-          description: Successfully marked notification as read
+          description: Marked as read
           schema:
             $ref: '#/definitions/response.Response'
         "400":
-          description: invalid input
+          description: Invalid ID
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal server error
           schema:
             $ref: '#/definitions/response.Response'
       security:
       - BearerAuth: []
-      summary: api for marking notification as read
+      summary: Mark a notification as read
       tags:
       - Notification
-  /notifications/generateFCMToken:
+  /notifications/push:
     post:
-      operationId: GenerateFCMToken
+      consumes:
+      - application/json
+      operationId: SendPushNotification
       parameters:
-      - description: inputs
+      - description: Push notification payload
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.SendPushRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Notification sent
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Send a direct FCM push notification
+      tags:
+      - Notification
+  /notifications/register-token:
+    post:
+      consumes:
+      - application/json
+      operationId: RegisterDeviceToken
+      parameters:
+      - description: Device token payload
         in: body
         name: input
         required: true
         schema:
           $ref: '#/definitions/request.NotificationDeviceToken'
+      produces:
+      - application/json
       responses:
         "200":
-          description: Successfully generated FCM token
+          description: Token registered
           schema:
             $ref: '#/definitions/response.Response'
         "400":
-          description: invalid input
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal server error
           schema:
             $ref: '#/definitions/response.Response'
       security:
       - BearerAuth: []
-      summary: api for generating FCM token
+      summary: Register FCM device token
       tags:
       - Notification
+  /notifications/unregister-token:
+    delete:
+      consumes:
+      - application/json
+      operationId: UnregisterDeviceToken
+      parameters:
+      - description: Device token payload
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.UnregisterDeviceToken'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Token unregistered
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Unregister FCM device token
+      tags:
+      - Notification
+  /options/{option_id}:
+    get:
+      consumes:
+      - application/json
+      description: API endpoint to retrieve a sub type attribute option by its ID.
+      parameters:
+      - description: Sub type attribute option ID
+        in: path
+        name: option_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved sub type attribute option
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid option ID
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to get sub type attribute option
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Get sub type attribute option by ID
+      tags:
+      - Products
   /orders:
     get:
       description: API to get order for user user orders
@@ -4091,6 +5849,10 @@ paths:
         in: query
         name: count
         type: integer
+      - description: Search term to filter products by name
+        in: query
+        name: search
+        type: string
       responses:
         "200":
           description: Successfully found all products
@@ -4221,6 +5983,97 @@ paths:
               type: string
             type: object
       summary: Get products by category ID
+      tags:
+      - Products
+  /products/category/image/{image_id}:
+    get:
+      consumes:
+      - application/json
+      description: API endpoint to retrieve a category image by its ID.
+      parameters:
+      - description: Category Image ID
+        in: path
+        name: image_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved category image
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid category image ID
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to get category image
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Get category image by ID
+      tags:
+      - Products
+    put:
+      consumes:
+      - application/json
+      description: API endpoint to update a category image by its ID.
+      parameters:
+      - description: Category Image ID
+        in: path
+        name: image_id
+        required: true
+        type: integer
+      - description: Updated category image data
+        in: body
+        name: image
+        required: true
+        schema:
+          $ref: '#/definitions/request.CategoryImage'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully updated category image
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to update category image
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Update category image
+      tags:
+      - Products
+  /products/item/{product_item_id}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a product item by its unique ID.
+      parameters:
+      - description: Product Item ID
+        in: path
+        name: product_item_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved product item
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid product item ID
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.Response'
       tags:
       - Products
   /products/location:
@@ -4377,7 +6230,8 @@ paths:
     get:
       consumes:
       - application/json
-      description: API for user to search products with filters
+      description: 'API for user to search products with filters. Supports: 1) Search
+        by name + lat + lng + radius, 2) Search by name + pincode'
       operationId: SearchProducts
       parameters:
       - description: Search keyword
@@ -4396,6 +6250,25 @@ paths:
         in: query
         name: location_id
         type: string
+      - description: Latitude for geolocation search
+        format: float64
+        in: query
+        name: lat
+        type: number
+      - description: Longitude for geolocation search
+        format: float64
+        in: query
+        name: long
+        type: number
+      - description: Radius in kilometers for geolocation search
+        format: float64
+        in: query
+        name: radius
+        type: number
+      - description: Pincode for location-based search
+        in: query
+        name: pincode
+        type: integer
       - description: Limit
         in: query
         name: limit
@@ -4496,6 +6369,347 @@ paths:
       summary: Get product search suggestions
       tags:
       - User Products
+  /rating/shop/{shop_id}:
+    post:
+      consumes:
+      - application/json
+      operationId: RateShop
+      parameters:
+      - description: Shop ID
+        in: path
+        name: shop_id
+        required: true
+        type: integer
+      - description: Rating payload
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.ShopRatingRequest'
+      responses:
+        "200":
+          description: Successfully saved rating
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to save rating
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Create or update user rating for a shop (User)
+      tags:
+      - User Rating
+  /rating/shop/{shop_id}/average-rating:
+    get:
+      operationId: GetShopAverageRating
+      parameters:
+      - description: Shop ID
+        in: path
+        name: shop_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: Successfully got average rating
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid shop ID
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to get average rating
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get average rating of a shop (User)
+      tags:
+      - User Rating
+  /rating/shop/{shop_id}/rating-distribution:
+    get:
+      operationId: GetShopRatingDistribution
+      parameters:
+      - description: Shop ID
+        in: path
+        name: shop_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: Successfully got rating distribution
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid shop ID
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to get rating distribution
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get rating distribution of a shop (User)
+      tags:
+      - User Rating
+  /rating/shop/{shop_id}/ratings:
+    get:
+      operationId: GetAllShopRatings
+      parameters:
+      - description: Shop ID
+        in: path
+        name: shop_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: Successfully got shop ratings
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid shop ID
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to get ratings
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all ratings for a shop (User)
+      tags:
+      - User Rating
+  /rating/shop/{shop_id}/user-rating:
+    get:
+      operationId: GetUserShopRating
+      parameters:
+      - description: Shop ID
+        in: path
+        name: shop_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: Successfully got user rating
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid shop ID
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to get user rating
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get current user rating for a shop (User)
+      tags:
+      - User Rating
+  /review/shop/{shop_id}:
+    post:
+      consumes:
+      - application/json
+      operationId: ReviewShop
+      parameters:
+      - description: Shop ID
+        in: path
+        name: shop_id
+        required: true
+        type: integer
+      - description: Review payload
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.ShopReviewRequest'
+      responses:
+        "200":
+          description: Successfully saved review
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to save review
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Create or update user review for a shop (User)
+      tags:
+      - User Review
+  /review/shop/{shop_id}/reviews:
+    get:
+      operationId: GetAllShopReviews
+      parameters:
+      - description: Shop ID
+        in: path
+        name: shop_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: Successfully got shop reviews
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid shop ID
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to get reviews
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all reviews for a shop (User)
+      tags:
+      - User Review
+  /review/shop/{shop_id}/user-review:
+    get:
+      operationId: GetUserShopReview
+      parameters:
+      - description: Shop ID
+        in: path
+        name: shop_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: Successfully got user review
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid shop ID
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to get user review
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get current user review for a shop (User)
+      tags:
+      - User Review
+  /shop-offers:
+    get:
+      description: API for user to get shop offers within a date range
+      operationId: GetShopOffers
+      parameters:
+      - description: Shop ID
+        in: query
+        name: shop_id
+        required: true
+        type: integer
+      - description: Start Date (YYYY-MM-DD)
+        in: query
+        name: start_date
+        required: true
+        type: string
+      - description: End Date (YYYY-MM-DD)
+        in: query
+        name: end_date
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Successfully retrieved shop offers
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid inputs
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get shop offers by shop ID and date range (User)
+      tags:
+      - User Offers
+  /shop/search:
+    get:
+      description: API for user to search shops by query, location, and radius (all
+        optional)
+      operationId: SearchShopList
+      parameters:
+      - description: Search query for shop name
+        in: query
+        name: q
+        type: string
+      - description: Latitude
+        format: float64
+        in: query
+        name: lat
+        type: number
+      - description: Longitude
+        format: float64
+        in: query
+        name: lng
+        type: number
+      - description: Radius in kilometers
+        format: float64
+        in: query
+        name: radius
+        type: number
+      responses:
+        "200":
+          description: Successfully found shops
+          schema:
+            $ref: '#/definitions/response.Response'
+        "204":
+          description: No shops found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to search shops
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Search shops (User)
+      tags:
+      - User Profile
+  /shop/search/pincode:
+    get:
+      description: API for user to get sellers in a specified pincode
+      operationId: GetSellerByPincode
+      parameters:
+      - description: Pincode
+        in: query
+        name: pincode
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: Successfully found sellers in the given pincode
+          schema:
+            $ref: '#/definitions/response.Response'
+        "204":
+          description: No sellers found in the given pincode
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to get sellers by pincode
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get sellers by pincode (User)
+      tags:
+      - User Profile
   /shop/search/radius:
     get:
       description: API for user to get sellers within a specified radius from given
@@ -4542,6 +6756,187 @@ paths:
       summary: Get sellers by radius (User)
       tags:
       - User Profile
+  /social/follow/{id}:
+    get:
+      operationId: GetFollowedShops
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: Successfully got followed shops
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid user ID
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to get followed shops
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get followed shops by user (User)
+      tags:
+      - User Social
+  /social/follow/shop/{shop_id}:
+    delete:
+      operationId: UnfollowShop
+      parameters:
+      - description: Shop ID
+        in: path
+        name: shop_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: Successfully unfollowed shop
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid shop ID
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to unfollow shop
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Unfollow a shop (User)
+      tags:
+      - User Social
+    get:
+      operationId: GetFollowers
+      parameters:
+      - description: Shop ID
+        in: path
+        name: shop_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: Successfully got followers
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid shop ID
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to get followers
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get followers of a shop (User)
+      tags:
+      - User Social
+    post:
+      operationId: FollowShop
+      parameters:
+      - description: Shop ID
+        in: path
+        name: shop_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: Successfully followed shop
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid shop ID
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to follow shop
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Follow a shop (User)
+      tags:
+      - User Social
+  /social/follow/shop/{shop_id}/is-following:
+    get:
+      operationId: IsFollowingShop
+      parameters:
+      - description: Shop ID
+        in: path
+        name: shop_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: Successfully fetched follow status
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid shop ID
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to get follow status
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Check if user follows a shop (User)
+      tags:
+      - User Social
+  /sub-categories/{sub_category_id}/attributes:
+    get:
+      consumes:
+      - application/json
+      description: API endpoint to retrieve all sub type attributes for a specific
+        subcategory.
+      parameters:
+      - description: Subcategory ID
+        in: path
+        name: sub_category_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved sub type attributes
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid subcategory ID
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to get sub type attributes
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Get all sub type attributes
+      tags:
+      - Products
+  /user/post-login-offer:
+    get:
+      description: API to decide and return offer to show after login
+      operationId: PostLoginOffer
+      responses:
+        "200":
+          description: Offer decision
+          schema:
+            $ref: '#/definitions/response.PostLoginOfferResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get post-login offer for user
+      tags:
+      - User Offers
 securityDefinitions:
   BearerAuth:
     description: 'Add prefix of Bearer before  token Ex: "Bearer token"'

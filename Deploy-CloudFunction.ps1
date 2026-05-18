@@ -8,7 +8,7 @@ param(
 )
 
 # Configuration
-$Runtime = "go121"
+$Runtime = "go123"
 $Memory = "512MB"
 $Timeout = "60"
 $SourceDir = "cmd/cloudfunctions/enquiry-notification-handler"
@@ -125,7 +125,7 @@ gcloud functions deploy $FunctionName `
     --set-env-vars="GCP_PROJECT_ID=$ProjectID,LOG_LEVEL=INFO,MONITORED_FIELDS=status,assignedTo,priority" `
     --trigger-event-filters="type=google.cloud.firestore.document.v1.updated" `
     --trigger-event-filters="database=(default)" `
-    --trigger-event-filters-path-pattern="document=enquiries/{enquiryId}"
+    --trigger-event-filters-path-pattern="document=enquiry/{enquiryId}"
 
 Write-Host ""
 

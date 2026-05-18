@@ -30,6 +30,8 @@ type Notification struct {
 type NotificationDeviceToken struct {
 	ID        uint       `gorm:"primaryKey;autoIncrement"`
 	OwnerID   string     `gorm:"type:varchar(100);not null"`
+	ShopID    string     `gorm:"type:varchar(100);not null"`
+	AdminID   string     `gorm:"type:varchar(100);not null"`
 	OwnerType string     `gorm:"type:varchar(10);not null;check:owner_type IN ('user','seller')"`
 	Token     string     `gorm:"type:varchar(255);unique;not null"`
 	Platform  string     `gorm:"type:varchar(50)"`

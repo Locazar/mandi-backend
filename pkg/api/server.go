@@ -43,6 +43,12 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware middlewa
 	stockHandler handlerInterface.StockHandler, branHandler handlerInterface.BrandHandler,
 	notificationHandler handlerInterface.NotificationHandler, promotionHandler handlerInterface.PromotionHandler,
 	fcmTokenHandler handlerInterface.FcmTokenHandler,
+	searchHandler handlerInterface.SearchHandler,
+	alertHandler handlerInterface.AlertHandler,
+	uiHandler handlerInterface.UIHandler,
+	bannerUserHandler handlerInterface.BannerUserHandler,
+	subscriptionPaymentHandler handlerInterface.SubscriptionPaymentHandler,
+	subscriptionHandler handlerInterface.SubscriptionHandler,
 ) *ServerHTTP {
 
 	engine := gin.New()
@@ -67,7 +73,6 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware middlewa
 		}
 
 		if _, err := os.Stat(fullPath); os.IsNotExist(err) {
-			// Serve default icon if file doesn't exist
 			defaultIconPath, err := filepath.Abs("./uploads/icon/default.svg")
 			if err != nil {
 				c.Status(404)
@@ -83,38 +88,6 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware middlewa
 
 		c.File(fullPath)
 	})
-	// 	categoryAndFilepath := c.Param("categoryAndFilepath")
-	// 	// Extract the file path after the category (e.g., "loyalty/Loyalty.png" -> "Loyalty.png")
-	// 	parts := strings.Split(categoryAndFilepath, "/")
-	// 	if len(parts) < 2 {
-	// 		c.Status(404)
-	// 		return
-	// 	}
-	// 	// Join all parts after the first one (skip the category)
-	// 	fileName := strings.Join(parts[1:], "/")
-	// 	fullPath, err := filepath.Abs("./uploads/icon/" + fileName)
-	// 	if err != nil {
-	// 		c.Status(404)
-	// 		return
-	// 	}
-
-	// 	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
-	// 		// Serve default icon if file doesn't exist
-	// 		defaultIconPath, err := filepath.Abs("./uploads/icon/default.svg")
-	// 		if err != nil {
-	// 			c.Status(404)
-	// 			return
-	// 		}
-	// 		if _, err := os.Stat(defaultIconPath); os.IsNotExist(err) {
-	// 			c.Status(404)
-	// 			return
-	// 		}
-	// 		c.File(defaultIconPath)
-	// 		return
-	// 	}
-
-	// 	c.File(fullPath)
-	// })
 
 	file, err := os.OpenFile("server.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
@@ -124,8 +97,7 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware middlewa
 	// Send logs to file
 	log.SetOutput(file)
 
-	// Serve all files in uploads directory at /uploads
-	// Serve static files from uploads directory subdirectories (excluding icon which has custom handling)
+	// Serve static files
 	engine.StaticFS("/uploads/admin-profiles", http.Dir("./uploads/admin-profiles"))
 	engine.StaticFS("/uploads/category-images", http.Dir("./uploads/category-images"))
 	engine.StaticFS("/uploads/departments", http.Dir("./uploads/departments"))
@@ -137,10 +109,11 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware middlewa
 
 	// set up routes
 	routes.UserRoutes(engine.Group("/api"), authHandler, middleware, userHandler, cartHandler,
-
-		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler, notificationHandler, promotionHandler)
+		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler, notificationHandler, promotionHandler, subscriptionPaymentHandler, subscriptionHandler, searchHandler)
+	routes.UserBannerRoutes(engine.Group("/api"), bannerUserHandler)
 	routes.AdminRoutes(engine.Group("/api/admin"), authHandler, middleware, adminHandler,
-		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler, promotionHandler, fcmTokenHandler, notificationHandler)
+		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler, promotionHandler, fcmTokenHandler, notificationHandler, alertHandler, uiHandler)
+	routes.UIRoutes(engine.Group("/api/web"), middleware, uiHandler)
 
 	// no handler
 	engine.NoRoute(func(ctx *gin.Context) {

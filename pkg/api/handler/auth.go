@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -260,7 +261,6 @@ func (c *AuthHandler) UserSignUpVerify(ctx *gin.Context) {
 			statusCode = http.StatusInternalServerError
 		}
 		response.ErrorResponse(ctx, statusCode, "Failed to verify otp", err, nil)
-		return
 	}
 
 	c.setupTokenAndResponse(ctx, token.User, userID)
@@ -347,6 +347,7 @@ func (c *AuthHandler) setupTokenAndResponse(ctx *gin.Context, tokenUser token.Us
 	tokenRes := response.TokenResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
+		UserID:       userID,
 	}
 
 	// Merge custom response with token response if provided
@@ -358,7 +359,7 @@ func (c *AuthHandler) setupTokenAndResponse(ctx *gin.Context, tokenUser token.Us
 		mergedData := map[string]interface{}{
 			"tokens": tokenRes,
 		}
-
+		fmt.Printf("Merged Data: %+v\n", mergedData)
 		// Add custom data to the merged response
 		if customData, ok := customResponse[0].(map[string]interface{}); ok {
 			for key, value := range customData {
@@ -563,6 +564,79 @@ func (c *AuthHandler) UserLoginOtpVerifyEmail(ctx *gin.Context) {
 	}
 
 	c.setupTokenAndResponse(ctx, token.User, userID)
+}
+
+// AdminSignUpOtpSend godoc
+// @Summary		Send OTP for Admin Signup
+// @Description	API for admin to send OTP for signup
+// @Id				AdminSignUpOtpSend
+// @Tags			Admin Authentication
+// @Param			inputs	body	request.OTPLogin{}	true	"Mobile number to send OTP"
+// @Router			/admin/auth/sign-up/otp/send [post]
+// @Success		200	{object}	response.Response{response.OTPResponse{}}	"Successfully sent OTP to admin's mobile number"
+// @Failure		400	{object}	response.Response{}							"Invalid input"
+// @Failure		409	{object}	response.Response{}							"Admin already exists"
+// @Failure		500	{object}	response.Response{}							"Failed to send OTP"
+func (c *AuthHandler) AdminSignUpOtpSend(ctx *gin.Context) {
+	var body request.OTPLogin
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, body)
+		return
+	}
+
+	if body.Phone == "" {
+		err := errors.New("mobile number is required")
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+
+	otpID, err := c.authUseCase.AdminSignUpOtpSend(ctx, body.Phone)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to send OTP", err, nil)
+		return
+	}
+
+	otpRes := response.OTPResponse{
+		OtpID: otpID,
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully sent OTP to admin's mobile number", otpRes)
+}
+
+// AdminSignUpOtpVerify godoc
+// @Summary		Verify OTP for Admin Signup
+// @Description	API for admin to verify OTP for signup and either login or register
+// @Id				AdminSignUpOtpVerify
+// @Tags			Admin Authentication
+// @Param			inputs	body	request.OTPVerify{}	true	"OTP verification details"
+// @Router			/admin/auth/sign-up/otp/verify [post]
+// @Success		200	{object}	response.Response{data=response.TokenResponse}	"Successfully verified OTP and logged in/registered admin"
+// @Failure		400	{object}	response.Response{}								"Invalid inputs"
+// @Failure		401	{object}	response.Response{}								"OTP not matched"
+// @Failure		410	{object}	response.Response{}								"OTP Expired"
+// @Failure		500	{object}	response.Response{}								"Failed to verify OTP"
+func (c *AuthHandler) AdminSignUpOtpVerify(ctx *gin.Context) {
+	var body request.OTPVerify
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, body)
+		return
+	}
+
+	adminID, shopVerification, err := c.authUseCase.AdminSignUpOtpVerify(ctx, body)
+	if err != nil {
+		var statusCode int
+		switch {
+		case errors.Is(err, usecase.ErrOtpExpired):
+			statusCode = http.StatusGone
+		case errors.Is(err, usecase.ErrInvalidOtp):
+			statusCode = http.StatusUnauthorized
+		default:
+			statusCode = http.StatusInternalServerError
+		}
+		response.ErrorResponse(ctx, statusCode, "Failed to verify OTP", err, nil)
+		return
+	}
+
+	c.setupTokenAndResponse(ctx, token.Admin, adminID, shopVerification)
 }
 
 func (c *AuthHandler) AdminLogout(ctx *gin.Context) {

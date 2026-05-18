@@ -504,6 +504,40 @@ func (c *productDatabase) SaveProductConfiguration(ctx context.Context, productI
 	return err
 }
 
+// UpdateShopDepartments adds a department to the shop_departments table if not already present
+// Uses atomic PostgreSQL INSERT with ON CONFLICT to avoid race conditions and duplicates
+// Creates an entry in shop_departments table for tracking shop-department relationships
+func (c *productDatabase) UpdateShopDepartments(ctx context.Context, shopID uint, departmentID uint, adminID string, categoryID uint, subCategoryId uint) error {
+	if shopID == 0 || departmentID == 0 || categoryID == 0 || subCategoryId == 0 {
+		return fmt.Errorf("shopID, departmentID, categoryID, and subCategoryId must not be zero")
+	}
+
+	// Convert adminID string to uint if possible
+	var adminIDUint uint
+	if _, err := fmt.Sscanf(adminID, "%d", &adminIDUint); err != nil {
+		// If conversion fails, use shop_id as fallback (admin_id should be from shop_details)
+		adminIDUint = shopID
+	}
+
+	// Insert into shop_departments with ON CONFLICT DO NOTHING to handle duplicates
+	query := `INSERT INTO shop_departments (admin_id, shop_id, department_id, category_id, sub_category_id, created_at, updated_at)
+	VALUES ($1, $2, $3, $4, $5, NOW(), NOW()) ON CONFLICT (shop_id, department_id) DO NOTHING`
+
+	result := c.DB.WithContext(ctx).Exec(query, adminIDUint, shopID, departmentID, categoryID, subCategoryId)
+	if result.Error != nil {
+		log.Printf("Failed to update shop departments: shopID=%d, departmentID=%d, adminID=%s, categoryID=%d, error=%v", shopID, departmentID, adminID, categoryID, result.Error)
+		return fmt.Errorf("failed to update shop departments: %w", result.Error)
+	}
+
+	if result.RowsAffected == 0 {
+		log.Printf("Department already exists for shop: shopID=%d, departmentID=%d, categoryID=%d", shopID, departmentID, categoryID)
+	} else {
+		log.Printf("Shop department record created: shopID=%d, departmentID=%d, adminID=%s, categoryID=%d", shopID, departmentID, adminID, categoryID)
+	}
+
+	return nil
+}
+
 func (c *productDatabase) SaveProductItem(ctx context.Context, productItem request.ProductItem, adminID string, shopID uint) (productItemID uint, err error) {
 
 	query := `INSERT INTO product_items (admin_id, sub_category_name, dynamic_fields, product_item_images, category_id, department_id, sub_category_id, shop_id, created_at, updated_at) 
@@ -536,6 +570,14 @@ VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`
 				log.Printf("Failed to index product item in Elasticsearch: %v", indexErr)
 			}
 		}()
+	}
+
+	// Update shop's departments array after successful product item save
+	if err == nil && productItem.DepartmentID > 0 {
+		if updateDeptErr := c.UpdateShopDepartments(ctx, shopID, productItem.DepartmentID, adminID, productItem.CategoryID, productItem.SubCategoryID); updateDeptErr != nil {
+			log.Printf("Warning: Failed to update shop departments during SaveProductItem: %v", updateDeptErr)
+			// Don't return error here - product was saved successfully, department update is a side effect
+		}
 	}
 
 	return productItemID, err
@@ -666,7 +708,7 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context, adminID strin
 			shopIDPtr = &filterByShopID
 		}
 		var err error
-		ids, err = c.ElasticClient.SearchProductItems(ctx, keyword, categoryID, shopIDPtr, limit, offset)
+		ids, err = c.ElasticClient.SearchProductItems(ctx, keyword, categoryID, nil, brandID, shopIDPtr, limit, offset)
 		if err != nil {
 			log.Printf("ES search failed, falling back to PG: %v", err)
 		} else if len(ids) == 0 {
@@ -953,7 +995,7 @@ func (c *productDatabase) FindLowViewProductItems(ctx context.Context,
 			offset = int(pagination.Offset)
 		}
 		var err error
-		ids, err = c.ElasticClient.SearchProductItems(ctx, keyword, categoryID, filterByShopID, limit, offset)
+		ids, err = c.ElasticClient.SearchProductItems(ctx, keyword, categoryID, nil, brandID, filterByShopID, limit, offset)
 		if err != nil {
 			log.Printf("ES search failed, falling back to PG: %v", err)
 		} else if len(ids) == 0 {
@@ -1199,27 +1241,129 @@ func (c *productDatabase) FindAllProductItemImages(ctx context.Context, productI
 	return
 }
 
+func buildGeoDistanceQuery(lat, lng, radius float64, startParam int, locationColumnOrLatCol, longitudeCol string, defaultOrderBy string) (distanceExpr string, geoFilter string, orderBy string, params []interface{}, nextParam int) {
+	distanceExpr = "NULL::double precision AS distance_km"
+	orderBy = defaultOrderBy
+	nextParam = startParam
+
+	if lat != 0 && lng != 0 {
+		// Check if we're using latitude/longitude columns (both parameters provided) or PostGIS geometry
+		if longitudeCol != "" {
+			// Using latitude/longitude numeric columns with haversine formula
+			latIdx := nextParam
+			lonIdx := nextParam + 1
+			radiusIdx := nextParam + 2
+
+			distanceExpr = fmt.Sprintf(
+				`(6371 * acos(
+					LEAST(1, GREATEST(-1,
+						cos(radians($%d)) * cos(radians(%s::double precision)) *
+						cos(radians(%s::double precision) - radians($%d)) +
+						sin(radians($%d)) * sin(radians(%s::double precision))
+					))
+				)) AS distance_km`,
+				latIdx,
+				locationColumnOrLatCol,
+				longitudeCol,
+				lonIdx,
+				latIdx,
+				locationColumnOrLatCol,
+			)
+
+			whereFilterTemplate := `AND %s IS NOT NULL AND %s IS NOT NULL AND
+			  (6371 * acos(
+				LEAST(1, GREATEST(-1,
+					cos(radians($%d)) * cos(radians(%s::double precision)) *
+					cos(radians(%s::double precision) - radians($%d)) +
+					sin(radians($%d)) * sin(radians(%s::double precision))
+				))
+			  )) <= $%d`
+
+			if radius > 0 {
+				geoFilter = fmt.Sprintf(whereFilterTemplate,
+					locationColumnOrLatCol,
+					longitudeCol,
+					latIdx,
+					locationColumnOrLatCol,
+					longitudeCol,
+					lonIdx,
+					latIdx,
+					locationColumnOrLatCol,
+					radiusIdx,
+				)
+				params = append(params, lat, lng, radius)
+				nextParam += 3
+			} else {
+				// No radius filter, just calculate distance
+				geoFilter = fmt.Sprintf(" AND %s IS NOT NULL AND %s IS NOT NULL", locationColumnOrLatCol, longitudeCol)
+				params = append(params, lat, lng)
+				nextParam += 2
+			}
+
+			orderBy = fmt.Sprintf(" ORDER BY distance_km ASC NULLS LAST, pi.created_at DESC")
+		} else {
+			// Using PostGIS geometry column (old behavior)
+			lonIdx := nextParam
+			latIdx := nextParam + 1
+
+			distanceExpr = fmt.Sprintf(
+				`ST_Distance(%s, ST_SetSRID(ST_MakePoint($%d, $%d), 4326)::geography) / 1000.0 AS distance_km`,
+				locationColumnOrLatCol,
+				lonIdx,
+				latIdx,
+			)
+
+			params = append(params, lng, lat)
+			nextParam += 2
+
+			if radius > 0 {
+				radiusIdx := nextParam
+				geoFilter = fmt.Sprintf(
+					` AND %s IS NOT NULL AND ST_DWithin(%s, ST_SetSRID(ST_MakePoint($%d, $%d), 4326)::geography, $%d)`,
+					locationColumnOrLatCol,
+					locationColumnOrLatCol,
+					lonIdx,
+					latIdx,
+					radiusIdx,
+				)
+				params = append(params, radius*1000)
+				nextParam++
+			}
+
+			orderBy = fmt.Sprintf(" ORDER BY distance_km ASC NULLS LAST%s", defaultOrderBy)
+		}
+	}
+
+	return
+}
+
 // SearchProducts implements interfaces.ProductRepository.
-func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, categoryID, brandID, locationID, shopID *string, latitude, longitude, radius float64, pincode *uint, pagination request.Pagination) (products []response.ProductItems, err error) {
+func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, categoryID, departmentID, brandID, locationID, shopID *string, latitude, longitude, radius float64, pincode *uint, pagination request.Pagination) (products []response.ProductItems, err error) {
 	limit := int(pagination.Limit)
 	offset := int(pagination.Offset)
 
+	// Initialize products as empty slice to avoid nil in JSON response
+	products = []response.ProductItems{}
+
 	var ids []uint
+	var useElasticsearchResults bool
 	if keyword != "" && c.ElasticClient != nil {
-		// Use Elasticsearch for search
-		ids, err = c.ElasticClient.SearchProductItems(ctx, keyword, categoryID, shopID, limit, offset)
+		// Use Elasticsearch for search with all filters applied with AND logic
+		ids, err = c.ElasticClient.SearchProductItems(ctx, keyword, categoryID, departmentID, brandID, shopID, limit, offset)
 		if err != nil {
 			log.Printf("ES search failed, falling back to PG: %v", err)
-		} else if len(ids) == 0 {
-			return []response.ProductItems{}, nil
+		} else if len(ids) > 0 {
+			useElasticsearchResults = true
 		}
 	}
 
 	// Build the base query
-	baseQuery := `SELECT pi.sub_category_name, pi.id, pi.category_id, pi.department_id, pi.sub_category_id,
+	baseQueryTemplate := `SELECT pi.sub_category_name, pi.id, pi.category_id, pi.department_id, pi.sub_category_id,
 			pi.product_item_images, pi.dynamic_fields, pi.created_at, pi.updated_at,
 			c.name AS category_name, d.name AS department_name, sc.name AS sub_category_name_ref,
 			sc.image_url AS sub_category_image_url,
+			sd.id AS shop_id, sd.shop_name,
+			%s,
 			(SELECT COALESCE(SUM(view_count), 0) FROM product_item_views WHERE product_item_id = pi.id) AS view_count,
 			(
 				SELECT COALESCE(json_agg(json_build_object(
@@ -1251,7 +1395,7 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 	whereClause := " WHERE 1=1"
 
 	// If we have IDs from Elasticsearch, filter by them
-	if len(ids) > 0 {
+	if useElasticsearchResults && len(ids) > 0 {
 		placeholders := make([]string, len(ids))
 		for i, id := range ids {
 			placeholders[i] = fmt.Sprintf("$%d", paramIndex)
@@ -1260,16 +1404,25 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 		}
 		whereClause += " AND pi.id IN (" + strings.Join(placeholders, ",") + ")"
 	} else if keyword != "" {
-		// Fallback to keyword search if no Elasticsearch
+		// Fallback to keyword search if no Elasticsearch or ES failed
 		whereClause += fmt.Sprintf(" AND (pi.sub_category_name ILIKE $%d OR pi.dynamic_fields::text ILIKE $%d OR c.name::text ILIKE $%d OR sc.name::text ILIKE $%d OR d.name::text ILIKE $%d)", paramIndex, paramIndex, paramIndex, paramIndex, paramIndex)
 		params = append(params, "%"+keyword+"%")
 		paramIndex++
 	}
+	// Note: If keyword is empty, we continue without keyword filter but apply other filters (category, department, geo, etc.)
 
 	if categoryID != nil {
 		if cid, err := strconv.ParseUint(*categoryID, 10, 64); err == nil {
 			whereClause += fmt.Sprintf(" AND pi.category_id = $%d", paramIndex)
 			params = append(params, cid)
+			paramIndex++
+		}
+	}
+
+	if departmentID != nil {
+		if did, err := strconv.ParseUint(*departmentID, 10, 64); err == nil {
+			whereClause += fmt.Sprintf(" AND pi.department_id = $%d", paramIndex)
+			params = append(params, did)
 			paramIndex++
 		}
 	}
@@ -1298,24 +1451,23 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 		}
 	}
 
-	// Filter by geolocation (lat + long + radius) OR pincode, but not both
-	if latitude != 0 && longitude != 0 && radius > 0 {
-		// Using Haversine formula for distance calculation (in km, using 6371 as Earth's radius)
-		// Also ensure shop_details has valid latitude and longitude
-		whereClause += fmt.Sprintf(` AND sd.latitude IS NOT NULL AND sd.longitude IS NOT NULL
-			AND (6371 * acos(cos(radians($%d)) * cos(radians(sd.latitude)) * 
-			cos(radians(sd.longitude) - radians($%d)) + sin(radians($%d)) * 
-			sin(radians(sd.latitude)))) <= $%d`, paramIndex, paramIndex+1, paramIndex, paramIndex+2)
-		params = append(params, latitude, longitude, radius)
-		paramIndex += 3
-	} else if pincode != nil {
+	distanceExpr, geoFilter, orderBy, geoArgs, paramIndex := buildGeoDistanceQuery(latitude, longitude, radius, paramIndex, "sd.latitude", "sd.longitude", " ORDER BY pi.created_at DESC")
+	if geoFilter != "" {
+		whereClause += geoFilter
+	}
+	params = append(params, geoArgs...)
+
+	useGeoDistance := latitude != 0 && longitude != 0
+
+	if !useGeoDistance && pincode != nil {
 		// Use pincode filter only if geolocation is not provided
 		whereClause += fmt.Sprintf(" AND sd.pincode = $%d", paramIndex)
 		params = append(params, fmt.Sprintf("%d", *pincode))
 		paramIndex++
 	}
 
-	baseQuery += whereClause + " ORDER BY pi.created_at DESC LIMIT $" + fmt.Sprint(paramIndex) + " OFFSET $" + fmt.Sprint(paramIndex+1)
+	baseQuery := fmt.Sprintf(baseQueryTemplate, distanceExpr)
+	baseQuery += whereClause + orderBy + " LIMIT $" + fmt.Sprint(paramIndex) + " OFFSET $" + fmt.Sprint(paramIndex+1)
 	params = append(params, limit, offset)
 
 	// Log the final SQL and parameters for debugging
@@ -1331,9 +1483,12 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 		DepartmentName      string    `gorm:"column:department_name"`
 		SubCategoryNameRef  string    `gorm:"column:sub_category_name_ref"`
 		SubCategoryImageURL string    `gorm:"column:sub_category_image_url"`
+		ShopID              uint      `gorm:"column:shop_id"`
+		ShopName            string    `gorm:"column:shop_name"`
 		ProductItemImages   string    `gorm:"column:product_item_images"`
 		DynamicFields       []byte    `gorm:"column:dynamic_fields"`
 		OfferProducts       []byte    `gorm:"column:offer_products"`
+		DistanceKM          *float64  `gorm:"column:distance_km"`
 		CreatedAt           time.Time `gorm:"column:created_at"`
 		UpdatedAt           time.Time `gorm:"column:updated_at"`
 		ViewCount           uint      `gorm:"column:view_count"`
@@ -1374,10 +1529,13 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 			CategoryID:          dbItem.CategoryID,
 			DepartmentID:        dbItem.DepartmentID,
 			SubCategoryID:       dbItem.SubCategoryID,
+			ShopID:              dbItem.ShopID,
+			ShopName:            dbItem.ShopName,
 			ProductItemImages:   images,
 			CreatedAt:           dbItem.CreatedAt,
 			UpdatedAt:           dbItem.UpdatedAt,
 			ViewCount:           dbItem.ViewCount,
+			DistanceKM:          dbItem.DistanceKM,
 		}
 
 		// Unmarshal offer_products if present. Handle both raw JSON bytes and JSON-as-string.
@@ -1698,26 +1856,40 @@ func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID 
 }
 
 func (c *productDatabase) IncrementProductItemViewCount(ctx context.Context, productItemID uint, adminID string) error {
-	// Get shop ID using admin ID
-	var shopID string
-	shopQuery := `SELECT id FROM shop_details WHERE admin_id = $1`
-	err := c.DB.Raw(shopQuery, adminID).Scan(&shopID).Error
+	// Resolve the owning shop from the product item itself.
+	// This keeps view rows tied to the product owner while deduping by viewer.
+	var shopID uint
+	shopQuery := `SELECT shop_id FROM product_items WHERE id = $1`
+	err := c.DB.Raw(shopQuery, productItemID).Scan(&shopID).Error
 	if err != nil {
 		return err
 	}
+	if shopID == 0 {
+		return fmt.Errorf("product item %d has no shop_id", productItemID)
+	}
 
-	// First, try to update existing record
-	updateQuery := `UPDATE product_item_views SET view_count = view_count + 1, viewed_at = CURRENT_TIMESTAMP WHERE product_item_id = $1 AND shop_id = $2`
-	result := c.DB.Exec(updateQuery, productItemID, shopID)
+	// Per-user, per-product dedupe: if a row already exists for this viewer,
+	// do not increment view_count again.
+	updateQuery := `UPDATE product_item_views
+		SET viewed_at = CURRENT_TIMESTAMP
+		WHERE product_item_id = $1
+		  AND shop_id = $2
+		  AND (
+			  admin_id = to_jsonb($3::text)
+			  OR admin_id->>'id' = $3
+			  OR admin_id#>>'{}' = $3
+		  )`
+	result := c.DB.Exec(updateQuery, productItemID, shopID, adminID)
 	if result.Error != nil {
 		return result.Error
 	}
-	if result.RowsAffected == 0 {
-		// No existing record, insert new one
-		insertQuery := `INSERT INTO product_item_views (product_item_id, shop_id, admin_id, view_count, created_at, viewed_at) VALUES ($1, $2, $3, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
-		return c.DB.Exec(insertQuery, productItemID, shopID, adminID).Error
+	if result.RowsAffected > 0 {
+		return nil
 	}
-	return nil
+
+	insertQuery := `INSERT INTO product_item_views (product_item_id, shop_id, admin_id, view_count, created_at, viewed_at)
+		VALUES ($1, $2, to_jsonb($3::text), 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+	return c.DB.Exec(insertQuery, productItemID, shopID, adminID).Error
 }
 func (c *productDatabase) GetProductItemViewCount(ctx context.Context, productItemID uint, adminID string) (viewCount uint, err error) {
 	// Get shop ID using admin ID
@@ -1727,8 +1899,11 @@ func (c *productDatabase) GetProductItemViewCount(ctx context.Context, productIt
 	if err != nil {
 		return 0, err
 	}
+	if shopID == "" {
+		return 0, nil
+	}
 
-	query := `SELECT view_count FROM product_item_views WHERE product_item_id = $1 AND shop_id = $2`
+	query := `SELECT COALESCE(SUM(view_count), 0) FROM product_item_views WHERE product_item_id = $1 AND shop_id = $2`
 	err = c.DB.Raw(query, productItemID, shopID).Scan(&viewCount).Error
 	return
 }

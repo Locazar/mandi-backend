@@ -57,3 +57,19 @@ type ShopOffer struct {
 	CreatedAt time.Time `json:"created_at" gorm:"not null;autoCreateTime"`
 	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }
+
+type ShopDepartment struct {
+	ID           uint      `json:"id" gorm:"primaryKey"`
+	AdminID      uint      `json:"admin_id" gorm:"not null;index"`
+	ShopID       uint      `json:"shop_id" gorm:"not null;index;uniqueIndex:idx_shop_department"`
+	DepartmentID uint      `json:"department_id" gorm:"not null;uniqueIndex:idx_shop_department"`
+	CategoryID   uint      `json:"category_id" gorm:"not null;uniqueIndex:idx_shop_department"`
+	SubCategoryID uint      `json:"sub_category_id" gorm:"not null;uniqueIndex:idx_shop_department"`
+	CreatedAt    time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt    time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+}
+
+// TableName specifies the table name for ShopDepartment
+func (ShopDepartment) TableName() string {
+	return "shop_departments"
+}

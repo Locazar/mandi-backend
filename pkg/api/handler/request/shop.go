@@ -11,7 +11,7 @@ type ShopVerification struct {
 }
 
 type SetShopTimeRequest struct {
-	Status    bool   `json:"status" binding:"required"`
+	Status    bool   `json:"status"`
 	OpenTime  string `json:"open_time" binding:"required"`
 	CloseTime string `json:"close_time" binding:"required"`
 }

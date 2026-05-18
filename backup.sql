@@ -124,8 +124,8 @@ SET default_table_access_method = heap;
 CREATE TABLE public.addresses (
     id bigint NOT NULL,
     user_id bigint NOT NULL,
-    addtess_line1 text NOT NULL,
-    addtess_line2 text NOT NULL,
+    address_line1 text NOT NULL,
+    address_line2 text NOT NULL,
     area text NOT NULL,
     land_mark text NOT NULL,
     city text NOT NULL,
@@ -1966,7 +1966,7 @@ ALTER TABLE ONLY public.wish_lists ALTER COLUMN id SET DEFAULT nextval('public.w
 -- Data for Name: addresses; Type: TABLE DATA; Schema: public; Owner: rohitjangid
 --
 
-COPY public.addresses (id, user_id, addtess_line1, addtess_line2, area, land_mark, city, pincode, country_id, latitude, longitude, created_at, updated_at, name, phone_number, house) FROM stdin;
+COPY public.addresses (id, user_id, address_line1, address_line2, area, land_mark, city, pincode, country_id, latitude, longitude, created_at, updated_at, name, phone_number, house) FROM stdin;
 \.
 
 

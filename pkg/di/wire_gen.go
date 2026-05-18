@@ -14,6 +14,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/db"
 	"github.com/rohit221990/mandi-backend/pkg/repository"
 	aiservice "github.com/rohit221990/mandi-backend/pkg/service/ai"
+	"github.com/rohit221990/mandi-backend/pkg/service/alert_engine"
 	"github.com/rohit221990/mandi-backend/pkg/service/cloud"
 	elasticsearch "github.com/rohit221990/mandi-backend/pkg/service/elasticsearch"
 	"github.com/rohit221990/mandi-backend/pkg/service/graphics"
@@ -88,8 +89,37 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	notificationUseCase := usecase.NewNotificationUseCase(notificationRepository)
 	notificationHandler := handler.NewNotificationHandler(notificationUseCase)
 	fcmTokenRepository := repository.NewFcmTokenRepository(gormDB)
-	fcmTokenUseCase := usecase.NewFcmTokenUseCase(fcmTokenRepository)
+	fcmTokenUseCase := usecase.NewFcmTokenUseCase(fcmTokenRepository, tokenService)
 	fcmTokenHandler := handler.NewFcmTokenHandler(fcmTokenUseCase)
-	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler)
+	searchRepository := repository.NewSearchRepository(gormDB, elasticService)
+	searchUseCase := usecase.NewSearchUseCase(searchRepository)
+	searchHandler := handler.NewSearchHandler(searchUseCase)
+	alertRepositoryImpl := repository.NewAlertRepository(gormDB)
+	ruleRegistry := provideAlertRuleRegistry()
+	alertUseCaseImpl := usecase.NewAlertUseCase(alertRepositoryImpl, ruleRegistry)
+	alertHandler := handler.NewAlertHandler(alertUseCaseImpl, adminUseCase)
+	uiHandler := handler.NewUIHandler(adminUseCase)
+	bannerUseCase := usecase.NewBannerUseCase(bannerRepository)
+	bannerUserHandler := handler.NewBannerUserHandler(bannerUseCase)
+	subscriptionRepository := repository.NewSubscriptionRepository(gormDB)
+	subscriptionPaymentUseCase := usecase.NewSubscriptionPaymentUseCase(subscriptionRepository, paymentRepository, userRepository, cfg)
+	subscriptionPaymentHandler := handler.NewSubscriptionPaymentHandler(subscriptionPaymentUseCase)
+	subscriptionUseCase := usecase.NewSubscriptionUseCase(subscriptionRepository, userRepository)
+	subscriptionHandler := handler.NewSubscriptionHandler(subscriptionUseCase)
+	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler)
 	return serverHTTP, nil
+}
+
+func provideElasticURL(cfg config.Config) string {
+	return cfg.ElasticsearchURL
+}
+
+func provideAIServiceClient(cfg config.Config) *aiservice.Client {
+	return aiservice.NewClient(cfg.AIServiceURL)
+}
+
+func provideAlertRuleRegistry() *alert_engine.RuleRegistry {
+	registry := alert_engine.NewRuleRegistry()
+	registry.RegisterMultiple(alert_engine.MissingShopPhotoRule{}, alert_engine.NoProductsRule{}, alert_engine.ShopNotVerifiedRule{})
+	return registry
 }

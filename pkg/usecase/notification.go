@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -185,7 +186,7 @@ func (uc *notificationUseCase) RegisterDeviceToken(ctx context.Context, req requ
 	ownerCollection := ownerTypeToCollection(req.OwnerType)
 	if err := uc.fcmPush.SaveTokenToFirestore(ctx, ownerCollection, req.OwnerID, req.Token, req.Platform); err != nil {
 		// Log but don't surface Firestore errors to the client
-		_ = err
+		log.Printf("WARN [RegisterDeviceToken]: Firestore token sync failed for %s/%s: %v", ownerCollection, req.OwnerID, err)
 	}
 	return nil
 }
@@ -265,28 +266,46 @@ func SendPushToSellerOnNewOrder(ctx context.Context, uc service.NotificationUseC
 // StartFirestoreWatcher starts background Firestore listeners that send FCM
 // push notifications when monitored document fields change.
 //
-// rules may be nil — in that case the four default e-commerce rules are used
-// (orders, products, shops, enquiries).
+// rules may be nil — in that case the default e-commerce rules are used.
+//
+// Enquiry handling is controlled by ENQUIRY_NOTIFICATION_HANDLER:
+//   "server" (default / unset) — this process watches the enquiry collection.
+//                                Use this when no Cloud Function is deployed.
+//   "cf"                       — skip the enquiry watcher here; the deployed
+//                                Cloud Function (ProcessEnquiryUpdate/Create)
+//                                is the sole handler. Prevents double delivery.
 //
 // The method returns as soon as the watcher goroutines are launched; they run
 // until ctx is cancelled.
 func (uc *notificationUseCase) StartFirestoreWatcher(ctx context.Context, rules []notificationSvc.WatchRule) error {
 	if len(rules) == 0 {
-		enquiryRule := notificationSvc.DefaultEnquiryRule()
-		// Attach the product-image enricher when a DB connection is available.
-		if uc.db != nil {
-			enquiryRule.DataEnricher = uc.enquiryDataEnricher()
-		}
 		rules = []notificationSvc.WatchRule{
 			notificationSvc.DefaultOrderRule(),
 			notificationSvc.DefaultProductRule(),
 			notificationSvc.DefaultShopRule(),
-			enquiryRule,
+		}
+
+		// Include the enquiry watcher unless the operator has delegated enquiry
+		// notifications to a Cloud Function (ENQUIRY_NOTIFICATION_HANDLER=cf).
+		if !isCloudFunctionEnquiryHandler() {
+			enquiryRule := notificationSvc.DefaultEnquiryRule()
+			if uc.db != nil {
+				enquiryRule.DataEnricher = uc.enquiryDataEnricher()
+			}
+			rules = append(rules, enquiryRule)
+			log.Println("INFO [FirestoreWatcher]: enquiry rule enabled (ENQUIRY_NOTIFICATION_HANDLER=server)")
+		} else {
+			log.Println("INFO [FirestoreWatcher]: enquiry rule disabled — delegated to Cloud Function (ENQUIRY_NOTIFICATION_HANDLER=cf)")
 		}
 	}
 
 	watcher := notificationSvc.NewFirestoreWatcher(uc.fcmPush, rules...)
 	return watcher.Start(ctx)
+}
+
+func isCloudFunctionEnquiryHandler() bool {
+	mode := strings.Trim(strings.TrimSpace(os.Getenv("ENQUIRY_NOTIFICATION_HANDLER")), `"'`)
+	return strings.EqualFold(mode, "cf")
 }
 
 // --- helpers ---

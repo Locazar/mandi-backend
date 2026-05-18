@@ -13,8 +13,13 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 	offerHandle handlerInterface.OfferHandler, stockHandler handlerInterface.StockHandler,
 	branHandler handlerInterface.BrandHandler, notificationHandler handlerInterface.NotificationHandler,
 	promotionHandler handlerInterface.PromotionHandler,
-
+	subscriptionPaymentHandler handlerInterface.SubscriptionPaymentHandler,
+	subscriptionHandler handlerInterface.SubscriptionHandler,
+	searchHandler handlerInterface.SearchHandler,
 ) {
+
+	// Global Search — public, no auth required
+
 
 	auth := api.Group("/auth")
 	{
@@ -46,8 +51,19 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 
 	}
 
+	// Razorpay webhook — public, no auth middleware
+	api.POST("/webhook/razorpay", subscriptionPaymentHandler.HandleWebhook)
+
 	api.Use(middleware.AuthenticateUser())
 	{
+
+		globalSearch := api.Group("/global-search")
+		{
+			globalSearch.GET("/", searchHandler.GlobalSearch)
+			globalSearch.GET("", searchHandler.GlobalSearch) // Support without trailing slash
+			globalSearch.GET("/autocomplete", searchHandler.Autocomplete)
+			globalSearch.GET("/autocomplete/", searchHandler.Autocomplete) // Support with trailing slash
+		}
 
 		// api.POST("/logout", userHandler.UserLogout)
 
@@ -173,6 +189,80 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 			// shop.GET("/:shop_id", productHandler.GetProductItemsByShopID())
 		}
 
+		social := api.Group("/social")
+		{
+			follow := social.Group("/follow")
+			{
+				follow.POST("/shop/:shop_id", userHandler.FollowShop)
+				follow.DELETE("/shop/:shop_id", userHandler.UnfollowShop)
+				follow.GET("/shop/:shop_id/is-following", userHandler.IsFollowingShop)
+				follow.GET("/my-shops", userHandler.GetMyFollowedShops)
+				follow.GET("/:id", userHandler.GetFollowedShops)       // get list of shops the user is following
+				follow.GET("/shop/:shop_id", userHandler.GetFollowers) // backward compat - get list of shops the user is following
+			}
+
+			rating := social.Group("/rating")
+			{
+				rating.POST("/shop/:shop_id", userHandler.RateShop)
+				rating.GET("/shop/:shop_id", userHandler.GetAllShopRatings)
+				//UPDATE
+				rating.PUT("/shop/:shop_id", userHandler.RateShop)   // backward compat - same endpoint for create/update
+				rating.PATCH("/shop/:shop_id", userHandler.RateShop) // backward compat - same endpoint for create/update
+				// rating.DELETE("/shop/:shop_id", userHandler.DeleteShopRating)
+				rating.GET("/shop/:shop_id/average-rating", userHandler.GetShopAverageRating)
+				rating.GET("/shop/:shop_id/rating-distribution", userHandler.GetShopRatingDistribution)
+			}
+
+			review := social.Group("/review")
+			{
+				review.POST("/shop/:shop_id", userHandler.ReviewShop)
+				review.GET("/shop/:shop_id", userHandler.GetUserShopReview)
+				//UPDATE
+				review.PUT("/shop/:shop_id", userHandler.ReviewShop)
+				review.PATCH("/shop/:shop_id", userHandler.ReviewShop)
+				// review.DELETE("/shop/:shop_id", userHandler.DeleteShopReview)
+				review.GET("/shop/:shop_id/reviews", userHandler.GetAllShopReviews) // backward compat
+				// review.GET("/shop/:shop_id/average-rating", userHandler.GetShopAverageRating) // can be derived from ratings endpoint
+			}
+
+			like := social.Group("/like")
+			{
+				like.POST("/shop/:shop_id", userHandler.LikeShop)
+				like.DELETE("/shop/:shop_id", userHandler.UnlikeShop)
+				like.GET("/shop/:shop_id/is-liked", userHandler.IsLikedShop)
+				like.GET("/:id", userHandler.GetLikedShops)
+			}
+
+			// Insert follower, following, like, rating, review count in shop details response to avoid multiple calls from client
+		}
+
+		// Legacy social endpoints retained for backward compatibility.
+		legacyRating := api.Group("/rating")
+		{
+			legacyRating.POST("/shop/:shop_id", userHandler.RateShop)
+			legacyRating.GET("/shop/:shop_id", userHandler.GetUserShopRating)
+			legacyRating.PUT("/shop/:shop_id", userHandler.RateShop)
+			legacyRating.PATCH("/shop/:shop_id", userHandler.RateShop)
+			legacyRating.GET("/shop/:shop_id/average-rating", userHandler.GetShopAverageRating)
+			legacyRating.GET("/shop/:shop_id/rating-distribution", userHandler.GetShopRatingDistribution)
+		}
+
+		legacyReview := api.Group("/review")
+		{
+			legacyReview.POST("/shop/:shop_id", userHandler.ReviewShop)
+			legacyReview.GET("/shop/:shop_id", userHandler.GetUserShopReview)
+			legacyReview.PUT("/shop/:shop_id", userHandler.ReviewShop)
+			legacyReview.PATCH("/shop/:shop_id", userHandler.ReviewShop)
+			legacyReview.GET("/shop/:shop_id/reviews", userHandler.GetAllShopReviews)
+		}
+
+		legacyLike := api.Group("/like")
+		{
+			legacyLike.POST("/shop/:shop_id", userHandler.LikeShop)
+			legacyLike.DELETE("/shop/:shop_id", userHandler.UnlikeShop)
+			legacyLike.GET("/shop/:shop_id/is-liked", userHandler.IsLikedShop)
+			legacyLike.GET("/:id", userHandler.GetLikedShops)
+		}
 		// Shop by Category
 		category := api.Group("/categories")
 		{
@@ -326,6 +416,17 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 			promotion.GET("/", promotionHandler.GetAllPromotions)
 			promotion.GET("/:promotion_id", promotionHandler.GetPromotionByID)
 			promotion.DELETE("/:promotion_id", promotionHandler.DeletePromotion)
+		}
+
+		// Subscription payments
+		subscription := api.Group("/subscriptions")
+		{
+			subscription.POST("/create-order", subscriptionPaymentHandler.CreateSubscriptionOrder)
+			subscription.POST("/verify-payment", subscriptionPaymentHandler.VerifySubscriptionPayment)
+			subscription.POST("/payment-failed", subscriptionPaymentHandler.HandlePaymentFailure)
+			subscription.GET("/status", subscriptionHandler.GetSubscriptionStatus)
+			subscription.POST("/start-trial", subscriptionHandler.StartTrial)
+			subscription.GET("/plans", subscriptionHandler.GetPaidPlans)
 		}
 	}
 }

@@ -30,6 +30,15 @@ type adminHandler struct {
 
 // UserLogout implements the UserLogout method required by the AdminHandler interface.
 func (a *adminHandler) UserLogout(ctx *gin.Context) {
+	// UserLogout godoc
+	//
+	//	@Summary		Admin logout
+	//	@Security		BearerAuth
+	//	@Description	API for admin to logout
+	//	@Id				AdminUserLogout
+	//	@Tags			Admin Auth
+	//	@Router			/admin/auth/logout [post]
+	//	@Success		200	{object}	response.Response{}	"Successfully logged out"
 	// Implementation goes here, or just a stub if not needed yet
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully logged out", nil)
 }
@@ -111,6 +120,19 @@ func (a *adminHandler) GetAdminWithShopVerificationByPhone(ctx *gin.Context) {
 }
 
 func (a *adminHandler) AdminSignUpVerify(ctx *gin.Context) {
+	// AdminSignUpVerify godoc
+	//
+	//	@Summary		Verify admin signup OTP
+	//	@Description	API for admin to verify OTP and complete signup
+	//	@Id				AdminSignUpVerify
+	//	@Tags			Admin Auth
+	//	@Param			input	body	request.OTPVerify{}	true	"OTP verification input"
+	//	@Router			/admin/auth/signup/verify [post]
+	//	@Success		200	{object}	response.Response{}	"Successfully verified OTP and logged in"
+	//	@Failure		400	{object}	response.Response{}	"Invalid input"
+	//	@Failure		401	{object}	response.Response{}	"Invalid OTP"
+	//	@Failure		410	{object}	response.Response{}	"OTP expired"
+	//	@Failure		500	{object}	response.Response{}	"Failed to verify OTP"
 	var body request.OTPVerify
 	if err := ctx.ShouldBindJSON(&body); err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, body)
@@ -118,7 +140,7 @@ func (a *adminHandler) AdminSignUpVerify(ctx *gin.Context) {
 	}
 
 	// get the user using loginOtp useCase
-	userID, err := a.adminUseCase.AdminSignUpOtpVerify(ctx, body)
+	userID, shop, err := a.adminUseCase.AdminSignUpOtpVerify(ctx, body)
 	println("userID:", userID)
 	if err != nil {
 		var statusCode int
@@ -134,7 +156,7 @@ func (a *adminHandler) AdminSignUpVerify(ctx *gin.Context) {
 		return
 	}
 	fmt.Printf("userID: %d\n", userID)
-	a.setupTokenAndResponse(ctx, token.Admin, userID)
+	a.setupTokenAndResponse(ctx, token.Admin, userID, shop)
 }
 
 // access and refresh token generating for user and admin is same so created
@@ -176,6 +198,7 @@ func (c *adminHandler) setupTokenAndResponse(ctx *gin.Context, tokenUser token.U
 	tokenRes := response.TokenResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
+		UserID:       userID,
 	}
 
 	// Merge custom response with token response if provided
@@ -199,6 +222,8 @@ func (c *adminHandler) setupTokenAndResponse(ctx *gin.Context, tokenUser token.U
 
 		responseData = mergedData
 	}
+
+	fmt.Printf("Custom response for userID: %d, userType: %s, customResponse: %+v\n", userID, tokenUser, customResponse)
 
 	if len(customResponse) > 1 {
 		if msg, ok := customResponse[1].(string); ok {
@@ -896,7 +921,7 @@ func (a *adminHandler) UploadAdminProfileImage(ctx *gin.Context) {
 // @summary api for admin to add profile
 // @id AddAdminProfile
 // @tags Admin Account
-// @Param input body domain.AdminProfile{} true "inputs"
+// @Param input body object true "inputs"
 // @Router /admin/account [post]
 // @Success 200 {object} response.Response{} "Successfully added admin profile"
 // @Failure 400 {object} response.Response{} "invalid input"
@@ -920,7 +945,7 @@ func (a *adminHandler) GetAdminProfile(ctx *gin.Context) {
 // @summary api for admin to update profile
 // @id UpdateAdminProfile
 // @tags Admin Account
-// @Param input body domain.AdminProfile{} true "inputs"
+// @Param input body object true "inputs"
 // @Router /admin/account [put]
 // @Success 200 {object} response.Response{} "Successfully updated admin profile"
 // @Failure 400 {object} response.Response{} "invalid input"
@@ -946,6 +971,19 @@ func getFileExtension(filename string) string {
 }
 
 func (a *adminHandler) UploadShopDocument(ctx *gin.Context) {
+	// UploadShopDocument godoc
+	//
+	//	@Summary		Send shop business document OTP (Admin)
+	//	@Security		BearerAuth
+	//	@Description	API for admin to send OTP for shop business document verification
+	//	@Id				UploadShopDocument
+	//	@Tags			Admin Shop
+	//	@Param			input	body	request.DocumentRequest{}	true	"Document details"
+	//	@Router			/admin/shops/business-document/send-otp [post]
+	//	@Success		200	{object}	response.Response{}	"Successfully uploaded shop document OTP sent"
+	//	@Failure		400	{object}	response.Response{}	"Invalid input or document missing"
+	//	@Failure		401	{object}	response.Response{}	"Invalid token"
+	//	@Failure		500	{object}	response.Response{}	"Failed to upload shop document"
 	// Implementation goes here
 	var req request.DocumentRequest
 	if err := ctx.ShouldBind(&req); err != nil {
@@ -986,6 +1024,19 @@ func (a *adminHandler) UploadShopDocument(ctx *gin.Context) {
 }
 
 func (a *adminHandler) UploadAddress(ctx *gin.Context) {
+	// UploadAddress godoc
+	//
+	//	@Summary		Save shop address (Admin)
+	//	@Security		BearerAuth
+	//	@Description	API for admin to save or update the shop address
+	//	@Id				UploadAddress
+	//	@Tags			Admin Shop
+	//	@Param			input	body	request.AddressRequest{}	true	"Address details"
+	//	@Router			/admin/shops/address-details/save [post]
+	//	@Success		200	{object}	response.Response{}	"Successfully uploaded address"
+	//	@Failure		400	{object}	response.Response{}	"Invalid input"
+	//	@Failure		401	{object}	response.Response{}	"Invalid token"
+	//	@Failure		500	{object}	response.Response{}	"Failed to upload address"
 	// Implementation goes here
 	var req request.AddressRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -1019,6 +1070,18 @@ func (a *adminHandler) UploadAddress(ctx *gin.Context) {
 }
 
 func (a *adminHandler) VerifyShopDocument(ctx *gin.Context) {
+	// VerifyShopDocument godoc
+	//
+	//	@Summary		Verify shop business document OTP (Admin)
+	//	@Security		BearerAuth
+	//	@Description	API for admin to verify OTP for shop business document
+	//	@Id				VerifyShopDocumentOtp
+	//	@Tags			Admin Shop
+	//	@Param			input	body	request.VerifyShopDocumentRequest{}	true	"OTP to verify"
+	//	@Router			/admin/shops/business-document/verify-otp [post]
+	//	@Success		200	{object}	response.Response{}	"Successfully verified shop document"
+	//	@Failure		400	{object}	response.Response{}	"OTP is required or invalid"
+	//	@Failure		500	{object}	response.Response{}	"Failed to verify shop document"
 	var req request.VerifyShopDocumentRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
@@ -1038,6 +1101,19 @@ func (a *adminHandler) VerifyShopDocument(ctx *gin.Context) {
 }
 
 func (a *adminHandler) AdminDocumentOtpSend(ctx *gin.Context) {
+	// AdminDocumentOtpSend godoc
+	//
+	//	@Summary		Send admin identity document OTP (Admin)
+	//	@Security		BearerAuth
+	//	@Description	API for admin to send OTP for identity document verification
+	//	@Id				AdminDocumentOtpSend
+	//	@Tags			Admin Shop
+	//	@Param			input	body	request.DocumentRequest{}	true	"Document details"
+	//	@Router			/admin/shops/identity-document/send-otp [post]
+	//	@Success		200	{object}	response.Response{}	"Successfully sent OTP for admin document"
+	//	@Failure		400	{object}	response.Response{}	"Invalid input or document missing"
+	//	@Failure		401	{object}	response.Response{}	"Invalid token"
+	//	@Failure		500	{object}	response.Response{}	"Failed to send OTP for admin document"
 	var req request.DocumentRequest
 	if err := ctx.ShouldBind(&req); err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
@@ -1070,6 +1146,18 @@ func (a *adminHandler) AdminDocumentOtpSend(ctx *gin.Context) {
 }
 
 func (a *adminHandler) AdminDocumentOtpVerify(ctx *gin.Context) {
+	// AdminDocumentOtpVerify godoc
+	//
+	//	@Summary		Verify admin identity document OTP (Admin)
+	//	@Security		BearerAuth
+	//	@Description	API for admin to verify OTP for identity document
+	//	@Id				AdminDocumentOtpVerify
+	//	@Tags			Admin Shop
+	//	@Param			input	body	request.VerifyShopDocumentRequest{}	true	"OTP and document details"
+	//	@Router			/admin/shops/identity-document/verify-otp [post]
+	//	@Success		200	{object}	response.Response{}	"Successfully verified admin document"
+	//	@Failure		400	{object}	response.Response{}	"OTP is required or invalid"
+	//	@Failure		500	{object}	response.Response{}	"Failed to verify admin document"
 	var req request.VerifyShopDocumentRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
@@ -1091,6 +1179,17 @@ func (a *adminHandler) AdminDocumentOtpVerify(ctx *gin.Context) {
 }
 
 func (a *adminHandler) GetVerificationStatus(ctx *gin.Context) {
+	// GetVerificationStatus godoc
+	//
+	//	@Summary		Get shop verification status (Admin)
+	//	@Security		BearerAuth
+	//	@Description	API for admin to retrieve their shop verification status and admin profile
+	//	@Id				GetVerificationStatus
+	//	@Tags			Admin Shop
+	//	@Router			/admin/shops/verify-status [get]
+	//	@Success		200	{object}	response.Response{}	"Successfully retrieved verification status"
+	//	@Failure		401	{object}	response.Response{}	"Invalid token"
+	//	@Failure		500	{object}	response.Response{}	"Failed to get verification status"
 	//get token from and send to decode and get the data
 	tokenString := ctx.GetHeader("Authorization")
 	shopOwnerIdStr := a.adminUseCase.DecodeTokenData(tokenString)
@@ -1133,6 +1232,16 @@ func (a *adminHandler) GetAllProductDetails(ctx *gin.Context) {
 }
 
 func (a *ProductHandler) GetAllSubCategories(ctx *gin.Context) {
+	// GetAllSubCategories godoc
+	//
+	//	@Summary		Get all sub-categories (Admin)
+	//	@Security		BearerAuth
+	//	@Description	API for admin to retrieve all sub-categories across all categories
+	//	@Id				GetAllSubCategories
+	//	@Tags			Admin Category
+	//	@Router			/admin/sub-categories [get]
+	//	@Success		200	{object}	response.Response{}	"Successfully retrieved all sub-categories"
+	//	@Failure		500	{object}	response.Response{}	"Failed to get sub-categories"
 	subCategories, err := a.productUseCase.GetAllSubCategories(ctx)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get sub-categories", err, nil)
@@ -1143,6 +1252,17 @@ func (a *ProductHandler) GetAllSubCategories(ctx *gin.Context) {
 }
 
 func (a *adminHandler) GetShopProfileImageById(ctx *gin.Context) {
+	// GetShopProfileImageById godoc
+	//
+	//	@Summary		Get shop profile image by ID (Admin)
+	//	@Security		BearerAuth
+	//	@Description	API for admin to get the profile image URL for a specific shop
+	//	@Id				GetShopProfileImageById
+	//	@Tags			Admin Shop
+	//	@Param			shop_id	path	string	true	"Shop ID"
+	//	@Router			/admin/shops/shop-profile-image/{shop_id} [get]
+	//	@Success		200	{object}	response.Response{}	"Successfully retrieved shop profile image"
+	//	@Failure		500	{object}	response.Response{}	"Failed to get shop profile image"
 	shopId := ctx.Param("shop_id")
 
 	imageURL, err := a.adminUseCase.GetShopProfileImageById(ctx, shopId)
@@ -1173,11 +1293,16 @@ func (a *adminHandler) SetShopTime(ctx *gin.Context) {
 		return
 	}
 
+	fmt.Printf("Received request to set shop time for shop_id: %d\n", shopID)
+
 	var req request.SetShopTimeRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
+		fmt.Printf("Error binding JSON: %v\n", err)
 		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
 		return
 	}
+
+	fmt.Printf("Parsed request body: %+v\n", req)
 
 	status := "close"
 	if req.Status {
@@ -1225,6 +1350,18 @@ func (a *adminHandler) GetShopTime(ctx *gin.Context) {
 }
 
 func (h *adminHandler) GetShopSocialDetails(ctx *gin.Context) {
+	// GetShopSocialDetails godoc (Admin)
+	//
+	//	@Summary		Get shop social details (Admin)
+	//	@Security		BearerAuth
+	//	@Description	API for admin to get social media and contact details of a shop
+	//	@Id				GetShopSocialDetailsAdmin
+	//	@Tags			Admin Shop
+	//	@Param			shop_id	path	int	true	"Shop ID"
+	//	@Router			/admin/shops/{shop_id}/social [get]
+	//	@Success		200	{object}	response.Response{}	"Shop social details fetched"
+	//	@Failure		400	{object}	response.Response{}	"Invalid shop_id"
+	//	@Failure		500	{object}	response.Response{}	"Failed to fetch shop social details"
 	shopIDStr := ctx.Param("shop_id")
 	shopID, err := strconv.ParseUint(shopIDStr, 10, 64)
 	if err != nil {

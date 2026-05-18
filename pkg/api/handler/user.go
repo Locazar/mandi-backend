@@ -576,9 +576,13 @@ func (c *UserHandler) SearchShopList(ctx *gin.Context) {
 	lngStr := ctx.Query("long")
 	radiusStr := ctx.Query("radius")
 	pincodeStr := ctx.Query("pincode")
+	departmentIDStr := ctx.Query("department_id")
+	categoryIDStr := ctx.Query("category_id")
 
 	var latitude, longitude, radius float64
 	var pincode *uint
+	var departmentID *string
+	var categoryID *string
 	var err error
 
 	// parse latitude if provided
@@ -616,15 +620,31 @@ func (c *UserHandler) SearchShopList(ctx *gin.Context) {
 		}
 	}
 
+	// parse department_id if provided
+	if departmentIDStr != "" {
+		if _, err := strconv.ParseUint(departmentIDStr, 10, 64); err == nil {
+			departmentID = &departmentIDStr
+		}
+	}
+
+	// parse category_id if provided
+	if categoryIDStr != "" {
+		if _, err := strconv.ParseUint(categoryIDStr, 10, 64); err == nil {
+			categoryID = &categoryIDStr
+		}
+	}
+
 	pagination := request.GetPagination(ctx)
 
 	reqData := request.SearchShopListRequest{
-		Query:      query,
-		Latitude:   latitude,
-		Longitude:  longitude,
-		Radius:     radius,
-		Pincode:    pincode,
-		Pagination: pagination,
+		Query:        query,
+		Latitude:     latitude,
+		Longitude:    longitude,
+		Radius:       radius,
+		Pincode:      pincode,
+		DepartmentID: departmentID,
+		CategoryID:   categoryID,
+		Pagination:   pagination,
 	}
 
 	shops, err := c.userUseCase.SearchShopList(ctx, reqData)
@@ -642,6 +662,18 @@ func (c *UserHandler) SearchShopList(ctx *gin.Context) {
 }
 
 func (c *UserHandler) GetProductItemsByDepartment(ctx *gin.Context) {
+	// GetProductItemsByDepartment godoc
+	//
+	//	@Summary		Get product items by department (User)
+	//	@Security		BearerAuth
+	//	@Description	API for user to get all product items belonging to a department
+	//	@Id				GetProductItemsByDepartment
+	//	@Tags			User Product
+	//	@Param			department_id	path	int	true	"Department ID"
+	//	@Router			/departments/{department_id}/product-items [get]
+	//	@Success		200	{object}	response.Response{}	"Successfully retrieved product items by department"
+	//	@Failure		400	{object}	response.Response{}	"Invalid department ID"
+	//	@Failure		500	{object}	response.Response{}	"Failed to get product items by department"
 	// Route may provide department_id or document_id depending on routes setup.
 	idStr := ctx.Param("department_id")
 	if idStr == "" {
@@ -674,6 +706,18 @@ func (c *UserHandler) GetProductItemsByDepartment(ctx *gin.Context) {
 }
 
 func (c *UserHandler) GetProductItemsByCategory(ctx *gin.Context) {
+	// GetProductItemsByCategory godoc
+	//
+	//	@Summary		Get product items by category (User)
+	//	@Security		BearerAuth
+	//	@Description	API for user to get all product items belonging to a category
+	//	@Id				GetProductItemsByCategory
+	//	@Tags			User Product
+	//	@Param			category_id	path	int	true	"Category ID"
+	//	@Router			/categories/{category_id}/product-items [get]
+	//	@Success		200	{object}	response.Response{}	"Successfully retrieved product items by category"
+	//	@Failure		400	{object}	response.Response{}	"Invalid category ID"
+	//	@Failure		500	{object}	response.Response{}	"Failed to get product items by category"
 	idStr := ctx.Param("category_id")
 	if idStr == "" {
 		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid category ID", fmt.Errorf("missing id param"), nil)
@@ -700,6 +744,18 @@ func (c *UserHandler) GetProductItemsByCategory(ctx *gin.Context) {
 }
 
 func (c *UserHandler) GetProductItemsBySubCategory(ctx *gin.Context) {
+	// GetProductItemsBySubCategory godoc
+	//
+	//	@Summary		Get product items by sub-category (User)
+	//	@Security		BearerAuth
+	//	@Description	API for user to get all product items belonging to a sub-category
+	//	@Id				GetProductItemsBySubCategory
+	//	@Tags			User Product
+	//	@Param			sub_category_id	path	int	true	"Sub-category ID"
+	//	@Router			/sub-categories/{sub_category_id}/product-items [get]
+	//	@Success		200	{object}	response.Response{}	"Successfully retrieved product items by sub-category"
+	//	@Failure		400	{object}	response.Response{}	"Invalid sub-category ID"
+	//	@Failure		500	{object}	response.Response{}	"Failed to get product items by sub-category"
 	idStr := ctx.Param("sub_category_id")
 	if idStr == "" {
 		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid sub-category ID", fmt.Errorf("missing id param"), nil)
@@ -726,6 +782,18 @@ func (c *UserHandler) GetProductItemsBySubCategory(ctx *gin.Context) {
 }
 
 func (c *UserHandler) GetProductItemsByShop(ctx *gin.Context) {
+	// GetProductItemsByShop godoc
+	//
+	//	@Summary		Get product items by shop (User)
+	//	@Security		BearerAuth
+	//	@Description	API for user to get all product items belonging to a shop
+	//	@Id				GetProductItemsByShop
+	//	@Tags			User Product
+	//	@Param			admin_id	path	int	true	"Admin (Shop Owner) ID"
+	//	@Router			/shops/{admin_id}/products [get]
+	//	@Success		200	{object}	response.Response{}	"Successfully retrieved product items by shop"
+	//	@Failure		400	{object}	response.Response{}	"Invalid admin ID"
+	//	@Failure		500	{object}	response.Response{}	"Failed to get product items by shop"
 	idStr := ctx.Param("admin_id")
 	if idStr == "" {
 		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid admin ID", fmt.Errorf("missing id param"), nil)
@@ -752,12 +820,25 @@ func (c *UserHandler) GetProductItemsByShop(ctx *gin.Context) {
 }
 
 func (c *UserHandler) GetShopByID(ctx *gin.Context) {
+	// GetShopByID godoc
+	//
+	//	@Summary		Get shop by ID (User)
+	//	@Security		BearerAuth
+	//	@Description	API for user to get shop details by shop ID
+	//	@Id				GetShopByIDUser
+	//	@Tags			User Shop
+	//	@Param			shop_id	path	int	true	"Shop ID"
+	//	@Router			/shop/{shop_id} [get]
+	//	@Success		200	{object}	response.Response{}	"Successfully got shop by ID"
+	//	@Failure		400	{object}	response.Response{}	"Invalid shop ID"
+	//	@Failure		500	{object}	response.Response{}	"Failed to get shop by ID"
 	shopIDStr := ctx.Param("shop_id")
 	shopID, err := strconv.ParseUint(shopIDStr, 10, 64)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid shop ID", err, nil)
 		return
 	}
+	userID := utils.GetUserIdFromContext(ctx)
 
 	shop, err := c.userUseCase.GetShopByID(ctx, uint(shopID))
 	if err != nil {
@@ -765,19 +846,49 @@ func (c *UserHandler) GetShopByID(ctx *gin.Context) {
 		return
 	}
 
+	socialSummary, err := c.userUseCase.GetShopSocialDetails(ctx, uint(shopID), userID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get shop social summary", err, nil)
+		return
+	}
+
+	shop.FollowerCount = socialSummary.FollowerCount
+	shop.FollowingCount = socialSummary.FollowingCount
+	shop.LikeCount = socialSummary.LikeCount
+	shop.RatingCount = socialSummary.RatingCount
+	shop.ReviewCount = socialSummary.ReviewCount
+	shop.AverageRating = socialSummary.AverageRating
+	shop.IsFollowing = socialSummary.IsFollowing
+	shop.IsLiked = socialSummary.IsLiked
+	shop.UserRating = socialSummary.UserRating
+	shop.UserReview = socialSummary.UserReview
+
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully got shop by ID", shop)
 
 }
 
 func (c *UserHandler) GetShopSocialDetails(ctx *gin.Context) {
+	// GetShopSocialDetails godoc
+	//
+	//	@Summary		Get shop social details (User)
+	//	@Security		BearerAuth
+	//	@Description	API for user to get social media and contact details of a shop
+	//	@Id				GetShopSocialDetailsUser
+	//	@Tags			User Shop
+	//	@Param			shop_id	path	int	true	"Shop ID"
+	//	@Router			/shop/{shop_id}/social [get]
+	//	@Success		200	{object}	response.Response{}	"Successfully got shop social details"
+	//	@Failure		400	{object}	response.Response{}	"Invalid shop ID"
+	//	@Failure		500	{object}	response.Response{}	"Failed to get shop social details"
 	shopIDStr := ctx.Param("shop_id")
 	shopID, err := strconv.ParseUint(shopIDStr, 10, 64)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid shop ID", err, nil)
 		return
 	}
+	userID := utils.GetUserIdFromContext(ctx)
 
-	socialDetails, err := c.userUseCase.GetShopSocialDetails(ctx, uint(shopID))
+	socialDetails, err := c.userUseCase.GetShopSocialDetails(ctx, uint(shopID), userID)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get shop social details", err, nil)
 		return

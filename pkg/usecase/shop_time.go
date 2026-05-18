@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	repo "github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
@@ -22,6 +23,7 @@ func NewShopTimeUseCase(shopTimeRepo repo.ShopTimeRepository) interfaces.ShopTim
 
 func (u *shopTimeUseCase) SetShopTime(ctx context.Context, shopID uint, shopTime domain.ShopTime) error {
 	shopTime.ShopID = shopID
+	fmt.Printf("Existing shop time for shop ID %d: %+v\n", shopID)
 	existing, err := u.shopTimeRepo.GetShopTimeByShopID(ctx, shopID)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return err

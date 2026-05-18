@@ -13,6 +13,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 	stockHandler handlerInterface.StockHandler, branHandler handlerInterface.BrandHandler,
 	promotionHandler handlerInterface.PromotionHandler, fcmTokenHandler handlerInterface.FcmTokenHandler,
 	notificationHandler handlerInterface.NotificationHandler,
+	alertHandler handlerInterface.AlertHandler, uiHandler handlerInterface.UIHandler,
 ) {
 
 	auth := api.Group("/auth")
@@ -26,6 +27,8 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		{
 			signup.POST("/", adminHandler.AdminSignUp)
 			signup.POST("/verify", adminHandler.AdminSignUpVerify)
+			signup.POST("/otp/send", authHandler.AdminSignUpOtpSend)
+			signup.POST("/otp/verify", authHandler.AdminSignUpOtpVerify)
 		}
 
 		auth.POST("/renew-access-token", authHandler.AdminRenewAccessToken())
@@ -53,19 +56,22 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 	// Web views for admin interface
 	web := api.Group("/web")
 	{
-		web.GET("/login", func(c *gin.Context) {
-			c.HTML(200, "goauth.html", nil)
-		})
-		web.GET("/payment", func(c *gin.Context) {
-			c.HTML(200, "paymentForm.html", nil)
-		})
-		web.GET("/dashboard", func(c *gin.Context) {
-			c.HTML(200, "dashboard.html", nil)
-		})
-		web.GET("/ui", func(c *gin.Context) {
-			c.HTML(200, "dashboard.html", nil)
-		})
+		web.POST("/ui", uiHandler.SellerUIEndpoint)
 	}
+	// {
+	// 	web.GET("/login", func(c *gin.Context) {
+	// 		c.HTML(200, "goauth.html", nil)
+	// 	})
+	// 	web.GET("/payment", func(c *gin.Context) {
+	// 		c.HTML(200, "goauth.html", nil)
+	// 	})
+	// 	web.GET("/dashboard", func(c *gin.Context) {
+	// 		c.HTML(200, "goauth.html", nil)
+	// 	})
+	// 	web.GET("/ui", func(c *gin.Context) {
+	// 		c.HTML(200, "goauth.html", nil)
+	// 	})
+	// }
 
 	api.Use(middleware.AuthenticateAdmin())
 	{
@@ -331,6 +337,17 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		fcm := api.Group("/fcm")
 		{
 			fcm.POST("/token", fcmTokenHandler.SaveFcmToken)
+			fcm.DELETE("/token", fcmTokenHandler.UnregisterFcmToken)
+		}
+
+		alerts := api.Group("/alerts")
+		{
+			// GET /api/v1/seller/alerts - Get all alerts for seller
+			alerts.GET("", alertHandler.GetSellerAlerts)
+			alerts.GET("/", alertHandler.GetSellerAlerts)
+
+			// POST /api/v1/seller/alerts/:key/dismiss - Dismiss an alert
+			alerts.POST("/:key/dismiss", alertHandler.DismissAlert)
 		}
 	}
 }

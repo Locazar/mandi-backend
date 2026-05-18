@@ -81,10 +81,12 @@ type SellerPincodeRequest struct {
 }
 
 type SearchShopListRequest struct {
-	Query     string  `form:"q"`
-	Latitude  float64 `form:"lat"`
-	Longitude float64 `form:"long"`
-	Radius    float64 `form:"radius"`
-	Pincode   *uint   `form:"pincode"`
+	Query        string  `form:"q"`
+	Latitude     float64 `form:"lat"`
+	Longitude    float64 `form:"long"`
+	Radius       float64 `form:"radius"`
+	Pincode      *uint   `form:"pincode"`
+	DepartmentID *string `form:"department_id"`
+	CategoryID   *string `form:"category_id"`
 	Pagination
 }

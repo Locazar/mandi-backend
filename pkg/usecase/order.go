@@ -71,7 +71,6 @@ func (c *OrderUseCase) SaveOrder(ctx context.Context, userID, addressID uint) (u
 
 	orderTotal := cart.TotalPrice - cart.DiscountAmount
 
-
 	shopOrder := domain.ShopOrder{
 		UserID:          userID,
 		AddressID:       addressID,

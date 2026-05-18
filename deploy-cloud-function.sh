@@ -8,7 +8,7 @@ set -e
 PROJECT_ID="locazar-f20b6"
 REGION="asia-south1"
 FUNCTION_NAME="enquiry-notification-handler"
-RUNTIME="go121"
+RUNTIME="go123"
 MEMORY="512MB"
 TIMEOUT="60"
 SOURCE_DIR="cmd/cloudfunctions/enquiry-notification-handler"
@@ -120,7 +120,7 @@ gcloud functions deploy $FUNCTION_NAME \
     --set-env-vars="GCP_PROJECT_ID=$PROJECT_ID,LOG_LEVEL=INFO,MONITORED_FIELDS=status,assignedTo,priority" \
     --trigger-event-filters="type=google.cloud.firestore.document.v1.updated" \
     --trigger-event-filters="database=(default)" \
-    --trigger-event-filters-path-pattern="document=enquiries/{enquiryId}"
+    --trigger-event-filters-path-pattern="document=enquiry/{enquiryId}"
 
 # Step 6: Verify deployment
 log_step "Verifying deployment..."

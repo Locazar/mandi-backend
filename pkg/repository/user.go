@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -349,43 +350,224 @@ func (c *userDatabase) FindSellersByPincode(ctx context.Context, reqData request
 }
 
 func (c *userDatabase) SearchShopList(ctx context.Context, reqData request.SearchShopListRequest) (shops []response.Shop, err error) {
-	query := `
-		SELECT id, shop_name, email, phone, latitude, longitude,
-		owner_name, shop_image_url, address_line1, address_line2, city, country, state, pincode,
-		shop_verification_status, created_at, updated_at
-		FROM shop_details
-		WHERE 1=1
-	`
-
 	paramIndex := 1
 	args := []interface{}{}
+	whereClause := " WHERE 1=1"
+	orderBy := " ORDER BY sd.id, sd.created_at DESC"
+	distanceExpr := "NULL::double precision AS distance_km"
 
-	// Add search query condition if provided
+	// Add search query condition if provided.
 	if reqData.Query != "" {
-		query += fmt.Sprintf(` AND (shop_name ILIKE $%d OR owner_name ILIKE $%d)`, paramIndex, paramIndex)
+		whereClause += fmt.Sprintf(` AND (sd.shop_name ILIKE $%d OR sd.owner_name ILIKE $%d)`, paramIndex, paramIndex)
 		args = append(args, "%"+reqData.Query+"%")
 		paramIndex++
 	}
 
-	// Filter by geolocation (lat + long + radius) OR pincode, but not both
+	// Filter by geolocation (lat + long + radius) OR pincode, but not both.
 	if reqData.Latitude != 0 && reqData.Longitude != 0 && reqData.Radius > 0 {
-		// Using Haversine formula for distance calculation (in km)
-		query += fmt.Sprintf(` AND latitude IS NOT NULL AND longitude IS NOT NULL AND (6371 * acos(cos(radians($%d)) * cos(radians(latitude)) * 
-			cos(radians(longitude) - radians($%d)) + sin(radians($%d)) * 
-			sin(radians(latitude)))) <= $%d`, paramIndex, paramIndex+1, paramIndex, paramIndex+2)
+		latIdx := paramIndex
+		lonIdx := paramIndex + 1
+		radiusKmIdx := paramIndex + 2
+
+		distanceExpr = fmt.Sprintf(
+			`(6371 * acos(
+				LEAST(1, GREATEST(-1,
+					cos(radians($%d)) * cos(radians(sd.latitude::double precision)) *
+					cos(radians(sd.longitude::double precision) - radians($%d)) +
+					sin(radians($%d)) * sin(radians(sd.latitude::double precision))
+				))
+			)) AS distance_km`,
+			latIdx,
+			lonIdx,
+			latIdx,
+		)
+		whereClause += fmt.Sprintf(
+			` AND sd.latitude IS NOT NULL AND sd.longitude IS NOT NULL AND
+			  (6371 * acos(
+				LEAST(1, GREATEST(-1,
+					cos(radians($%d)) * cos(radians(sd.latitude::double precision)) *
+					cos(radians(sd.longitude::double precision) - radians($%d)) +
+					sin(radians($%d)) * sin(radians(sd.latitude::double precision))
+				))
+			  )) <= $%d`,
+			latIdx,
+			lonIdx,
+			latIdx,
+			radiusKmIdx,
+		)
+		orderBy = " ORDER BY sd.id, distance_km ASC NULLS LAST, sd.created_at DESC"
+
 		args = append(args, reqData.Latitude, reqData.Longitude, reqData.Radius)
 		paramIndex += 3
 	} else if reqData.Pincode != nil {
-		// Use pincode filter only if geolocation is not provided
-		query += fmt.Sprintf(` AND pincode = $%d`, paramIndex)
+		whereClause += fmt.Sprintf(` AND sd.pincode = $%d`, paramIndex)
 		args = append(args, fmt.Sprintf("%d", *reqData.Pincode))
 		paramIndex++
 	}
 
-	query += fmt.Sprintf(` LIMIT $%d OFFSET $%d`, paramIndex, paramIndex+1)
-	args = append(args, reqData.Limit, reqData.Offset)
+	// Filter by department_id and/or category_id if provided (with AND condition)
+	// If both are provided, check for products matching BOTH criteria in a single subquery
+	if reqData.DepartmentID != nil || reqData.CategoryID != nil {
+		var deptID uint64
+		var catID uint64
+		deptProvided := false
+		catProvided := false
 
+		if reqData.DepartmentID != nil {
+			if id, err := strconv.ParseUint(*reqData.DepartmentID, 10, 64); err == nil {
+				deptID = id
+				deptProvided = true
+			}
+		}
+
+		if reqData.CategoryID != nil {
+			if id, err := strconv.ParseUint(*reqData.CategoryID, 10, 64); err == nil {
+				catID = id
+				catProvided = true
+			}
+		}
+
+		if deptProvided && catProvided {
+			// Both department_id and category_id provided - check for products matching BOTH
+			whereClause += fmt.Sprintf(` AND sd.id IN (
+				SELECT DISTINCT pi.shop_id FROM product_items pi
+				WHERE pi.department_id = $%d AND pi.category_id = $%d
+			)`, paramIndex, paramIndex+1)
+			args = append(args, deptID, catID)
+			paramIndex += 2
+		} else if deptProvided {
+			// Only department_id provided
+			whereClause += fmt.Sprintf(` AND sd.id IN (
+				SELECT DISTINCT pi.shop_id FROM product_items pi
+				WHERE pi.department_id = $%d
+			)`, paramIndex)
+			args = append(args, deptID)
+			paramIndex++
+		} else if catProvided {
+			// Only category_id provided
+			whereClause += fmt.Sprintf(` AND sd.id IN (
+				SELECT DISTINCT pi.shop_id FROM product_items pi
+				WHERE pi.category_id = $%d
+			)`, paramIndex)
+			args = append(args, catID)
+			paramIndex++
+		}
+	}
+
+	query := fmt.Sprintf(`
+		SELECT DISTINCT ON (sd.id)
+			sd.id,
+			sd.shop_name,
+			sd.email,
+			sd.phone,
+			sd.latitude,
+			sd.longitude,
+			sd.owner_name,
+			sd.shop_image_url,
+			sd.address_line1,
+			sd.address_line2,
+			sd.city,
+			sd.country,
+			sd.state,
+			sd.pincode,
+			sd.shop_verification_status,
+			%s,
+			sd.created_at,
+			sd.updated_at
+		FROM shop_details sd
+		%s
+		%s
+		LIMIT $%d OFFSET $%d
+	`, distanceExpr, whereClause, orderBy, paramIndex, paramIndex+1)
+
+	args = append(args, reqData.Limit, reqData.Offset)
 	err = c.DB.Raw(query, args...).Scan(&shops).Error
+	if err != nil {
+		return shops, err
+	}
+
+	// Batch-fetch reviews AND shop_times for all returned shops.
+	if len(shops) > 0 {
+		shopIDs := make([]uint, len(shops))
+		for i, s := range shops {
+			shopIDs[i] = s.ID
+		}
+
+		// --- Reviews ---
+		type reviewRow struct {
+			ShopID    uint      `gorm:"column:shop_id"`
+			UserID    uint      `gorm:"column:user_id"`
+			Rating    uint      `gorm:"column:rating"`
+			Review    string    `gorm:"column:review"`
+			CreatedAt time.Time `gorm:"column:created_at"`
+			UpdatedAt time.Time `gorm:"column:updated_at"`
+		}
+		var reviewRows []reviewRow
+		c.DB.Raw(`
+			SELECT shop_id, user_id, rating, review, created_at, updated_at
+			FROM shop_socials
+			WHERE shop_id IN (?) AND review IS NOT NULL AND TRIM(review) <> ''
+			ORDER BY updated_at DESC
+		`, shopIDs).Scan(&reviewRows)
+
+		reviewMap := make(map[uint][]response.ShopReview, len(shops))
+		for _, r := range reviewRows {
+			reviewMap[r.ShopID] = append(reviewMap[r.ShopID], response.ShopReview{
+				UserID:    r.UserID,
+				Rating:    r.Rating,
+				Review:    r.Review,
+				CreatedAt: r.CreatedAt,
+				UpdatedAt: r.UpdatedAt,
+			})
+		}
+		for i := range shops {
+			if reviews, ok := reviewMap[shops[i].ID]; ok {
+				shops[i].Reviews = reviews
+			} else {
+				shops[i].Reviews = []response.ShopReview{}
+			}
+		}
+
+		// --- is_open: computed in Go using IST ---
+		type shopTimeRow struct {
+			ShopID    uint   `gorm:"column:shop_id"`
+			Status    string `gorm:"column:status"`
+			OpenTime  string `gorm:"column:open_time"`
+			CloseTime string `gorm:"column:close_time"`
+		}
+		var shopTimes []shopTimeRow
+		c.DB.Raw(`
+			SELECT DISTINCT ON (shop_id) shop_id, status, open_time, close_time
+			FROM shop_times
+			WHERE shop_id IN (?)
+			ORDER BY shop_id, id DESC
+		`, shopIDs).Scan(&shopTimes)
+
+		istLoc, _ := time.LoadLocation("Asia/Kolkata")
+		nowIST := time.Now().In(istLoc)
+		nowStr := nowIST.Format("15:04") // HH:MM
+
+		shopTimeMap := make(map[uint]shopTimeRow, len(shopTimes))
+		for _, st := range shopTimes {
+			shopTimeMap[st.ShopID] = st
+		}
+		for i := range shops {
+			st, ok := shopTimeMap[shops[i].ID]
+			if !ok || st.Status != "open" {
+				continue
+			}
+			// Normalise stored times to HH:MM
+			openStr := st.OpenTime
+			if len(openStr) > 5 {
+				openStr = openStr[:5]
+			}
+			closeStr := st.CloseTime
+			if len(closeStr) > 5 {
+				closeStr = closeStr[:5]
+			}
+			shops[i].IsOpen = nowStr >= openStr && nowStr <= closeStr
+		}
+	}
 
 	return shops, err
 }
@@ -404,9 +586,24 @@ func (c *userDatabase) DeleteRefreshSessionByUserID(ctx context.Context, userId 
 func (c *userDatabase) FindShopByID(ctx context.Context, shopID uint) (response.Shop, error) {
 
 	var shop response.Shop
-	query := `SELECT id, shop_name, email, phone, address_line1, address_line2, city, state, country, pincode,
-	shop_type, shop_verification_status, shop_image_url, latitude, longitude, created_at, updated_at
-	FROM shop_details WHERE id = $1`
+	query := `
+		SELECT
+			sd.id, sd.shop_name, sd.email, sd.phone,
+			sd.address_line1, sd.address_line2, sd.city, sd.state, sd.country, sd.pincode,
+			sd.shop_type, sd.shop_verification_status, sd.shop_image_url,
+			sd.latitude, sd.longitude,
+			sd.created_at, sd.updated_at,
+			CASE
+				WHEN st.status = 'open' AND (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::time BETWEEN st.open_time::time AND st.close_time::time THEN true
+				ELSE false
+			END AS is_open
+		FROM shop_details sd
+		LEFT JOIN (
+			SELECT DISTINCT ON (shop_id) *
+			FROM shop_times
+			ORDER BY shop_id, id DESC
+		) st ON st.shop_id = sd.id
+		WHERE sd.id = $1`
 	if c.DB.Raw(query, shopID).Scan(&shop).Error != nil {
 		return shop, errors.New("failed to find shop by ID")
 	}
@@ -414,10 +611,12 @@ func (c *userDatabase) FindShopByID(ctx context.Context, shopID uint) (response.
 	return shop, nil
 }
 
-func (c *userDatabase) GetShopSocialDetails(ctx context.Context, shopID uint) ([]domain.ShopSocial, error) {
-	var details []domain.ShopSocial
-	if err := c.DB.WithContext(ctx).Where("shop_id = ?", shopID).Find(&details).Error; err != nil {
-		return nil, err
-	}
-	return details, nil
+func (c *userDatabase) UpdateTrialUsed(ctx context.Context, userID uint) error {
+	return c.DB.Exec("UPDATE users SET trial_used = true WHERE id = $1", userID).Error
+}
+
+func (c *userDatabase) IsTrialUsed(ctx context.Context, userID uint) (bool, error) {
+	var trialUsed bool
+	err := c.DB.Raw("SELECT trial_used FROM users WHERE id = $1", userID).Scan(&trialUsed).Error
+	return trialUsed, err
 }

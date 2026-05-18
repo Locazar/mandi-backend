@@ -1,0 +1,303 @@
+{
+  "add_product": {
+    "title": "Product Added Successfully",
+    "header_image": "/uploads/icons/add_product.png",
+    "footer_buttons": [
+      {
+        "label": "View Product",
+        "action": "navigate",
+        "url": "/seller/products"
+      },
+      {
+        "label": "Close",
+        "action": "dismiss"
+      }
+    ]
+  },
+  "verify_shop": {
+    "title": "Shop Verified",
+    "header_image": "/uploads/icons/verify_shop.png",
+    "footer_buttons": [
+      {
+        "label": "Go to Dashboard",
+        "action": "navigate",
+        "url": "/seller/dashboard"
+      },
+      {
+        "label": "Close",
+        "action": "dismiss"
+      }
+    ]
+  },
+  "add_shop_photo": {
+    "title": "Shop Photo Uploaded",
+    "header_image": "/uploads/icons/add_photo.png",
+    "footer_buttons": [
+      {
+        "label": "View Gallery",
+        "action": "navigate",
+        "url": "/seller/shop/gallery"
+      },
+      {
+        "label": "Close",
+        "action": "dismiss"
+      }
+    ]
+  },
+  "update_product": {
+    "title": "Product Updated",
+    "header_image": "/uploads/icons/update_product.png",
+    "footer_buttons": [
+      {
+        "label": "View Changes",
+        "action": "navigate",
+        "url": "/seller/products"
+      },
+      {
+        "label": "Close",
+        "action": "dismiss"
+      }
+    ]
+  },
+  "delete_product": {
+    "title": "Product Deleted",
+    "header_image": "/uploads/icons/delete_product.png",
+    "footer_buttons": [
+      {
+        "label": "Go to Products",
+        "action": "navigate",
+        "url": "/seller/products"
+      },
+      {
+        "label": "Close",
+        "action": "dismiss"
+      }
+    ]
+  },
+  "block_shop": {
+    "title": "Shop Blocked",
+    "header_image": "/uploads/icons/block_shop.png",
+    "footer_buttons": [
+      {
+        "label": "View Details",
+        "action": "navigate",
+        "url": "/admin/shops"
+      },
+      {
+        "label": "Close",
+        "action": "dismiss"
+      }
+    ]
+  },
+  "unblock_shop": {
+    "title": "Shop Unblocked",
+    "header_image": "/uploads/icons/unblock_shop.png",
+    "footer_buttons": [
+      {
+        "label": "Go to Shops",
+        "action": "navigate",
+        "url": "/admin/shops"
+      },
+      {
+        "label": "Close",
+        "action": "dismiss"
+      }
+    ]
+  },
+  "approve_promotion": {
+    "title": "Promotion Approved",
+    "header_image": "/uploads/icons/approve_promotion.png",
+    "footer_buttons": [
+      {
+        "label": "View Promotion",
+        "action": "navigate",
+        "url": "/seller/promotions"
+      },
+      {
+        "label": "Close",
+        "action": "dismiss"
+      }
+    ]
+  },
+  "reject_promotion": {
+    "title": "Promotion Rejected",
+    "header_image": "/uploads/icons/reject_promotion.png",
+    "footer_buttons": [
+      {
+        "label": "Edit & Resubmit",
+        "action": "navigate",
+        "url": "/seller/promotions"
+      },
+      {
+        "label": "Close",
+        "action": "dismiss"
+      }
+    ]
+  },
+  "add_offer": {
+    "title": "Offer Created",
+    "header_image": "/uploads/icons/add_offer.png",
+    "footer_buttons": [
+      {
+        "label": "View Offers",
+        "action": "navigate",
+        "url": "/admin/offers"
+      },
+      {
+        "label": "Close",
+        "action": "dismiss"
+      }
+    ]
+  },
+  "verify_document": {
+    "title": "Document Verified",
+    "header_image": "/uploads/icons/verify_document.png",
+    "footer_buttons": [
+      {
+        "label": "View Documents",
+        "action": "navigate",
+        "url": "/admin/documents"
+      },
+      {
+        "label": "Close",
+        "action": "dismiss"
+      }
+    ]
+  },
+  "reject_document": {
+    "title": "Document Rejected",
+    "header_image": "/uploads/icons/reject_document.png",
+    "footer_buttons": [
+      {
+        "label": "Resubmit",
+        "action": "navigate",
+        "url": "/seller/documents"
+      },
+      {
+        "label": "Close",
+        "action": "dismiss"
+      }
+    ]
+  },
+  "add_banner": {
+    "title": "Banner Added",
+    "header_image": "/uploads/icons/add_banner.png",
+    "footer_buttons": [
+      {
+        "label": "View Banners",
+        "action": "navigate",
+        "url": "/admin/banners"
+      },
+      {
+        "label": "Close",
+        "action": "dismiss"
+      }
+    ]
+  },
+  "process_order": {
+    "title": "Order Placed Successfully",
+    "header_image": "/uploads/icons/process_order.png",
+    "footer_buttons": [
+      {
+        "label": "Track Order",
+        "action": "navigate",
+        "url": "/user/orders"
+      },
+      {
+        "label": "Continue Shopping",
+        "action": "navigate",
+        "url": "/home"
+      }
+    ]
+  },
+  "cancel_order": {
+    "title": "Order Cancelled",
+    "header_image": "/uploads/icons/cancel_order.png",
+    "footer_buttons": [
+      {
+        "label": "View Orders",
+        "action": "navigate",
+        "url": "/user/orders"
+      },
+      {
+        "label": "Close",
+        "action": "dismiss"
+      }
+    ]
+  },
+  "login": {
+    "title": "Welcome Back",
+    "header_image": "/uploads/icons/login.png",
+    "footer_buttons": [
+      {
+        "label": "Go to Dashboard",
+        "action": "navigate",
+        "url": "/dashboard"
+      },
+      {
+        "label": "Close",
+        "action": "dismiss"
+      }
+    ]
+  },
+  "logout": {
+    "title": "Logged Out Successfully",
+    "header_image": "/uploads/icons/logout.png",
+    "footer_buttons": [
+      {
+        "label": "Login Again",
+        "action": "navigate",
+        "url": "/login"
+      },
+      {
+        "label": "Close",
+        "action": "dismiss"
+      }
+    ]
+  },
+  "update_profile": {
+    "title": "Profile Updated",
+    "header_image": "/uploads/icons/update_profile.png",
+    "footer_buttons": [
+      {
+        "label": "View Profile",
+        "action": "navigate",
+        "url": "/user/profile"
+      },
+      {
+        "label": "Close",
+        "action": "dismiss"
+      }
+    ]
+  },
+  "add_address": {
+    "title": "Address Added",
+    "header_image": "/uploads/icons/add_address.png",
+    "footer_buttons": [
+      {
+        "label": "View Addresses",
+        "action": "navigate",
+        "url": "/user/addresses"
+      },
+      {
+        "label": "Close",
+        "action": "dismiss"
+      }
+    ]
+  },
+  "delete_address": {
+    "title": "Address Deleted",
+    "header_image": "/uploads/icons/delete_address.png",
+    "footer_buttons": [
+      {
+        "label": "View Addresses",
+        "action": "navigate",
+        "url": "/user/addresses"
+      },
+      {
+        "label": "Close",
+        "action": "dismiss"
+      }
+    ]
+  }
+}

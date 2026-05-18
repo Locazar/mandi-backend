@@ -21,6 +21,9 @@ type AuthUseCase interface {
 
 	// admin
 	AdminLogin(ctx context.Context, loginDetails request.Login) (domain.Admin, domain.ShopVerification, error)
+	AdminSignUpOtpSend(ctx context.Context, phone string) (otpID string, err error)
+	AdminSignUpOtpVerify(ctx context.Context, otpVerifyDetails request.OTPVerify) (adminID uint, shopVerification domain.ShopVerification, err error)
+
 	// token
 	GenerateAccessToken(ctx context.Context, tokenParams GenerateTokenParams) (tokenString string, err error)
 	GenerateRefreshToken(ctx context.Context, tokenParams GenerateTokenParams) (tokenString string, err error)
