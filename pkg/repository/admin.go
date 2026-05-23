@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
+	"github.com/rohit221990/mandi-backend/pkg/utils"
 	"gorm.io/gorm"
 )
 
@@ -44,16 +44,28 @@ func (c *adminDatabase) FindAdminByEmail(ctx context.Context, email string) (dom
 
 	var admin domain.Admin
 	err := c.DB.Raw("SELECT * FROM admins WHERE email = $1", email).Scan(&admin).Error
+	if err != nil {
+		return admin, err
+	}
+	if admin.ID == 0 {
+		return admin, gorm.ErrRecordNotFound
+	}
 
-	return admin, err
+	return admin, nil
 }
 
 func (c *adminDatabase) FindAdminByPhone(ctx context.Context, phone string) (domain.Admin, error) {
 	fmt.Printf("Finding admin by phone number: %s\n", phone)
 	var admin domain.Admin
 	err := c.DB.Raw("SELECT * FROM admins WHERE mobile = $1", phone).Scan(&admin).Error
+	if err != nil {
+		return admin, err
+	}
+	if admin.ID == 0 {
+		return admin, gorm.ErrRecordNotFound
+	}
 	fmt.Printf("Admin found: %+v\n", admin)
-	return admin, err
+	return admin, nil
 }
 
 func (c *adminDatabase) FindAdminWithShopVerificationByPhone(ctx context.Context, phone string) (domain.Admin, domain.ShopVerification, error) {
@@ -70,9 +82,12 @@ func (c *adminDatabase) FindAdminWithShopVerificationByPhone(ctx context.Context
 	WHERE a.mobile = $1`
 
 	err := c.DB.Raw(query, phone).Scan(&admin).Error
-	fmt.Printf("Admin found: %+v\n", err)
+	fmt.Printf("Admin lookup error: %+v\n", err)
 	if err != nil {
 		return admin, shopVerification, err
+	}
+	if admin.ID == 0 {
+		return admin, shopVerification, gorm.ErrRecordNotFound
 	}
 	fmt.Printf("Admin found: %+v\n", admin)
 	// Then get shop verification data
@@ -91,10 +106,11 @@ func (c *adminDatabase) FindAdminWithShopVerificationByPhone(ctx context.Context
 	return admin, shopVerification, nil
 }
 
-func (c *adminDatabase) SaveAdmin(ctx context.Context, admin domain.Admin) error {
+func (c *adminDatabase) SaveAdmin(ctx context.Context, admin domain.Admin) (domain.Admin, error) {
+	admin.AdminID = utils.GenerateAdminID()
 	tx := c.DB.Begin()
 	if tx.Error != nil {
-		return tx.Error
+		return domain.Admin{}, tx.Error
 	}
 	// First insert into admins table
 	query := `INSERT INTO admins (full_name, email, mobile, password,
@@ -103,35 +119,24 @@ func (c *adminDatabase) SaveAdmin(ctx context.Context, admin domain.Admin) error
 		verified_seller, status, latitude, longitude, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
 		$11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21) RETURNING id`
 
-	var adminID = uuid.NewString()
+	var adminID uint
 	err := tx.Raw(query, admin.FullName, admin.Email, admin.Mobile, admin.Password,
 		admin.AddressLine1, admin.AddressLine2, admin.City, admin.State, admin.Country, admin.Pincode,
 		admin.BankAccountNumber, admin.BankIFSC, admin.PAN, admin.Aadhar, admin.AgreeToTerms,
 		admin.VerifiedSeller, admin.Status, admin.Latitude, admin.Longitude, time.Now(), time.Now()).Scan(&adminID).Error
 	if err != nil {
 		tx.Rollback()
-		return err
+		return domain.Admin{}, err
 	}
 
-	shopVerification := domain.ShopVerification{
-		AdminID: adminID,
-		Remarks: "Shop registration under review",
-	}
+	admin.ID = adminID
 
-	queryShops := `INSERT INTO shop_verifications (admin_id, verification_status, remarks, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5)`
-
-	if err := tx.Exec(queryShops, adminID, shopVerification.VerificationStatus, shopVerification.Remarks, time.Now(), time.Now()).Error; err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	// Commit transaction if both inserts succeed
+	// Commit transaction after admin insert only
 	if err := tx.Commit().Error; err != nil {
-		return err
+		return domain.Admin{}, err
 	}
 
-	return nil
+	return admin, nil
 }
 
 func (c *adminDatabase) FindAllUser(ctx context.Context, pagination request.Pagination) (users []response.User, err error) {
@@ -261,6 +266,7 @@ func (c *adminDatabase) DeleteAdvertisement(ctx context.Context, advertisementID
 
 // Shop Details
 func (c *adminDatabase) CreateShop(ctx context.Context, shop domain.ShopDetails) (domain.ShopDetails, error) {
+	shop.ShopID = utils.GenerateShopID()
 	tx := c.DB.Begin()
 	if tx.Error != nil {
 		return shop, tx.Error
@@ -430,8 +436,14 @@ func (c *adminDatabase) UpdateShop(ctx context.Context, shop map[string]interfac
 func (c *adminDatabase) GetShopByOwnerID(ctx context.Context, ownerID uint) (shop domain.ShopDetails, err error) {
 	query := `SELECT * FROM shop_details WHERE admin_id = $1`
 	err = c.DB.Raw(query, ownerID).Scan(&shop).Error
+	if err != nil {
+		return shop, err
+	}
+	if shop.ID == 0 {
+		return shop, gorm.ErrRecordNotFound
+	}
 
-	return shop, err
+	return shop, nil
 }
 
 func (c *adminDatabase) SendNotificationToUsersInRadius(ctx context.Context, requestData request.NotificationRadiusRequest) error {

@@ -98,19 +98,12 @@ func (c *adminUseCase) SignUp(ctx context.Context, signUpDetails domain.Admin) (
 		}
 
 		signUpDetails.Password = string(hashPass)
-		err = c.adminRepo.SaveAdmin(ctx, signUpDetails)
+		savedAdmin, err := c.adminRepo.SaveAdmin(ctx, signUpDetails)
 		if err != nil {
 			errChan <- utils.PrependMessageToError(err, "failed to save admin details")
 			return
 		}
-		fmt.Printf("Admin details saved successfully for phone number: %s\n", signUpDetails.Mobile)
-		// Get the saved admin ID
-		savedAdmin, err := c.adminRepo.FindAdminByPhone(ctx, signUpDetails.Mobile)
-		fmt.Printf("Retrieved saved admin details: %+v\n", savedAdmin)
-		if err != nil {
-			errChan <- utils.PrependMessageToError(err, "failed to get saved admin ID")
-			return
-		}
+		fmt.Printf("Admin details saved successfully for phone number: %s, admin_id: %s\n", signUpDetails.Mobile, savedAdmin.AdminID)
 		adminID = savedAdmin.ID
 		fmt.Printf("Retrieved saved admin details: %+v\n", savedAdmin)
 	}()
@@ -168,11 +161,37 @@ func (c *adminUseCase) AdminSignUpOtpVerify(ctx context.Context,
 	// 	return 0, ErrInvalidOtp
 	// }
 
-	shop, err = c.adminRepo.GetShopByOwnerID(ctx, otpSession.AdminID)
-	if err != nil {
-		return 0, domain.ShopDetails{}, utils.PrependMessageToError(err, "failed to find admin verified on database")
+	// Try to get existing admin by phone
+	admin, err := c.adminRepo.FindAdminByPhone(ctx, otpSession.Phone)
+	if err == nil && admin.ID != 0 {
+		// Admin exists, try to get their shop
+		shop, err := c.adminRepo.GetShopByOwnerID(ctx, admin.ID)
+		if err == nil {
+			return admin.ID, shop, nil
+		}
+		// Shop doesn't exist, return admin without shop
+		return admin.ID, domain.ShopDetails{}, nil
 	}
-	return otpSession.AdminID, shop, err
+
+	// Admin doesn't exist, create new admin
+	newAdmin := domain.Admin{
+		Mobile:         otpSession.Phone,
+		Status:         "active",
+		VerifiedSeller: false,
+	}
+
+	savedAdmin, err := c.adminRepo.SaveAdmin(ctx, newAdmin)
+	if err != nil {
+		return 0, domain.ShopDetails{}, utils.PrependMessageToError(err, "failed to register admin")
+	}
+
+	if savedAdmin.ID == 0 {
+		return 0, domain.ShopDetails{}, fmt.Errorf("failed to create admin: admin ID is 0")
+	}
+
+	return savedAdmin.ID, domain.ShopDetails{}, nil
+
+	return admin.ID, domain.ShopDetails{}, nil
 
 }
 func (c *adminUseCase) GenerateAccessToken(ctx context.Context, tokenParams service.GenerateTokenParams) (string, error) {

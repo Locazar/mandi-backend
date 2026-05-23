@@ -2,8 +2,6 @@ module github.com/rohit221990/mandi-backend
 
 go 1.23.0
 
-toolchain go1.24.6
-
 require (
 	cloud.google.com/go/firestore v1.18.0
 	firebase.google.com/go/v4 v4.19.0
