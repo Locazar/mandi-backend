@@ -108,19 +108,22 @@ func (c *adminDatabase) FindAdminWithShopVerificationByPhone(ctx context.Context
 
 func (c *adminDatabase) SaveAdmin(ctx context.Context, admin domain.Admin) (domain.Admin, error) {
 	admin.AdminID = utils.GenerateAdminID()
+	if admin.UserName == "" {
+		admin.UserName = utils.GenerateRandomUserName("seller")
+	}
 	tx := c.DB.Begin()
 	if tx.Error != nil {
 		return domain.Admin{}, tx.Error
 	}
 	// First insert into admins table
-	query := `INSERT INTO admins (full_name, email, mobile, password,
+	query := `INSERT INTO admins (full_name, email, mobile, password, user_name,
 		address_line1, address_line2, city, state, country, pincode,
 		bank_account_number, bank_ifsc, pan, aadhar, agree_to_terms,
-		verified_seller, status, latitude, longitude, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-		$11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21) RETURNING id`
+		verified_seller, status, latitude, longitude, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
+		$12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22) RETURNING id`
 
 	var adminID uint
-	err := tx.Raw(query, admin.FullName, admin.Email, admin.Mobile, admin.Password,
+	err := tx.Raw(query, admin.FullName, admin.Email, admin.Mobile, admin.Password, admin.UserName,
 		admin.AddressLine1, admin.AddressLine2, admin.City, admin.State, admin.Country, admin.Pincode,
 		admin.BankAccountNumber, admin.BankIFSC, admin.PAN, admin.Aadhar, admin.AgreeToTerms,
 		admin.VerifiedSeller, admin.Status, admin.Latitude, admin.Longitude, time.Now(), time.Now()).Scan(&adminID).Error
