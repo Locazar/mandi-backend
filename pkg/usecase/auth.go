@@ -16,6 +16,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/service/token"
 	service "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
+	"gorm.io/gorm"
 )
 
 const (
@@ -179,40 +180,41 @@ func (c *authUseCase) LoginOtpVerify(ctx context.Context, otpVerifyDetails reque
 	return otpSession.UserID, nil
 }
 
-func (c *authUseCase) AdminLogin(ctx context.Context, loginDetails request.Login) (domain.Admin, domain.ShopVerification, error) {
+func (c *authUseCase) AdminLogin(ctx context.Context, loginDetails request.Login) (domain.Admin, error) {
 
 	var (
-		admin            domain.Admin
-		shopVerification domain.ShopVerification
-		err              error
+		admin domain.Admin
+		err   error
 	)
 	fmt.Printf("Admin login attempt with details: %+v\n", loginDetails)
 	switch {
 	case loginDetails.Email != "":
 		admin, err = c.adminRepo.FindAdminByEmail(ctx, loginDetails.Email)
 	case loginDetails.Phone != "":
-		admin, shopVerification, err = c.adminRepo.FindAdminWithShopVerificationByPhone(ctx, loginDetails.Phone)
+		admin, _, err = c.adminRepo.FindAdminWithShopVerificationByPhone(ctx, loginDetails.Phone)
 	default:
-		return domain.Admin{}, domain.ShopVerification{}, ErrEmptyLoginCredentials
+		return domain.Admin{}, ErrEmptyLoginCredentials
 	}
 
 	if err != nil {
-		return domain.Admin{}, domain.ShopVerification{}, utils.PrependMessageToError(err, "failed to find admin")
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return domain.Admin{}, ErrUserNotExist
+		}
+		return domain.Admin{}, utils.PrependMessageToError(err, "failed to find admin")
 	}
 
 	if admin.ID == 0 {
-		return domain.Admin{}, domain.ShopVerification{}, ErrUserNotExist
+		return domain.Admin{}, ErrUserNotExist
 	}
 
 	fmt.Printf("Admin found: %+v\n", admin)
-	fmt.Printf("Shop verification found: %+v\n", shopVerification)
 
 	// err = utils.ComparePasswordWithHashedPassword(loginDetails.Password, admin.Password)
 	// if err != nil {
 	// 	return domain.Admin{}, domain.ShopVerification{}, ErrWrongPassword
 	// }
 
-	return admin, shopVerification, nil
+	return admin, nil
 }
 
 func (c *authUseCase) AdminSignUpOtpSend(ctx context.Context, phone string) (string, error) {
@@ -220,8 +222,8 @@ func (c *authUseCase) AdminSignUpOtpSend(ctx context.Context, phone string) (str
 		return "", ErrEmptyLoginCredentials
 	}
 
-	admin, _, err := c.adminRepo.FindAdminWithShopVerificationByPhone(ctx, phone)
-	if err != nil {
+	admin, err := c.adminRepo.FindAdminByPhone(ctx, phone)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return "", utils.PrependMessageToError(err, "failed to check admin phone")
 	}
 
@@ -241,27 +243,27 @@ func (c *authUseCase) AdminSignUpOtpSend(ctx context.Context, phone string) (str
 	return otpID, nil
 }
 
-func (c *authUseCase) AdminSignUpOtpVerify(ctx context.Context, otpVerifyDetails request.OTPVerify) (uint, domain.ShopVerification, error) {
+func (c *authUseCase) AdminSignUpOtpVerify(ctx context.Context, otpVerifyDetails request.OTPVerify) (uint, error) {
 	otpSession, err := c.authRepo.FindOtpSession(ctx, otpVerifyDetails.OtpID)
 	if err != nil {
-		return 0, domain.ShopVerification{}, utils.PrependMessageToError(err, "failed to find otp session from database")
+		return 0, utils.PrependMessageToError(err, "failed to find otp session from database")
 	}
 
 	if otpSession.Phone == "" {
-		return 0, domain.ShopVerification{}, ErrInvalidOtp
+		return 0, ErrInvalidOtp
 	}
 
 	// if time.Since(otpSession.ExpireAt) > 0 {
-	// 	return 0, domain.ShopVerification{}, ErrOtpExpired
+	// 	return 0, ErrOtpExpired
 	// }
 
-	admin, shopVerification, err := c.AdminLogin(ctx, request.Login{Phone: otpSession.Phone})
-	if err == nil {
-		return admin.ID, shopVerification, nil
+	admin, err := c.AdminLogin(ctx, request.Login{Phone: otpSession.Phone})
+	if err == nil && admin.ID != 0 {
+		return admin.ID, nil
 	}
 
-	if !errors.Is(err, ErrUserNotExist) {
-		return 0, domain.ShopVerification{}, utils.PrependMessageToError(err, "failed to verify admin login")
+	if err == nil || !errors.Is(err, ErrUserNotExist) {
+		return 0, utils.PrependMessageToError(err, "failed to verify admin login")
 	}
 
 	newAdmin := domain.Admin{
@@ -270,20 +272,16 @@ func (c *authUseCase) AdminSignUpOtpVerify(ctx context.Context, otpVerifyDetails
 		VerifiedSeller: false,
 	}
 
-	if err := c.adminRepo.SaveAdmin(ctx, newAdmin); err != nil {
-		return 0, domain.ShopVerification{}, utils.PrependMessageToError(err, "failed to register admin")
-	}
-
-	admin, shopVerification, err = c.adminRepo.FindAdminWithShopVerificationByPhone(ctx, otpSession.Phone)
+	savedAdmin, err := c.adminRepo.SaveAdmin(ctx, newAdmin)
 	if err != nil {
-		return 0, domain.ShopVerification{}, utils.PrependMessageToError(err, "failed to retrieve newly registered admin")
+		return 0, utils.PrependMessageToError(err, "failed to register admin")
 	}
 
-	if admin.ID == 0 {
-		return 0, domain.ShopVerification{}, ErrUserNotExist
+	if savedAdmin.ID == 0 {
+		return 0, ErrUserNotExist
 	}
 
-	return admin.ID, shopVerification, nil
+	return savedAdmin.ID, nil
 }
 
 func (c *authUseCase) GenerateAccessToken(ctx context.Context, tokenParams service.GenerateTokenParams) (string, error) {

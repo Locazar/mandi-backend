@@ -1612,12 +1612,11 @@ func (c *productDatabase) GetAllCategoriesByDepartmentID(ctx context.Context, br
 
 func (c *productDatabase) GetAllSubCategoriesByCategoryID(ctx context.Context, categoryID uint) (subCategories []response.SubCategory, err error) {
 
-	query := `SELECT id, name, image_url, icon FROM sub_categories WHERE category_id = $1 ORDER BY sort_order ASC`
+	query := `SELECT id, name, image_url,  FROM sub_categories WHERE category_id = $1 ORDER BY sort_order ASC`
 	err = c.DB.Raw(query, categoryID).Scan(&subCategories).Error
 
 	return
 }
-
 // SaveSubTypeAttribute saves a new sub type attribute for a subcategory
 func (c *productDatabase) SaveSubTypeAttribute(ctx context.Context, locationID uint, attribute domain.SubTypeAttributes) error {
 	attribute.SubCategoryID = locationID
