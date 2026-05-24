@@ -1,228 +1,287 @@
 -- Database Seeding Script for Localzar Mandi Backend
--- This script populates test data for development and manual testing
-
--- Clear existing test data (optional - comment out for production)
--- DELETE FROM "orders" WHERE id > 1000;
--- DELETE FROM "admins" WHERE id > 100;
--- DELETE FROM "shops" WHERE id > 100;
+-- Updated for current schema (2026-05-25)
+-- Focuses on sellers and shops (core entities)
 
 -- ============================================
--- 1. TEST ADMIN/SELLER ACCOUNTS
+-- 1. TEST SELLER ACCOUNTS (admins)
 -- ============================================
 
-INSERT INTO "admins" (
-  phone, email, first_name, last_name, password_hash, is_verified, 
+INSERT INTO admins (
+  full_name, email, mobile, password, user_name,
+  city, state, country, pincode,
+  bank_account_number, bank_ifsc, pan, aadhar,
+  verified_seller, status, agree_to_terms,
+  latitude, longitude,
   created_at, updated_at
 ) VALUES
--- Test Account 1: Verified seller with complete profile
+-- Seller 1: Verified with complete profile
 (
-  '9876543210', 'seller1@test.com', 'Raj', 'Kumar', 
-  '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcg7b3XeKeUxWdeS86E36gZvWFm', 
-  true, NOW(), NOW()
+  'Raj Kumar',
+  'seller1@test.com',
+  '9876543210',
+  '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcg7b3XeKeUxWdeS86E36gZvWFm', -- password: password
+  'seller_raj_001',
+  'Delhi',
+  'Delhi',
+  'India',
+  '110001',
+  '1234567890123456',
+  'SBIN0001234',
+  'ABCDE1234F',
+  'AAAA1234B567',
+  true,
+  'active',
+  true,
+  28.7041,
+  77.1025,
+  NOW(),
+  NOW()
 ),
--- Test Account 2: Unverified seller (needs documents)
+-- Seller 2: Verified, different city
 (
-  '9876543211', 'seller2@test.com', 'Priya', 'Singh',
+  'Priya Singh',
+  'seller2@test.com',
+  '9876543211',
   '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcg7b3XeKeUxWdeS86E36gZvWFm',
-  false, NOW(), NOW()
+  'seller_priya_002',
+  'Mumbai',
+  'Maharashtra',
+  'India',
+  '400001',
+  '9876543210123456',
+  'HDFC0001234',
+  'BCDEF5678G',
+  'BBBB5678C890',
+  true,
+  'active',
+  true,
+  19.0760,
+  72.8777,
+  NOW(),
+  NOW()
 ),
--- Test Account 3: New seller (just created)
+-- Seller 3: Unverified (for verification testing)
 (
-  '9876543212', 'seller3@test.com', 'Arjun', 'Patel',
+  'Arjun Patel',
+  'seller3@test.com',
+  '9876543212',
   '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcg7b3XeKeUxWdeS86E36gZvWFm',
-  false, NOW(), NOW()
-) ON CONFLICT DO NOTHING;
-
--- Get IDs for use in next inserts
-CREATE TEMP TABLE admin_ids AS
-SELECT id, phone FROM "admins" 
-WHERE phone IN ('9876543210', '9876543211', '9876543212')
-ORDER BY phone;
+  'seller_arjun_003',
+  'Bangalore',
+  'Karnataka',
+  'India',
+  '560001',
+  '5678901234567890',
+  'ICIC0001234',
+  'CDEFG9012H',
+  'CCCC9012D345',
+  false,
+  'pending',
+  false,
+  12.9716,
+  77.5946,
+  NOW(),
+  NOW()
+),
+-- Seller 4: Active seller
+(
+  'Neha Sharma',
+  'seller4@test.com',
+  '9876543213',
+  '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcg7b3XeKeUxWdeS86E36gZvWFm',
+  'seller_neha_004',
+  'Hyderabad',
+  'Telangana',
+  'India',
+  '500001',
+  '2345678901234567',
+  'AXIS0001234',
+  'DEFGH1234I',
+  'DDDD1234E567',
+  true,
+  'active',
+  true,
+  17.3850,
+  78.4867,
+  NOW(),
+  NOW()
+) ON CONFLICT (mobile) DO NOTHING;
 
 -- ============================================
--- 2. SHOPS (Shop Details)
+-- 2. SHOP DETAILS
 -- ============================================
 
-INSERT INTO "shops" (
-  admin_id, shop_name, owner_name, email, phone, 
-  shop_description, shop_type, address_line1, address_line2, 
-  city, state, country, pincode, latitude, longitude,
+INSERT INTO shop_details (
+  admin_id, shop_name, owner_name, email, phone,
+  shop_description, shop_type,
+  address_line1, address_line2, city, state, country, pincode,
+  latitude, longitude,
   bank_account_number, bank_ifsc, pan_number,
   shop_status, shop_verification_status,
-  photo_shop_verification, business_doc_verification, 
+  photo_shop_verification, business_doc_verification,
   identity_doc_verification, address_proof_verification,
   created_at, updated_at
-) 
-SELECT
-  a.id, 
-  CASE WHEN a.phone = '9876543210' THEN 'Fresh & Organic Vegetables'
-       WHEN a.phone = '9876543211' THEN 'Spice Hub Delhi'
-       ELSE 'Premium Dairy Products' END,
-  a.phone,
-  'shop@test.com',
-  a.phone,
-  'Premium quality produce and vegetables from local farms',
+) VALUES
+-- Shop 1: Fresh & Organic Vegetables
+(
+  (SELECT id FROM admins WHERE mobile = '9876543210' AND full_name = 'Raj Kumar' LIMIT 1),
+  'Fresh & Organic Vegetables',
+  'Raj Kumar',
+  'shop1@test.com',
+  '9876543210',
+  'Premium quality organic vegetables directly from local farms. Specializing in seasonal produce with guaranteed freshness.',
   'produce',
   '123 Market Street',
   'Near Railway Station',
-  CASE WHEN a.phone = '9876543210' THEN 'Delhi'
-       WHEN a.phone = '9876543211' THEN 'Mumbai'
-       ELSE 'Bangalore' END,
-  CASE WHEN a.phone = '9876543210' THEN 'Delhi'
-       WHEN a.phone = '9876543211' THEN 'Maharashtra'
-       ELSE 'Karnataka' END,
+  'Delhi',
+  'Delhi',
   'India',
-  CASE WHEN a.phone = '9876543210' THEN '110001'
-       WHEN a.phone = '9876543211' THEN '400001'
-       ELSE '560001' END,
-  CASE WHEN a.phone = '9876543210' THEN 28.7041
-       WHEN a.phone = '9876543211' THEN 19.0760
-       ELSE 12.9716 END,
-  CASE WHEN a.phone = '9876543210' THEN 77.1025
-       WHEN a.phone = '9876543211' THEN 72.8777
-       ELSE 77.5946 END,
+  '110001',
+  28.7041,
+  77.1025,
   '1234567890123456',
   'SBIN0001234',
   'ABCDE1234F',
   'active',
-  CASE WHEN a.phone = '9876543210' THEN true ELSE false END,
-  CASE WHEN a.phone = '9876543210' THEN true ELSE false END,
-  CASE WHEN a.phone = '9876543210' THEN true ELSE false END,
-  CASE WHEN a.phone = '9876543210' THEN true ELSE false END,
-  CASE WHEN a.phone = '9876543210' THEN true ELSE false END,
-  NOW(), NOW()
-FROM admin_ids a
-ON CONFLICT (admin_id) DO NOTHING;
-
--- ============================================
--- 3. CATEGORIES & SUB-CATEGORIES
--- ============================================
-
-INSERT INTO "categories" (name, description, image_url, is_active, created_at, updated_at) VALUES
-('Vegetables', 'Fresh vegetables and produce', 'vegetables.jpg', true, NOW(), NOW()),
-('Fruits', 'Fresh fruits and berries', 'fruits.jpg', true, NOW(), NOW()),
-('Spices', 'Herbs, spices and condiments', 'spices.jpg', true, NOW(), NOW()),
-('Dairy', 'Milk, cheese and dairy products', 'dairy.jpg', true, NOW(), NOW()),
-('Grains', 'Rice, wheat and pulses', 'grains.jpg', true, NOW(), NOW())
-ON CONFLICT DO NOTHING;
-
--- ============================================
--- 4. PRODUCTS (Items)
--- ============================================
-
-CREATE TEMP TABLE shop_id_temp AS
-SELECT id FROM "shops" LIMIT 1;
-
-INSERT INTO "product_items" (
-  shop_id, category_id, name, description, 
-  price, quantity, unit, 
-  is_active, created_at, updated_at
-)
-SELECT
-  (SELECT id FROM shop_id_temp LIMIT 1),
-  (SELECT id FROM "categories" WHERE name = 'Vegetables' LIMIT 1),
-  'Fresh Tomatoes',
-  'Locally sourced premium red tomatoes',
-  80,
-  100,
-  'kg',
+  true,
+  true,
+  true,
+  true,
   true,
   NOW(),
   NOW()
-UNION ALL
-SELECT
-  (SELECT id FROM shop_id_temp LIMIT 1),
-  (SELECT id FROM "categories" WHERE name = 'Vegetables' LIMIT 1),
-  'Organic Spinach',
-  'Fresh organic spinach bundles',
-  60,
-  50,
-  'bundle',
+),
+-- Shop 2: Spice Hub
+(
+  (SELECT id FROM admins WHERE mobile = '9876543211' AND full_name = 'Priya Singh' LIMIT 1),
+  'Spice Hub Delhi',
+  'Priya Singh',
+  'shop2@test.com',
+  '9876543211',
+  'Authentic Indian spices, herbs and condiments. Pure, freshly ground spices with no additives.',
+  'spices',
+  '456 Spice Market',
+  'Central Delhi',
+  'Mumbai',
+  'Maharashtra',
+  'India',
+  '400001',
+  19.0760,
+  72.8777,
+  '9876543210123456',
+  'HDFC0001234',
+  'BCDEF5678G',
+  'active',
+  true,
+  true,
+  true,
+  true,
   true,
   NOW(),
   NOW()
-UNION ALL
-SELECT
-  (SELECT id FROM shop_id_temp LIMIT 1),
-  (SELECT id FROM "categories" WHERE name = 'Fruits' LIMIT 1),
-  'Bananas',
-  'Premium yellow bananas',
-  45,
-  150,
-  'kg',
+),
+-- Shop 3: Premium Dairy
+(
+  (SELECT id FROM admins WHERE mobile = '9876543212' AND full_name = 'Arjun Patel' LIMIT 1),
+  'Premium Dairy Products',
+  'Arjun Patel',
+  'shop3@test.com',
+  '9876543212',
+  'Fresh milk, cheese, yogurt and dairy products. Farm to table in 24 hours.',
+  'dairy',
+  '789 Dairy Lane',
+  'Near Market',
+  'Bangalore',
+  'Karnataka',
+  'India',
+  '560001',
+  12.9716,
+  77.5946,
+  '5678901234567890',
+  'ICIC0001234',
+  'CDEFG9012H',
+  'active',
+  false,
+  false,
+  false,
+  false,
+  false,
+  NOW(),
+  NOW()
+),
+-- Shop 4: Fresh Fruits
+(
+  (SELECT id FROM admins WHERE mobile = '9876543213' AND full_name = 'Neha Sharma' LIMIT 1),
+  'Fresh Fruits Market',
+  'Neha Sharma',
+  'shop4@test.com',
+  '9876543213',
+  'Tropical and seasonal fruits. Sourced directly from orchards. Best prices guaranteed.',
+  'fruits',
+  '321 Fruit Garden',
+  'Beside Park',
+  'Hyderabad',
+  'Telangana',
+  'India',
+  '500001',
+  17.3850,
+  78.4867,
+  '2345678901234567',
+  'AXIS0001234',
+  'DEFGH1234I',
+  'active',
+  true,
+  true,
+  true,
+  true,
   true,
   NOW(),
   NOW()
-UNION ALL
-SELECT
-  (SELECT id FROM shop_id_temp LIMIT 1),
-  (SELECT id FROM "categories" WHERE name = 'Spices' LIMIT 1),
-  'Turmeric Powder',
-  '100% pure turmeric powder',
-  250,
-  25,
-  'kg',
-  true,
-  NOW(),
-  NOW()
-UNION ALL
-SELECT
-  (SELECT id FROM shop_id_temp LIMIT 1),
-  (SELECT id FROM "categories" WHERE name = 'Dairy' LIMIT 1),
-  'Whole Milk',
-  'Fresh pasteurized whole milk',
-  65,
-  200,
-  'liter',
-  true,
-  NOW(),
-  NOW()
-ON CONFLICT DO NOTHING;
+) ON CONFLICT DO NOTHING;
 
 -- ============================================
--- 5. ORDERS (for testing order flows)
--- ============================================
-
-INSERT INTO "orders" (
-  shop_id, customer_id, total_amount, order_status,
-  created_at, updated_at
-)
-SELECT
-  (SELECT id FROM shop_id_temp LIMIT 1),
-  1,
-  500,
-  'pending',
-  NOW() - INTERVAL '2 hours',
-  NOW() - INTERVAL '2 hours'
-UNION ALL
-SELECT
-  (SELECT id FROM shop_id_temp LIMIT 1),
-  2,
-  1200,
-  'confirmed',
-  NOW() - INTERVAL '1 day',
-  NOW() - INTERVAL '1 day'
-UNION ALL
-SELECT
-  (SELECT id FROM shop_id_temp LIMIT 1),
-  3,
-  750,
-  'completed',
-  NOW() - INTERVAL '2 days',
-  NOW() - INTERVAL '2 days'
-ON CONFLICT DO NOTHING;
-
--- ============================================
--- 6. VERIFY SEEDING
+-- 3. VERIFY SEEDING
 -- ============================================
 
 SELECT '=== SEED DATA SUMMARY ===' as info;
-SELECT COUNT(*) as admin_count FROM "admins" WHERE phone LIKE '9876543%';
-SELECT COUNT(*) as shop_count FROM "shops";
-SELECT COUNT(*) as product_count FROM "product_items";
-SELECT COUNT(*) as order_count FROM "orders";
-SELECT COUNT(*) as category_count FROM "categories";
+SELECT '✓ Test sellers and shops created' as status;
 
--- Cleanup
-DROP TABLE IF EXISTS admin_ids;
-DROP TABLE IF EXISTS shop_id_temp;
+SELECT COUNT(*) as test_sellers_created FROM admins WHERE mobile LIKE '9876543%';
+SELECT COUNT(*) as test_shops_created FROM shop_details WHERE shop_name LIKE '%Fresh%' OR shop_name LIKE '%Spice%' OR shop_name LIKE '%Dairy%' OR shop_name LIKE '%Fruits%';
+
+-- List created sellers
+SELECT '--- Test Sellers ---' as info;
+SELECT
+  id,
+  full_name,
+  mobile,
+  status,
+  verified_seller,
+  'password' as test_password
+FROM admins
+WHERE mobile LIKE '9876543%'
+ORDER BY mobile;
+
+-- List created shops
+SELECT '--- Test Shops ---' as info;
+SELECT
+  s.id,
+  s.shop_name,
+  a.full_name as seller_name,
+  s.shop_status,
+  s.shop_verification_status
+FROM shop_details s
+JOIN admins a ON s.admin_id = a.id
+WHERE a.mobile LIKE '9876543%'
+ORDER BY s.id;
+
+SELECT '--- Usage Notes ---' as info;
+SELECT 'Use these test credentials to log in as a seller:' as note;
+SELECT 'Phone: 9876543210, Password: password' as credentials UNION ALL
+SELECT 'Phone: 9876543211, Password: password' UNION ALL
+SELECT 'Phone: 9876543212, Password: password' UNION ALL
+SELECT 'Phone: 9876543213, Password: password';
+
+SELECT '--- Templates ---' as info;
+SELECT COUNT(*) as alert_templates_available FROM alert_templates;
+SELECT 'Templates: Complete Your Setup, Welcome Offer, Seller Guide, Help Center' as template_list;
