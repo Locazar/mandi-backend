@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"regexp"
@@ -18,7 +19,6 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"github.com/rohit221990/mandi-backend/pkg/service/token"
-	"github.com/rohit221990/mandi-backend/pkg/usecase"
 	usecaseInterface "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
 )
@@ -143,19 +143,10 @@ func (a *adminHandler) AdminSignUpVerify(ctx *gin.Context) {
 	userID, shop, err := a.adminUseCase.AdminSignUpOtpVerify(ctx, body)
 	println("userID:", userID)
 	if err != nil {
-		var statusCode int
-		switch {
-		case errors.Is(err, usecase.ErrOtpExpired):
-			statusCode = http.StatusGone
-		case errors.Is(err, usecase.ErrInvalidOtp):
-			statusCode = http.StatusUnauthorized
-		default:
-			statusCode = http.StatusInternalServerError
-		}
-		response.ErrorResponse(ctx, statusCode, "Failed to verify otp", err, nil)
+		errResponse(ctx, "Failed to verify otp", err)
 		return
 	}
-	fmt.Printf("userID: %d\n", userID)
+	log.Printf("userID: %d", userID)
 	a.setupTokenAndResponse(ctx, token.Admin, userID, shop)
 }
 
@@ -168,11 +159,11 @@ func (c *adminHandler) setupTokenAndResponse(ctx *gin.Context, tokenUser token.U
 		UserID:   userID,
 		UserType: tokenUser,
 	}
-	fmt.Printf("Generating tokens for userID: %d, userType: %s\n", userID, tokenUser)
+	log.Printf("Generating tokens for userID: %d, userType: %s", userID, tokenUser)
 	accessToken, err := c.adminUseCase.GenerateAccessToken(ctx, tokenParams)
-	fmt.Printf("Access token generation result for userID: %d, userType: %s, accessToken: %s, error: %v\n", userID, tokenUser, accessToken, err)
+	log.Printf("Access token generation result for userID: %d, userType: %s, accessToken: %s, error: %v", userID, tokenUser, accessToken, err)
 	if err != nil {
-		fmt.Printf("Error generating access token for userID: %d, userType: %s, error: %v\n", userID, tokenUser, err)
+		log.Printf("Error generating access token for userID: %d, userType: %s, error: %v", userID, tokenUser, err)
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to generate access token", err, nil)
 		return
 	}
@@ -183,7 +174,7 @@ func (c *adminHandler) setupTokenAndResponse(ctx *gin.Context, tokenUser token.U
 	})
 
 	if err != nil {
-		fmt.Printf("Error generating refresh token for userID: %d, userType: %s, error: %v\n", userID, tokenUser, err)
+		log.Printf("Error generating refresh token for userID: %d, userType: %s, error: %v", userID, tokenUser, err)
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to generate refresh token", err, nil)
 		return
 	}
@@ -193,7 +184,7 @@ func (c *adminHandler) setupTokenAndResponse(ctx *gin.Context, tokenUser token.U
 
 	ctx.Header("access_token", accessToken)
 	ctx.Header("refresh_token", refreshToken)
-	fmt.Printf("Set access and refresh tokens in headers for userID: %d, userType: %s\n", userID, tokenUser)
+	log.Printf("Set access and refresh tokens in headers for userID: %d, userType: %s", userID, tokenUser)
 
 	tokenRes := response.TokenResponse{
 		AccessToken:  accessToken,
@@ -223,14 +214,14 @@ func (c *adminHandler) setupTokenAndResponse(ctx *gin.Context, tokenUser token.U
 		responseData = mergedData
 	}
 
-	fmt.Printf("Custom response for userID: %d, userType: %s, customResponse: %+v\n", userID, tokenUser, customResponse)
+	log.Printf("Custom response for userID: %d, userType: %s, customResponse: %+v", userID, tokenUser, customResponse)
 
 	if len(customResponse) > 1 {
 		if msg, ok := customResponse[1].(string); ok {
 			message = msg
 		}
 	}
-	fmt.Printf("Final response data for userID: %d, userType: %s, responseData: %+v\n", userID, tokenUser, responseData)
+	log.Printf("Final response data for userID: %d, userType: %s, responseData: %+v", userID, tokenUser, responseData)
 	response.SuccessResponse(ctx, http.StatusOK, message, responseData)
 }
 
@@ -529,7 +520,7 @@ func (h *adminHandler) CreateShop(ctx *gin.Context) {
 	var body domain.ShopDetails
 
 	if err := ctx.ShouldBindJSON(&body); err != nil {
-		fmt.Printf("JSON Binding Error: %v\n", err)
+		log.Printf("JSON Binding Error: %v", err)
 		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, body)
 		return
 	}
@@ -539,11 +530,11 @@ func (h *adminHandler) CreateShop(ctx *gin.Context) {
 	adminId := h.adminUseCase.DecodeTokenData(tokenString)
 	adminIdUint, err := strconv.ParseUint(adminId, 10, 64)
 	if err != nil {
-		fmt.Printf("Error parsing admin ID from token: %v\n", err)
+		log.Printf("Error parsing admin ID from token: %v", err)
 	}
 	body.AdminID = uint(adminIdUint)
 	body.Country = "India"
-	fmt.Printf("Decoded admin ID from token: %d\n", adminId)
+	log.Printf("Decoded admin ID from token: %s", adminId)
 
 	// Fetch admin mobile and assign to shop phone
 	admin, err := h.adminUseCase.GetAdminByID(ctx, uint(adminIdUint))
@@ -553,7 +544,7 @@ func (h *adminHandler) CreateShop(ctx *gin.Context) {
 	}
 	body.Phone = admin.Mobile
 
-	fmt.Printf("Received request to create shop with body: %+v\n", body)
+	log.Printf("Received request to create shop with body: %+v", body)
 
 	// Call use case to create shop
 	res, err := h.adminUseCase.CreateShop(ctx, body)
@@ -561,7 +552,7 @@ func (h *adminHandler) CreateShop(ctx *gin.Context) {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to create shop", err, nil)
 		return
 	}
-	fmt.Printf("Shop created successfully with ID: %d\n", res.ID)
+	log.Printf("Shop created successfully with ID: %d", res.ID)
 
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully created shop", res)
 }
@@ -795,19 +786,13 @@ func (a *adminHandler) UploadAdminProfileImage(ctx *gin.Context) {
 
 	// Check what files are available
 	if ctx.Request.MultipartForm != nil {
-		fmt.Printf("Multipart form files: %+v\n", ctx.Request.MultipartForm.File)
+		log.Printf("Multipart form files: %+v", ctx.Request.MultipartForm.File)
 	} else {
-		fmt.Println("No multipart form files")
+		log.Println("No multipart form files")
 	}
 
 	if err := ctx.ShouldBind(&req); err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, "Image file is required", err, nil)
-		return
-	}
-
-	// Additional validation for image file
-	if req.Image == nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, "No image file provided", fmt.Errorf("image field is nil in request"), nil)
 		return
 	}
 
@@ -834,7 +819,11 @@ func (a *adminHandler) UploadAdminProfileImage(ctx *gin.Context) {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to open image file", err, nil)
 		return
 	}
-	defer file.Close()
+	defer func() {
+		if cerr := file.Close(); cerr != nil {
+			log.Printf("failed to close file: %v", cerr)
+		}
+	}()
 
 	// Validate file type using both content type and filename extension
 	var contentType string
@@ -1293,16 +1282,16 @@ func (a *adminHandler) SetShopTime(ctx *gin.Context) {
 		return
 	}
 
-	fmt.Printf("Received request to set shop time for shop_id: %d\n", shopID)
+	log.Printf("Received request to set shop time for shop_id: %d", shopID)
 
 	var req request.SetShopTimeRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		fmt.Printf("Error binding JSON: %v\n", err)
+		log.Printf("Error binding JSON: %v", err)
 		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
 		return
 	}
 
-	fmt.Printf("Parsed request body: %+v\n", req)
+	log.Printf("Parsed request body: %+v", req)
 
 	status := "close"
 	if req.Status {

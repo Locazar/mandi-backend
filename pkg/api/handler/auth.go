@@ -13,7 +13,6 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/config"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"github.com/rohit221990/mandi-backend/pkg/service/token"
-	"github.com/rohit221990/mandi-backend/pkg/usecase"
 	usecaseInterface "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 )
 
@@ -61,25 +60,7 @@ func (c *AuthHandler) UserLogin(ctx *gin.Context) {
 	userID, err := c.authUseCase.UserLogin(ctx, body)
 
 	if err != nil {
-
-		var statusCode int
-
-		switch {
-		case errors.Is(err, usecase.ErrEmptyLoginCredentials):
-			statusCode = http.StatusBadRequest
-		case errors.Is(err, usecase.ErrUserNotExist):
-			statusCode = http.StatusNotFound
-		case errors.Is(err, usecase.ErrUserBlocked):
-			statusCode = http.StatusForbidden
-		case errors.Is(err, usecase.ErrUserNotVerified):
-			statusCode = http.StatusUnauthorized
-		case errors.Is(err, usecase.ErrWrongPassword):
-			statusCode = http.StatusUnauthorized
-		default:
-			statusCode = http.StatusInternalServerError
-		}
-
-		response.ErrorResponse(ctx, statusCode, "Failed to login", err, nil)
+		errResponse(ctx, "Failed to login", err)
 		return
 	}
 
@@ -118,19 +99,7 @@ func (u *AuthHandler) UserLoginOtpSend(ctx *gin.Context) {
 	otpID, err := u.authUseCase.UserLoginOtpSend(ctx, body)
 
 	if err != nil {
-		var statusCode int
-
-		switch {
-		case errors.Is(err, usecase.ErrEmptyLoginCredentials):
-			statusCode = http.StatusBadRequest
-		case errors.Is(err, usecase.ErrUserNotExist):
-			statusCode = http.StatusForbidden
-		case errors.Is(err, usecase.ErrUserBlocked):
-			statusCode = http.StatusUnauthorized
-		default:
-			statusCode = http.StatusInternalServerError
-		}
-		response.ErrorResponse(ctx, statusCode, "Failed to send otp", err, nil)
+		errResponse(ctx, "Failed to send otp", err)
 		return
 	}
 
@@ -164,16 +133,7 @@ func (c *AuthHandler) UserLoginOtpVerify(ctx *gin.Context) {
 	// get the user using loginOtp useCase
 	userID, err := c.authUseCase.LoginOtpVerify(ctx, body)
 	if err != nil {
-		var statusCode int
-		switch {
-		case errors.Is(err, usecase.ErrOtpExpired):
-			statusCode = http.StatusGone
-		case errors.Is(err, usecase.ErrInvalidOtp):
-			statusCode = http.StatusUnauthorized
-		default:
-			statusCode = http.StatusInternalServerError
-		}
-		response.ErrorResponse(ctx, statusCode, "Failed to verify otp", err, nil)
+		errResponse(ctx, "Failed to verify otp", err)
 		return
 	}
 
@@ -210,12 +170,7 @@ func (c *AuthHandler) UserSignUp(ctx *gin.Context) {
 	otpID, err := c.authUseCase.UserSignUp(ctx, user)
 
 	if err != nil {
-		statusCode := http.StatusInternalServerError
-		if errors.Is(err, usecase.ErrUserAlreadyExit) {
-			statusCode = http.StatusConflict
-		}
-
-		response.ErrorResponse(ctx, statusCode, "Failed to signup", err, nil)
+		errResponse(ctx, "Failed to signup", err)
 		return
 	}
 
@@ -251,16 +206,8 @@ func (c *AuthHandler) UserSignUpVerify(ctx *gin.Context) {
 	// get the user using loginOtp useCase
 	userID, err := c.authUseCase.SingUpOtpVerify(ctx, body)
 	if err != nil {
-		var statusCode int
-		switch {
-		case errors.Is(err, usecase.ErrOtpExpired):
-			statusCode = http.StatusGone
-		case errors.Is(err, usecase.ErrInvalidOtp):
-			statusCode = http.StatusUnauthorized
-		default:
-			statusCode = http.StatusInternalServerError
-		}
-		response.ErrorResponse(ctx, statusCode, "Failed to verify otp", err, nil)
+		errResponse(ctx, "Failed to verify otp", err)
+		return
 	}
 
 	c.setupTokenAndResponse(ctx, token.User, userID)
@@ -290,21 +237,7 @@ func (c *AuthHandler) AdminLogin(ctx *gin.Context) {
 
 	admin, shopVerification, err := c.authUseCase.AdminLogin(ctx, body)
 	if err != nil {
-
-		var statusCode int
-
-		switch {
-		case errors.Is(err, usecase.ErrEmptyLoginCredentials):
-			statusCode = http.StatusBadRequest
-		case errors.Is(err, usecase.ErrUserNotExist):
-			statusCode = http.StatusNotFound
-		case errors.Is(err, usecase.ErrWrongPassword):
-			statusCode = http.StatusUnauthorized
-		default:
-			statusCode = http.StatusInternalServerError
-		}
-
-		response.ErrorResponse(ctx, statusCode, "Failed to login", err, nil)
+		errResponse(ctx, "Failed to login", err)
 		return
 	}
 
@@ -435,21 +368,7 @@ func (c *AuthHandler) renewAccessToken(tokenUser token.UserType) gin.HandlerFunc
 		refreshSession, err := c.authUseCase.VerifyAndGetRefreshTokenSession(ctx, body.RefreshToken, tokenUser)
 
 		if err != nil {
-			var statusCode int
-
-			switch {
-			case errors.Is(err, usecase.ErrInvalidRefreshToken):
-				statusCode = http.StatusUnauthorized
-			case errors.Is(err, usecase.ErrRefreshSessionNotExist):
-				statusCode = http.StatusNotFound
-			case errors.Is(err, usecase.ErrRefreshSessionExpired):
-				statusCode = http.StatusGone
-			case errors.Is(err, usecase.ErrRefreshSessionBlocked):
-				statusCode = http.StatusForbidden
-			default:
-				statusCode = http.StatusInternalServerError
-			}
-			response.ErrorResponse(ctx, statusCode, "Failed verify refresh token", err, nil)
+			errResponse(ctx, "Failed verify refresh token", err)
 			return
 		}
 
@@ -505,19 +424,7 @@ func (c *AuthHandler) UserLoginOtpSendEmail(ctx *gin.Context) {
 	otpID, err := c.authUseCase.UserLoginOtpSendEmail(ctx, body)
 
 	if err != nil {
-		var statusCode int
-
-		switch {
-		case errors.Is(err, usecase.ErrEmptyLoginCredentials):
-			statusCode = http.StatusBadRequest
-		case errors.Is(err, usecase.ErrUserNotExist):
-			statusCode = http.StatusForbidden
-		case errors.Is(err, usecase.ErrUserBlocked):
-			statusCode = http.StatusUnauthorized
-		default:
-			statusCode = http.StatusInternalServerError
-		}
-		response.ErrorResponse(ctx, statusCode, "Failed to send otp", err, nil)
+		errResponse(ctx, "Failed to send otp", err)
 		return
 	}
 
@@ -550,16 +457,7 @@ func (c *AuthHandler) UserLoginOtpVerifyEmail(ctx *gin.Context) {
 	// get the user using loginOtp useCase
 	userID, err := c.authUseCase.LoginOtpVerify(ctx, body)
 	if err != nil {
-		var statusCode int
-		switch {
-		case errors.Is(err, usecase.ErrOtpExpired):
-			statusCode = http.StatusGone
-		case errors.Is(err, usecase.ErrInvalidOtp):
-			statusCode = http.StatusUnauthorized
-		default:
-			statusCode = http.StatusInternalServerError
-		}
-		response.ErrorResponse(ctx, statusCode, "Failed to verify otp", err, nil)
+		errResponse(ctx, "Failed to verify otp", err)
 		return
 	}
 
@@ -623,16 +521,7 @@ func (c *AuthHandler) AdminSignUpOtpVerify(ctx *gin.Context) {
 
 	adminID, shopVerification, err := c.authUseCase.AdminSignUpOtpVerify(ctx, body)
 	if err != nil {
-		var statusCode int
-		switch {
-		case errors.Is(err, usecase.ErrOtpExpired):
-			statusCode = http.StatusGone
-		case errors.Is(err, usecase.ErrInvalidOtp):
-			statusCode = http.StatusUnauthorized
-		default:
-			statusCode = http.StatusInternalServerError
-		}
-		response.ErrorResponse(ctx, statusCode, "Failed to verify OTP", err, nil)
+		errResponse(ctx, "Failed to verify OTP", err)
 		return
 	}
 

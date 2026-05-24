@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
+	"github.com/rohit221990/mandi-backend/pkg/config"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
 	notificationSvc "github.com/rohit221990/mandi-backend/pkg/service/notification"
@@ -19,28 +19,34 @@ import (
 )
 
 type notificationUseCase struct {
-	notificationRepo interfaces.NotificationRepository
-	fcmPush          notificationSvc.PushSender
-	db               *gorm.DB // optional; used to fetch product images for enquiry notifications
+	notificationRepo           interfaces.NotificationRepository
+	fcmPush                    notificationSvc.PushSender
+	db                         *gorm.DB // optional; used to fetch product images for enquiry notifications
+	enquiryNotificationHandler string   // "cf" → delegate to Cloud Function; anything else → handle here
 }
 
 // NewNotificationUseCase wires a new notification use-case with a lazily-initialised
-// FCM push service.  No extra DI provider is required in wire.go.
-func NewNotificationUseCase(repo interfaces.NotificationRepository) service.NotificationUseCase {
+// FCM push service.  cfg is used to read the ENQUIRY_NOTIFICATION_HANDLER setting
+// so that no os.Getenv call is needed at runtime.
+func NewNotificationUseCase(repo interfaces.NotificationRepository, cfg config.Config) service.NotificationUseCase {
+	notificationSvc.InitSharedFirebaseApp(cfg.FirebaseProjectID, cfg.FirebaseConfig)
 	return &notificationUseCase{
-		notificationRepo: repo,
-		fcmPush:          notificationSvc.NewFCMPushService(),
+		notificationRepo:           repo,
+		fcmPush:                    notificationSvc.NewFCMPushService(),
+		enquiryNotificationHandler: cfg.EnquiryNotificationHandler,
 	}
 }
 
 // NewNotificationUseCaseWithDB is like NewNotificationUseCase but also accepts a
 // GORM database connection.  When provided, enquiry notifications include the
 // product item image URLs fetched directly from the SQL database.
-func NewNotificationUseCaseWithDB(repo interfaces.NotificationRepository, db *gorm.DB) service.NotificationUseCase {
+func NewNotificationUseCaseWithDB(repo interfaces.NotificationRepository, db *gorm.DB, cfg config.Config) service.NotificationUseCase {
+	notificationSvc.InitSharedFirebaseApp(cfg.FirebaseProjectID, cfg.FirebaseConfig)
 	return &notificationUseCase{
-		notificationRepo: repo,
-		fcmPush:          notificationSvc.NewFCMPushService(),
-		db:               db,
+		notificationRepo:           repo,
+		fcmPush:                    notificationSvc.NewFCMPushService(),
+		db:                         db,
+		enquiryNotificationHandler: cfg.EnquiryNotificationHandler,
 	}
 }
 
@@ -287,7 +293,7 @@ func (uc *notificationUseCase) StartFirestoreWatcher(ctx context.Context, rules 
 
 		// Include the enquiry watcher unless the operator has delegated enquiry
 		// notifications to a Cloud Function (ENQUIRY_NOTIFICATION_HANDLER=cf).
-		if !isCloudFunctionEnquiryHandler() {
+		if !uc.isCloudFunctionEnquiryHandler() {
 			enquiryRule := notificationSvc.DefaultEnquiryRule()
 			if uc.db != nil {
 				enquiryRule.DataEnricher = uc.enquiryDataEnricher()
@@ -303,8 +309,8 @@ func (uc *notificationUseCase) StartFirestoreWatcher(ctx context.Context, rules 
 	return watcher.Start(ctx)
 }
 
-func isCloudFunctionEnquiryHandler() bool {
-	mode := strings.Trim(strings.TrimSpace(os.Getenv("ENQUIRY_NOTIFICATION_HANDLER")), `"'`)
+func (uc *notificationUseCase) isCloudFunctionEnquiryHandler() bool {
+	mode := strings.Trim(strings.TrimSpace(uc.enquiryNotificationHandler), `"'`)
 	return strings.EqualFold(mode, "cf")
 }
 

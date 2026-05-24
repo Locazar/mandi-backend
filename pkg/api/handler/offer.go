@@ -13,7 +13,6 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"github.com/rohit221990/mandi-backend/pkg/service/token"
-	"github.com/rohit221990/mandi-backend/pkg/usecase"
 	usecaseInterface "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 )
 
@@ -52,17 +51,7 @@ func (p *offerHandler) SaveOffer(ctx *gin.Context) {
 
 	err := p.offerUseCase.SaveOffer(ctx, body)
 	if err != nil {
-		var statusCode int
-
-		switch {
-		case errors.Is(err, usecase.ErrOfferNameAlreadyExist):
-			statusCode = http.StatusConflict
-		case errors.Is(err, usecase.ErrInvalidOfferEndDate):
-			statusCode = http.StatusBadRequest
-		default:
-			statusCode = http.StatusInternalServerError
-		}
-		response.ErrorResponse(ctx, statusCode, "Failed to add offer", err, nil)
+		errResponse(ctx, "Failed to add offer", err)
 		return
 	}
 
@@ -143,16 +132,7 @@ func (c *offerHandler) SaveCategoryOffer(ctx *gin.Context) {
 
 	err := c.offerUseCase.SaveCategoryOffer(ctx, body)
 	if err != nil {
-		var statusCode int
-		switch {
-		case errors.Is(err, usecase.ErrOfferAlreadyEnded):
-			statusCode = http.StatusBadRequest
-		case errors.Is(err, usecase.ErrCategoryOfferAlreadyExist):
-			statusCode = http.StatusConflict
-		default:
-			statusCode = http.StatusInternalServerError
-		}
-		response.ErrorResponse(ctx, statusCode, "Failed to add offer", err, nil)
+		errResponse(ctx, "Failed to add offer", err)
 		return
 	}
 

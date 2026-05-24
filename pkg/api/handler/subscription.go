@@ -1,13 +1,11 @@
 package handler
 
 import (
-	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	handlerInterface "github.com/rohit221990/mandi-backend/pkg/api/handler/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
-	"github.com/rohit221990/mandi-backend/pkg/usecase"
 	usecaseIface "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
 )
@@ -58,15 +56,7 @@ func (h *subscriptionHandler) StartTrial(ctx *gin.Context) {
 
 	result, err := h.subscriptionUseCase.StartTrial(ctx, userID)
 	if err != nil {
-		statusCode := http.StatusInternalServerError
-		if errors.Is(err, usecase.ErrTrialAlreadyUsed) {
-			statusCode = http.StatusConflict
-		} else if errors.Is(err, usecase.ErrActiveSubscriptionExists) {
-			statusCode = http.StatusConflict
-		} else if errors.Is(err, usecase.ErrTrialPlanNotFound) {
-			statusCode = http.StatusInternalServerError
-		}
-		response.ErrorResponse(ctx, statusCode, "Failed to start trial", err, nil)
+		errResponse(ctx, "Failed to start trial", err)
 		return
 	}
 

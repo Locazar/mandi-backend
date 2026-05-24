@@ -405,7 +405,7 @@ func handleEnquiryUpdate(ctx context.Context, log *invocationLogger, event *doma
 	}()
 
 	// ── Parse event ───────────────────────────────────────────────────────────
-	eventHandler := firestoreutil.NewEventHandler()
+	eventHandler := firestoreutil.NewEventHandler(os.Getenv("MONITORED_FIELDS"))
 	parsedEvent, err := eventHandler.ParseEvent(event)
 	if err != nil {
 		// Metadata-only or administrative changes often produce events with no

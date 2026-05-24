@@ -9,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	_ "github.com/rohit221990/mandi-backend/cmd/api/docs"
 	handlerInterface "github.com/rohit221990/mandi-backend/pkg/api/handler/interfaces"
-	"github.com/rohit221990/mandi-backend/pkg/api/middleware"
+	mw "github.com/rohit221990/mandi-backend/pkg/api/middleware"
 	"github.com/rohit221990/mandi-backend/pkg/api/routes"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
 	swaggerfiles "github.com/swaggo/files"
@@ -35,7 +35,7 @@ type ServerHTTP struct {
 // @In							headerNewServerHTTP
 // @Description				Add prefix of Bearer before  token Ex: "Bearer token"
 // @Query.collection.format	multi
-func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware middleware.Middleware,
+func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middleware,
 	adminHandler handlerInterface.AdminHandler, userHandler handlerInterface.UserHandler,
 	cartHandler handlerInterface.CartHandler, paymentHandler handlerInterface.PaymentHandler,
 	productHandler handlerInterface.ProductHandler, orderHandler handlerInterface.OrderHandler,
@@ -59,6 +59,7 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware middlewa
 
 	engine.Use(gin.Logger())
 	engine.Use(utils.RecoveryMiddleware())
+	engine.Use(mw.CORSMiddleware())
 
 	// swagger docs
 	engine.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))

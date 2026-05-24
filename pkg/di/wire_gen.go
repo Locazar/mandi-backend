@@ -86,7 +86,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	shopTimeUseCase := usecase.NewShopTimeUseCase(shopTimeRepository)
 	adminHandler := handler.NewAdminHandler(adminUseCase, shopTimeUseCase)
 	notificationRepository := repository.NewNotificationRepository(gormDB)
-	notificationUseCase := usecase.NewNotificationUseCase(notificationRepository)
+	notificationUseCase := usecase.NewNotificationUseCase(notificationRepository, cfg)
 	notificationHandler := handler.NewNotificationHandler(notificationUseCase)
 	fcmTokenRepository := repository.NewFcmTokenRepository(gormDB)
 	fcmTokenUseCase := usecase.NewFcmTokenUseCase(fcmTokenRepository, tokenService)

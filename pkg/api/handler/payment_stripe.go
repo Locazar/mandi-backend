@@ -8,7 +8,6 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
-	"github.com/rohit221990/mandi-backend/pkg/usecase"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
 )
 
@@ -44,7 +43,7 @@ func (c *paymentHandler) StripPaymentCheckout(ctx *gin.Context) {
 		PaymentType:  domain.StripePayment,
 	}
 
-	ctx.JSON(http.StatusOK, stripeResponse)
+	response.SuccessResponse(ctx, http.StatusOK, "stripe order created", stripeResponse)
 }
 
 // StripePaymentVeify godoc
@@ -76,11 +75,7 @@ func (c *paymentHandler) StripePaymentVeify(ctx *gin.Context) {
 
 	err = c.paymentUseCase.VerifyStripOrder(ctx, stripePaymentID)
 	if err != nil {
-		statusCode := http.StatusInternalServerError
-		if errors.Is(err, usecase.ErrPaymentNotApproved) {
-			statusCode = http.StatusPaymentRequired
-		}
-		response.ErrorResponse(ctx, statusCode, "Failed to verify stripe payment", err, nil)
+		errResponse(ctx, "Failed to verify stripe payment", err)
 		return
 	}
 

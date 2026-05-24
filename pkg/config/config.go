@@ -47,6 +47,25 @@ type Config struct {
 	ElasticsearchURL string `mapstructure:"ELASTICSEARCH_URL"`
 
 	AIServiceURL string `mapstructure:"AI_SERVICE_URL"`
+
+	// Firebase / FCM
+	FirebaseProjectID string `mapstructure:"FIREBASE_PROJECT_ID"`
+	FirebaseConfig    string `mapstructure:"FIREBASE_CONFIG"`
+
+	// Notification image base URL (used to convert relative paths to public URLs)
+	NotificationPublicBaseURL string `mapstructure:"NOTIFICATION_PUBLIC_BASE_URL"`
+	PublicBaseURL             string `mapstructure:"PUBLIC_BASE_URL"`
+	APIBaseURL                string `mapstructure:"API_BASE_URL"`
+	AppBaseURL                string `mapstructure:"APP_BASE_URL"`
+
+	// Firebase Realtime Database URL (optional)
+	FirebaseDBURL string `mapstructure:"FIREBASE_DB_URL"`
+
+	// Notification routing: "server" (default) or "cf" (Cloud Function handles enquiry notifications)
+	EnquiryNotificationHandler string `mapstructure:"ENQUIRY_NOTIFICATION_HANDLER"`
+
+	// Firestore monitored fields (comma-separated override; empty = use defaults)
+	MonitoredFields string `mapstructure:"MONITORED_FIELDS"`
 }
 
 var firbaseConfig = map[string]interface{}{
@@ -78,7 +97,17 @@ var envsNames = []string{
 	// Firebase — either an ADC credentials file path or inline JSON
 	"GOOGLE_APPLICATION_CREDENTIALS",
 	"FIREBASE_CONFIG",
+	"FIREBASE_PROJECT_ID",
 	"ENQUIRY_NOTIFICATION_HANDLER",
+	// Notification image base URLs
+	"NOTIFICATION_PUBLIC_BASE_URL",
+	"PUBLIC_BASE_URL",
+	"API_BASE_URL",
+	"APP_BASE_URL",
+	// Firebase Realtime Database
+	"FIREBASE_DB_URL",
+	// Firestore monitored fields
+	"MONITORED_FIELDS",
 }
 
 func LoadConfig() (config Config, err error) {
