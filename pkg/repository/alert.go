@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/rohit221990/mandi-backend/pkg/domain"
+	repointerfacespkg "github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
 	"gorm.io/gorm"
 )
 
@@ -16,7 +17,7 @@ type AlertRepositoryImpl struct {
 }
 
 // NewAlertRepository creates a new alert repository
-func NewAlertRepository(db *gorm.DB) *AlertRepositoryImpl {
+func NewAlertRepository(db *gorm.DB) repointerfacespkg.AlertRepository {
 	return &AlertRepositoryImpl{
 		db: db,
 	}

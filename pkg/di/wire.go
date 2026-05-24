@@ -12,7 +12,6 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/config"
 	"github.com/rohit221990/mandi-backend/pkg/db"
 	"github.com/rohit221990/mandi-backend/pkg/repository"
-	repointerfaces "github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
 	aiservice "github.com/rohit221990/mandi-backend/pkg/service/ai"
 	"github.com/rohit221990/mandi-backend/pkg/service/alert_engine"
 	"github.com/rohit221990/mandi-backend/pkg/service/cloud"
@@ -21,7 +20,6 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/service/otp"
 	"github.com/rohit221990/mandi-backend/pkg/service/token"
 	"github.com/rohit221990/mandi-backend/pkg/usecase"
-	usecaseinterfaces "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 )
 
 func provideElasticURL(cfg config.Config) string {
@@ -67,109 +65,64 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		// middleware
 		middleware.NewMiddleware,
 
-		// repository
+		// repository — all constructors return interface directly, no Bind needed
 		repository.NewAuthRepository,
-		wire.Bind(new(repointerfaces.AuthRepository), new(*repository.authRepository)),
 		repository.NewPaymentRepository,
-		wire.Bind(new(repointerfaces.PaymentRepository), new(*repository.paymentRepository)),
 		repository.NewAdminRepository,
-		wire.Bind(new(repointerfaces.AdminRepository), new(*repository.adminRepository)),
 		repository.NewUserRepository,
-		wire.Bind(new(repointerfaces.UserRepository), new(*repository.userRepository)),
 		repository.NewCartRepository,
-		wire.Bind(new(repointerfaces.CartRepository), new(*repository.cartRepository)),
 		repository.NewProductRepository,
-		wire.Bind(new(repointerfaces.ProductRepository), new(*repository.productRepository)),
 		repository.NewOrderRepository,
-		wire.Bind(new(repointerfaces.OrderRepository), new(*repository.orderRepository)),
 		repository.NewCouponRepository,
-		wire.Bind(new(repointerfaces.CouponRepository), new(*repository.couponRepository)),
 		repository.NewOfferRepository,
-		wire.Bind(new(repointerfaces.OfferRepository), new(*repository.offerRepository)),
 		repository.NewStockRepository,
-		wire.Bind(new(repointerfaces.StockRepository), new(*repository.stockRepository)),
 		repository.NewBrandDatabaseRepository,
-		wire.Bind(new(repointerfaces.BrandRepository), new(*repository.brandRepository)),
 		repository.NewPromotionRepository,
-		wire.Bind(new(repointerfaces.PromotionRepository), new(*repository.promotionRepository)),
 		repository.NewShopTimeRepository,
-		wire.Bind(new(repointerfaces.ShopTimeRepository), new(*repository.shopTimeRepository)),
 		repository.NewBannerRepository,
-		wire.Bind(new(repointerfaces.BannerRepository), new(*repository.bannerRepository)),
 		repository.NewFcmTokenRepository,
-		wire.Bind(new(repointerfaces.FcmTokenRepository), new(*repository.fcmTokenRepository)),
 		repository.NewSubscriptionRepository,
-		wire.Bind(new(repointerfaces.SubscriptionRepository), new(*repository.subscriptionDatabase)),
 		repository.NewSearchRepository,
-		wire.Bind(new(repointerfaces.SearchRepository), new(*repository.searchRepository)),
+		repository.NewNotificationRepository,
 		repository.NewAlertRepository,
-		wire.Bind(new(repointerfaces.AlertRepository), new(*repository.AlertRepositoryImpl)),
 
-		//usecase
+		//usecase — constructors that return interface directly need no Bind;
+		//          constructors that return *concrete need Bind
 		usecase.NewAuthUseCase,
-		wire.Bind(new(usecaseinterfaces.AuthUseCase), new(*usecase.authUseCase)),
 		usecase.NewAdminUseCase,
-		wire.Bind(new(usecaseinterfaces.AdminUseCase), new(*usecase.adminUseCase)),
 		usecase.NewUserUseCase,
-		wire.Bind(new(usecaseinterfaces.UserUseCase), new(*usecase.userUseCase)),
 		usecase.NewCartUseCase,
-		wire.Bind(new(usecaseinterfaces.CartUseCase), new(*usecase.cartUseCase)),
 		usecase.NewPaymentUseCase,
-		wire.Bind(new(usecaseinterfaces.PaymentUseCase), new(*usecase.paymentUseCase)),
 		usecase.NewProductUseCase,
-		wire.Bind(new(usecaseinterfaces.ProductUseCase), new(*usecase.productUseCase)),
 		usecase.NewOrderUseCase,
-		wire.Bind(new(usecaseinterfaces.OrderUseCase), new(*usecase.orderUseCase)),
 		usecase.NewCouponUseCase,
-		wire.Bind(new(usecaseinterfaces.CouponUseCase), new(*usecase.couponUseCase)),
 		usecase.NewOfferUseCase,
-		wire.Bind(new(usecaseinterfaces.OfferUseCase), new(*usecase.offerUseCase)),
 		usecase.NewStockUseCase,
-		wire.Bind(new(usecaseinterfaces.StockUseCase), new(*usecase.stockUseCase)),
 		usecase.NewBrandUseCase,
-		wire.Bind(new(usecaseinterfaces.BrandUseCase), new(*usecase.brandUseCase)),
 		usecase.NewNotificationUseCase,
-		wire.Bind(new(usecaseinterfaces.NotificationUseCase), new(*usecase.notificationUseCase)),
 		usecase.NewPromotionUseCase,
-		wire.Bind(new(usecaseinterfaces.PromotionUseCase), new(*usecase.promotionUseCase)),
 		usecase.NewShopTimeUseCase,
-		wire.Bind(new(usecaseinterfaces.ShopTimeUseCase), new(*usecase.shopTimeUseCase)),
 		usecase.NewFcmTokenUseCase,
-		wire.Bind(new(usecaseinterfaces.FcmTokenUseCase), new(*usecase.fcmTokenUseCase)),
 		usecase.NewSubscriptionPaymentUseCase,
-		wire.Bind(new(usecaseinterfaces.SubscriptionPaymentUseCase), new(*usecase.subscriptionPaymentUseCase)),
 		usecase.NewSubscriptionUseCase,
-		wire.Bind(new(usecaseinterfaces.SubscriptionUseCase), new(*usecase.subscriptionUseCase)),
 		usecase.NewSearchUseCase,
-		wire.Bind(new(usecaseinterfaces.SearchUseCase), new(*usecase.searchUseCase)),
 		usecase.NewAlertUseCase,
-		wire.Bind(new(usecaseinterfaces.AlertUseCase), new(*usecase.AlertUseCaseImpl)),
+		usecase.NewAlertTemplateUseCase,
 		usecase.NewBannerUseCase,
-		wire.Bind(new(usecaseinterfaces.BannerUseCase), new(*usecase.bannerUseCase)),
 
 		// handler
 		handler.NewAuthHandler,
-		wire.Bind(new(interfaces.AuthHandler), new(*handler.AuthHandler)),
 		handler.NewAdminHandler,
-		wire.Bind(new(interfaces.AdminHandler), new(*handler.AdminHandler)),
 		handler.NewUserHandler,
 		wire.Bind(new(interfaces.UserHandler), new(*handler.UserHandler)),
 		handler.NewCartHandler,
-		wire.Bind(new(interfaces.CartHandler), new(*handler.CartHandler)),
 		handler.NewPaymentHandler,
-		wire.Bind(new(interfaces.PaymentHandler), new(*handler.PaymentHandler)),
 		handler.NewProductHandler,
-		wire.Bind(new(interfaces.ProductHandler), new(*handler.ProductHandler)),
 		handler.NewOrderHandler,
-		wire.Bind(new(interfaces.OrderHandler), new(*handler.OrderHandler)),
 		handler.NewCouponHandler,
-		wire.Bind(new(interfaces.CouponHandler), new(*handler.CouponHandler)),
 		handler.NewOfferHandler,
-		wire.Bind(new(interfaces.OfferHandler), new(*handler.OfferHandler)),
 		handler.NewStockHandler,
-		wire.Bind(new(interfaces.StockHandler), new(*handler.StockHandler)),
 		handler.NewBrandHandler,
-		wire.Bind(new(interfaces.BrandHandler), new(*handler.BrandHandler)),
 		handler.NewNotificationHandler,
 		wire.Bind(new(interfaces.NotificationHandler), new(*handler.NotificationHandler)),
 		handler.NewPromotionHandler,
@@ -177,15 +130,13 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		handler.NewFcmTokenHandler,
 		wire.Bind(new(interfaces.FcmTokenHandler), new(*handler.FcmTokenHandler)),
 		handler.NewSubscriptionPaymentHandler,
-		wire.Bind(new(interfaces.SubscriptionPaymentHandler), new(*handler.subscriptionPaymentHandler)),
 		handler.NewSubscriptionHandler,
-		wire.Bind(new(interfaces.SubscriptionHandler), new(*handler.subscriptionHandler)),
 		handler.NewSearchHandler,
-		wire.Bind(new(interfaces.SearchHandler), new(*handler.SearchHandler)),
 		handler.NewAlertHandler,
 		wire.Bind(new(interfaces.AlertHandler), new(*handler.AlertHandler)),
+		handler.NewAlertTemplateHandler,
+		wire.Bind(new(interfaces.AlertTemplateHandler), new(*handler.AlertTemplateHandler)),
 		handler.NewUIHandler,
-		wire.Bind(new(interfaces.UIHandler), new(*handler.UIHandler)),
 		handler.NewBannerUserHandler,
 		wire.Bind(new(interfaces.BannerUserHandler), new(*handler.BannerUserHandler)),
 
