@@ -77,28 +77,28 @@ func (uc *alertTemplateUseCase) CreateTemplate(ctx context.Context, req map[stri
 		t.IsActive = v
 	}
 
-	if v, ok := req["content_schema"]; ok {
+	if v, ok := req["content_schema"]; ok && v != nil {
 		b, err := json.Marshal(v)
 		if err != nil {
 			return fmt.Errorf("invalid content_schema: %w", err)
 		}
 		t.ContentSchema = json.RawMessage(b)
 	}
-	if v, ok := req["conditions"]; ok {
+	if v, ok := req["conditions"]; ok && v != nil {
 		b, err := json.Marshal(v)
 		if err != nil {
 			return fmt.Errorf("invalid conditions: %w", err)
 		}
 		t.Conditions = json.RawMessage(b)
 	}
-	if v, ok := req["actions"]; ok {
+	if v, ok := req["actions"]; ok && v != nil {
 		b, err := json.Marshal(v)
 		if err != nil {
 			return fmt.Errorf("invalid actions: %w", err)
 		}
 		t.Actions = json.RawMessage(b)
 	}
-	if v, ok := req["frequency_config"]; ok {
+	if v, ok := req["frequency_config"]; ok && v != nil {
 		b, err := json.Marshal(v)
 		if err != nil {
 			return fmt.Errorf("invalid frequency_config: %w", err)
@@ -143,28 +143,28 @@ func (uc *alertTemplateUseCase) UpdateTemplate(ctx context.Context, key string, 
 	if v, ok := req["is_active"].(bool); ok {
 		t.IsActive = v
 	}
-	if v, ok := req["content_schema"]; ok {
+	if v, ok := req["content_schema"]; ok && v != nil {
 		b, err := json.Marshal(v)
 		if err != nil {
 			return fmt.Errorf("invalid content_schema: %w", err)
 		}
 		t.ContentSchema = json.RawMessage(b)
 	}
-	if v, ok := req["conditions"]; ok {
+	if v, ok := req["conditions"]; ok && v != nil {
 		b, err := json.Marshal(v)
 		if err != nil {
 			return fmt.Errorf("invalid conditions: %w", err)
 		}
 		t.Conditions = json.RawMessage(b)
 	}
-	if v, ok := req["actions"]; ok {
+	if v, ok := req["actions"]; ok && v != nil {
 		b, err := json.Marshal(v)
 		if err != nil {
 			return fmt.Errorf("invalid actions: %w", err)
 		}
 		t.Actions = json.RawMessage(b)
 	}
-	if v, ok := req["frequency_config"]; ok {
+	if v, ok := req["frequency_config"]; ok && v != nil {
 		b, err := json.Marshal(v)
 		if err != nil {
 			return fmt.Errorf("invalid frequency_config: %w", err)
@@ -279,6 +279,9 @@ func (uc *alertTemplateUseCase) GetTemplateForSeller(ctx context.Context, seller
 	if err != nil {
 		return nil, fmt.Errorf("template not found: %w", err)
 	}
+	if !t.Enabled || !t.IsActive {
+		return nil, fmt.Errorf("template %q is not active", key)
+	}
 
 	var content map[string]interface{}
 	if len(t.ContentSchema) > 0 {
@@ -319,6 +322,9 @@ func (uc *alertTemplateUseCase) GetFlow(ctx context.Context, sellerID uint, flow
 		return nil, fmt.Errorf("template %q is not an onboarding_step (got %q)", flowKey, t.TemplateType)
 	}
 
+	if len(t.ContentSchema) == 0 {
+		return nil, fmt.Errorf("template %q has no content_schema", flowKey)
+	}
 	var contentSchema map[string]interface{}
 	if err := json.Unmarshal(t.ContentSchema, &contentSchema); err != nil {
 		return nil, fmt.Errorf("invalid content_schema: %w", err)
@@ -363,6 +369,9 @@ func (uc *alertTemplateUseCase) GetFlow(ctx context.Context, sellerID uint, flow
 
 // CompleteStep logs a step completion for the given seller and flow
 func (uc *alertTemplateUseCase) CompleteStep(ctx context.Context, sellerID uint, flowKey string, stepNumber int) error {
+	if stepNumber <= 0 {
+		return fmt.Errorf("stepNumber must be >= 1, got %d", stepNumber)
+	}
 	log := &domain.SellerAlertLog{
 		SellerID: sellerID,
 		AlertKey: flowKey,
