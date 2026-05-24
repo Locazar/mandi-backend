@@ -2,6 +2,7 @@ package config
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"strings"
 
@@ -48,6 +49,10 @@ type Config struct {
 	ElasticsearchURL string `mapstructure:"ELASTICSEARCH_URL"`
 
 	AIServiceURL string `mapstructure:"AI_SERVICE_URL"`
+
+	FirebaseProjectID          string `mapstructure:"FIREBASE_PROJECT_ID"`
+	FirebaseConfig             string `mapstructure:"FIREBASE_CONFIG"`
+	EnquiryNotificationHandler string `mapstructure:"ENQUIRY_NOTIFICATION_HANDLER"`
 
 	Security SecurityConfig `mapstructure:"security"`
 }
@@ -155,7 +160,7 @@ func LoadConfig() (config Config, err error) {
 	viper.SetDefault("security.brute_force_max_attempts", 10)
 	viper.SetDefault("security.brute_force_window_seconds", 300)
 	viper.SetDefault("security.brute_force_block_duration_seconds", 900)
-	err = viper.ReadInConfig()
+	_ = viper.ReadInConfig()
 	// bind from system envs so values can override config file settings
 	for _, env := range envsNames {
 		if err := viper.BindEnv(env); err != nil {
@@ -218,8 +223,18 @@ func LoadConfig() (config Config, err error) {
 		return config, err
 	}
 
-	//firebase config
-	viper.Set("FIREBASE_CONFIG", firbaseConfig)
+	// Ensure Firebase JSON and project id are available in struct config for services
+	if config.FirebaseConfig == "" {
+		if firebaseCfg := viper.GetString("FIREBASE_CONFIG"); firebaseCfg != "" {
+			config.FirebaseConfig = firebaseCfg
+		} else if b, marshalErr := json.Marshal(firbaseConfig); marshalErr == nil {
+			config.FirebaseConfig = string(b)
+		}
+	}
+
+	if config.FirebaseProjectID == "" {
+		config.FirebaseProjectID = viper.GetString("FIREBASE_PROJECT_ID")
+	}
 
 	// Propagate Firebase credentials file path into the OS environment so the
 	// Firebase Admin Go SDK can find them via os.Getenv (Viper doesn't do this
