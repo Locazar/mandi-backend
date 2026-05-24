@@ -534,7 +534,7 @@ func (h *adminHandler) CreateShop(ctx *gin.Context) {
 	}
 	body.AdminID = uint(adminIdUint)
 	body.Country = "India"
-	log.Printf("Decoded admin ID from token: %s", adminId)
+	fmt.Printf("Decoded admin ID from token: %s (parsed to uint: %d)\n", adminId, adminIdUint)
 
 	// Fetch admin mobile and assign to shop phone
 	admin, err := h.adminUseCase.GetAdminByID(ctx, uint(adminIdUint))

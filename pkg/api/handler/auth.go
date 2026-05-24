@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/copier"
@@ -235,14 +237,14 @@ func (c *AuthHandler) AdminLogin(ctx *gin.Context) {
 		return
 	}
 
-	admin, shopVerification, err := c.authUseCase.AdminLogin(ctx, body)
+	admin, err := c.authUseCase.AdminLogin(ctx, body)
 	if err != nil {
 		errResponse(ctx, "Failed to login", err)
 		return
 	}
 
 	// setup token common part
-	c.setupTokenAndResponse(ctx, token.Admin, admin.ID, shopVerification)
+	c.setupTokenAndResponse(ctx, token.Admin, admin.ID)
 }
 
 // access and refresh token generating for user and admin is same so created
@@ -389,7 +391,36 @@ func (c *AuthHandler) renewAccessToken(tokenUser token.UserType) gin.HandlerFunc
 		accessTokenRes := response.TokenResponse{
 			AccessToken: accessToken,
 		}
+		c.setCookie(ctx, cookieName, accessToken, 15*60)
 		response.SuccessResponse(ctx, http.StatusOK, "Successfully generated access token using refresh token", accessTokenRes)
+	}
+}
+
+func (c *AuthHandler) setCookie(ctx *gin.Context, name, value string, maxAge int) {
+	cookie := &http.Cookie{
+		Name:     name,
+		Value:    value,
+		Path:     "/",
+		HttpOnly: c.config.Security.CookieHTTPOnly,
+		Secure:   c.config.Security.SecureCookies,
+		SameSite: parseSameSite(c.config.Security.CookieSameSite),
+		MaxAge:   maxAge,
+		Expires:  time.Now().Add(time.Duration(maxAge) * time.Second),
+	}
+
+	http.SetCookie(ctx.Writer, cookie)
+}
+
+func parseSameSite(mode string) http.SameSite {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case "strict":
+		return http.SameSiteStrictMode
+	case "none":
+		return http.SameSiteNoneMode
+	case "lax":
+		return http.SameSiteLaxMode
+	default:
+		return http.SameSiteLaxMode
 	}
 }
 
@@ -519,13 +550,13 @@ func (c *AuthHandler) AdminSignUpOtpVerify(ctx *gin.Context) {
 		return
 	}
 
-	adminID, shopVerification, err := c.authUseCase.AdminSignUpOtpVerify(ctx, body)
+	adminID, err := c.authUseCase.AdminSignUpOtpVerify(ctx, body)
 	if err != nil {
 		errResponse(ctx, "Failed to verify OTP", err)
 		return
 	}
 
-	c.setupTokenAndResponse(ctx, token.Admin, adminID, shopVerification)
+	c.setupTokenAndResponse(ctx, token.Admin, adminID)
 }
 
 func (c *AuthHandler) AdminLogout(ctx *gin.Context) {
