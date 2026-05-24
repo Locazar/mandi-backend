@@ -46,6 +46,7 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 	searchHandler handlerInterface.SearchHandler,
 	alertHandler handlerInterface.AlertHandler,
 	uiHandler handlerInterface.UIHandler,
+	alertTemplateHandler handlerInterface.AlertTemplateHandler,
 	bannerUserHandler handlerInterface.BannerUserHandler,
 	subscriptionPaymentHandler handlerInterface.SubscriptionPaymentHandler,
 	subscriptionHandler handlerInterface.SubscriptionHandler,
@@ -113,7 +114,7 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler, notificationHandler, promotionHandler, subscriptionPaymentHandler, subscriptionHandler, searchHandler)
 	routes.UserBannerRoutes(engine.Group("/api"), bannerUserHandler)
 	routes.AdminRoutes(engine.Group("/api/admin"), authHandler, middleware, adminHandler,
-		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler, promotionHandler, fcmTokenHandler, notificationHandler, alertHandler, uiHandler)
+		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler, promotionHandler, fcmTokenHandler, notificationHandler, alertHandler, uiHandler, alertTemplateHandler)
 	routes.UIRoutes(engine.Group("/api/web"), middleware, uiHandler)
 
 	// log registered routes for debug
