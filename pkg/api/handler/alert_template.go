@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
@@ -23,15 +24,25 @@ func NewAlertTemplateHandler(uc usecaseinterfaces.AlertTemplateUseCase, adminUC 
 	}
 }
 
-// extractSellerID extracts and validates seller ID from the Authorization header
-func (h *AlertTemplateHandler) extractSellerID(ctx *gin.Context) (uint, error) {
+// extractSellerID extracts and validates seller ID from the Authorization header.
+// Returns 0 and writes a 401 response if the token is missing, invalid, or unparseable.
+func (h *AlertTemplateHandler) extractSellerID(ctx *gin.Context) uint {
 	tokenString := ctx.GetHeader("Authorization")
+	if tokenString == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Unauthorized: missing token", nil, nil)
+		return 0
+	}
 	adminId := h.adminUC.DecodeTokenData(tokenString)
+	if adminId == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Unauthorized: invalid token", nil, nil)
+		return 0
+	}
 	ownerID, err := strconv.ParseUint(adminId, 10, 64)
 	if err != nil {
-		return 0, err
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Unauthorized: invalid seller ID in token", err, nil)
+		return 0
 	}
-	return uint(ownerID), nil
+	return uint(ownerID)
 }
 
 // ListTemplates handles GET /api/admin/alert-templates
@@ -48,6 +59,9 @@ func (h *AlertTemplateHandler) ListTemplates(ctx *gin.Context) {
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to list templates", err, nil)
 		return
+	}
+	if templates == nil {
+		templates = []map[string]interface{}{}
 	}
 	response.SuccessResponse(ctx, http.StatusOK, "Templates fetched successfully", templates)
 }
@@ -217,13 +231,8 @@ func (h *AlertTemplateHandler) SeedDefaults(ctx *gin.Context) {
 // @Failure 500 {object} response.Response{}
 // @Router /alerts/flows [get]
 func (h *AlertTemplateHandler) GetFlows(ctx *gin.Context) {
-	sellerID, err := h.extractSellerID(ctx)
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid owner ID", err, nil)
-		return
-	}
+	sellerID := h.extractSellerID(ctx)
 	if sellerID == 0 {
-		response.ErrorResponse(ctx, http.StatusUnauthorized, "Unauthorized: seller_id not found", nil, nil)
 		return
 	}
 
@@ -263,18 +272,17 @@ func (h *AlertTemplateHandler) GetFlow(ctx *gin.Context) {
 		return
 	}
 
-	sellerID, err := h.extractSellerID(ctx)
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid owner ID", err, nil)
-		return
-	}
+	sellerID := h.extractSellerID(ctx)
 	if sellerID == 0 {
-		response.ErrorResponse(ctx, http.StatusUnauthorized, "Unauthorized: seller_id not found", nil, nil)
 		return
 	}
 
 	flow, err := h.templateUC.GetFlow(ctx, sellerID, key)
 	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			response.ErrorResponse(ctx, http.StatusNotFound, "Template not found", err, nil)
+			return
+		}
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to fetch flow", err, nil)
 		return
 	}
@@ -301,18 +309,17 @@ func (h *AlertTemplateHandler) GetTemplateForSeller(ctx *gin.Context) {
 		return
 	}
 
-	sellerID, err := h.extractSellerID(ctx)
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid owner ID", err, nil)
-		return
-	}
+	sellerID := h.extractSellerID(ctx)
 	if sellerID == 0 {
-		response.ErrorResponse(ctx, http.StatusUnauthorized, "Unauthorized: seller_id not found", nil, nil)
 		return
 	}
 
 	template, err := h.templateUC.GetTemplateForSeller(ctx, sellerID, key)
 	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			response.ErrorResponse(ctx, http.StatusNotFound, "Template not found", err, nil)
+			return
+		}
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to fetch template", err, nil)
 		return
 	}
@@ -346,14 +353,13 @@ func (h *AlertTemplateHandler) CompleteStep(ctx *gin.Context) {
 		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid step number", err, nil)
 		return
 	}
-
-	sellerID, err := h.extractSellerID(ctx)
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid owner ID", err, nil)
+	if stepNumber <= 0 {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "step_number must be >= 1", nil, nil)
 		return
 	}
+
+	sellerID := h.extractSellerID(ctx)
 	if sellerID == 0 {
-		response.ErrorResponse(ctx, http.StatusUnauthorized, "Unauthorized: seller_id not found", nil, nil)
 		return
 	}
 
