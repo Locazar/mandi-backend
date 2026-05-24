@@ -52,6 +52,10 @@ type AlertTemplate struct {
 	FrequencyConfig json.RawMessage `json:"frequency_config" gorm:"type:jsonb"` // {type: daily, limit: 1}
 	Validity        json.RawMessage `json:"validity" gorm:"type:jsonb"`         // {valid_from, valid_until}
 	Enabled         bool            `json:"enabled" gorm:"default:true"`
+	TemplateType    string          `json:"template_type" gorm:"size:50;default:'announcement'"`
+	DisplayType     string          `json:"display_type" gorm:"size:50;default:'bottom_sheet'"`
+	ContentSchema   json.RawMessage `json:"content_schema" gorm:"type:jsonb"`
+	FlowKey         string          `json:"flow_key" gorm:"size:100;index"`
 	CreatedAt       time.Time       `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt       time.Time       `json:"updated_at" gorm:"autoUpdateTime"`
 }
