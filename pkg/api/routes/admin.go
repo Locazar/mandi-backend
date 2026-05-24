@@ -364,7 +364,6 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		alertTemplates := api.Group("/alert-templates")
 		{
 			alertTemplates.GET("", alertTemplateHandler.ListTemplates)
-			alertTemplates.GET("/", alertTemplateHandler.ListTemplates)
 			alertTemplates.POST("", alertTemplateHandler.CreateTemplate)
 			alertTemplates.PUT("/:key", alertTemplateHandler.UpdateTemplate)
 			alertTemplates.DELETE("/:key", alertTemplateHandler.DeleteTemplate)
