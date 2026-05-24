@@ -157,6 +157,12 @@ func (c *productUseCase) FindAllCategories(ctx context.Context, pagination reque
 		return nil, utils.PrependMessageToError(err, "failed find all main categories")
 	}
 
+	for i := range categories {
+		if categories[i].Icon == "" {
+			categories[i].Icon = categories[i].ImageUrl
+		}
+	}
+
 	return categories, nil
 }
 
@@ -1247,6 +1253,13 @@ func (c *productUseCase) GetAllDepartments(ctx context.Context) ([]response.Depa
 			ID:       dept.ID,
 			Name:     dept.Name,
 			ImageUrl: dept.ImageUrl,
+			Icon:     dept.Icon,
+		}
+	}
+	// fallback to ImageUrl when Icon is empty
+	for i := range resDepartments {
+		if resDepartments[i].Icon == "" {
+			resDepartments[i].Icon = resDepartments[i].ImageUrl
 		}
 	}
 	return resDepartments, nil
@@ -1258,8 +1271,15 @@ func (c *productUseCase) GetDepartmentByID(ctx context.Context, departmentID uin
 		return response.Department{}, utils.PrependMessageToError(err, "failed to get department by id")
 	}
 	return response.Department{
-		ID:   department.ID,
-		Name: department.Name,
+		ID:       department.ID,
+		Name:     department.Name,
+		ImageUrl: department.ImageUrl,
+		Icon: func() string {
+			if department.Icon == "" {
+				return department.ImageUrl
+			}
+			return department.Icon
+		}(),
 	}, nil
 }
 
@@ -1275,6 +1295,12 @@ func (c *productUseCase) GetAllCategoriesByDepartmentID(ctx context.Context, dep
 	categories, err := c.productRepo.GetAllCategoriesByDepartmentID(ctx, departmentID)
 	if err != nil {
 		return nil, utils.PrependMessageToError(err, "failed to get categories by department id")
+	}
+	for i := range categories {
+		// keep icon from DB if present
+		if categories[i].Icon == "" {
+			categories[i].Icon = categories[i].ImageUrl
+		}
 	}
 	return categories, nil
 }

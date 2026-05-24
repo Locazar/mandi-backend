@@ -13,7 +13,7 @@ type AdminRepository interface {
 	FindAdminByPhone(ctx context.Context, userName string) (domain.Admin, error)
 	FindAdminWithShopVerificationByPhone(ctx context.Context, phone string) (domain.Admin, domain.ShopVerification, error)
 	GetAdminByID(ctx context.Context, adminID uint) (domain.Admin, error)
-	SaveAdmin(ctx context.Context, admin domain.Admin) error
+	SaveAdmin(ctx context.Context, admin domain.Admin) (domain.Admin, error)
 
 	FindAllUser(ctx context.Context, pagination request.Pagination) (users []response.User, err error)
 

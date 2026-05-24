@@ -131,7 +131,7 @@ func (c *productDatabase) FindAllMainCategories(ctx context.Context,
 	limit := pagination.Limit
 	offset := pagination.Offset
 
-	query := `SELECT id, name FROM categories 
+	query := `SELECT id, name, image_url, icon FROM categories 
 	LIMIT $1 OFFSET $2`
 	err = c.DB.Raw(query, limit, offset).Scan(&categories).Error
 
@@ -1581,14 +1581,14 @@ func (c *productDatabase) SaveDepartment(ctx context.Context, departmentName str
 
 func (c *productDatabase) GetAllDepartments(ctx context.Context) (departments []response.Department, err error) {
 
-	query := `SELECT id, name, image_url FROM departments where is_active = true`
+	query := `SELECT id, name, image_url, icon FROM departments where is_active = true ORDER BY sort_order ASC`
 	err = c.DB.Raw(query).Scan(&departments).Error
 	return
 }
 
 func (c *productDatabase) GetDepartmentByID(ctx context.Context, brandID uint) (department response.Department, err error) {
 
-	query := `SELECT id, name, image_url FROM departments WHERE id = $1`
+	query := `SELECT id, name, image_url, icon FROM departments WHERE id = $1`
 	err = c.DB.Raw(query, brandID).Scan(&department).Error
 
 	return
@@ -1596,7 +1596,7 @@ func (c *productDatabase) GetDepartmentByID(ctx context.Context, brandID uint) (
 
 func (c *productDatabase) GetAllSubCategories(ctx context.Context) (subCategories []response.SubCategory, err error) {
 
-	query := `SELECT * FROM sub_categories`
+	query := `SELECT * FROM sub_categories ORDER BY sort_order ASC`
 	err = c.DB.Raw(query).Scan(&subCategories).Error
 
 	return
@@ -1604,7 +1604,7 @@ func (c *productDatabase) GetAllSubCategories(ctx context.Context) (subCategorie
 
 func (c *productDatabase) GetAllCategoriesByDepartmentID(ctx context.Context, brandID uint) (categories []response.Category, err error) {
 
-	query := `SELECT id, name, image_url FROM categories WHERE department_id = $1`
+	query := `SELECT id, name, image_url, icon FROM categories WHERE department_id = $1 ORDER BY sort_order ASC`
 	err = c.DB.Raw(query, brandID).Scan(&categories).Error
 
 	return
@@ -1612,12 +1612,11 @@ func (c *productDatabase) GetAllCategoriesByDepartmentID(ctx context.Context, br
 
 func (c *productDatabase) GetAllSubCategoriesByCategoryID(ctx context.Context, categoryID uint) (subCategories []response.SubCategory, err error) {
 
-	query := `SELECT id, name, image_url FROM sub_categories WHERE category_id = $1`
+	query := `SELECT id, name, image_url,  FROM sub_categories WHERE category_id = $1 ORDER BY sort_order ASC`
 	err = c.DB.Raw(query, categoryID).Scan(&subCategories).Error
 
 	return
 }
-
 // SaveSubTypeAttribute saves a new sub type attribute for a subcategory
 func (c *productDatabase) SaveSubTypeAttribute(ctx context.Context, locationID uint, attribute domain.SubTypeAttributes) error {
 	attribute.SubCategoryID = locationID

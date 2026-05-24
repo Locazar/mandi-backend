@@ -20,9 +20,9 @@ type AuthUseCase interface {
 	UserLoginOtpSendEmail(ctx context.Context, emailDetails request.OTPLoginEmail) (otpID string, err error)
 
 	// admin
-	AdminLogin(ctx context.Context, loginDetails request.Login) (domain.Admin, domain.ShopVerification, error)
+	AdminLogin(ctx context.Context, loginDetails request.Login) (domain.Admin, error)
 	AdminSignUpOtpSend(ctx context.Context, phone string) (otpID string, err error)
-	AdminSignUpOtpVerify(ctx context.Context, otpVerifyDetails request.OTPVerify) (adminID uint, shopVerification domain.ShopVerification, err error)
+	AdminSignUpOtpVerify(ctx context.Context, otpVerifyDetails request.OTPVerify) (adminID uint, err error)
 
 	// token
 	GenerateAccessToken(ctx context.Context, tokenParams GenerateTokenParams) (tokenString string, err error)

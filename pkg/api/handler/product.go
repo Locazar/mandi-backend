@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -89,7 +90,11 @@ func (p *ProductHandler) callCompareImages(imagePath1, imagePath2 string) *domai
 	if err != nil {
 		return domain.ExternalServiceError("compare-images", "failed to connect to AI service", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if cerr := resp.Body.Close(); cerr != nil {
+			log.Printf("failed to close response body: %v", cerr)
+		}
+	}()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -220,13 +225,7 @@ func (p *ProductHandler) SaveCategory(ctx *gin.Context) {
 	err := p.productUseCase.SaveCategory(ctx, body, department_id)
 
 	if err != nil {
-
-		statusCode := http.StatusInternalServerError
-		if errors.Is(err, usecase.ErrCategoryAlreadyExist) {
-			statusCode = http.StatusConflict
-		}
-
-		response.ErrorResponse(ctx, statusCode, "Failed to add category", err, nil)
+		errResponse(ctx, "Failed to add category", err)
 		return
 	}
 
@@ -260,13 +259,7 @@ func (p *ProductHandler) SaveSubCategory(ctx *gin.Context) {
 	err := p.productUseCase.SaveSubCategory(ctx, body, department_id, category_id)
 
 	if err != nil {
-
-		statusCode := http.StatusInternalServerError
-		if errors.Is(err, usecase.ErrCategoryAlreadyExist) {
-			statusCode = http.StatusConflict
-		}
-
-		response.ErrorResponse(ctx, statusCode, "Failed to add sub category", err, nil)
+		errResponse(ctx, "Failed to add sub category", err)
 		return
 	}
 
@@ -306,11 +299,7 @@ func (p *ProductHandler) SaveVariation(ctx *gin.Context) {
 	err = p.productUseCase.SaveVariation(ctx, categoryID, body.Names)
 
 	if err != nil {
-		var statusCode = http.StatusInternalServerError
-		if errors.Is(err, usecase.ErrVariationAlreadyExist) {
-			statusCode = http.StatusConflict
-		}
-		response.ErrorResponse(ctx, statusCode, "Failed to add variation", err, nil)
+		errResponse(ctx, "Failed to add variation", err)
 		return
 	}
 
@@ -350,11 +339,7 @@ func (p *ProductHandler) SaveVariationOption(ctx *gin.Context) {
 
 	err = p.productUseCase.SaveVariationOption(ctx, variationID, body.Values)
 	if err != nil {
-		var statusCode = http.StatusInternalServerError
-		if errors.Is(err, usecase.ErrVariationOptionAlreadyExist) {
-			statusCode = http.StatusConflict
-		}
-		response.ErrorResponse(ctx, statusCode, "Failed to add variation options", err, nil)
+		errResponse(ctx, "Failed to add variation options", err)
 		return
 	}
 	response.SuccessResponse(ctx, http.StatusCreated, "Successfully added variation options")
@@ -443,7 +428,7 @@ func (p *ProductHandler) SaveProduct(ctx *gin.Context) {
 	err := errors.Join(err1, err2, err3, err6, errDeptID)
 	if err != nil {
 		appErr := domain.ValidationError("product fields", "missing or invalid required fields")
-		response.ErrorResponseAppError(ctx, appErr)
+		response.ErrorResponse(ctx, appErr.StatusCode, appErr.Message, appErr.Err, nil)
 		return
 	}
 
@@ -462,7 +447,7 @@ func (p *ProductHandler) SaveProduct(ctx *gin.Context) {
 		if errors.Is(err, usecase.ErrProductAlreadyExist) {
 			appErr = domain.AlreadyExistsError("product")
 		}
-		response.ErrorResponseAppError(ctx, appErr)
+		response.ErrorResponse(ctx, appErr.StatusCode, appErr.Message, appErr.Err, nil)
 		return
 	}
 
@@ -480,7 +465,7 @@ func (p *ProductHandler) SaveProductJSON(ctx *gin.Context, adminID string) {
 		var unwrappedJSON string
 		if err := json.Unmarshal(rawData, &unwrappedJSON); err != nil {
 			appErr := domain.ValidationError("request body", "invalid JSON format (double-encoded)")
-			response.ErrorResponseAppError(ctx, appErr)
+			response.ErrorResponse(ctx, appErr.StatusCode, appErr.Message, appErr.Err, nil)
 			return
 		}
 		rawData = []byte(unwrappedJSON)
@@ -490,7 +475,7 @@ func (p *ProductHandler) SaveProductJSON(ctx *gin.Context, adminID string) {
 	var testJSON interface{}
 	if err := json.Unmarshal(rawData, &testJSON); err != nil {
 		appErr := domain.ValidationError("request body", "invalid JSON syntax")
-		response.ErrorResponseAppError(ctx, appErr)
+		response.ErrorResponse(ctx, appErr.StatusCode, appErr.Message, appErr.Err, nil)
 		return
 	}
 
@@ -510,14 +495,14 @@ func (p *ProductHandler) SaveProductJSON(ctx *gin.Context, adminID string) {
 
 	if err := ctx.ShouldBindJSON(&body); err != nil {
 		appErr := domain.ValidationError("request body", "failed to parse JSON request")
-		response.ErrorResponseAppError(ctx, appErr)
+		response.ErrorResponse(ctx, appErr.StatusCode, appErr.Message, appErr.Err, nil)
 		return
 	}
 
 	// For JSON requests without file upload, you need to provide image_url or handle it differently
 	if body.ImageURL == "" {
 		appErr := domain.ValidationError("image_url", "image_url is required for JSON requests")
-		response.ErrorResponseAppError(ctx, appErr)
+		response.ErrorResponse(ctx, appErr.StatusCode, appErr.Message, appErr.Err, nil)
 		return
 	}
 
@@ -538,7 +523,7 @@ func (p *ProductHandler) SaveProductJSON(ctx *gin.Context, adminID string) {
 		if errors.Is(err, usecase.ErrProductAlreadyExist) {
 			appErr = domain.AlreadyExistsError("product")
 		}
-		response.ErrorResponseAppError(ctx, appErr)
+		response.ErrorResponse(ctx, appErr.StatusCode, appErr.Message, appErr.Err, nil)
 		return
 	}
 
@@ -662,11 +647,7 @@ func (c *ProductHandler) UpdateProduct(ctx *gin.Context) {
 
 	err := c.productUseCase.UpdateProduct(ctx, product)
 	if err != nil {
-		statusCode := http.StatusInternalServerError
-		if errors.Is(err, usecase.ErrProductAlreadyExist) {
-			statusCode = http.StatusConflict
-		}
-		response.ErrorResponse(ctx, statusCode, "Failed to update product", err, nil)
+		errResponse(ctx, "Failed to update product", err)
 		return
 	}
 
@@ -838,19 +819,7 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 	err := p.productUseCase.SaveProductItem(ctx, productItem, adminID, shopID)
 
 	if err != nil {
-
-		var statusCode int
-
-		switch {
-		case errors.Is(err, usecase.ErrProductItemAlreadyExist):
-			statusCode = http.StatusConflict
-		case errors.Is(err, usecase.ErrNotEnoughVariations):
-			statusCode = http.StatusBadRequest
-		default:
-			statusCode = http.StatusInternalServerError
-		}
-
-		response.ErrorResponse(ctx, statusCode, "Failed to add product item", err, nil)
+		errResponse(ctx, "Failed to add product item", err)
 		return
 	}
 
@@ -2883,7 +2852,11 @@ func handleSecureMagic(fileHeader *multipart.FileHeader) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer file.Close()
+	defer func() {
+		if cerr := file.Close(); cerr != nil {
+			log.Printf("failed to close file: %v", cerr)
+		}
+	}()
 
 	buffer := make([]byte, 512)
 	_, err = file.Read(buffer)
@@ -2938,7 +2911,11 @@ func handleSecureMagic(fileHeader *multipart.FileHeader) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer outFile.Close()
+	defer func() {
+		if cerr := outFile.Close(); cerr != nil {
+			log.Printf("failed to close file: %v", cerr)
+		}
+	}()
 	err = imaging.Encode(outFile, processed, imaging.JPEG, imaging.JPEGQuality(20))
 	if err != nil {
 		return "", err

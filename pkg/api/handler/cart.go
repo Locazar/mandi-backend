@@ -1,14 +1,12 @@
 package handler
 
 import (
-	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
-	"github.com/rohit221990/mandi-backend/pkg/usecase"
 	usecaseInterface "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
 )
@@ -48,16 +46,7 @@ func (u *cartHandler) AddToCart(ctx *gin.Context) {
 	err = u.carUseCase.SaveProductItemToCart(ctx, userID, productItemID)
 
 	if err != nil {
-		var statusCode int
-		switch {
-		case errors.Is(err, usecase.ErrProductItemOutOfStock):
-			statusCode = http.StatusNotFound
-		case errors.Is(err, usecase.ErrCartItemAlreadyExist):
-			statusCode = http.StatusConflict
-		default:
-			statusCode = http.StatusInternalServerError
-		}
-		response.ErrorResponse(ctx, statusCode, "Failed to add product item into cart", err, nil)
+		errResponse(ctx, "Failed to add product item into cart", err)
 		return
 	}
 
@@ -91,13 +80,7 @@ func (u cartHandler) RemoveFromCart(ctx *gin.Context) {
 
 	if err != nil {
 
-		statusCode := http.StatusInternalServerError
-
-		if errors.Is(err, usecase.ErrCartItemNotExit) {
-			statusCode = http.StatusNotFound
-		}
-
-		response.ErrorResponse(ctx, statusCode, "Failed to remove product item from cart", err, nil)
+		errResponse(ctx, "Failed to remove product item from cart", err)
 		return
 	}
 

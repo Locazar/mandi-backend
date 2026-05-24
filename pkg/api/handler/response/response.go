@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/rohit221990/mandi-backend/pkg/domain"
 )
 
 type Response struct {
@@ -15,12 +14,6 @@ type Response struct {
 	Data    interface{} `json:"data"`
 }
 
-// ErrorInfo contains detailed error information for structured errors
-type ErrorInfo struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-	Details string `json:"details,omitempty"`
-}
 
 func SuccessResponse(ctx *gin.Context, statusCode int, message string, data ...interface{}) {
 
@@ -64,28 +57,4 @@ func ErrorResponse(ctx *gin.Context, statusCode int, message string, err error, 
 	}
 
 	ctx.JSON(statusCode, response)
-}
-
-// ErrorResponseAppError handles error responses using the new AppError structure
-func ErrorResponseAppError(ctx *gin.Context, appErr *domain.AppError) {
-	if appErr == nil {
-		appErr = domain.InternalError("unknown error occurred", nil)
-	}
-
-	log.Printf("\033[0;31m%s\033[0m\n", appErr.Error())
-
-	errorInfo := &ErrorInfo{
-		Code:    string(appErr.Code),
-		Message: appErr.Message,
-		Details: appErr.Details,
-	}
-
-	response := Response{
-		Status:  false,
-		Message: appErr.Message,
-		Error:   errorInfo,
-		Data:    nil,
-	}
-
-	ctx.JSON(appErr.StatusCode, response)
 }

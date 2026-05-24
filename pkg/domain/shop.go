@@ -3,8 +3,9 @@ package domain
 import "time"
 
 type ShopDetails struct {
-	ID        uint   `json:"id" gorm:"primaryKey;"`
-	AdminID   uint   `json:"admin_id" gorm:";uniqueIndex"`
+	ID     uint   `json:"id" gorm:"primaryKey;"`
+	ShopID string `json:"shop_id" gorm:"-"`
+	AdminID uint   `json:"admin_id" gorm:";uniqueIndex"`
 	ShopName  string `json:"shop_name" gorm:"size:100;"`
 	OwnerName string `json:"owner_name" gorm:"size:100;"`
 	Email     string `json:"email" gorm:"size:100;"`

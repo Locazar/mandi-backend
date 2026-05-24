@@ -8,14 +8,15 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
-	"github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
+	repointerfacespkg "github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
+	ucinterfaces "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 )
 
 type promotionUseCase struct {
-	promotionRepo interfaces.PromotionRepository
+	promotionRepo repointerfacespkg.PromotionRepository
 }
 
-func NewPromotionUseCase(promotionRepo interfaces.PromotionRepository) *promotionUseCase {
+func NewPromotionUseCase(promotionRepo repointerfacespkg.PromotionRepository) ucinterfaces.PromotionUseCase {
 	return &promotionUseCase{
 		promotionRepo: promotionRepo,
 	}

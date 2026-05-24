@@ -14,6 +14,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 	promotionHandler handlerInterface.PromotionHandler, fcmTokenHandler handlerInterface.FcmTokenHandler,
 	notificationHandler handlerInterface.NotificationHandler,
 	alertHandler handlerInterface.AlertHandler, uiHandler handlerInterface.UIHandler,
+	alertTemplateHandler handlerInterface.AlertTemplateHandler,
 ) {
 
 	auth := api.Group("/auth")
@@ -348,6 +349,26 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 
 			// POST /api/v1/seller/alerts/:key/dismiss - Dismiss an alert
 			alerts.POST("/:key/dismiss", alertHandler.DismissAlert)
+
+			// Seller-facing flow/template endpoints
+			flows := alerts.Group("/flows")
+			{
+				flows.GET("", alertTemplateHandler.GetFlows)
+				flows.GET("/:key", alertTemplateHandler.GetFlow)
+				flows.POST("/:key/step/:step_number/complete", alertTemplateHandler.CompleteStep)
+			}
+			alerts.GET("/templates/:key", alertTemplateHandler.GetTemplateForSeller)
+		}
+
+		// Alert template admin CRUD
+		alertTemplates := api.Group("/alert-templates")
+		{
+			alertTemplates.GET("", alertTemplateHandler.ListTemplates)
+			alertTemplates.POST("", alertTemplateHandler.CreateTemplate)
+			alertTemplates.PUT("/:key", alertTemplateHandler.UpdateTemplate)
+			alertTemplates.DELETE("/:key", alertTemplateHandler.DeleteTemplate)
+			alertTemplates.PATCH("/:key/toggle", alertTemplateHandler.ToggleTemplate)
+			alertTemplates.POST("/seed", alertTemplateHandler.SeedDefaults)
 		}
 	}
 }

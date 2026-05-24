@@ -15,7 +15,7 @@ type promotionRepository struct {
 	db *gorm.DB
 }
 
-func NewPromotionRepository(db *gorm.DB) *promotionRepository {
+func NewPromotionRepository(db *gorm.DB) interfaces.PromotionRepository {
 	return &promotionRepository{
 		db: db,
 	}

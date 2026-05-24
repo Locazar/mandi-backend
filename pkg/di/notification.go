@@ -18,5 +18,5 @@ func InitializeNotificationUseCase(cfg config.Config) (usecaseinterfaces.Notific
 	}
 
 	notificationRepo := repository.NewNotificationRepository(gormDB)
-	return usecase.NewNotificationUseCaseWithDB(notificationRepo, gormDB), nil
+	return usecase.NewNotificationUseCaseWithDB(notificationRepo, gormDB, cfg), nil
 }
