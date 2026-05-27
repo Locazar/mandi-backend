@@ -1,14 +1,12 @@
 package handler
 
 import (
-	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	interfaces "github.com/rohit221990/mandi-backend/pkg/api/handler/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
-	"github.com/rohit221990/mandi-backend/pkg/usecase"
 	usecaseInterface "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
 )
@@ -78,17 +76,7 @@ func (c *OrderHandler) SaveOrder(ctx *gin.Context) {
 	shopOrderID, err := c.orderUseCase.SaveOrder(ctx, userID, addressID)
 
 	if err != nil {
-		var statusCode int
-
-		switch {
-		case errors.Is(err, usecase.ErrEmptyCart):
-			statusCode = http.StatusNoContent
-		case errors.Is(err, usecase.ErrOutOfStockOnCart):
-			statusCode = http.StatusConflict
-		default:
-			statusCode = http.StatusInternalServerError
-		}
-		response.ErrorResponse(ctx, statusCode, "Failed to save order", err, nil)
+		errResponse(ctx, "Failed to save order", err)
 		return
 	}
 

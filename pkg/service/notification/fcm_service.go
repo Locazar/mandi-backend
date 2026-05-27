@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -31,6 +30,19 @@ type Config struct {
 	FCMTokenCollection            string
 	NotificationHistoryCollection string
 	FirestoreTimeout              time.Duration
+
+	// FirebaseDBURL is the Realtime Database URL (optional).
+	FirebaseDBURL string
+
+	// DatabaseDSN is the Postgres DSN used for product image lookups (optional).
+	DatabaseDSN string
+
+	// NotificationPublicBaseURL and its fallbacks are used to convert relative
+	// upload paths to absolute public URLs in FCM notification images.
+	NotificationPublicBaseURL string
+	PublicBaseURL             string
+	APIBaseURL                string
+	AppBaseURL                string
 }
 
 // Service handles sending FCM notifications
@@ -53,6 +65,15 @@ var (
 	singletonSQLOnce   sync.Once
 	singletonSQLDB     *gorm.DB
 	singletonInitErr   error
+
+	// singletonDatabaseDSN is seeded by NewService so that initSQLSingleton
+	// does not need to call os.Getenv.
+	singletonDatabaseDSN string
+
+	// singletonPublicBaseURLs stores the image base URL candidates seeded from
+	// the Config passed to NewService so that normalizePublicImageURL does not
+	// need os.Getenv.
+	singletonPublicBaseURLs [4]string // [notificationPublicBaseURL, publicBaseURL, apiBaseURL, appBaseURL]
 )
 
 func initSingleton(ctx context.Context) {
@@ -89,9 +110,22 @@ func NewService(ctx context.Context, config Config) (*Service, error) {
 		return nil, singletonInitErr
 	}
 
+	// Seed package-level variables so that helpers (initSQLSingleton,
+	// normalizePublicImageURL) do not have to call os.Getenv.
+	if singletonDatabaseDSN == "" && config.DatabaseDSN != "" {
+		singletonDatabaseDSN = config.DatabaseDSN
+	}
+	if singletonPublicBaseURLs[0] == "" {
+		singletonPublicBaseURLs = [4]string{
+			config.NotificationPublicBaseURL,
+			config.PublicBaseURL,
+			config.APIBaseURL,
+			config.AppBaseURL,
+		}
+	}
+
 	var rtdbClient *db.Client
-	dbURL := os.Getenv("FIREBASE_DB_URL")
-	if dbURL != "" {
+	if config.FirebaseDBURL != "" {
 		var err error
 		rtdbClient, err = singletonApp.Database(ctx)
 		if err != nil {
@@ -120,7 +154,7 @@ func NewService(ctx context.Context, config Config) (*Service, error) {
 
 func initSQLSingleton() {
 	singletonSQLOnce.Do(func() {
-		dsn := strings.TrimSpace(os.Getenv("DATABASE_DSN"))
+		dsn := strings.TrimSpace(singletonDatabaseDSN)
 		if dsn == "" {
 			return
 		}
@@ -647,10 +681,10 @@ func (s *Service) normalizePublicImageURL(raw string) string {
 	}
 
 	baseURL := firstNonEmptyString(map[string]interface{}{
-		"NOTIFICATION_PUBLIC_BASE_URL": os.Getenv("NOTIFICATION_PUBLIC_BASE_URL"),
-		"PUBLIC_BASE_URL":              os.Getenv("PUBLIC_BASE_URL"),
-		"API_BASE_URL":                 os.Getenv("API_BASE_URL"),
-		"APP_BASE_URL":                 os.Getenv("APP_BASE_URL"),
+		"NOTIFICATION_PUBLIC_BASE_URL": singletonPublicBaseURLs[0],
+		"PUBLIC_BASE_URL":              singletonPublicBaseURLs[1],
+		"API_BASE_URL":                 singletonPublicBaseURLs[2],
+		"APP_BASE_URL":                 singletonPublicBaseURLs[3],
 	}, "NOTIFICATION_PUBLIC_BASE_URL", "PUBLIC_BASE_URL", "API_BASE_URL", "APP_BASE_URL")
 	if baseURL == "" {
 		log.Printf("WARN: relative image path cannot be used for FCM without PUBLIC_BASE_URL/API_BASE_URL: %s", trimmed)

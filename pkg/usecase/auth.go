@@ -125,10 +125,10 @@ func (c *authUseCase) UserLoginOtpSend(ctx context.Context, loginDetails request
 
 	go func() {
 		defer wait.Done()
-		// _, err := c.optAuth.SentOtp(countryCode + user.Phone)
-		// if err != nil {
-		// 	errChan <- fmt.Errorf("failed to send otp \nerrors:%v", err.Error())
-		// }
+		_, err := c.optAuth.SentOtp(countryCode + user.Phone)
+		if err != nil {
+			errChan <- fmt.Errorf("failed to send otp \nerrors:%v", err.Error())
+		}
 	}()
 	otpID := uuid.NewString()
 
@@ -225,6 +225,12 @@ func (c *authUseCase) AdminSignUpOtpSend(ctx context.Context, phone string) (str
 	admin, err := c.adminRepo.FindAdminByPhone(ctx, phone)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return "", utils.PrependMessageToError(err, "failed to check admin phone")
+	}
+
+	// Send OTP via SMS
+	_, err = c.optAuth.SentOtp(countryCode + phone)
+	if err != nil {
+		return "", fmt.Errorf("failed to send otp \nerrors:%v", err.Error())
 	}
 
 	otpID := uuid.NewString()
@@ -372,13 +378,13 @@ func (c *authUseCase) UserSignUp(ctx context.Context, signUpDetails domain.User)
 	wait := sync.WaitGroup{}
 	wait.Add(2)
 
-	// This is commented as we do not have any sms
+	// Send OTP via SMS
 	go func() {
 		defer wait.Done()
-		// _, err := c.optAuth.SentOtp(countryCode + signUpDetails.Phone)
-		// if err != nil {
-		// 	errChan <- fmt.Errorf("failed to send otp \nerrors:%v", err.Error())
-		// }
+		_, err := c.optAuth.SentOtp(countryCode + signUpDetails.Phone)
+		if err != nil {
+			errChan <- fmt.Errorf("failed to send otp \nerrors:%v", err.Error())
+		}
 	}()
 
 	userID := existUser.ID

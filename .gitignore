@@ -46,3 +46,4 @@ service-account*.json
 *.log
 stderr.log
 stdout.log
+/main

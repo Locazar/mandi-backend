@@ -18,13 +18,16 @@ type AlertRepository interface {
 
 	// AlertTemplate operations
 	GetActiveAlertTemplates(ctx context.Context) ([]*domain.AlertTemplate, error)
+	GetAllAlertTemplates(ctx context.Context) ([]*domain.AlertTemplate, error)
 	GetAlertTemplateByKey(ctx context.Context, key string) (*domain.AlertTemplate, error)
 	SaveAlertTemplate(ctx context.Context, template *domain.AlertTemplate) error
 	UpdateAlertTemplate(ctx context.Context, template *domain.AlertTemplate) error
+	DeleteAlertTemplate(ctx context.Context, key string) error
 
 	// SellerAlertLog operations
 	LogAlertAction(ctx context.Context, log *domain.SellerAlertLog) error
 	GetLastAlertActionTime(ctx context.Context, sellerID uint, alertKey string) (*time.Time, error)
+	GetStepCompletions(ctx context.Context, sellerID uint, flowKey string) ([]int, error)
 
 	// Aggregated data operations
 	GetAggregatedDataForSeller(ctx context.Context, adminID uint) (*domain.AggregatedData, error)

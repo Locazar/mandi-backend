@@ -7,6 +7,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	repoInterface "github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
+	ucinterfaces "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 )
 
 const (
@@ -20,7 +21,7 @@ type searchUseCase struct {
 	searchRepo repoInterface.SearchRepository
 }
 
-func NewSearchUseCase(searchRepo repoInterface.SearchRepository) *searchUseCase {
+func NewSearchUseCase(searchRepo repoInterface.SearchRepository) ucinterfaces.SearchUseCase {
 	return &searchUseCase{searchRepo: searchRepo}
 }
 

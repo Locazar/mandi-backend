@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"errors"
 	"io"
 	"net/http"
 
@@ -9,7 +8,6 @@ import (
 	handlerInterface "github.com/rohit221990/mandi-backend/pkg/api/handler/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
-	"github.com/rohit221990/mandi-backend/pkg/usecase"
 	usecaseIface "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
 )
@@ -45,15 +43,7 @@ func (h *subscriptionPaymentHandler) CreateSubscriptionOrder(ctx *gin.Context) {
 
 	result, err := h.subPaymentUseCase.CreateSubscriptionOrder(ctx, userID, body)
 	if err != nil {
-		statusCode := http.StatusInternalServerError
-		if errors.Is(err, usecase.ErrSubscriptionPlanNotFound) || errors.Is(err, usecase.ErrSubscriptionPlanInactive) {
-			statusCode = http.StatusBadRequest
-		} else if errors.Is(err, usecase.ErrActiveSubscriptionExists) {
-			statusCode = http.StatusConflict
-		} else if errors.Is(err, usecase.ErrBlockedPayment) {
-			statusCode = http.StatusForbidden
-		}
-		response.ErrorResponse(ctx, statusCode, "Failed to create subscription order", err, nil)
+		errResponse(ctx, "Failed to create subscription order", err)
 		return
 	}
 
@@ -83,19 +73,7 @@ func (h *subscriptionPaymentHandler) VerifySubscriptionPayment(ctx *gin.Context)
 
 	result, err := h.subPaymentUseCase.VerifySubscriptionPayment(ctx, userID, body)
 	if err != nil {
-		statusCode := http.StatusInternalServerError
-		if errors.Is(err, usecase.ErrPaymentNotApproved) {
-			statusCode = http.StatusPaymentRequired
-		} else if errors.Is(err, usecase.ErrSubscriptionOrderNotFound) ||
-			errors.Is(err, usecase.ErrSubscriptionOrderNotOwned) ||
-			errors.Is(err, usecase.ErrSubscriptionOrderNotCreated) ||
-			errors.Is(err, usecase.ErrSubscriptionOrderExpired) {
-			statusCode = http.StatusBadRequest
-		} else if errors.Is(err, usecase.ErrPaymentAmountMismatch) ||
-			errors.Is(err, usecase.ErrPaymentOrderMismatch) {
-			statusCode = http.StatusBadRequest
-		}
-		response.ErrorResponse(ctx, statusCode, "Failed to verify subscription payment", err, nil)
+		errResponse(ctx, "Failed to verify subscription payment", err)
 		return
 	}
 
@@ -149,11 +127,7 @@ func (h *subscriptionPaymentHandler) HandleWebhook(ctx *gin.Context) {
 
 	err = h.subPaymentUseCase.HandleWebhook(ctx, signature, rawBody)
 	if err != nil {
-		if errors.Is(err, usecase.ErrInvalidWebhookSignature) {
-			response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid webhook signature", err, nil)
-			return
-		}
-		response.ErrorResponse(ctx, http.StatusInternalServerError, "Webhook processing failed", err, nil)
+		errResponse(ctx, "Webhook processing failed", err)
 		return
 	}
 

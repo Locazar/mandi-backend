@@ -8,7 +8,6 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
-	"github.com/rohit221990/mandi-backend/pkg/usecase"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
 )
 
@@ -45,8 +44,7 @@ func (c *paymentHandler) RazorpayCheckout(ctx *gin.Context) {
 		PaymentType:  domain.RazopayPayment,
 		PaymentOrder: razorpayOrder,
 	}
-	ctx.JSON(http.StatusOK, razorPayRes)
-	// response.SuccessResponse(ctx, http.StatusCreated, "Successfully razor pay order created", razorPayRes)
+	response.SuccessResponse(ctx, http.StatusOK, "razorpay order created", razorPayRes)
 }
 
 // RazorpayVerify godoc
@@ -89,11 +87,7 @@ func (c *paymentHandler) RazorpayVerify(ctx *gin.Context) {
 
 	err = c.paymentUseCase.VerifyRazorPay(ctx, verifyReq)
 	if err != nil {
-		statusCode := http.StatusInternalServerError
-		if errors.Is(err, usecase.ErrPaymentNotApproved) {
-			statusCode = http.StatusPaymentRequired
-		}
-		response.ErrorResponse(ctx, statusCode, "Failed to verify razorpay payment", err, nil)
+		errResponse(ctx, "Failed to verify razorpay payment", err)
 		return
 	}
 

@@ -4,66 +4,28 @@ import (
 	"fmt"
 
 	"github.com/rohit221990/mandi-backend/pkg/config"
-	"github.com/twilio/twilio-go"
-	twilioApi "github.com/twilio/twilio-go/rest/verify/v2"
 )
 
-type twilioOtp struct {
-	serviceID string
-	client    twilio.RestClient
-}
+type twilioOtp struct{}
 
+// NewOtpAuth returns a stub OTP provider that skips Twilio and accepts any code.
 func NewOtpAuth(cfg config.Config) OtpAuth {
-	client := *twilio.NewRestClientWithParams(twilio.ClientParams{
-		Username: cfg.TwilioAccountSID,
-		Password: cfg.TwilioAuthToken,
-	})
-
-	return &twilioOtp{
-		serviceID: cfg.TwilioServiceID,
-		client:    client,
-	}
+	return &twilioOtp{}
 }
 
 func (c *twilioOtp) SentOtp(phoneNumber string) (string, error) {
-
-	params := &twilioApi.CreateVerificationParams{}
-	params.SetTo(phoneNumber)
-	params.SetChannel("sms")
-
-	fmt.Println("Sending OTP to phone number:", c.serviceID, phoneNumber)
-	resp, err := c.client.VerifyV2.CreateVerification(c.serviceID, params)
-	if err != nil {
-		return "", err
-	}
-
-	return *resp.Sid, nil
+	fmt.Println("[OTP stub] skipping Twilio send for", phoneNumber)
+	return "stub-sid", nil
 }
 
 func (c *twilioOtp) VerifyOtp(phoneNumber string, code string) (valid bool, err error) {
-
-	params := &twilioApi.CreateVerificationCheckParams{}
-	params.SetTo(phoneNumber)
-	params.SetCode(code)
-
-	resp, err := c.client.VerifyV2.CreateVerificationCheck(c.serviceID, params)
-
-	if err != nil {
-		return false, err
-	}
-	if resp != nil && *resp.Status != "approved" {
-		return false, fmt.Errorf("invalid otp")
-	}
-
 	return true, nil
 }
 
 func (c *twilioOtp) SentOtpEmail(email string) (string, error) {
-	// implement email otp sending logic here
 	return "", fmt.Errorf("not implemented")
 }
 
 func (c *twilioOtp) VerifyOtpEmail(email string, code string) (valid bool, err error) {
-	// implement email otp verification logic here
 	return false, fmt.Errorf("not implemented")
 }

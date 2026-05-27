@@ -2,10 +2,12 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/rohit221990/mandi-backend/pkg/domain"
+	repointerfacespkg "github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
 	"gorm.io/gorm"
 )
 
@@ -15,7 +17,7 @@ type AlertRepositoryImpl struct {
 }
 
 // NewAlertRepository creates a new alert repository
-func NewAlertRepository(db *gorm.DB) *AlertRepositoryImpl {
+func NewAlertRepository(db *gorm.DB) repointerfacespkg.AlertRepository {
 	return &AlertRepositoryImpl{
 		db: db,
 	}
@@ -103,6 +105,33 @@ func (r *AlertRepositoryImpl) UpdateAlertTemplate(ctx context.Context, template 
 	return r.db.WithContext(ctx).Save(template).Error
 }
 
+// GetAllAlertTemplates retrieves all alert templates regardless of active/enabled status (admin view)
+func (r *AlertRepositoryImpl) GetAllAlertTemplates(ctx context.Context) ([]*domain.AlertTemplate, error) {
+	var templates []*domain.AlertTemplate
+	err := r.db.WithContext(ctx).
+		Order("priority DESC, created_at DESC").
+		Find(&templates).Error
+	if err != nil {
+		return nil, err
+	}
+	return templates, nil
+}
+
+// DeleteAlertTemplate hard-deletes a template by its key
+func (r *AlertRepositoryImpl) DeleteAlertTemplate(ctx context.Context, key string) error {
+	result := r.db.WithContext(ctx).
+		Unscoped().
+		Where("key = ?", key).
+		Delete(&domain.AlertTemplate{})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
 // LogAlertAction logs an alert action (shown, dismissed, clicked)
 func (r *AlertRepositoryImpl) LogAlertAction(ctx context.Context, log *domain.SellerAlertLog) error {
 	return r.db.WithContext(ctx).Create(log).Error
@@ -123,6 +152,45 @@ func (r *AlertRepositoryImpl) GetLastAlertActionTime(ctx context.Context, seller
 		return nil, err
 	}
 	return &log.CreatedAt, nil
+}
+
+// GetStepCompletions returns the step numbers completed by a seller for a given onboarding flow key
+func (r *AlertRepositoryImpl) GetStepCompletions(ctx context.Context, sellerID uint, flowKey string) ([]int, error) {
+	var logs []domain.SellerAlertLog
+	// alert_key stores the flow key for step completion logs
+	err := r.db.WithContext(ctx).
+		Where("seller_id = ? AND alert_key = ? AND action = ?", sellerID, flowKey, "step_completed").
+		Find(&logs).Error
+	if err != nil {
+		return nil, err
+	}
+
+	var rawSteps []int
+	for _, log := range logs {
+		if log.Metadata == nil {
+			continue
+		}
+		var meta struct {
+			Step int `json:"step"`
+		}
+		if err := json.Unmarshal(log.Metadata, &meta); err != nil {
+			continue
+		}
+		// Steps are 1-indexed; entries with step=0 are ignored
+		if meta.Step > 0 {
+			rawSteps = append(rawSteps, meta.Step)
+		}
+	}
+
+	seen := make(map[int]bool)
+	steps := make([]int, 0)
+	for _, s := range rawSteps {
+		if !seen[s] {
+			seen[s] = true
+			steps = append(steps, s)
+		}
+	}
+	return steps, nil
 }
 
 // GetAggregatedDataForSeller fetches all required data for rule evaluation in minimal queries

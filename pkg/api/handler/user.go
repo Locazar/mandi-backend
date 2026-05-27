@@ -14,7 +14,6 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
-	"github.com/rohit221990/mandi-backend/pkg/usecase"
 	usecaseInterface "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
 )
@@ -235,11 +234,6 @@ func (u *UserHandler) UpdateAddress(ctx *gin.Context) {
 		return
 	}
 
-	// address is_default reference pointer need to change in future
-	if body.IsDefault == nil {
-		body.IsDefault = new(bool)
-	}
-
 	err := u.userUseCase.UpdateAddress(ctx, body, userID)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to update user address", err, nil)
@@ -281,11 +275,7 @@ func (u *UserHandler) SaveToWishList(ctx *gin.Context) {
 
 	err = u.userUseCase.SaveToWishList(ctx, wishList)
 	if err != nil {
-		statusCode := http.StatusInternalServerError
-		if errors.Is(err, usecase.ErrExistWishListProductItem) {
-			statusCode = http.StatusConflict
-		}
-		response.ErrorResponse(ctx, statusCode, "Failed to add product item to wishlist", err, nil)
+		errResponse(ctx, "Failed to add product item to wishlist", err)
 		return
 	}
 	response.SuccessResponse(ctx, http.StatusCreated, "Successfully product items added to whish list", nil)

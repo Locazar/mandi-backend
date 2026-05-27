@@ -3,7 +3,6 @@ package firestore
 import (
 	"fmt"
 	"log"
-	"os"
 	"strings"
 
 	"github.com/rohit221990/mandi-backend/pkg/domain"
@@ -18,13 +17,13 @@ type FieldComparator struct {
 }
 
 // NewFieldComparator creates a new field comparator with default monitored fields
-func NewFieldComparator() *FieldComparator {
-	// Load monitored fields from environment or use defaults
-	monitoredFieldsEnv := os.Getenv("MONITORED_FIELDS")
+// monitoredFieldsEnv is the MONITORED_FIELDS config value (comma-separated override; empty = use defaults)
+func NewFieldComparator(monitoredFieldsEnv string) *FieldComparator {
+	// Load monitored fields from config or use defaults
 	monitoredFields := getDefaultMonitoredFields()
 
 	if monitoredFieldsEnv != "" {
-		// Override with environment variable (comma-separated)
+		// Override with config value (comma-separated)
 		customFields := strings.Split(monitoredFieldsEnv, ",")
 		monitoredFields = make(map[string]bool)
 		for _, field := range customFields {

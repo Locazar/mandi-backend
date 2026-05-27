@@ -13,9 +13,10 @@ type EventHandler struct {
 }
 
 // NewEventHandler creates a new event handler
-func NewEventHandler() *EventHandler {
+// monitoredFieldsEnv is the MONITORED_FIELDS config value
+func NewEventHandler(monitoredFieldsEnv string) *EventHandler {
 	return &EventHandler{
-		comparator: NewFieldComparator(),
+		comparator: NewFieldComparator(monitoredFieldsEnv),
 	}
 }
 
