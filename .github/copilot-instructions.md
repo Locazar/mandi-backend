@@ -73,3 +73,71 @@ If unclear
 
 Feedback
 - Tell me if you'd like more examples (e.g., add-new-endpoint checklist) or stricter lint/test rules.
+
+---
+
+## ai-service (Go — port 3001)
+
+**What it is:** A lightweight Go microservice that wraps Claude Vision and Embeddings. mandi-backend calls it via `pkg/service/ai/client.go`.
+
+**Architecture:** `cmd/api/main.go` → `pkg/di.InitializeAPI()` → `pkg/api.NewServerHTTP()` → `pkg/api/routes/ai.go` → `pkg/api/handlers/` → `pkg/service/`
+
+**Handler pattern:**
+```go
+func (h *XHandler) Method(ctx *gin.Context) {
+    var req domain.XRequest
+    if err := ctx.ShouldBindJSON(&req); err != nil {
+        utils.BadRequestResponse(ctx, "Invalid request format", err)
+        return
+    }
+    result, err := h.service.DoThing(req.Field)
+    if err != nil {
+        utils.InternalErrorResponse(ctx, "Failed to do thing", err)
+        return
+    }
+    utils.SuccessResponse(ctx, http.StatusOK, "completed", result)
+}
+```
+
+**Response helpers:** `utils.SuccessResponse`, `utils.BadRequestResponse`, `utils.InternalErrorResponse` — NOT `response.*` (that's mandi-backend).
+
+**Domain models:** All request/response structs go in `pkg/domain/models.go`.
+
+**Known pitfalls:**
+- All image inputs must be JPEG — `media_type` is hardcoded to `image/jpeg`. PNG/WebP inputs fail silently at the Claude API.
+- Embeddings use a mock (`generateMockEmbedding`). `callEmbeddingAPI` exists but is not wired.
+- No auth middleware is implemented despite `AI_SERVICE_SECRET` being defined.
+
+**Adding a new endpoint:**
+1. Add request/response structs to `pkg/domain/models.go`.
+2. Add service method to `pkg/service/` (call Anthropic SDK or ai-service logic).
+3. Add handler method to `pkg/api/handlers/`.
+4. Add route in `pkg/api/routes/ai.go`.
+5. Update Wire: `pkg/di/wire.go` → `make wire`.
+
+---
+
+## locazar-admin-portal (Next.js 14 — port 4000)
+
+**What it is:** An admin dashboard for managing the Locazar marketplace. Calls mandi-backend's `/api/admin/` routes.
+
+**Key files:**
+- `src/lib/api.ts` — typed fetch wrapper. Always use `api.get()`, `api.post()`, etc., never raw `fetch()`.
+- `src/lib/auth.tsx` — `AuthContext` providing `{ token, user, login, logout }`. Get token via `const { token } = useAuth()`.
+- `src/app/layout.tsx` — wraps all routes in `AuthProvider`.
+
+**Auth flow:**
+1. `POST /api/admin/auth/signin/` with `{email, password}`.
+2. Token is at `response.data.tokens.access_token`.
+3. Token stored in `localStorage` as `admin_token`.
+4. All API calls inject `Authorization: Bearer <token>` automatically via `api.ts`.
+
+**Adding a new admin page:**
+1. Create `src/app/dashboard/<section>/page.tsx` — no shared components dir, co-locate everything.
+2. Use `const { token } = useAuth()` for the auth token.
+3. Call `await api.get('/admin/endpoint', token)` or `await api.post(...)`.
+4. Use Tailwind with `brand-*` (primary actions, indigo) and `surface-*` (panels, gray).
+
+**Design tokens (tailwind.config.ts):**
+- `brand-500` — primary button color (indigo)
+- `surface-100/200/300` — card and panel backgrounds (gray scale)

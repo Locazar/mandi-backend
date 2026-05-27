@@ -1,3 +1,17 @@
+// Package alert_engine implements a rule-based alert system for seller shops.
+// It evaluates seller data against registered rules and returns actionable alerts.
+//
+// Architecture:
+//   - AlertRule interface: implement Key() + Evaluate() to create a new rule.
+//   - RuleRegistry: thread-safe map of registered rules; managed via Register/RegisterMultiple.
+//   - AlertEvaluator: runs all registered rules against a seller's AggregatedData and returns triggered alerts sorted by priority.
+//
+// To add a new rule:
+//  1. Create a struct in rules.go implementing AlertRule (Key() string + Evaluate(...) (*domain.Alert, error)).
+//  2. Register it in pkg/di/wire.go inside the NewAlertRuleRegistry factory.
+//  3. No other changes required — EvaluateAll picks it up automatically.
+//
+// Existing rules (rules.go): MissingShopPhotoRule, NoProductsRule, ShopNotVerifiedRule.
 package alert_engine
 
 import (

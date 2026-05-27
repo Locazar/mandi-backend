@@ -47,3 +47,19 @@ service-account*.json
 stderr.log
 stdout.log
 /main
+
+# Compiled binaries at repo root / build output
+/api
+/build/api
+
+# Database dumps and scratch files
+/backup.sql
+/mandi_backup.sql
+*.dump
+/query
+
+# Temp directory
+/tmp
+
+# Shell config accidentally created at repo root
+/.bashrc

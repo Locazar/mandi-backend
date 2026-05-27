@@ -1,3 +1,16 @@
+// Package ai provides an HTTP client for the ai-service microservice (default port 3001).
+// It wraps Claude Vision and Embedding endpoints exposed by the ai-service.
+//
+// The base URL is configured via the AI_SERVICE_URL environment variable (see pkg/config).
+// The client has a 60-second timeout — do not shorten it; Claude Vision calls are slow.
+//
+// Available operations:
+//   - ValidateProduct: checks if a product image matches a given category (JPEG only).
+//   - CompareImages: determines if two images belong to the same product category (JPEG only).
+//   - GenerateEmbedding / GenerateEmbeddings: returns float64 embeddings for text search.
+//
+// Warning: all image inputs must be JPEG. The ai-service hardcodes media_type: image/jpeg;
+// PNG or WebP inputs will cause Claude API errors on the ai-service side.
 package ai
 
 import (

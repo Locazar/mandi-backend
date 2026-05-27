@@ -1,3 +1,23 @@
+// Package usecase — this file defines sentinel errors for within-usecase business logic branching.
+//
+// These are plain error values, NOT domain.AppError — they carry no HTTP status code.
+//
+// Usage rule:
+//   - Return these from usecases when a specific named failure condition occurs.
+//   - In handlers, convert them to domain.AppError before calling response.ErrorResponse.
+//   - Never return these directly from a handler.
+//
+// Conversion example in a handler:
+//
+//	result, err := h.useCase.GetUser(ctx, id)
+//	if errors.Is(err, ErrUserNotExist) {
+//	    response.ErrorResponse(ctx, http.StatusNotFound, "user not found", domain.NotFoundError("user not found"), nil)
+//	    return
+//	}
+//
+// Adding a new sentinel: append to this file, then add a conversion case in the relevant handler.
+// Use domain.AppError directly (not a sentinel) if the handler needs to control the HTTP status
+// without intermediate branching in the usecase.
 package usecase
 
 import "errors"
