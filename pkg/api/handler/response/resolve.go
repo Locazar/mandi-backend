@@ -147,3 +147,92 @@ func ResolveBannersImages(cs cloud.CloudService, banners []Banner) {
 		banners[i].ResolveImages(cs)
 	}
 }
+
+// --- Search results (used by global search + autocomplete) -----------------
+
+func (p *ProductSearchItem) ResolveImages(cs cloud.CloudService) {
+	if p == nil {
+		return
+	}
+	p.ImageURL = cloud.ResolveURL(cs, p.ImageURL)
+	for i, v := range p.Images {
+		p.Images[i] = cloud.ResolveURL(cs, v)
+	}
+}
+
+func (c *CategorySearchItem) ResolveImages(cs cloud.CloudService) {
+	if c == nil {
+		return
+	}
+	c.ImageURL = cloud.ResolveURL(cs, c.ImageURL)
+}
+
+func (s *ShopSearchItem) ResolveImages(cs cloud.CloudService) {
+	if s == nil {
+		return
+	}
+	s.ShopImageURL = cloud.ResolveURL(cs, s.ShopImageURL)
+}
+
+func (d *DepartmentSearchItem) ResolveImages(cs cloud.CloudService) {
+	if d == nil {
+		return
+	}
+	d.ImageURL = cloud.ResolveURL(cs, d.ImageURL)
+}
+
+func (o *OfferSearchItem) ResolveImages(cs cloud.CloudService) {
+	if o == nil {
+		return
+	}
+	o.Image = cloud.ResolveURL(cs, o.Image)
+}
+
+func (a *AutocompleteSuggestion) ResolveImages(cs cloud.CloudService) {
+	if a == nil {
+		return
+	}
+	a.ImageURL = cloud.ResolveURL(cs, a.ImageURL)
+}
+
+func (r *GlobalSearchResult) ResolveImages(cs cloud.CloudService) {
+	if r == nil {
+		return
+	}
+	for i := range r.Products {
+		r.Products[i].ResolveImages(cs)
+	}
+	for i := range r.Categories {
+		r.Categories[i].ResolveImages(cs)
+	}
+	for i := range r.Shops {
+		r.Shops[i].ResolveImages(cs)
+	}
+	for i := range r.Departments {
+		r.Departments[i].ResolveImages(cs)
+	}
+	for i := range r.Offers {
+		r.Offers[i].ResolveImages(cs)
+	}
+}
+
+func ResolveAutocompleteImages(cs cloud.CloudService, suggestions []AutocompleteSuggestion) {
+	for i := range suggestions {
+		suggestions[i].ResolveImages(cs)
+	}
+}
+
+// --- Order items ------------------------------------------------------------
+
+func (oi *OrderItem) ResolveImages(cs cloud.CloudService) {
+	if oi == nil {
+		return
+	}
+	oi.Image = cloud.ResolveURL(cs, oi.Image)
+}
+
+func ResolveOrderItemsImages(cs cloud.CloudService, items []OrderItem) {
+	for i := range items {
+		items[i].ResolveImages(cs)
+	}
+}

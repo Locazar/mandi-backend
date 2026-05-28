@@ -8,15 +8,17 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
+	"github.com/rohit221990/mandi-backend/pkg/service/cloud"
 	usecaseInterface "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 )
 
 type SearchHandler struct {
 	searchUseCase usecaseInterface.SearchUseCase
+	cloudService  cloud.CloudService
 }
 
-func NewSearchHandler(searchUseCase usecaseInterface.SearchUseCase) interfaces.SearchHandler {
-	return &SearchHandler{searchUseCase: searchUseCase}
+func NewSearchHandler(searchUseCase usecaseInterface.SearchUseCase, cloudService cloud.CloudService) interfaces.SearchHandler {
+	return &SearchHandler{searchUseCase: searchUseCase, cloudService: cloudService}
 }
 
 // GlobalSearch godoc
@@ -80,6 +82,7 @@ func (h *SearchHandler) GlobalSearch(ctx *gin.Context) {
 		return
 	}
 
+	result.ResolveImages(h.cloudService)
 	response.SuccessResponse(ctx, http.StatusOK, "global search results retrieved successfully", result)
 }
 
@@ -115,5 +118,6 @@ func (h *SearchHandler) Autocomplete(ctx *gin.Context) {
 		return
 	}
 
+	response.ResolveAutocompleteImages(h.cloudService, suggestions)
 	response.SuccessResponse(ctx, http.StatusOK, "autocomplete suggestions retrieved successfully", suggestions)
 }

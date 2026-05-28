@@ -7,17 +7,20 @@ import (
 	interfaces "github.com/rohit221990/mandi-backend/pkg/api/handler/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
+	"github.com/rohit221990/mandi-backend/pkg/service/cloud"
 	usecaseInterface "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
 )
 
 type OrderHandler struct {
 	orderUseCase usecaseInterface.OrderUseCase
+	cloudService cloud.CloudService
 }
 
-func NewOrderHandler(orderUseCase usecaseInterface.OrderUseCase) interfaces.OrderHandler {
+func NewOrderHandler(orderUseCase usecaseInterface.OrderUseCase, cloudService cloud.CloudService) interfaces.OrderHandler {
 	return &OrderHandler{
 		orderUseCase: orderUseCase,
+		cloudService: cloudService,
 	}
 }
 
@@ -206,6 +209,7 @@ func (c *OrderHandler) findAllOrderItems() func(ctx *gin.Context) {
 			return
 		}
 
+		response.ResolveOrderItemsImages(c.cloudService, orderItems)
 		response.SuccessResponse(ctx, http.StatusOK, "Successfully found order items", orderItems)
 	}
 }
