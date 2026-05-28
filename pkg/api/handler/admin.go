@@ -18,6 +18,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
+	"github.com/rohit221990/mandi-backend/pkg/service/cloud"
 	"github.com/rohit221990/mandi-backend/pkg/service/token"
 	usecaseInterface "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
@@ -26,6 +27,7 @@ import (
 type adminHandler struct {
 	adminUseCase    usecaseInterface.AdminUseCase
 	shopTimeUseCase usecaseInterface.ShopTimeUseCase
+	cloudService    cloud.CloudService
 }
 
 // UserLogout implements the UserLogout method required by the AdminHandler interface.
@@ -43,10 +45,11 @@ func (a *adminHandler) UserLogout(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully logged out", nil)
 }
 
-func NewAdminHandler(adminUsecase usecaseInterface.AdminUseCase, shopTimeUseCase usecaseInterface.ShopTimeUseCase) interfaces.AdminHandler {
+func NewAdminHandler(adminUsecase usecaseInterface.AdminUseCase, shopTimeUseCase usecaseInterface.ShopTimeUseCase, cloudService cloud.CloudService) interfaces.AdminHandler {
 	return &adminHandler{
 		adminUseCase:    adminUsecase,
 		shopTimeUseCase: shopTimeUseCase,
+		cloudService:    cloudService,
 	}
 }
 
@@ -554,6 +557,7 @@ func (h *adminHandler) CreateShop(ctx *gin.Context) {
 	}
 	log.Printf("Shop created successfully with ID: %d", res.ID)
 
+	res.Shop_Image_URL = cloud.ResolveURL(h.cloudService, res.Shop_Image_URL)
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully created shop", res)
 }
 
@@ -579,6 +583,9 @@ func (h *adminHandler) GetAllShops(ctx *gin.Context) {
 		return
 	}
 
+	for i := range shops {
+		shops[i].Shop_Image_URL = cloud.ResolveURL(h.cloudService, shops[i].Shop_Image_URL)
+	}
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully got all shops", shops)
 }
 
@@ -608,6 +615,7 @@ func (h *adminHandler) GetShopByID(ctx *gin.Context) {
 		return
 	}
 
+	shop.Shop_Image_URL = cloud.ResolveURL(h.cloudService, shop.Shop_Image_URL)
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully got shop by ID", shop)
 }
 
@@ -713,6 +721,7 @@ func (h *adminHandler) GetShopByOwnerID(ctx *gin.Context) {
 		return
 	}
 
+	shop.Shop_Image_URL = cloud.ResolveURL(h.cloudService, shop.Shop_Image_URL)
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully got shop by owner ID", shop)
 }
 
@@ -1261,7 +1270,7 @@ func (a *adminHandler) GetShopProfileImageById(ctx *gin.Context) {
 	}
 
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved shop profile image", map[string]interface{}{
-		"image_url": imageURL,
+		"image_url": cloud.ResolveURL(a.cloudService, imageURL),
 	})
 }
 

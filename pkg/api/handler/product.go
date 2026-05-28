@@ -13,7 +13,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/disintegration/imaging"
@@ -25,6 +24,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	service "github.com/rohit221990/mandi-backend/pkg/service/ai"
+	"github.com/rohit221990/mandi-backend/pkg/service/cloud"
 	"github.com/rohit221990/mandi-backend/pkg/service/token"
 	"github.com/rohit221990/mandi-backend/pkg/usecase"
 	usecaseInterface "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
@@ -63,13 +63,15 @@ type ProductHandler struct {
 	productUseCase usecaseInterface.ProductUseCase
 	tokenService   token.TokenService
 	aiClient       service.Client
+	cloudService   cloud.CloudService
 }
 
-func NewProductHandler(productUsecase usecaseInterface.ProductUseCase, tokenService token.TokenService, aiClient *service.Client) interfaces.ProductHandler {
+func NewProductHandler(productUsecase usecaseInterface.ProductUseCase, tokenService token.TokenService, aiClient *service.Client, cloudService cloud.CloudService) interfaces.ProductHandler {
 	return &ProductHandler{
 		productUseCase: productUsecase,
 		tokenService:   tokenService,
 		aiClient:       *aiClient,
+		cloudService:   cloudService,
 	}
 }
 
@@ -194,6 +196,7 @@ func (p *ProductHandler) GetAllCategories(ctx *gin.Context) {
 		return
 	}
 
+	response.ResolveCategoriesImages(p.cloudService, categories)
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved all categories", categories)
 }
 
@@ -584,6 +587,7 @@ func (p *ProductHandler) getAllProducts() func(ctx *gin.Context) {
 			return
 		}
 
+		response.ResolveProductsImages(p.cloudService, products)
 		response.SuccessResponse(ctx, http.StatusOK, "Successfully found all products", products)
 	}
 
@@ -615,6 +619,7 @@ func (p *ProductHandler) GetProductByID(ctx *gin.Context) {
 		return
 	}
 
+	product.Image = cloud.ResolveURL(p.cloudService, product.Image)
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully found product", product)
 }
 
@@ -1066,6 +1071,7 @@ func (p *ProductHandler) getAllProductItems(adminID string) func(ctx *gin.Contex
 			// Implement analytics logic here
 		}()
 
+		response.ResolveProductItemsImages(p.cloudService, productItems)
 		response.SuccessResponse(ctx, http.StatusOK, "Successfully get all product items", productItems)
 	}
 }
@@ -1165,6 +1171,7 @@ func (p *ProductHandler) GetProductItemsByShopID() func(ctx *gin.Context) {
 			return
 		}
 
+		response.ResolveProductItemsImages(p.cloudService, productItems)
 		response.SuccessResponse(ctx, http.StatusOK, "Successfully get product items for shop", productItems)
 	}
 }
@@ -1263,6 +1270,7 @@ func (p *ProductHandler) FindLowViewProductItems(ctx *gin.Context) {
 		return
 	}
 
+	response.ResolveProductItemsImages(p.cloudService, productItems)
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved low view product items", productItems)
 }
 
@@ -2042,6 +2050,7 @@ func (a *ProductHandler) GetAllDepartments(ctx *gin.Context) {
 		return
 	}
 
+	response.ResolveDepartmentsImages(a.cloudService, departments)
 	ctx.JSON(http.StatusOK, response.Response{
 		Status:  true,
 		Message: "Successfully get all departments",
@@ -2074,6 +2083,7 @@ func (a *ProductHandler) GetDepartmentByID(ctx *gin.Context) {
 		return
 	}
 
+	department.ResolveImages(a.cloudService)
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully get department", department)
 }
 
@@ -2102,6 +2112,7 @@ func (a *ProductHandler) GetAllCategoriesByDepartmentID(ctx *gin.Context) {
 		return
 	}
 
+	response.ResolveCategoriesImages(a.cloudService, categories)
 	ctx.JSON(http.StatusOK, response.Response{
 		Status:  true,
 		Message: "Successfully get all categories",
@@ -2134,6 +2145,7 @@ func (a *ProductHandler) GetAllSubCategoriesByCategoryID(ctx *gin.Context) {
 		return
 	}
 
+	response.ResolveSubCategoriesImages(a.cloudService, subCategories)
 	ctx.JSON(http.StatusOK, response.Response{
 		Status:  true,
 		Message: "Successfully get all sub-categories",
@@ -2925,20 +2937,3 @@ func handleSecureMagic(fileHeader *multipart.FileHeader) (string, error) {
 	return filepath.ToSlash(relativePath), nil
 }
 
-// buildPublicURL converts a local relative path (uploads/...) or absolute path
-// to a HTTP URL that other services can fetch from this API server.
-func buildPublicURL(path string) string {
-	if path == "" {
-		return ""
-	}
-	// If already a full URL, return as-is
-	if strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") {
-		return path
-	}
-	// Ensure leading slash and forward slashes
-	p := filepath.ToSlash(path)
-	if !strings.HasPrefix(p, "/") {
-		p = "/" + p
-	}
-	return fmt.Sprintf("http://localhost:3000%s", p)
-}
