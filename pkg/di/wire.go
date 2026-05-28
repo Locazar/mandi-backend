@@ -47,7 +47,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		//external
 		token.NewTokenService,
 		otp.NewOtpAuth,
-		cloud.NewAWSCloudService,
+		cloud.NewObjectStorageService,
 
 		// elasticsearch
 		elasticsearch.NewElasticService,

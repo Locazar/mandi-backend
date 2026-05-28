@@ -49,7 +49,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		return nil, err
 	}
 	productRepository := repository.NewProductRepository(gormDB, elasticService)
-	cloudService, err := cloud.NewAWSCloudService(cfg)
+	cloudService, err := cloud.NewObjectStorageService(cfg)
 	if err != nil {
 		return nil, err
 	}
