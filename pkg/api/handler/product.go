@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -784,7 +785,12 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 			// }
 		}
 
-		imagePaths = append(imagePaths, localPath)
+		objectKey, err := uploadProcessedToCloud(ctx, p.cloudService, localPath)
+		if err != nil {
+			response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to upload processed image", err, nil)
+			return
+		}
+		imagePaths = append(imagePaths, objectKey)
 
 		// If we have a subcategory image, ask the compare-images service to compare
 		// the uploaded product image with the subcategory reference image so external
@@ -2697,7 +2703,12 @@ func (p *ProductHandler) UpdateProductItem(ctx *gin.Context) {
 			}
 		}
 
-		imagePaths = append(imagePaths, localPath)
+		objectKey, err := uploadProcessedToCloud(ctx, p.cloudService, localPath)
+		if err != nil {
+			response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to upload processed image", err, nil)
+			return
+		}
+		imagePaths = append(imagePaths, objectKey)
 	}
 
 	type uploadResult struct {
@@ -2709,8 +2720,11 @@ func (p *ProductHandler) UpdateProductItem(ctx *gin.Context) {
 	uploadChan := make(chan uploadResult, len(files))
 	for i, fileHeader := range files {
 		go func(idx int, fh *multipart.FileHeader) {
-			path, err := utils.SaveFileLocally(fh, "uploads/products")
-			uploadChan <- uploadResult{path: path, err: err, index: idx}
+			key, err := p.cloudService.SaveFile(ctx, fh, cloud.SaveOptions{
+				Namespace:  "products",
+				Visibility: cloud.VisibilityPublic,
+			})
+			uploadChan <- uploadResult{path: key, err: err, index: idx}
 		}(i, fileHeader)
 	}
 
@@ -2824,6 +2838,28 @@ func (p *ProductHandler) GetProductItemsByOfferID(ctx *gin.Context) {
 		Data:    products,
 	})
 
+}
+
+// uploadProcessedToCloud reads the JPEG produced by handleSecureMagic from disk and
+// pushes it to object storage under the products/ namespace. Returns the bare object
+// key suitable for DB storage. The on-disk file is left in place during the
+// migration window; it becomes orphaned once the StaticFS uploads route is removed
+// in the cleanup phase.
+func uploadProcessedToCloud(ctx context.Context, cs cloud.CloudService, localPath string) (string, error) {
+	wd, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	data, err := os.ReadFile(filepath.Join(wd, localPath))
+	if err != nil {
+		return "", err
+	}
+	return cs.SaveBytes(ctx, data, cloud.SaveOptions{
+		Namespace:   "products",
+		Visibility:  cloud.VisibilityPublic,
+		ContentType: "image/jpeg",
+		Filename:    filepath.Base(localPath),
+	})
 }
 
 // handleUpload validates the file header for adult content and security checks

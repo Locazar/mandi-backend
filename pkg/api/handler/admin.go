@@ -881,36 +881,28 @@ func (a *adminHandler) UploadAdminProfileImage(ctx *gin.Context) {
 		}
 	}
 
-	// Save the file to local storage (you can modify this to use AWS S3 or other cloud storage)
-	uploadDir := "uploads/admin-profiles"
-
-	// Create upload directory if it doesn't exist
-	if err := ensureDir(uploadDir); err != nil {
-		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to create upload directory", err, nil)
-		return
-	}
-
-	// Generate unique filename to avoid conflicts
 	fileExt := getFileExtension(req.Image.Filename)
 	newFileName := fmt.Sprintf("admin_%s_%d%s", adminId, time.Now().Unix(), fileExt)
-	filePath := fmt.Sprintf("%s/%s", uploadDir, newFileName)
 
-	// Save the uploaded file
-	if err := ctx.SaveUploadedFile(req.Image, filePath); err != nil {
-		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to save uploaded file", err, nil)
+	objectKey, err := a.cloudService.SaveFile(ctx, req.Image, cloud.SaveOptions{
+		Namespace:   "admin-profiles",
+		Visibility:  cloud.VisibilityPublic,
+		ContentType: contentType,
+		Filename:    newFileName,
+	})
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to upload profile image", err, nil)
 		return
 	}
 
-	// Update database with the file path
-	imageURL, err := a.adminUseCase.UploadAdminProfileImage(ctx, adminId, filePath, shopId)
-	if err != nil {
+	if _, err := a.adminUseCase.UploadAdminProfileImage(ctx, adminId, objectKey, shopId); err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to update admin profile image", err, nil)
 		return
 	}
 
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully uploaded profile image", map[string]interface{}{
-		"image_url": imageURL,
-		"file_path": filePath,
+		"image_url": a.cloudService.PublicURL(objectKey),
+		"file_path": objectKey,
 	})
 
 }
