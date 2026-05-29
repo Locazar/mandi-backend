@@ -258,7 +258,7 @@ func (c *OrderHandler) UpdateOrderStatus(ctx *gin.Context) {
 		return
 	}
 
-	err := c.orderUseCase.UpdateOrderStatus(ctx, body.ShopOrderID, body.OrderStatusID)
+	err := c.orderUseCase.UpdateOrderStatus(ctx, body.ShopOrderID, body.OrderStatus)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to update order status", err, nil)
 		return

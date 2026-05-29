@@ -7,46 +7,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// To save predefined order statuses on database if its not exist
-func saveOrderStatuses(db *gorm.DB) error {
-
-	statuses := []domain.OrderStatusType{
-		domain.StatusPaymentPending,
-		domain.StatusOrderPlaced,
-		domain.StatusOrderCancelled,
-		domain.StatusOrderDelivered,
-		domain.StatusReturnRequested,
-		domain.StatusReturnApproved,
-		domain.StatusReturnCancelled,
-		domain.StatusOrderReturned,
-	}
-
-	var (
-		searchQuery = `SELECT CASE WHEN id != 0 THEN 'T' ELSE 'F' END as exist 
-		FROM order_statuses WHERE status = $1`
-		insertQuery = `INSERT INTO order_statuses (status) VALUES ($1)`
-		exist       bool
-		err         error
-	)
-
-	for _, status := range statuses {
-
-		err = db.Raw(searchQuery, status).Scan(&exist).Error
-		if err != nil {
-			return fmt.Errorf("failed to check order status already exist err: %w", err)
-		}
-
-		if !exist {
-			err = db.Exec(insertQuery, status).Error
-			if err != nil {
-				return fmt.Errorf("failed to save status %w", err)
-			}
-		}
-		exist = false
-	}
-	return nil
-}
-
 // To save predefined payment methods on database if its not exist
 func savePaymentMethods(db *gorm.DB) error {
 	paymentMethods := []domain.PaymentMethod{

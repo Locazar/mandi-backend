@@ -246,11 +246,6 @@ func (c *paymentUseCase) VerifyStripOrder(ctx context.Context, stripePaymentID s
 func (c *paymentUseCase) ApproveShopOrderAndClearCart(ctx context.Context, userID uint,
 	approveDetails request.ApproveOrder) error {
 
-	// find the order status of order placed
-	orderPlacedStatus, err := c.orderRepo.FindOrderStatusByStatus(ctx, domain.StatusOrderPlaced)
-	if err != nil {
-		return utils.PrependMessageToError(err, "failed to find order place status for shop order")
-	}
 	// find the payment method of given payment type
 	paymentMethod, err := c.paymentRepo.FindPaymentMethodByType(ctx, approveDetails.PaymentType)
 	if err != nil {
@@ -259,9 +254,9 @@ func (c *paymentUseCase) ApproveShopOrderAndClearCart(ctx context.Context, userI
 
 	err = c.orderRepo.Transaction(func(trxRepo interfaces.OrderRepository) error {
 
-		// change order status and save the payment method for the order
+		// change order status to placed and save the payment method for the order
 		err = trxRepo.UpdateShopOrderStatusAndSavePaymentMethod(ctx, approveDetails.ShopOrderID,
-			orderPlacedStatus.ID, paymentMethod.ID)
+			domain.StatusOrderPlaced, paymentMethod.ID)
 		if err != nil {
 			return utils.PrependMessageToError(err, "failed to update shop order status and payment method")
 		}

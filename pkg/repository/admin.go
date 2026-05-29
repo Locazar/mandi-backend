@@ -223,8 +223,7 @@ func (c *adminDatabase) CreateFullSalesReport(ctc context.Context, salesReq requ
 
 	query := `SELECT u.first_name, u.email,  so.id AS shop_order_id, so.user_id, so.order_date,
 	so.order_total_amount_minor AS order_total_price, so.discount_amount_minor AS discount,
-	os.status AS order_status, pm.payment_type FROM shop_orders so
-	INNER JOIN order_statuses os ON so.order_status_id = os.id
+	so.status AS order_status, pm.payment_type FROM shop_orders so
 	INNER JOIN  payment_methods pm ON so.payment_method_id = pm.id
 	INNER JOIN users u ON so.user_id = u.id
 	WHERE order_date >= $1 AND order_date <= $2

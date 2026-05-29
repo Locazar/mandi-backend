@@ -45,10 +45,6 @@ func SetUpDBTriggers(db *gorm.DB) error {
 		return errors.New("failed to create orderReturnProductUpdate() trigger function")
 	}
 
-	if db.Exec(orderStatusFindFunc).Error != nil {
-		return errors.New("failed to create orderStatusFindFunc function for return order_status")
-	}
-
 	if db.Exec(orderReturnProductUpdateExec).Error != nil {
 		return errors.New("failed to create orderReturnProductUpdateExec trigger")
 	}
@@ -182,15 +178,9 @@ var (
 	END;
 	$$ LANGUAGE plpgsql;`
 
-	orderStatusFindFunc = `CREATE OR REPLACE FUNCTION get_order_status_id(status_name text)
-	RETURNS integer
-	AS $$
-	SELECT id FROM order_statuses WHERE status = status_name;
-	$$ LANGUAGE SQL;`
-
-	orderReturnProductUpdateExec = `CREATE OR REPLACE TRIGGER update_product_qty_on_order_return 
-	AFTER UPDATE OF order_status_id ON shop_orders
-	FOR EACH ROW 
-	WHEN (NEW.order_status_id =  get_order_status_id('order returned'))
+	orderReturnProductUpdateExec = `CREATE OR REPLACE TRIGGER update_product_qty_on_order_return
+	AFTER UPDATE OF status ON shop_orders
+	FOR EACH ROW
+	WHEN (NEW.status = 'order returned')
 	EXECUTE FUNCTION update_product_quantity_on_return();`
 )

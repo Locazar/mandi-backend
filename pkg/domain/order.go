@@ -54,24 +54,21 @@ type PaymentMethod struct {
 	MaximumAmount Money       `json:"maximum_amount" gorm:"embedded;embeddedPrefix:maximum_amount_"`
 }
 
-type OrderStatus struct {
-	ID     uint            `json:"id" gorm:"primaryKey;not null"`
-	Status OrderStatusType `json:"status" gorm:"unique;not null"`
-}
+// ShopOrder.Status replaces the former OrderStatus lookup table +
+// OrderStatusID FK. The column is CHECK-constrained in the DB migration.
 type ShopOrder struct {
-	ID              uint          `json:"shop_order_id" gorm:"primaryKey;not null"`
-	UserID          uint          `json:"user_id" gorm:"not null"`
-	User            User          `json:"-"`
-	OrderDate       time.Time     `json:"order_date" gorm:"not null"`
-	AddressID       uint          `json:"address_id" gorm:"not null"`
-	Address         Address       `json:"-"`
-	OrderTotal      Money         `json:"order_total" gorm:"embedded;embeddedPrefix:order_total_"`
-	Discount        Money         `json:"discount" gorm:"embedded;embeddedPrefix:discount_"`
-	OrderStatusID   uint          `json:"order_status_id" gorm:"not null"`
-	OrderStatus     OrderStatus   `json:"-"`
-	PaymentMethodID uint          `json:"payment_method_id"`
-	PaymentMethod   PaymentMethod `json:"-"`
-	ShopID          uint          `json:"shop_id"`
+	ID              uint            `json:"shop_order_id" gorm:"primaryKey;not null"`
+	UserID          uint            `json:"user_id" gorm:"not null"`
+	User            User            `json:"-"`
+	OrderDate       time.Time       `json:"order_date" gorm:"not null"`
+	AddressID       uint            `json:"address_id" gorm:"not null"`
+	Address         Address         `json:"-"`
+	OrderTotal      Money           `json:"order_total" gorm:"embedded;embeddedPrefix:order_total_"`
+	Discount        Money           `json:"discount" gorm:"embedded;embeddedPrefix:discount_"`
+	Status          OrderStatusType `json:"status" gorm:"type:varchar(50);not null"`
+	PaymentMethodID uint            `json:"payment_method_id"`
+	PaymentMethod   PaymentMethod   `json:"-"`
+	ShopID          uint            `json:"shop_id"`
 }
 
 type OrderLine struct {

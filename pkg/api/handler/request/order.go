@@ -2,11 +2,13 @@ package request
 
 import (
 	"time"
+
+	"github.com/rohit221990/mandi-backend/pkg/domain"
 )
 
 type UpdateOrder struct {
-	ShopOrderID   uint `json:"shop_order_id" binding:"required"`
-	OrderStatusID uint `json:"order_status_id"`
+	ShopOrderID uint                   `json:"shop_order_id" binding:"required"`
+	OrderStatus domain.OrderStatusType `json:"order_status"`
 }
 
 // return request
@@ -16,10 +18,10 @@ type Return struct {
 }
 
 type UpdateOrderReturn struct {
-	OrderReturnID uint      `json:"order_return_id" binding:"required"`
-	OrderStatusID uint      `json:"order_status_id" binding:"required"`
-	ReturnDate    time.Time `json:"return_date" binding:"omitempty"`
-	AdminComment  string    `json:"admin_comment" binding:"required,min=6,max=150"`
+	OrderReturnID uint                   `json:"order_return_id" binding:"required"`
+	OrderStatus   domain.OrderStatusType `json:"order_status" binding:"required"`
+	ReturnDate    time.Time              `json:"return_date" binding:"omitempty"`
+	AdminComment  string                 `json:"admin_comment" binding:"required,min=6,max=150"`
 }
 
 type OrderPayment struct {

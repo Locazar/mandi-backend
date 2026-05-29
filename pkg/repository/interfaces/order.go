@@ -13,8 +13,8 @@ type OrderRepository interface {
 
 	SaveOrderLine(ctx context.Context, orderLine domain.OrderLine) error
 
-	UpdateShopOrderOrderStatus(ctx context.Context, shopOrderID, changeStatusID uint) error
-	UpdateShopOrderStatusAndSavePaymentMethod(ctx context.Context, shopOrderID, orderStatusID, paymentID uint) error
+	UpdateShopOrderStatus(ctx context.Context, shopOrderID uint, status domain.OrderStatusType) error
+	UpdateShopOrderStatusAndSavePaymentMethod(ctx context.Context, shopOrderID uint, status domain.OrderStatusType, paymentID uint) error
 
 	// shop order order
 	SaveShopOrder(ctx context.Context, shopOrder domain.ShopOrder) (shopOrderID uint, err error)
@@ -27,10 +27,8 @@ type OrderRepository interface {
 		shopOrderID uint, pagination request.Pagination) (orderItems []response.OrderItem, err error)
 
 	// order status
-	FindOrderStatusByShopOrderID(ctx context.Context, shopOrderID uint) (domain.OrderStatus, error)
-	FindOrderStatusByID(ctx context.Context, orderStatusID uint) (domain.OrderStatus, error)
-	FindOrderStatusByStatus(ctx context.Context, orderStatus domain.OrderStatusType) (domain.OrderStatus, error)
-	FindAllOrderStatuses(ctx context.Context) ([]domain.OrderStatus, error)
+	FindOrderStatusByShopOrderID(ctx context.Context, shopOrderID uint) (domain.OrderStatusType, error)
+	FindAllOrderStatuses(ctx context.Context) ([]domain.OrderStatusType, error)
 
 	//order return
 	FindOrderReturnByReturnID(ctx context.Context, orderReturnID uint) (domain.OrderReturn, error)

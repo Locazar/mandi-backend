@@ -83,7 +83,6 @@ func ConnectDatabase(cfg config.Config) (*gorm.DB, error) {
 		domain.CartItem{},
 
 		// order
-		domain.OrderStatus{},
 		domain.ShopOrder{},
 		domain.OrderLine{},
 		domain.OrderReturn{},
@@ -165,9 +164,6 @@ func ConnectDatabase(cfg config.Config) (*gorm.DB, error) {
 		// Don't return error - continue without admin setup
 	}
 
-	if err := saveOrderStatuses(db); err != nil {
-		log.Printf("Warning: failed to save order statuses: %v. Continuing.", err)
-	}
 	if err := savePaymentMethods(db); err != nil {
 		log.Printf("Warning: failed to save payment methods: %v. Continuing.", err)
 	}

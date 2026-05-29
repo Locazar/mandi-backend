@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -54,9 +53,8 @@ func (c *OrderDatabase) FindAllShopOrdersByUserID(ctx context.Context, userID ui
 
 	query := `SELECT so.user_id, so.id AS shop_order_id, so.order_date,
 	so.order_total_amount_minor AS order_total_price, so.discount_amount_minor AS discount,
-	so.order_status_id, os.status AS order_status,so.address_id, so.payment_method_id, pm.name AS payment_method_name
+	so.status AS order_status, so.address_id, so.payment_method_id, pm.name AS payment_method_name
 	FROM shop_orders so
-	INNER JOIN order_statuses os ON so.order_status_id = os.id
 	INNER JOIN payment_methods pm ON pm.id = so.payment_method_id
 	WHERE user_id = $1
 	ORDER BY order_date DESC LIMIT $2 OFFSET  $3`
@@ -74,9 +72,8 @@ func (c *OrderDatabase) FindAllShopOrders(ctx context.Context,
 
 	query := `SELECT so.user_id, so.id AS shop_order_id, so.order_date,
 	so.order_total_amount_minor AS order_total_price, so.discount_amount_minor AS discount,
-	so.order_status_id, os.status AS order_status, so.address_id, so.payment_method_id, pm.name AS payment_method_name
+	so.status AS order_status, so.address_id, so.payment_method_id, pm.name AS payment_method_name
 	FROM shop_orders so
-	INNER JOIN order_statuses os ON so.order_status_id = os.id
 	INNER JOIN payment_methods pm ON so.payment_method_id = pm.id
 	ORDER BY so.order_date DESC LIMIT $1 OFFSET $2`
 
@@ -93,12 +90,11 @@ func (c *OrderDatabase) FindAllOrdersItemsByShopOrderID(ctx context.Context,
 	offset := pagination.Offset
 
 	query := `SELECT ol.product_item_id, p.name AS product_name, p.image,
-	ol.price_amount_minor AS price, so.order_date, os.status,ol.qty,
+	ol.price_amount_minor AS price, so.order_date, so.status,ol.qty,
 	(ol.price_amount_minor * ol.qty) AS sub_total FROM  order_lines ol
 	INNER JOIN shop_orders so ON ol.shop_order_id = so.id
 	INNER JOIN product_items pi ON ol.product_item_id = pi.id
 	INNER JOIN products p ON pi.product_id = p.id
-	INNER JOIN order_statuses os ON so.order_status_id = os.id
 	AND ol.shop_order_id = $1
 	ORDER BY ol.qty DESC LIMIT $2 OFFSET $3`
 
@@ -111,17 +107,17 @@ func (c *OrderDatabase) FindAllOrdersItemsByShopOrderID(ctx context.Context,
 
 func (c *OrderDatabase) SaveShopOrder(ctx context.Context, shopOrder domain.ShopOrder) (shopOrderID uint, err error) {
 
-	// save the shop_order
+	// save the shop_order — status is now stored directly as a varchar column.
 	query := `INSERT INTO shop_orders (user_id, address_id,
 	order_total_amount_minor, order_total_currency, discount_amount_minor, discount_currency,
-	order_status_id, order_date)
+	status, order_date)
 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`
 
 	orderDate := time.Now()
 	err = c.DB.Raw(query, shopOrder.UserID, shopOrder.AddressID,
 		shopOrder.OrderTotal.AmountMinor, shopOrder.OrderTotal.Currency,
 		shopOrder.Discount.AmountMinor, shopOrder.Discount.Currency,
-		shopOrder.OrderStatusID, orderDate).Scan(&shopOrderID).Error
+		shopOrder.Status, orderDate).Scan(&shopOrderID).Error
 
 	return shopOrderID, err
 }
@@ -138,54 +134,47 @@ func (c *OrderDatabase) SaveOrderLine(ctx context.Context, orderLine domain.Orde
 
 //!end
 
+// FindOrderStatusByShopOrderID returns the status string of the given order.
 func (c *OrderDatabase) FindOrderStatusByShopOrderID(ctx context.Context,
-	shopOrderID uint) (orderStatus domain.OrderStatus, err error) {
+	shopOrderID uint) (domain.OrderStatusType, error) {
 
-	query := `SELECT * FROM order_statuses
-	WHERE id = (SELECT order_status_id FROM shop_orders WHERE id = $1)`
-	err = c.DB.Raw(query, shopOrderID).Scan(&orderStatus).Error
-
-	return orderStatus, err
+	var status domain.OrderStatusType
+	query := `SELECT status FROM shop_orders WHERE id = $1`
+	err := c.DB.Raw(query, shopOrderID).Scan(&status).Error
+	return status, err
 }
 
-// find order status
-func (c *OrderDatabase) FindOrderStatusByID(ctx context.Context, orderStatusID uint) (domain.OrderStatus, error) {
-
-	var orderStatus domain.OrderStatus
-	err := c.DB.Raw("SELECT * FROM order_statuses WHERE id = $1", orderStatusID).Scan(&orderStatus).Error
-
-	return orderStatus, err
+// FindAllOrderStatuses returns all valid order status constants from the enum.
+func (c *OrderDatabase) FindAllOrderStatuses(ctx context.Context) ([]domain.OrderStatusType, error) {
+	return []domain.OrderStatusType{
+		domain.StatusPaymentPending,
+		domain.StatusOrderPlaced,
+		domain.StatusOrderCancelled,
+		domain.StatusOrderDelivered,
+		domain.StatusReturnRequested,
+		domain.StatusReturnApproved,
+		domain.StatusReturnCancelled,
+		domain.StatusOrderReturned,
+	}, nil
 }
 
-func (c *OrderDatabase) FindOrderStatusByStatus(ctx context.Context,
-	status domain.OrderStatusType) (domain.OrderStatus, error) {
+// UpdateShopOrderStatus sets the status column directly (replaces the former
+// order_status_id FK update).
+func (c *OrderDatabase) UpdateShopOrderStatus(ctx context.Context, shopOrderID uint, status domain.OrderStatusType) error {
 
-	var orderStatus domain.OrderStatus
-	err := c.DB.Raw("SELECT * FROM order_statuses WHERE status = $1", status).Scan(&orderStatus).Error
-
-	return orderStatus, err
-}
-
-func (c *OrderDatabase) FindAllOrderStatuses(ctx context.Context) (orderStatuses []domain.OrderStatus, err error) {
-
-	err = c.DB.Raw("SELECT * FROM order_statuses").Scan(&orderStatuses).Error
-
-	return orderStatuses, err
-}
-
-func (c *OrderDatabase) UpdateShopOrderOrderStatus(ctx context.Context, shopOrderID, changeStatusID uint) error {
-
-	query := `UPDATE shop_orders SET order_status_id = $1 WHERE id = $2`
-	err := c.DB.Exec(query, changeStatusID, shopOrderID).Error
+	query := `UPDATE shop_orders SET status = $1 WHERE id = $2`
+	err := c.DB.Exec(query, status, shopOrderID).Error
 
 	return err
 }
 
+// UpdateShopOrderStatusAndSavePaymentMethod atomically updates status and
+// payment method on an order (called when payment is approved).
 func (c *OrderDatabase) UpdateShopOrderStatusAndSavePaymentMethod(ctx context.Context,
-	shopOrderID, orderStatusID, paymentID uint) error {
+	shopOrderID uint, status domain.OrderStatusType, paymentID uint) error {
 
-	query := `UPDATE shop_orders SET order_status_id = $1, payment_method_id = $2 WHERE id = $3`
-	err := c.DB.Exec(query, orderStatusID, paymentID, shopOrderID).Error
+	query := `UPDATE shop_orders SET status = $1, payment_method_id = $2 WHERE id = $3`
+	err := c.DB.Exec(query, status, paymentID, shopOrderID).Error
 
 	return err
 }
@@ -214,11 +203,10 @@ func (c *OrderDatabase) FindAllOrderReturns(ctx context.Context,
 	offset := pagination.Offset
 
 	query := `SELECT ors.id AS order_return_id, ors.shop_order_id, ors.request_date, ors.return_reason,
-		os.id AS order_status_id, os.status AS order_status, ors.refund_amount_amount_minor AS refund_amount,
+		so.status AS order_status, ors.refund_amount_amount_minor AS refund_amount,
 		ors.admin_comment, ors.is_approved, ors.approval_date, ors.return_date
 		FROM order_returns ors
-		INNER JOIN shop_orders so ON ors.shop_order_id =  so.id
-		INNER JOIN order_statuses os ON so.order_status_id = os.id
+		INNER JOIN shop_orders so ON ors.shop_order_id = so.id
 		ORDER BY ors.request_date LIMIT $1 OFFSET $2`
 	err = c.DB.Raw(query, limit, offset).Scan(&orderReturns).Error
 
@@ -231,21 +219,13 @@ func (c *OrderDatabase) FindAllPendingOrderReturns(ctx context.Context,
 	limit := pagination.Limit
 	offset := pagination.Offset
 
-	returnRequested, err1 := c.FindOrderStatusByStatus(ctx, "return requested")
-	returnApproved, err2 := c.FindOrderStatusByStatus(ctx, "return approved")
-	err = errors.Join(err1, err2)
-	if err != nil {
-		return nil, err
-	}
-
 	query := `SELECT ors.id AS order_return_id, ors.shop_order_id, ors.request_date, ors.return_reason,
-	os.id AS order_status_id, os.status AS order_status, ors.refund_amount_amount_minor AS refund_amount
+	so.status AS order_status, ors.refund_amount_amount_minor AS refund_amount
 	FROM order_returns ors
-	INNER JOIN shop_orders so ON ors.shop_order_id =  so.id
-	INNER JOIN order_statuses os ON so.order_status_id = os.id
-	WHERE so.order_status_id = $1 OR so.order_status_id = $2
+	INNER JOIN shop_orders so ON ors.shop_order_id = so.id
+	WHERE so.status = $1 OR so.status = $2
 	ORDER BY ors.request_date DESC LIMIT $3 OFFSET $4`
-	err = c.DB.Raw(query, returnRequested.ID, returnApproved.ID, limit, offset).Scan(&pendingReturns).Error
+	err = c.DB.Raw(query, domain.StatusReturnRequested, domain.StatusReturnApproved, limit, offset).Scan(&pendingReturns).Error
 
 	return pendingReturns, err
 }

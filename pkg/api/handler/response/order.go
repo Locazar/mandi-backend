@@ -43,7 +43,6 @@ type ShopOrder struct {
 	Address           Address   `json:"address"`
 	OrderTotalPrice   uint      `json:"order_total_price" `
 	Discount          uint      `json:"discount"`
-	OrderStatusID     uint      `json:"order_status_id"`
 	OrderStatus       string    `json:"order_status"`
 	PaymentMethodID   uint      `json:"payment_method_id" gorm:"primaryKey;not null"`
 	PaymentMethodName string    `json:"payment_method_name" gorm:"unique;not null"`
@@ -64,12 +63,11 @@ type OrderReturn struct {
 	ReturnReason  string    `json:"return_reason" `
 	RefundAmount  uint      `json:"refund_amount" `
 
-	OrderStatusID uint      `json:"order_status_id"`
-	OrderStatus   string    `json:"order_status"`
-	IsApproved    bool      `json:"is_approved" `
-	ReturnDate    time.Time `json:"return_date"`
-	ApprovalDate  time.Time `json:"approval_date"`
-	AdminComment  string    `json:"admin_comment"`
+	OrderStatus string    `json:"order_status"`
+	IsApproved  bool      `json:"is_approved" `
+	ReturnDate  time.Time `json:"return_date"`
+	ApprovalDate time.Time `json:"approval_date"`
+	AdminComment string    `json:"admin_comment"`
 }
 
 // razorpay
