@@ -9,7 +9,7 @@ type User struct {
 	LastName    string    `json:"last_name"`
 	Email       string    `json:"email"`
 	Phone       string    `json:"phone" gorm:"unique"`
-	Password    string    `json:"password"`
+	Password    string    `json:"-"`
 	Verified    bool      `json:"verified" gorm:"default:false"`
 	BlockStatus bool      `json:"block_status" gorm:"default:false"`
 	TrialUsed   bool      `json:"trial_used" gorm:"default:false"`

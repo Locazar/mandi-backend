@@ -9,7 +9,7 @@ type AdminRefreshSession struct {
 	UserID       uint      `json:"user_id"`
 	AdminID      uint      `json:"admin_id"`
 	UserType     UserType  `json:"user_type"`
-	RefreshToken string    `json:"refresh_token" gorm:"not null"`
+	RefreshToken string    `json:"-" gorm:"not null"`
 	ExpireAt     time.Time `json:"expire_at" gorm:"not null"`
 	IsBlocked    bool      `json:"is_blocked" gorm:"not null;default:false"`
 }
@@ -19,7 +19,7 @@ type UserRefreshSession struct {
 	UserID       uint      `json:"user_id"`
 	AdminID      uint      `json:"admin_id"`
 	UserType     UserType  `json:"user_type"`
-	RefreshToken string    `json:"refresh_token" gorm:"not null"`
+	RefreshToken string    `json:"-" gorm:"not null"`
 	ExpireAt     time.Time `json:"expire_at" gorm:"not null"`
 	IsBlocked    bool      `json:"is_blocked" gorm:"not null;default:false"`
 }
@@ -51,7 +51,7 @@ type RefreshSession struct {
 	TokenID      string    `json:"token_id"`
 	UserID       uint      `json:"user_id"`
 	UserType     UserType  `json:"user_type"`
-	RefreshToken string    `json:"refresh_token"`
+	RefreshToken string    `json:"-"`
 	ExpireAt     time.Time `json:"expire_at"`
 	IsBlocked    bool      `json:"is_blocked"`
 }

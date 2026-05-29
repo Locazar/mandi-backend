@@ -76,7 +76,7 @@ type Admin struct {
 	UserName string `json:"user_name"`
 	FullName string `json:"full_name"`
 	Email    string `json:"email" binding:"omitempty,email"`
-	Password string `json:"password"`
+	Password string `json:"-"`
 
 	AddressLine1    string  `json:"address_line1" gorm:"size:255"`
 	AddressLine2    string  `json:"address_line2" gorm:"size:255" binding:"omitempty"`
