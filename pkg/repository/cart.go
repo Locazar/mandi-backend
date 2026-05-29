@@ -31,16 +31,16 @@ func (c *cartDatabase) FindCartByUserID(ctx context.Context, userID uint) (cart 
 // save cart for user
 func (c *cartDatabase) SaveCart(ctx context.Context, userID uint) (cartID uint, err error) {
 
-	query := `INSERT INTO carts (user_id,total_price) VALUES($1, $2) RETURNING id`
-	err = c.DB.Raw(query, userID, 0).Scan(&cartID).Error
+	query := `INSERT INTO carts (user_id,total_price_amount_minor,total_price_currency) VALUES($1, $2, $3) RETURNING id`
+	err = c.DB.Raw(query, userID, 0, domain.CurrencyINR).Scan(&cartID).Error
 
 	return cartID, err
 }
 
 func (c *cartDatabase) UpdateCart(ctx context.Context, cartId, discountAmount, couponID uint) error {
 
-	query := `UPDATE carts SET discount_amount = $1, applied_coupon_id = $2 WHERE id = $3`
-	err := c.DB.Exec(query, discountAmount, couponID, cartId).Error
+	query := `UPDATE carts SET discount_amount_amount_minor = $1, discount_amount_currency = $2, applied_coupon_id = $3 WHERE id = $4`
+	err := c.DB.Exec(query, discountAmount, domain.CurrencyINR, couponID, cartId).Error
 
 	return err
 }

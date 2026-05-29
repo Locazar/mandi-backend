@@ -62,11 +62,11 @@ type WishList struct {
 }
 
 type Cart struct {
-	ID              uint `json:"id" gorm:"primaryKey;not null"`
-	UserID          uint `json:"user_id" gorm:"not null"`
-	TotalPrice      uint `json:"total_price" gorm:"not null"`
-	AppliedCouponID uint `json:"applied_coupon_id"`
-	DiscountAmount  uint `json:"discount_amount"`
+	ID              uint  `json:"id" gorm:"primaryKey;not null"`
+	UserID          uint  `json:"user_id" gorm:"not null"`
+	TotalPrice      Money `json:"total_price" gorm:"embedded;embeddedPrefix:total_price_"`
+	AppliedCouponID uint  `json:"applied_coupon_id"`
+	DiscountAmount  Money `json:"discount_amount" gorm:"embedded;embeddedPrefix:discount_amount_"`
 }
 
 type CartItem struct {
@@ -82,10 +82,10 @@ type CartItem struct {
 // for ENUM Data type
 
 type Wallet struct {
-	ID          uint `json:"wallet_id" gorm:"primaryKey;not null"`
-	UserID      uint `json:"user_id" gorm:"not null"`
-	User        User `json:"-"`
-	TotalAmount uint `json:"total_amount" gorm:"not null"`
+	ID          uint  `json:"wallet_id" gorm:"primaryKey;not null"`
+	UserID      uint  `json:"user_id" gorm:"not null"`
+	User        User  `json:"-"`
+	TotalAmount Money `json:"total_amount" gorm:"embedded;embeddedPrefix:total_amount_"`
 }
 
 type TransactionType string
@@ -108,7 +108,7 @@ type Transaction struct {
 	WalletID        uint            `json:"wallet_id" gorm:"not null"`
 	Wallet          Wallet          `json:"-"`
 	TransactionDate time.Time       `json:"transaction_time" gorm:"not null"`
-	Amount          uint            `json:"amount" gorm:"not null"`
+	Amount          Money           `json:"amount" gorm:"embedded;embeddedPrefix:amount_"`
 	TransactionType TransactionType `json:"transaction_type" gorm:"not null"`
 }
 

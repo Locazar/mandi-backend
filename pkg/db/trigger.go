@@ -116,22 +116,22 @@ var (
 	cartTotalPriceUpdateSqlFunc = `CREATE OR REPLACE FUNCTION update_cart_total_price() 
 	RETURNS TRIGGER AS $$ 
 	BEGIN 
-	IF (TG_OP = 'DELETE') THEN 
-		UPDATE carts c 
-			SET total_price = ( 
-				SELECT COALESCE ( SUM ( CASE WHEN pi.discount_price > 0 THEN pi.discount_price * ci.qty ELSE pi.price * ci.qty END), 0)::bigint 
-				FROM cart_items ci INNER JOIN product_items pi ON ci.product_item_id = pi.id 
-				WHERE ci.cart_id = OLD.cart_id  
-			), applied_coupon_id = 0, discount_amount = 0   
-		WHERE c.id = OLD.cart_id; 
-		RETURN NEW; 
-	ELSE 
-		UPDATE carts c 
-			SET total_price = (
-				SELECT SUM (CASE WHEN pi.discount_price > 0 THEN pi.discount_price * ci.qty ELSE pi.price * ci.qty END) 
-				FROM cart_items ci INNER JOIN product_items pi ON ci.product_item_id = pi.id 
-				WHERE ci.cart_id = NEW.cart_id 
-			), applied_coupon_id = 0, discount_amount = 0 
+	IF (TG_OP = 'DELETE') THEN
+		UPDATE carts c
+			SET total_price_amount_minor = (
+				SELECT COALESCE ( SUM ( CASE WHEN pi.discount_price > 0 THEN pi.discount_price * ci.qty ELSE pi.price * ci.qty END), 0)::bigint
+				FROM cart_items ci INNER JOIN product_items pi ON ci.product_item_id = pi.id
+				WHERE ci.cart_id = OLD.cart_id
+			), applied_coupon_id = 0, discount_amount_amount_minor = 0
+		WHERE c.id = OLD.cart_id;
+		RETURN NEW;
+	ELSE
+		UPDATE carts c
+			SET total_price_amount_minor = (
+				SELECT SUM (CASE WHEN pi.discount_price > 0 THEN pi.discount_price * ci.qty ELSE pi.price * ci.qty END)
+				FROM cart_items ci INNER JOIN product_items pi ON ci.product_item_id = pi.id
+				WHERE ci.cart_id = NEW.cart_id
+			), applied_coupon_id = 0, discount_amount_amount_minor = 0
 			WHERE c.id = NEW.cart_id;
 	
 	END IF; 

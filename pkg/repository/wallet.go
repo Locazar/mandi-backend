@@ -20,15 +20,15 @@ func (c *OrderDatabase) FindWalletByUserID(ctx context.Context, userID uint) (wa
 // create a new wallet for user
 func (c *OrderDatabase) SaveWallet(ctx context.Context, userID uint) (walletID uint, err error) {
 
-	query := `INSERT INTO wallets (user_id,total_amount) VALUES ($1, $2) RETURNING id`
-	err = c.DB.Raw(query, userID, 0).Scan(&walletID).Error
+	query := `INSERT INTO wallets (user_id,total_amount_amount_minor,total_amount_currency) VALUES ($1, $2, $3) RETURNING id`
+	err = c.DB.Raw(query, userID, 0, domain.CurrencyINR).Scan(&walletID).Error
 
 	return
 }
 func (c *OrderDatabase) UpdateWallet(ctx context.Context, walletID, upateTotalAmount uint) error {
 
-	query := `UPDATE wallets SET total_amount = $1 WHERE id = $2`
-	err := c.DB.Exec(query, upateTotalAmount, walletID).Error
+	query := `UPDATE wallets SET total_amount_amount_minor = $1, total_amount_currency = $2 WHERE id = $3`
+	err := c.DB.Exec(query, upateTotalAmount, domain.CurrencyINR, walletID).Error
 
 	return err
 }
@@ -36,9 +36,10 @@ func (c *OrderDatabase) UpdateWallet(ctx context.Context, walletID, upateTotalAm
 func (c *OrderDatabase) SaveWalletTransaction(ctx context.Context, walletTrx domain.Transaction) error {
 
 	trxDate := time.Now()
-	query := `INSERT INTO transactions (wallet_id, transaction_date, amount, transaction_type) 
-	VALUES ($1, $2, $3, $4)`
-	err := c.DB.Exec(query, walletTrx.WalletID, trxDate, walletTrx.Amount, walletTrx.TransactionType).Error
+	query := `INSERT INTO transactions (wallet_id, transaction_date, amount_amount_minor, amount_currency, transaction_type)
+	VALUES ($1, $2, $3, $4, $5)`
+	err := c.DB.Exec(query, walletTrx.WalletID, trxDate,
+		walletTrx.Amount.AmountMinor, walletTrx.Amount.Currency, walletTrx.TransactionType).Error
 
 	return err
 }

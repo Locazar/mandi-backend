@@ -162,8 +162,8 @@ func (u *cartHandler) GetCart(ctx *gin.Context) {
 	responseCart := response.Cart{
 		CartItems:       cartItems,
 		AppliedCouponID: cart.AppliedCouponID,
-		TotalPrice:      cart.TotalPrice,
-		DiscountAmount:  cart.DiscountAmount,
+		TotalPrice:      uint(cart.TotalPrice.AmountMinor),
+		DiscountAmount:  uint(cart.DiscountAmount.AmountMinor),
 	}
 
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved all cart items", responseCart)

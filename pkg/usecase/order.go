@@ -50,7 +50,7 @@ func (c *OrderUseCase) SaveOrder(ctx context.Context, userID, addressID uint) (u
 		return 0, utils.PrependMessageToError(err, "failed to get user cart")
 	}
 
-	if cart.TotalPrice == 0 {
+	if cart.TotalPrice.IsZero() {
 		return 0, ErrEmptyCart
 	}
 
@@ -69,13 +69,16 @@ func (c *OrderUseCase) SaveOrder(ctx context.Context, userID, addressID uint) (u
 		return 0, utils.PrependMessageToError(err, "failed to find pending order status")
 	}
 
-	orderTotal := cart.TotalPrice - cart.DiscountAmount
+	orderTotal, err := cart.TotalPrice.Sub(cart.DiscountAmount)
+	if err != nil {
+		return 0, utils.PrependMessageToError(err, "failed to compute order total")
+	}
 
 	shopOrder := domain.ShopOrder{
 		UserID:        userID,
 		AddressID:     addressID,
-		OrderTotal:    domain.INR(int64(orderTotal)),
-		Discount:      domain.INR(int64(cart.DiscountAmount)),
+		OrderTotal:    orderTotal,
+		Discount:      cart.DiscountAmount,
 		OrderStatusID: pendingOrderStatus.ID,
 	}
 
@@ -388,8 +391,11 @@ func (c *OrderUseCase) UpdateReturnDetails(ctx context.Context, updateDetails re
 			}
 
 			// calculate wallet amount and update
-			newWalletTotal := wallet.TotalAmount + uint(shopOrder.OrderTotal.AmountMinor)
-			err = trxRepo.UpdateWallet(ctx, wallet.ID, newWalletTotal)
+			newWalletTotal, err := wallet.TotalAmount.Add(shopOrder.OrderTotal)
+			if err != nil {
+				return fmt.Errorf("failed to credit refund to user wallet \nerror:%v", err.Error())
+			}
+			err = trxRepo.UpdateWallet(ctx, wallet.ID, uint(newWalletTotal.AmountMinor))
 			if err != nil {
 				return fmt.Errorf("failed to update return amount to user wallet \nerror:%v", err.Error())
 			}
@@ -399,7 +405,7 @@ func (c *OrderUseCase) UpdateReturnDetails(ctx context.Context, updateDetails re
 				WalletID:        wallet.ID,
 				TransactionDate: time.Now(),
 				TransactionType: domain.Credit,
-				Amount:          uint(shopOrder.OrderTotal.AmountMinor),
+				Amount:          shopOrder.OrderTotal,
 			}
 			err = trxRepo.SaveWalletTransaction(ctx, transaction)
 
