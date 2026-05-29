@@ -40,9 +40,9 @@ func SeedProductItemFilters(db *gorm.DB) error {
 // SeedSubscriptionPlans inserts default subscription plans if they don't exist.
 func SeedSubscriptionPlans(db *gorm.DB) error {
 	plans := []domain.SubscriptionPlan{
-		{Name: "Silver", PriceMonthly: 199, DurationDays: 30, IsActive: true},
-		{Name: "Gold", PriceMonthly: 499, DurationDays: 30, IsActive: true},
-		{Name: "Platinum", PriceMonthly: 999, DurationDays: 30, IsActive: true},
+		{Name: "Silver", PriceMonthly: domain.INR(19900), DurationDays: 30, IsActive: true},
+		{Name: "Gold", PriceMonthly: domain.INR(49900), DurationDays: 30, IsActive: true},
+		{Name: "Platinum", PriceMonthly: domain.INR(99900), DurationDays: 30, IsActive: true},
 	}
 
 	var count int64
@@ -64,7 +64,7 @@ func SeedSubscriptionPlans(db *gorm.DB) error {
 func SeedFreeTrialPlan(db *gorm.DB) error {
 	plan := domain.SubscriptionPlan{
 		Name:         "Free Trial",
-		PriceMonthly: 0,
+		PriceMonthly: domain.INR(0),
 		DurationDays: 90,
 		IsActive:     true,
 	}

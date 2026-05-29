@@ -86,7 +86,8 @@ func (uc *subscriptionPaymentUseCase) CreateSubscriptionOrder(ctx context.Contex
 	}
 
 	// 5. Create Razorpay order
-	amountPaise := plan.PriceMonthly * 100
+	// PriceMonthly is stored in minor units (paise), which is exactly what Razorpay expects.
+	amountPaise := plan.PriceMonthly.AmountMinor
 	client := razorpay.NewClient(uc.config.RazorPayKey, uc.config.RazorPaySecret)
 	receipt := fmt.Sprintf("sub_%d_%d_%d", userID, plan.ID, time.Now().Unix())
 
@@ -107,8 +108,7 @@ func (uc *subscriptionPaymentUseCase) CreateSubscriptionOrder(ctx context.Contex
 	subOrder := domain.SubscriptionOrder{
 		UserID:          userID,
 		PlanID:          plan.ID,
-		Amount:          plan.PriceMonthly,
-		AmountPaise:     amountPaise,
+		Price:           plan.PriceMonthly,
 		RazorpayOrderID: rzpOrderID,
 		Status:          domain.SubStatusCreated,
 	}
@@ -122,7 +122,7 @@ func (uc *subscriptionPaymentUseCase) CreateSubscriptionOrder(ctx context.Contex
 	return response.SubscriptionOrderResponse{
 		OrderID:     rzpOrderID,
 		KeyID:       uc.config.RazorPayKey,
-		Amount:      amountPaise,
+		Amount:      uint(amountPaise),
 		Currency:    "INR",
 		ShopOrderID: subOrder.ID,
 		Prefill: response.SubscriptionPrefill{
@@ -168,7 +168,7 @@ func (uc *subscriptionPaymentUseCase) VerifySubscriptionPayment(ctx context.Cont
 	}
 
 	// Step C: Payment cross-check via Razorpay API
-	if err := uc.crossCheckPayment(req.PaymentID, req.OrderID, order.AmountPaise); err != nil {
+	if err := uc.crossCheckPayment(req.PaymentID, req.OrderID, uint(order.Price.AmountMinor)); err != nil {
 		return response.SubscriptionVerificationResponse{}, err
 	}
 
@@ -284,9 +284,9 @@ func (uc *subscriptionPaymentUseCase) HandleWebhook(ctx context.Context, signatu
 
 	// 6. Cross-check amount
 	webhookAmountPaise := uint(event.Payload.Payment.Entity.Amount)
-	if webhookAmountPaise != order.AmountPaise {
+	if webhookAmountPaise != uint(order.Price.AmountMinor) {
 		log.Printf("[WEBHOOK_AMOUNT_MISMATCH] order_id=%s expected=%d got=%d",
-			rzpOrderID, order.AmountPaise, webhookAmountPaise)
+			rzpOrderID, order.Price.AmountMinor, webhookAmountPaise)
 		return ErrPaymentAmountMismatch
 	}
 

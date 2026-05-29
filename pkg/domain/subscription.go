@@ -13,7 +13,7 @@ const (
 type SubscriptionPlan struct {
 	ID           uint   `json:"id" gorm:"primaryKey;not null"`
 	Name         string `json:"name" gorm:"unique;not null"`
-	PriceMonthly uint   `json:"price_monthly" gorm:"not null"`
+	PriceMonthly Money  `json:"price_monthly" gorm:"embedded;embeddedPrefix:price_monthly_"`
 	DurationDays uint   `json:"duration_days" gorm:"not null;default:30"`
 	IsActive     bool   `json:"is_active" gorm:"not null;default:true"`
 }
@@ -22,8 +22,7 @@ type SubscriptionOrder struct {
 	ID                uint       `json:"id" gorm:"primaryKey;not null"`
 	UserID            uint       `json:"user_id" gorm:"not null;index"`
 	PlanID            uint       `json:"plan_id" gorm:"not null"`
-	Amount            uint       `json:"amount" gorm:"not null"`
-	AmountPaise       uint       `json:"amount_paise" gorm:"not null"`
+	Price             Money      `json:"price" gorm:"embedded;embeddedPrefix:price_"`
 	RazorpayOrderID   string     `json:"razorpay_order_id" gorm:"uniqueIndex;not null"`
 	RazorpayPaymentID *string    `json:"razorpay_payment_id" gorm:"uniqueIndex"`
 	Status            SubscriptionStatus `json:"status" gorm:"not null;default:'created'"`

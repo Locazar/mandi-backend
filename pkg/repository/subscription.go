@@ -75,7 +75,7 @@ func (r *subscriptionDatabase) FindSubscriptionPlanByName(ctx context.Context, n
 
 func (r *subscriptionDatabase) FindPaidSubscriptionPlans(ctx context.Context) ([]domain.SubscriptionPlan, error) {
 	var plans []domain.SubscriptionPlan
-	err := r.db.Where("price_monthly > 0 AND is_active = true").Find(&plans).Error
+	err := r.db.Where("price_monthly_amount_minor > 0 AND is_active = true").Find(&plans).Error
 	return plans, err
 }
 

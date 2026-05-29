@@ -12,7 +12,7 @@ type Coupon struct {
 	ExpireDate       time.Time `json:"expire_date" gorm:"not null"`
 	Description      string    `json:"description" gorm:"not null" binding:"required,min=6,max=150"`
 	DiscountRate     uint      `json:"discount_rate" gorm:"not null" binding:"required,numeric,min=1,max=100"`
-	MinimumCartPrice uint      `json:"minimum_cart_price" gorm:"not null" binding:"required,numeric,min=1"`
+	MinimumCartPrice Money     `json:"minimum_cart_price" gorm:"embedded;embeddedPrefix:minimum_cart_price_"`
 	Image            string    `json:"image" binding:"required"`
 	BlockStatus      bool      `json:"block_status" gorm:"not null"`
 	CreatedAt        time.Time `json:"created_at" gorm:"not null"`

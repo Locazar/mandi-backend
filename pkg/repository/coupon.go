@@ -83,14 +83,15 @@ func (c *couponDatabase) FindAllCoupons(ctx context.Context, pagination request.
 
 // save a new coupon
 func (c *couponDatabase) SaveCoupon(ctx context.Context, coupon domain.Coupon) error {
-	query := `INSERT INTO coupons (coupon_name, coupon_code, description, expire_date, 
-		discount_rate, minimum_cart_price, image, block_status,created_at)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
+	query := `INSERT INTO coupons (coupon_name, coupon_code, description, expire_date,
+		discount_rate, minimum_cart_price_amount_minor, minimum_cart_price_currency, image, block_status,created_at)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 
 	cratedAt := time.Now()
 
 	err := c.DB.Exec(query, coupon.CouponName, coupon.CouponCode, coupon.Description, coupon.ExpireDate,
-		coupon.DiscountRate, coupon.MinimumCartPrice, coupon.Image, coupon.BlockStatus, cratedAt,
+		coupon.DiscountRate, coupon.MinimumCartPrice.AmountMinor, coupon.MinimumCartPrice.Currency,
+		coupon.Image, coupon.BlockStatus, cratedAt,
 	).Error
 
 	if err != nil {
@@ -102,14 +103,15 @@ func (c *couponDatabase) SaveCoupon(ctx context.Context, coupon domain.Coupon) e
 // update coupon
 func (c *couponDatabase) UpdateCoupon(ctx context.Context, coupon domain.Coupon) error {
 
-	query := `UPDATE coupons SET coupon_name = $1, description = $2, discount_rate = $3, 
-	minimum_cart_price = $4, image = $5, block_status = $6, updated_at = $7 
-	WHERE coupon_id = $8`
+	query := `UPDATE coupons SET coupon_name = $1, description = $2, discount_rate = $3,
+	minimum_cart_price_amount_minor = $4, minimum_cart_price_currency = $5, image = $6, block_status = $7, updated_at = $8
+	WHERE coupon_id = $9`
 
 	updatedAt := time.Now()
 
 	err := c.DB.Exec(query, coupon.CouponName, coupon.Description,
-		coupon.DiscountRate, coupon.MinimumCartPrice, coupon.Image, coupon.BlockStatus, updatedAt,
+		coupon.DiscountRate, coupon.MinimumCartPrice.AmountMinor, coupon.MinimumCartPrice.Currency,
+		coupon.Image, coupon.BlockStatus, updatedAt,
 		coupon.CouponID,
 	).Error
 	if err != nil {
@@ -145,10 +147,11 @@ func (c *couponDatabase) FindAllCouponForUser(ctx context.Context, userID uint, 
 	limit := pagination.Limit
 	offset := pagination.Offset
 
-	query := `SELECT c.coupon_id, c.coupon_code, c.coupon_name, c.expire_date, c.description, c.discount_rate, c.minimum_cart_price, 
-	c.image, c.block_status, c.coupon_id = cu.coupon_id AS used, cu.used_at FROM coupons c 
-	LEFT JOIN coupon_uses cu ON c.coupon_id = cu.coupon_id 
-	AND cu.user_id = $1 
+	query := `SELECT c.coupon_id, c.coupon_code, c.coupon_name, c.expire_date, c.description, c.discount_rate,
+	c.minimum_cart_price_amount_minor AS minimum_cart_price,
+	c.image, c.block_status, c.coupon_id = cu.coupon_id AS used, cu.used_at FROM coupons c
+	LEFT JOIN coupon_uses cu ON c.coupon_id = cu.coupon_id
+	AND cu.user_id = $1
 	ORDER BY used DESC LIMIT $2 OFFSET $3`
 
 	err = c.DB.Raw(query, userID, limit, offset).Scan(&coupons).Error

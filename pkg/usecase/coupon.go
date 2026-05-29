@@ -161,9 +161,9 @@ func (c *couponUseCase) ApplyCouponToCart(ctx context.Context, userID uint, coup
 	if time.Since(coupon.ExpireDate) > 0 {
 		return discountAmount, fmt.Errorf("can't apply coupn \ncoupn expired")
 	}
-	if cart.TotalPrice.AmountMinor < int64(coupon.MinimumCartPrice) {
+	if cart.TotalPrice.AmountMinor < coupon.MinimumCartPrice.AmountMinor {
 		return discountAmount, fmt.Errorf("can't apply coupn \ncoupn minimum cart_amount %d not met with user cart total price %d",
-			coupon.MinimumCartPrice, cart.TotalPrice.AmountMinor)
+			coupon.MinimumCartPrice.AmountMinor, cart.TotalPrice.AmountMinor)
 	}
 
 	// calculate a discount for cart

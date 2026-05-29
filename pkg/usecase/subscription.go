@@ -147,7 +147,7 @@ func (uc *subscriptionUseCase) GetPaidPlans(ctx context.Context) ([]response.Sub
 		result[i] = response.SubscriptionPlanResponse{
 			ID:           p.ID,
 			Name:         p.Name,
-			PriceMonthly: p.PriceMonthly,
+			PriceMonthly: uint(p.PriceMonthly.AmountMinor),
 			DurationDays: p.DurationDays,
 		}
 	}
