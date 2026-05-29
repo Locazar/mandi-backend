@@ -100,3 +100,16 @@ const (
 	StatusDispute         EnquiryStatus = "dispute"
 	StatusDisputeResolved EnquiryStatus = "dispute_resolved"
 )
+
+func (s EnquiryStatus) IsValid() bool {
+	switch s {
+	case StatusNew, StatusInProgress, StatusPendingSellerPrice, StatusPendingCustomPrice,
+		StatusPendingSellerFinal, StatusPendingCustomFinal, StatusSellerFinalUpdate,
+		StatusCounterOffer, StatusOnHold, StatusCustomerFinalUpdate,
+		StatusCompletedAccepted, StatusCompletedRejected, StatusResolved, StatusClosed,
+		StatusRejected, StatusCancelled, StatusExpired, StatusReopened,
+		StatusDispute, StatusDisputeResolved:
+		return true
+	}
+	return false
+}

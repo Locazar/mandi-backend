@@ -95,6 +95,14 @@ const (
 	Credit TransactionType = "CREDIT"
 )
 
+func (t TransactionType) IsValid() bool {
+	switch t {
+	case Debit, Credit:
+		return true
+	}
+	return false
+}
+
 type Transaction struct {
 	TransactionID   uint            `json:"transaction_id" gorm:"primaryKey;not null"`
 	WalletID        uint            `json:"wallet_id" gorm:"not null"`

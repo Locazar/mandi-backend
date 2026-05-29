@@ -12,6 +12,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
+	"github.com/rohit221990/mandi-backend/pkg/service/crypto"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
 	"gorm.io/gorm"
 )
@@ -33,11 +34,60 @@ func (n *noopNotificationService) SendNotification(userID uint, message string) 
 var notificationService NotificationService = &noopNotificationService{}
 
 type adminDatabase struct {
-	DB *gorm.DB
+	DB  *gorm.DB
+	enc *crypto.Service
 }
 
-func NewAdminRepository(DB *gorm.DB) interfaces.AdminRepository {
-	return &adminDatabase{DB: DB}
+func NewAdminRepository(DB *gorm.DB, enc *crypto.Service) interfaces.AdminRepository {
+	return &adminDatabase{DB: DB, enc: enc}
+}
+
+// shopPIIKeys are the UpdateShop map keys whose values must be encrypted at rest.
+var shopPIIKeys = map[string]bool{
+	"BankAccountNumber":    true,
+	"BankIFSC":             true,
+	"PanNumber":            true,
+	"ITRDocuments":         true,
+	"Document_Value":       true,
+	"ShopVerificationDocs": true,
+}
+
+// encrypt seals a non-empty PII value for storage. Empty values pass through.
+func (c *adminDatabase) encrypt(plain string) (string, error) {
+	if plain == "" {
+		return "", nil
+	}
+	return c.enc.Encrypt(plain)
+}
+
+// decrypt opens a stored PII value. Empty values pass through. Values that are
+// not in the keyed-ciphertext format (e.g. legacy plaintext) are returned
+// as-is so reads remain resilient during rollout.
+func (c *adminDatabase) decrypt(stored string) string {
+	if stored == "" {
+		return ""
+	}
+	if plain, err := c.enc.Decrypt(stored); err == nil {
+		return plain
+	}
+	return stored
+}
+
+// decryptAdminPII decrypts the encrypted-at-rest fields of an admin in place.
+func (c *adminDatabase) decryptAdminPII(admin *domain.Admin) {
+	admin.BankAccountNumber = c.decrypt(admin.BankAccountNumber)
+	admin.BankIFSC = c.decrypt(admin.BankIFSC)
+	admin.PAN = c.decrypt(admin.PAN)
+}
+
+// decryptShopPII decrypts the encrypted-at-rest fields of a shop in place.
+func (c *adminDatabase) decryptShopPII(shop *domain.ShopDetails) {
+	shop.BankAccountNumber = c.decrypt(shop.BankAccountNumber)
+	shop.BankIFSC = c.decrypt(shop.BankIFSC)
+	shop.PanNumber = c.decrypt(shop.PanNumber)
+	shop.ITRDocuments = c.decrypt(shop.ITRDocuments)
+	shop.Document_Value = c.decrypt(shop.Document_Value)
+	shop.ShopVerificationDocs = c.decrypt(shop.ShopVerificationDocs)
 }
 
 func (c *adminDatabase) FindAdminByEmail(ctx context.Context, email string) (domain.Admin, error) {
@@ -50,7 +100,7 @@ func (c *adminDatabase) FindAdminByEmail(ctx context.Context, email string) (dom
 	if admin.ID == 0 {
 		return admin, gorm.ErrRecordNotFound
 	}
-
+	c.decryptAdminPII(&admin)
 	return admin, nil
 }
 
@@ -64,7 +114,7 @@ func (c *adminDatabase) FindAdminByPhone(ctx context.Context, phone string) (dom
 	if admin.ID == 0 {
 		return admin, gorm.ErrRecordNotFound
 	}
-	fmt.Printf("Admin found: %+v\n", admin)
+	c.decryptAdminPII(&admin)
 	return admin, nil
 }
 
@@ -76,20 +126,19 @@ func (c *adminDatabase) FindAdminWithShopVerificationByPhone(ctx context.Context
 	query := `SELECT a.id, a.full_name, a.email, a.password, a.address_line1, a.address_line2, 
 		a.city, a.state, a.country, a.pincode, a.mobile, a.latitude, a.longitude,
 		a.payment_status, a.payment_type, a.payment_date, a.start_date, a.expiry_date,
-		a.bank_account_number, a.bank_ifsc, a.pan, a.aadhar, a.agree_to_terms,
+		a.bank_account_number, a.bank_ifsc, a.pan, a.aadhaar_last4, a.aadhaar_verified, a.agree_to_terms,
 		a.created_at, a.updated_at, a.verified_seller, a.status
-	FROM admins a 
+	FROM admins a
 	WHERE a.mobile = $1`
 
 	err := c.DB.Raw(query, phone).Scan(&admin).Error
-	fmt.Printf("Admin lookup error: %+v\n", err)
 	if err != nil {
 		return admin, shopVerification, err
 	}
 	if admin.ID == 0 {
 		return admin, shopVerification, gorm.ErrRecordNotFound
 	}
-	fmt.Printf("Admin found: %+v\n", admin)
+	c.decryptAdminPII(&admin)
 	// Then get shop verification data
 	shopQuery := `SELECT sv.id, sv.admin_id, sv.shop_id, sv.shop_name, sv.verification_status, 
 		sv.remarks, sv.agent_id, sv.created_at, sv.updated_at
@@ -111,6 +160,19 @@ func (c *adminDatabase) SaveAdmin(ctx context.Context, admin domain.Admin) (doma
 	if admin.UserName == "" {
 		admin.UserName = utils.GenerateRandomUserName("seller")
 	}
+	encBankAccount, err := c.encrypt(admin.BankAccountNumber)
+	if err != nil {
+		return domain.Admin{}, err
+	}
+	encBankIFSC, err := c.encrypt(admin.BankIFSC)
+	if err != nil {
+		return domain.Admin{}, err
+	}
+	encPAN, err := c.encrypt(admin.PAN)
+	if err != nil {
+		return domain.Admin{}, err
+	}
+
 	tx := c.DB.Begin()
 	if tx.Error != nil {
 		return domain.Admin{}, tx.Error
@@ -118,14 +180,14 @@ func (c *adminDatabase) SaveAdmin(ctx context.Context, admin domain.Admin) (doma
 	// First insert into admins table
 	query := `INSERT INTO admins (full_name, email, mobile, password, user_name,
 		address_line1, address_line2, city, state, country, pincode,
-		bank_account_number, bank_ifsc, pan, aadhar, agree_to_terms,
+		bank_account_number, bank_ifsc, pan, aadhaar_last4, aadhaar_verified, agree_to_terms,
 		verified_seller, status, latitude, longitude, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
-		$12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22) RETURNING id`
+		$12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23) RETURNING id`
 
 	var adminID uint
-	err := tx.Raw(query, admin.FullName, admin.Email, admin.Mobile, admin.Password, admin.UserName,
+	err = tx.Raw(query, admin.FullName, admin.Email, admin.Mobile, admin.Password, admin.UserName,
 		admin.AddressLine1, admin.AddressLine2, admin.City, admin.State, admin.Country, admin.Pincode,
-		admin.BankAccountNumber, admin.BankIFSC, admin.PAN, admin.Aadhar, admin.AgreeToTerms,
+		encBankAccount, encBankIFSC, encPAN, admin.AadhaarLast4, admin.AadhaarVerified, admin.AgreeToTerms,
 		admin.VerifiedSeller, admin.Status, admin.Latitude, admin.Longitude, time.Now(), time.Now()).Scan(&adminID).Error
 	if err != nil {
 		tx.Rollback()
@@ -270,6 +332,28 @@ func (c *adminDatabase) DeleteAdvertisement(ctx context.Context, advertisementID
 // Shop Details
 func (c *adminDatabase) CreateShop(ctx context.Context, shop domain.ShopDetails) (domain.ShopDetails, error) {
 	shop.ShopID = utils.GenerateShopID()
+
+	encBankAccount, err := c.encrypt(shop.BankAccountNumber)
+	if err != nil {
+		return shop, err
+	}
+	encBankIFSC, err := c.encrypt(shop.BankIFSC)
+	if err != nil {
+		return shop, err
+	}
+	encPAN, err := c.encrypt(shop.PanNumber)
+	if err != nil {
+		return shop, err
+	}
+	encITR, err := c.encrypt(shop.ITRDocuments)
+	if err != nil {
+		return shop, err
+	}
+	encDocValue, err := c.encrypt(shop.Document_Value)
+	if err != nil {
+		return shop, err
+	}
+
 	tx := c.DB.Begin()
 	if tx.Error != nil {
 		return shop, tx.Error
@@ -302,9 +386,9 @@ func (c *adminDatabase) CreateShop(ctx context.Context, shop domain.ShopDetails)
 		updated_at = EXCLUDED.updated_at
 	RETURNING id`
 
-	err := tx.Raw(query, shop.AdminID, shop.ShopName, shop.OwnerName, shop.AddressLine1,
+	err = tx.Raw(query, shop.AdminID, shop.ShopName, shop.OwnerName, shop.AddressLine1,
 		shop.AddressLine2, shop.Email, shop.Phone, shop.City, shop.State, shop.Country, shop.Pincode, shop.Latitude, shop.Longitude,
-		shop.BankAccountNumber, shop.ShopType, shop.ShopStatus, shop.BankIFSC, shop.PanNumber, shop.ITRDocuments, shop.Document_Type, shop.Document_Value,
+		encBankAccount, shop.ShopType, shop.ShopStatus, encBankIFSC, encPAN, encITR, shop.Document_Type, encDocValue,
 		time.Now(), time.Now()).Scan(&shop.ID).Error
 
 	if err != nil {
@@ -350,13 +434,16 @@ func (c *adminDatabase) GetAllShops(ctx context.Context, pagination request.Pagi
 
 	query := `SELECT sd.*, (EXISTS (SELECT 1 FROM shop_offers so WHERE so.shop_id = sd.id)) as has_offers FROM shop_details sd ORDER BY sd.created_at DESC LIMIT $1 OFFSET $2`
 	err = c.DB.Raw(query, limit, offset).Scan(&shops).Error
-
+	for i := range shops {
+		c.decryptShopPII(&shops[i])
+	}
 	return shops, err
 }
 
 func (c *adminDatabase) GetShopByID(ctx context.Context, shopID uint) (shop domain.ShopDetails, err error) {
 	query := `SELECT sd.*, (EXISTS (SELECT 1 FROM shop_offers so WHERE so.shop_id = sd.id)) as has_offers FROM shop_details sd WHERE sd.id = $1`
 	err = c.DB.Raw(query, shopID).Scan(&shop).Error
+	c.decryptShopPII(&shop)
 	return shop, err
 }
 
@@ -415,6 +502,17 @@ func (c *adminDatabase) UpdateShop(ctx context.Context, shop map[string]interfac
 			columnName = k // fallback: use as-is
 		}
 
+		// Encrypt PII fields at rest before persisting.
+		if shopPIIKeys[k] {
+			if s, ok := v.(string); ok {
+				enc, encErr := c.encrypt(s)
+				if encErr != nil {
+					return nil, encErr
+				}
+				v = enc
+			}
+		}
+
 		setClauses = append(setClauses, fmt.Sprintf("%s = $%d", columnName, paramCount))
 		values = append(values, v)
 		paramCount++
@@ -445,7 +543,7 @@ func (c *adminDatabase) GetShopByOwnerID(ctx context.Context, ownerID uint) (sho
 	if shop.ID == 0 {
 		return shop, gorm.ErrRecordNotFound
 	}
-
+	c.decryptShopPII(&shop)
 	return shop, nil
 }
 
@@ -495,9 +593,12 @@ func (c *adminDatabase) UploadAdminProfileImage(ctx context.Context, adminID str
 }
 
 func (c *adminDatabase) UploadShopDocument(ctx context.Context, shopID uint, documentType string, documentValue string) error {
+	encDocValue, err := c.encrypt(documentValue)
+	if err != nil {
+		return err
+	}
 	query := `UPDATE shop_details SET document_type = $1, document_value = $2, updated_at = $3 WHERE admin_id = $4`
-	err := c.DB.Exec(query, documentType, documentValue, time.Now(), shopID).Error
-	return err
+	return c.DB.Exec(query, documentType, encDocValue, time.Now(), shopID).Error
 }
 
 func (c *adminDatabase) UploadAddress(ctx context.Context, adminId string, address request.AddressRequest) error {
@@ -613,5 +714,9 @@ func (c *adminDatabase) GetShopSocialDetails(ctx context.Context, shopID uint) (
 func (c *adminDatabase) GetAdminByID(ctx context.Context, adminID uint) (domain.Admin, error) {
 	var admin domain.Admin
 	err := c.DB.Raw("SELECT * FROM admins WHERE id = $1", adminID).Scan(&admin).Error
-	return admin, err
+	if err != nil {
+		return admin, err
+	}
+	c.decryptAdminPII(&admin)
+	return admin, nil
 }

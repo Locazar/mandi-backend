@@ -16,6 +16,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/service/ai"
 	"github.com/rohit221990/mandi-backend/pkg/service/alert_engine"
 	"github.com/rohit221990/mandi-backend/pkg/service/cloud"
+	"github.com/rohit221990/mandi-backend/pkg/service/crypto"
 	"github.com/rohit221990/mandi-backend/pkg/service/elasticsearch"
 	"github.com/rohit221990/mandi-backend/pkg/service/graphics"
 	"github.com/rohit221990/mandi-backend/pkg/service/otp"
@@ -33,7 +34,11 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	authRepository := repository.NewAuthRepository(gormDB)
 	tokenService := token.NewTokenService(cfg)
 	userRepository := repository.NewUserRepository(gormDB)
-	adminRepository := repository.NewAdminRepository(gormDB)
+	service, err := provideCryptoService(cfg)
+	if err != nil {
+		return nil, err
+	}
+	adminRepository := repository.NewAdminRepository(gormDB, service)
 	otpAuth := otp.NewOtpAuth(cfg)
 	authUseCase := usecase.NewAuthUseCase(authRepository, tokenService, userRepository, adminRepository, otpAuth)
 	authHandler := handler.NewAuthHandler(authUseCase, cfg, tokenService)
@@ -118,6 +123,14 @@ func provideElasticURL(cfg config.Config) string {
 
 func provideAIServiceClient(cfg config.Config) *ai.Client {
 	return ai.NewClient(cfg.AIServiceURL)
+}
+
+func provideCryptoService(cfg config.Config) (*crypto.Service, error) {
+	keys, err := crypto.ParseKeyring(cfg.PIIEncryptionKeys)
+	if err != nil {
+		return nil, err
+	}
+	return crypto.NewService(keys, cfg.PIIEncryptionActiveKey)
 }
 
 func provideAlertRuleRegistry() *alert_engine.RuleRegistry {

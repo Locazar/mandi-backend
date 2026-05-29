@@ -2,6 +2,74 @@ package domain
 
 import "time"
 
+// AdminStatus is the lifecycle state of an admin/seller account.
+type AdminStatus string
+
+const (
+	AdminStatusActive    AdminStatus = "active"
+	AdminStatusInactive  AdminStatus = "inactive"
+	AdminStatusSuspended AdminStatus = "suspended"
+)
+
+func (s AdminStatus) IsValid() bool {
+	switch s {
+	case AdminStatusActive, AdminStatusInactive, AdminStatusSuspended:
+		return true
+	}
+	return false
+}
+
+// VerificationStatusType is the shop verification review state.
+type VerificationStatusType string
+
+const (
+	VerificationStatusVerified    VerificationStatusType = "verified"
+	VerificationStatusUnverified  VerificationStatusType = "unverified"
+	VerificationStatusUnderReview VerificationStatusType = "under_review"
+)
+
+func (s VerificationStatusType) IsValid() bool {
+	switch s {
+	case VerificationStatusVerified, VerificationStatusUnverified, VerificationStatusUnderReview:
+		return true
+	}
+	return false
+}
+
+// AdvertisementStatus is the lifecycle state of an advertisement.
+type AdvertisementStatus string
+
+const (
+	AdvertisementStatusActive   AdvertisementStatus = "active"
+	AdvertisementStatusInactive AdvertisementStatus = "inactive"
+	AdvertisementStatusExpired  AdvertisementStatus = "expired"
+)
+
+func (s AdvertisementStatus) IsValid() bool {
+	switch s {
+	case AdvertisementStatusActive, AdvertisementStatusInactive, AdvertisementStatusExpired:
+		return true
+	}
+	return false
+}
+
+// AdvertisementPriority is the display priority of an advertisement.
+type AdvertisementPriority string
+
+const (
+	AdvertisementPriorityHigh   AdvertisementPriority = "high"
+	AdvertisementPriorityMedium AdvertisementPriority = "medium"
+	AdvertisementPriorityLow    AdvertisementPriority = "low"
+)
+
+func (p AdvertisementPriority) IsValid() bool {
+	switch p {
+	case AdvertisementPriorityHigh, AdvertisementPriorityMedium, AdvertisementPriorityLow:
+		return true
+	}
+	return false
+}
+
 type Admin struct {
 	ID       uint   `json:"id" gorm:"primaryKey;not null"`
 	AdminID  string `json:"admin_id" gorm:"-"`
@@ -27,19 +95,23 @@ type Admin struct {
 	StartDate     time.Time `json:"start_date" gorm:""`
 	ExpiryDate    time.Time `json:"expiry_date" gorm:""`
 
-	BankAccountNumber string `json:"bank_account_number" gorm:"size:50" binding:"omitempty"`
-	BankIFSC          string `json:"bank_ifsc" gorm:"size:20" binding:"omitempty"`
+	// Encrypted at rest (AES-256-GCM) by the repository; columns hold ciphertext.
+	BankAccountNumber string `json:"bank_account_number" gorm:"type:text" binding:"omitempty"`
+	BankIFSC          string `json:"bank_ifsc" gorm:"type:text" binding:"omitempty"`
+	PAN               string `json:"pan" gorm:"type:text" binding:"omitempty"`
 
-	PAN    string `json:"pan" gorm:"size:20" binding:"omitempty"`
-	Aadhar string `json:"aadhar" gorm:"size:20" binding:"omitempty"`
+	// Aadhaar is minimized per DPDP: the full number is never persisted, only
+	// the last four digits plus a verification flag.
+	AadhaarLast4    string `json:"aadhaar_last4" gorm:"size:4" binding:"omitempty"`
+	AadhaarVerified bool   `json:"aadhaar_verified" gorm:"not null;default:false"`
 
 	AgreeToTerms bool `json:"agree_to_terms" gorm:"size:50"`
 
 	CreatedAt time.Time `json:"created_at" gorm:"not null;autoCreateTime"`
 	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 
-	VerifiedSeller bool   `json:"verified_seller" gorm:"not null;default:false"` // e.g. "yes", "no", "pending"
-	Status         string `json:"status" gorm:"size:50"`                         // e.g. "active", "inactive", "suspended"
+	VerifiedSeller bool        `json:"verified_seller" gorm:"not null;default:false"`
+	Status         AdminStatus `json:"status" gorm:"size:50"`
 }
 
 type ShopVerification struct {
@@ -58,7 +130,7 @@ type ShopVerificationHistory struct {
 	ID                 uint      `json:"id" gorm:"primaryKey;not null"`
 	AdminID            string    `json:"admin_id" gorm:"not null"`
 	ShopID             uint      `json:"shop_id" gorm:"not null"`
-	VerificationStatus string    `json:"verification_status" gorm:"not null"` // e.g. "verified", "unverified", "under_review"
+	VerificationStatus VerificationStatusType `json:"verification_status" gorm:"not null"`
 	Remarks            string    `json:"remarks" gorm:"size:255"`
 	ChangedAt          time.Time `json:"changed_at" gorm:"not null;autoCreateTime"`
 }
@@ -88,8 +160,8 @@ type Advertisement struct {
 	Latitude        float64   `json:"latitude" gorm:"type:decimal(10,7);"`
 	Longitude       float64   `json:"longitude" gorm:"type:decimal(10,7);"`
 	DistanceKM      float64   `json:"distance_km" gorm:"type:decimal(10,2);"`
-	Status          string    `json:"status" gorm:"size:50"`   // e.g. "active", "inactive", "expired"
-	Priority        string    `json:"priority" gorm:"size:20"` // e.g. "high", "medium", "low"
+	Status          AdvertisementStatus   `json:"status" gorm:"size:50"`
+	Priority        AdvertisementPriority `json:"priority" gorm:"size:20"`
 }
 
 type SubTypeAttributes struct {

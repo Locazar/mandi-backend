@@ -30,6 +30,23 @@ const (
 	StripeMaximumAmount               = 50000
 )
 
+func (s OrderStatusType) IsValid() bool {
+	switch s {
+	case StatusPaymentPending, StatusOrderPlaced, StatusOrderCancelled, StatusOrderDelivered,
+		StatusReturnRequested, StatusReturnApproved, StatusReturnCancelled, StatusOrderReturned:
+		return true
+	}
+	return false
+}
+
+func (p PaymentType) IsValid() bool {
+	switch p {
+	case RazopayPayment, CodPayment, StripePayment:
+		return true
+	}
+	return false
+}
+
 type PaymentMethod struct {
 	ID            uint        `json:"id" gorm:"primaryKey;not null"`
 	Name          PaymentType `json:"name" gorm:"unique;not null"`
