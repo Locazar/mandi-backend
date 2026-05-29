@@ -101,7 +101,7 @@ func (c *userDatabase) SaveUser(ctx context.Context, user domain.User) (userID u
 
 func (c *userDatabase) UpdateVerified(ctx context.Context, userID uint) error {
 
-	query := `UPDATE users SET verified = 'T' WHERE id = $1`
+	query := `UPDATE users SET phone_verified = true WHERE id = $1`
 	err := c.DB.Exec(query, userID).Error
 
 	return err
@@ -120,14 +120,14 @@ func (c *userDatabase) UpdateUser(ctx context.Context, user domain.User) (err er
 	updatedAt := time.Now()
 	// check password need to update or not
 	if user.Password != "" {
-		query := `UPDATE users SET first_name = $1, last_name = $2,age = $3, 
+		query := `UPDATE users SET first_name = $1, last_name = $2, date_of_birth = $3,
 		email = $4, phone = $5, password = $6, updated_at = $7 WHERE id = $8`
-		err = c.DB.Exec(query, user.FirstName, user.LastName, user.Age, user.Email,
+		err = c.DB.Exec(query, user.FirstName, user.LastName, user.DateOfBirth, user.Email,
 			user.Phone, user.Password, updatedAt, user.ID).Error
 	} else {
-		query := `UPDATE users SET first_name = $1, last_name = $2,age = $3, 
-		email = $4, phone = $5,  updated_at = $6 WHERE id = $7`
-		err = c.DB.Exec(query, user.FirstName, user.LastName, user.Age, user.Email,
+		query := `UPDATE users SET first_name = $1, last_name = $2, date_of_birth = $3,
+		email = $4, phone = $5, updated_at = $6 WHERE id = $7`
+		err = c.DB.Exec(query, user.FirstName, user.LastName, user.DateOfBirth, user.Email,
 			user.Phone, updatedAt, user.ID).Error
 	}
 

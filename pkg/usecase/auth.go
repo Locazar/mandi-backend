@@ -368,7 +368,7 @@ func (c *authUseCase) UserSignUp(ctx context.Context, signUpDetails domain.User)
 	}
 
 	// if user credentials already exist and  verified then return it as errors
-	if existUser.ID != 0 && existUser.Verified {
+	if existUser.ID != 0 && existUser.PhoneVerified {
 		err = utils.CompareUserExistingDetails(existUser, signUpDetails)
 		err = utils.AppendMessageToError(ErrUserAlreadyExit, err.Error())
 		return "", err

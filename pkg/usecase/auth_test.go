@@ -109,7 +109,7 @@ func TestUserLogin(t *testing.T) {
 			buildStub: func(mockRepo *mockrepo.MockUserRepository, loginDetails request.Login) {
 				hashedPassword, err := utils.GetHashedPassword(loginDetails.Password)
 				assert.NoError(t, err)
-				outputUser := domain.User{ID: 1, Email: loginDetails.Email, Password: hashedPassword, Verified: true}
+				outputUser := domain.User{ID: 1, Email: loginDetails.Email, Password: hashedPassword, EmailVerified: true}
 				mockRepo.EXPECT().FindUserByEmail(gomock.Any(), loginDetails.Email).
 					Times(1).Return(outputUser, nil)
 			},
@@ -169,7 +169,7 @@ func TestUserLogin(t *testing.T) {
 			buildStub: func(mockRepo *mockrepo.MockUserRepository, loginDetails request.Login) {
 				hashedPassword, err := utils.GetHashedPassword(loginDetails.Password)
 				assert.NoError(t, err)
-				outputUser := domain.User{ID: 1, Password: hashedPassword, Verified: true}
+				outputUser := domain.User{ID: 1, Password: hashedPassword, EmailVerified: true}
 				mockRepo.EXPECT().FindUserByPhoneNumber(gomock.Any(), loginDetails.Phone).
 					Times(1).Return(outputUser, nil)
 			},
