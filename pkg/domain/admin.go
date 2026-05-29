@@ -135,13 +135,6 @@ type ShopVerificationHistory struct {
 	ChangedAt          time.Time `json:"changed_at" gorm:"not null;autoCreateTime"`
 }
 
-type AgentDetails struct {
-	ID        uint   `json:"id" gorm:"primaryKey;not null"`
-	FirstName string `json:"first_name" gorm:"size:50" binding:"required"`
-	LastName  string `json:"last_name" gorm:"size:50" binding:"required"`
-	Email     string `json:"email" gorm:"size:100;uniqueIndex" binding:"required,email"`
-	Phone     string `json:"phone" gorm:"size:15;uniqueIndex" binding:"required"`
-}
 
 type Advertisement struct {
 	ID              uint      `json:"id" gorm:"primaryKey;not null"`

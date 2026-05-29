@@ -128,7 +128,6 @@ func ConnectDatabase(cfg config.Config) (*gorm.DB, error) {
 
 		domain.SubTypeAttributes{},
 		domain.SubTypeAttributeOptions{},
-		domain.SubCategoryDetails{},
 		domain.ProductItemView{},
 		domain.ProductItemFilterType{},
 		domain.PromotionsType{},

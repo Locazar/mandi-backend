@@ -114,13 +114,3 @@ type Transaction struct {
 
 // wallet end
 
-// UserOfferHistory tracks user interactions with offers for frequency capping and analytics
-type UserOfferHistory struct {
-	ID            uint      `json:"id" gorm:"primaryKey;not null"`
-	UserID        uint      `json:"user_id" gorm:"not null"`
-	OfferID       uint      `json:"offer_id" gorm:"not null"`
-	EventType     OfferEventType `json:"event_type" gorm:"not null"` // 'shown', 'clicked', 'dismissed', 'applied'
-	ExperimentVariant string `json:"experiment_variant" gorm:"not null"` // 'A', 'B', etc.
-	CreatedAt     time.Time `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt     time.Time `json:"updated_at" gorm:"autoUpdateTime"`
-}
