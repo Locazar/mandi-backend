@@ -29,22 +29,10 @@ type ModerationResponse struct {
 	} `json:"error"`
 }
 
-func CheckNudity(filename string) (bool, error) {
-	// Extract just the filename if full path is provided
-	// e.g., "uploads/products/abc123.jpg" -> "abc123.jpg"
-	justFilename := filepath.Base(filename)
+func CheckNudity(path string) (bool, error) {
+	justFilename := filepath.Base(path)
 
-	// Get the current working directory (server root)
-	wd, err := os.Getwd()
-	if err != nil {
-		return false, fmt.Errorf("failed to get working directory: %w", err)
-	}
-
-	fullPath := filepath.Join(wd, "uploads", "products", filepath.Base(justFilename))
-	fmt.Printf("Checking nudity for file: %s\n", fullPath)
-
-	// Open the file
-	file, err := os.Open(fullPath)
+	file, err := os.Open(path)
 	if err != nil {
 		return false, fmt.Errorf("failed to open file: %w", err)
 	}

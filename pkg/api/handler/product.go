@@ -764,12 +764,8 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 
 		// Validate product image matches category using AI service if available
 		if categoryName != "" {
-			// Get absolute path for validation
-			wd, _ := os.Getwd()
-			absolutePath := filepath.Join(wd, localPath)
-
-			//validationResult, err := p.aiClient.ValidateProduct(absolutePath, categoryName)
-			_, err := p.aiClient.ValidateProduct(absolutePath, categoryName)
+			//validationResult, err := p.aiClient.ValidateProduct(localPath, categoryName)
+			_, err := p.aiClient.ValidateProduct(localPath, categoryName)
 			if err != nil {
 				response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to validate product image", err, nil)
 				return
@@ -2684,11 +2680,7 @@ func (p *ProductHandler) UpdateProductItem(ctx *gin.Context) {
 
 		// Validate product image matches category using AI service if available
 		if categoryName != "" {
-			// Get absolute path for validation
-			wd, _ := os.Getwd()
-			absolutePath := filepath.Join(wd, localPath)
-
-			validationResult, err := p.aiClient.ValidateProduct(absolutePath, categoryName)
+			validationResult, err := p.aiClient.ValidateProduct(localPath, categoryName)
 			if err != nil {
 				response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to validate product image", err, nil)
 				return
@@ -2840,45 +2832,44 @@ func (p *ProductHandler) GetProductItemsByOfferID(ctx *gin.Context) {
 
 }
 
-// uploadProcessedToCloud reads the JPEG produced by handleSecureMagic from disk and
-// pushes it to object storage under the products/ namespace. Returns the bare object
-// key suitable for DB storage. The on-disk file is left in place during the
-// migration window; it becomes orphaned once the StaticFS uploads route is removed
-// in the cleanup phase.
-func uploadProcessedToCloud(ctx context.Context, cs cloud.CloudService, localPath string) (string, error) {
-	wd, err := os.Getwd()
+// uploadProcessedToCloud uploads the processed JPEG at processedPath to object
+// storage under the products/ namespace and removes the temp file. Returns the
+// bare object key suitable for DB storage.
+func uploadProcessedToCloud(ctx context.Context, cs cloud.CloudService, processedPath string) (string, error) {
+	data, err := os.ReadFile(processedPath)
 	if err != nil {
 		return "", err
 	}
-	data, err := os.ReadFile(filepath.Join(wd, localPath))
-	if err != nil {
-		return "", err
-	}
+	defer func() {
+		if rerr := os.Remove(processedPath); rerr != nil && !os.IsNotExist(rerr) {
+			log.Printf("failed to remove temp file %s: %v", processedPath, rerr)
+		}
+	}()
 	return cs.SaveBytes(ctx, data, cloud.SaveOptions{
 		Namespace:   "products",
 		Visibility:  cloud.VisibilityPublic,
 		ContentType: "image/jpeg",
-		Filename:    filepath.Base(localPath),
+		Filename:    filepath.Base(processedPath),
 	})
 }
 
-// handleUpload validates the file header for adult content and security checks
+// handleUpload runs the image-processing pipeline and adult-content moderation.
+// Returns the absolute path to a temp file holding the processed JPEG; the
+// caller is responsible for cleaning it up (uploadProcessedToCloud does so).
 func handleUpload(fileHeader *multipart.FileHeader) (string, error) {
-	// Check for adult content
 	savedPath, err := handleSecureMagic(fileHeader)
 	if err != nil {
 		return "", err
 	}
-	// Check for adult content
 	isAdult, err := utils.CheckNudity(savedPath)
 	if err != nil {
+		_ = os.Remove(savedPath)
 		return "", fmt.Errorf("failed to check nudity: %w", err)
 	}
-
 	if isAdult {
+		_ = os.Remove(savedPath)
 		return "", fmt.Errorf("image contains adult content and cannot be uploaded")
 	}
-
 	return savedPath, nil
 }
 
@@ -2942,19 +2933,8 @@ func handleSecureMagic(fileHeader *multipart.FileHeader) (string, error) {
 	// Light sharpening for product clarity
 	processed = imaging.Sharpen(processed, 0.6)
 
-	// Get the server root directory
-	wd, err := os.Getwd()
-	if err != nil {
-		return "", fmt.Errorf("failed to get working directory: %w", err)
-	}
-
-	// Save processed image directly to uploads/products with a unique filename
-	saveDir := filepath.Join(wd, "uploads", "products")
-	if err := os.MkdirAll(saveDir, 0755); err != nil {
-		return "", fmt.Errorf("failed to create directory: %w", err)
-	}
 	filename := fmt.Sprintf("%s_tweak.jpg", uuid.New().String())
-	savePath := filepath.Join(saveDir, filename)
+	savePath := filepath.Join(os.TempDir(), filename)
 	outFile, err := os.Create(savePath)
 	if err != nil {
 		return "", err
@@ -2964,12 +2944,9 @@ func handleSecureMagic(fileHeader *multipart.FileHeader) (string, error) {
 			log.Printf("failed to close file: %v", cerr)
 		}
 	}()
-	err = imaging.Encode(outFile, processed, imaging.JPEG, imaging.JPEGQuality(20))
-	if err != nil {
+	if err := imaging.Encode(outFile, processed, imaging.JPEG, imaging.JPEGQuality(20)); err != nil {
 		return "", err
 	}
-	// Return the relative path for database storage with forward slashes
-	relativePath := "uploads/products/" + filename
-	return filepath.ToSlash(relativePath), nil
+	return savePath, nil
 }
 

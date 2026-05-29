@@ -806,12 +806,16 @@ func (a *adminHandler) UploadAdminProfileImage(ctx *gin.Context) {
 	}
 
 	fileHeader := req.Image
-	localPath, err := handleUpload(fileHeader)
+	processedPath, err := handleUpload(fileHeader)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to process image", err, nil)
 		return
 	}
-	_ = localPath
+	defer func() {
+		if rerr := os.Remove(processedPath); rerr != nil && !os.IsNotExist(rerr) {
+			log.Printf("failed to remove temp file %s: %v", processedPath, rerr)
+		}
+	}()
 
 	//get token from and send to decode and get the data
 	tokenString := ctx.GetHeader("Authorization")
