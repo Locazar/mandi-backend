@@ -55,7 +55,7 @@ func (suite *NotificationRepositoryTestSuite) TestSaveNotification() {
 	assert.NoError(suite.T(), err)
 }
 
-func (suite *NotificationRepositoryTestSuite) TestGetNotification() {
+func (suite *NotificationRepositoryTestSuite) TestGetNotifications() {
 	// Save a notification first
 	notification := domain.Notification{
 		SenderType:   "user",
@@ -74,8 +74,9 @@ func (suite *NotificationRepositoryTestSuite) TestGetNotification() {
 	err := suite.repo.SaveNotification(context.Background(), notification)
 	assert.NoError(suite.T(), err)
 
-	filter := request.Notification{ReceiverID: 2}
-	notifications, err := suite.repo.GetNotification(context.Background(), filter)
+	filter := request.GetNotification{UserID: 2}
+	pagination := request.Pagination{Limit: 25, Offset: 0}
+	notifications, err := suite.repo.GetNotifications(context.Background(), filter, pagination)
 	assert.NoError(suite.T(), err)
 	assert.Len(suite.T(), notifications, 1)
 	assert.Equal(suite.T(), "Test Notification", notifications[0].Title)
@@ -106,33 +107,35 @@ func (suite *NotificationRepositoryTestSuite) TestMarkNotificationAsRead() {
 	assert.NoError(suite.T(), err)
 }
 
-func (suite *NotificationRepositoryTestSuite) TestGenerateFCMToken() {
-	token := request.NotificationDeviceToken{
+func (suite *NotificationRepositoryTestSuite) TestSaveDeviceToken() {
+	token := domain.NotificationDeviceToken{
 		OwnerID:   "user123",
 		OwnerType: "user",
 		Token:     "fcm_token_123",
 		Platform:  "android",
+		IsActive:  true,
 	}
 
-	err := suite.repo.GenerateFCMToken(context.Background(), token)
+	err := suite.repo.SaveDeviceToken(context.Background(), token)
 	assert.NoError(suite.T(), err)
 }
 
-func (suite *NotificationRepositoryTestSuite) TestGetDeviceTokens() {
-	token := request.NotificationDeviceToken{
+func (suite *NotificationRepositoryTestSuite) TestGetActiveTokensByOwner() {
+	token := domain.NotificationDeviceToken{
 		OwnerID:   "user123",
 		OwnerType: "user",
 		Token:     "fcm_token_123",
 		Platform:  "android",
+		IsActive:  true,
 	}
 
-	err := suite.repo.GenerateFCMToken(context.Background(), token)
+	err := suite.repo.SaveDeviceToken(context.Background(), token)
 	assert.NoError(suite.T(), err)
 
-	tokens, err := suite.repo.GetDeviceTokens(context.Background(), "user123", "user")
+	tokens, err := suite.repo.GetActiveTokensByOwner(context.Background(), "user123", "user")
 	assert.NoError(suite.T(), err)
 	assert.Len(suite.T(), tokens, 1)
-	assert.Equal(suite.T(), "fcm_token_123", tokens[0].Token)
+	assert.Equal(suite.T(), "fcm_token_123", tokens[0])
 }
 
 func TestNotificationRepositoryTestSuite(t *testing.T) {

@@ -30,9 +30,12 @@ func TestUserLogin(t *testing.T) {
 		checkResponse func(t *testing.T, responseRecorder *httptest.ResponseRecorder)
 	}{
 		"EmptyLoginDetailsShouldReturnBadRequestError": {
+			// All Login fields are omitempty so binding succeeds; the usecase
+			// returns ErrEmptyLoginCredentials which the handler maps to 400.
 			loginDetails: request.Login{},
 			buildStub: func(useCaseMock *mockusecase.MockAuthUseCase, loginDetails request.Login) {
-				// not expecting any call to useCase
+				useCaseMock.EXPECT().UserLogin(gomock.Any(), loginDetails).
+					Times(1).Return(uint(0), usecase.ErrEmptyLoginCredentials)
 			},
 			checkResponse: func(t *testing.T, responseRecorder *httptest.ResponseRecorder) {
 				assert.Equal(t, http.StatusBadRequest, responseRecorder.Code)
@@ -55,12 +58,13 @@ func TestUserLogin(t *testing.T) {
 					Times(1).Return(uint(0), usecase.ErrUserNotExist)
 			},
 			checkResponse: func(t *testing.T, responseRecorder *httptest.ResponseRecorder) {
-				assert.Equal(t, http.StatusNotFound, responseRecorder.Code)
+				// ErrUserNotExist is mapped to 401 Unauthorized in handler/errors.go
+				assert.Equal(t, http.StatusUnauthorized, responseRecorder.Code)
 			},
 		},
 
 		"FailedToGenerateAccessTokenShouldReturnInternalServerError": {
-			loginDetails: request.Login{Phone: "userName", Password: "password"},
+			loginDetails: request.Login{Phone: "9999999999", Password: "password"},
 			buildStub: func(useCaseMock *mockusecase.MockAuthUseCase, loginDetails request.Login) {
 				useCaseMock.EXPECT().UserLogin(gomock.Any(), loginDetails).
 					Times(1).Return(uint(1), nil)
@@ -87,7 +91,7 @@ func TestUserLogin(t *testing.T) {
 			},
 		},
 		"SuccessfulLoginShouldSetTokenOnHeaderAndResponse": {
-			loginDetails: request.Login{Phone: "userName", Password: "password"},
+			loginDetails: request.Login{Phone: "8888888888", Password: "password"},
 			buildStub: func(useCaseMock *mockusecase.MockAuthUseCase, loginDetails request.Login) {
 				useCaseMock.EXPECT().UserLogin(gomock.Any(), loginDetails).
 					Times(1).Return(uint(1), nil)
@@ -99,19 +103,14 @@ func TestUserLogin(t *testing.T) {
 
 			checkResponse: func(t *testing.T, responseRecorder *httptest.ResponseRecorder) {
 				assert.Equal(t, http.StatusOK, responseRecorder.Code)
-				//assert.NotEmpty(t, responseRecorder.Header().Get(authorizationType))
-				expectedOutput := response.TokenResponse{
-					AccessToken:  "accessTokenFromGenerateAccessToken",
-					RefreshToken: "refreshTokenFromGenerateRefreshToken",
-				}
-
 				responseStruct, err := getResponseStructFromResponseBody(responseRecorder.Body)
 				assert.NoError(t, err)
-				dataFields := responseStruct.Data.([]interface{})
-				tokenData := dataFields[0].(map[string]interface{})
-
-				assert.Equal(t, expectedOutput.AccessToken, tokenData["access_token"])
-				assert.Equal(t, expectedOutput.RefreshToken, tokenData["refresh_token"])
+				// SuccessResponse with a single data arg marshals it directly (not
+				// wrapped in an array), so Data is map[string]interface{}.
+				tokenData, ok := responseStruct.Data.(map[string]interface{})
+				assert.True(t, ok, "expected Data to be map[string]interface{}")
+				assert.Equal(t, "accessTokenFromGenerateAccessToken", tokenData["access_token"])
+				assert.Equal(t, "refreshTokenFromGenerateRefreshToken", tokenData["refresh_token"])
 			},
 		},
 	}
@@ -202,8 +201,10 @@ func TestUserRenewRefreshToken(t *testing.T) {
 				responseStruct, err := getResponseStructFromResponseBody(responseRecorder.Body)
 				assert.NoError(t, err)
 
-				dataFields := responseStruct.Data.([]interface{})
-				tokenField := dataFields[0].(map[string]interface{})
+				// SuccessResponse with a single data arg returns the object directly
+				// (not wrapped in an array), so Data is map[string]interface{}.
+				tokenField, ok := responseStruct.Data.(map[string]interface{})
+				assert.True(t, ok, "expected Data to be map[string]interface{}")
 
 				jsonData, err := json.Marshal(tokenField)
 				assert.NoError(t, err)

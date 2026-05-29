@@ -16,7 +16,7 @@ import (
 // mockFcmTokenRepo implements interfaces.FcmTokenRepository.
 type mockFcmTokenRepo struct {
 	saveFn          func(domain.FcmToken) (domain.FcmToken, error)
-	upsertFn        func(token, ownerID, ownerType, platform string) error
+	upsertFn        func(token, ownerID, ownerType, platform, shopID, adminID string) error
 	upsertCalled    bool
 	upsertToken     string
 	upsertOwnerID   string
@@ -27,13 +27,13 @@ func (m *mockFcmTokenRepo) SaveFcmToken(f domain.FcmToken) (domain.FcmToken, err
 	return m.saveFn(f)
 }
 
-func (m *mockFcmTokenRepo) UpsertDeviceToken(token, ownerID, ownerType, platform string) error {
+func (m *mockFcmTokenRepo) UpsertDeviceToken(token, ownerID, ownerType, platform, shopID, adminID string) error {
 	m.upsertCalled = true
 	m.upsertToken = token
 	m.upsertOwnerID = ownerID
 	m.upsertOwnerType = ownerType
 	if m.upsertFn != nil {
-		return m.upsertFn(token, ownerID, ownerType, platform)
+		return m.upsertFn(token, ownerID, ownerType, platform, shopID, adminID)
 	}
 	return nil
 }
