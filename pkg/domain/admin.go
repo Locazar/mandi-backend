@@ -1,6 +1,10 @@
 package domain
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 // AdminStatus is the lifecycle state of an admin/seller account.
 type AdminStatus string
@@ -112,6 +116,8 @@ type Admin struct {
 
 	VerifiedSeller bool        `json:"verified_seller" gorm:"not null;default:false"`
 	Status         AdminStatus `json:"status" gorm:"size:50"`
+
+	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
 }
 
 type ShopVerification struct {
@@ -127,43 +133,42 @@ type ShopVerification struct {
 }
 
 type ShopVerificationHistory struct {
-	ID                 uint      `json:"id" gorm:"primaryKey;not null"`
-	AdminID            string    `json:"admin_id" gorm:"not null"`
-	ShopID             uint      `json:"shop_id" gorm:"not null"`
+	ID                 uint                   `json:"id" gorm:"primaryKey;not null"`
+	AdminID            string                 `json:"admin_id" gorm:"not null"`
+	ShopID             uint                   `json:"shop_id" gorm:"not null"`
 	VerificationStatus VerificationStatusType `json:"verification_status" gorm:"not null"`
-	Remarks            string    `json:"remarks" gorm:"size:255"`
-	ChangedAt          time.Time `json:"changed_at" gorm:"not null;autoCreateTime"`
+	Remarks            string                 `json:"remarks" gorm:"size:255"`
+	ChangedAt          time.Time              `json:"changed_at" gorm:"not null;autoCreateTime"`
 }
 
-
 type Advertisement struct {
-	ID              uint      `json:"id" gorm:"primaryKey;not null"`
-	Title           string    `json:"title" gorm:"size:100" binding:"required"`
-	Content         string    `json:"content" gorm:"type:text" binding:"required"`
-	ImageURL        string    `json:"image_url" gorm:"size:255" binding:"omitempty"`
-	TargetURL       string    `json:"target_url" gorm:"size:255" binding:"omitempty"`
-	StartDate       time.Time `json:"start_date" gorm:"not null" binding:"required"`
-	EndDate         time.Time `json:"end_date" gorm:"not null" binding:"required"`
-	CreatedAt       time.Time `json:"created_at" gorm:"not null;autoCreateTime"`
-	UpdatedAt       time.Time `json:"updated_at" gorm:"autoUpdateTime"`
-	CreatedByAdmin  uint      `json:"created_by_admin" gorm:"not null"`
-	AdminID         string    `json:"admin_id" gorm:"not null"`
-	AreaTargeted    string    `json:"area_targeted" gorm:"size:255" binding:"omitempty"`
-	PincodeTargeted string    `json:"pincode_targeted" gorm:"size:20" binding:"omitempty"`
-	Latitude        float64   `json:"latitude" gorm:"type:decimal(10,7);"`
-	Longitude       float64   `json:"longitude" gorm:"type:decimal(10,7);"`
-	DistanceKM      float64   `json:"distance_km" gorm:"type:decimal(10,2);"`
+	ID              uint                  `json:"id" gorm:"primaryKey;not null"`
+	Title           string                `json:"title" gorm:"size:100" binding:"required"`
+	Content         string                `json:"content" gorm:"type:text" binding:"required"`
+	ImageURL        string                `json:"image_url" gorm:"size:255" binding:"omitempty"`
+	TargetURL       string                `json:"target_url" gorm:"size:255" binding:"omitempty"`
+	StartDate       time.Time             `json:"start_date" gorm:"not null" binding:"required"`
+	EndDate         time.Time             `json:"end_date" gorm:"not null" binding:"required"`
+	CreatedAt       time.Time             `json:"created_at" gorm:"not null;autoCreateTime"`
+	UpdatedAt       time.Time             `json:"updated_at" gorm:"autoUpdateTime"`
+	CreatedByAdmin  uint                  `json:"created_by_admin" gorm:"not null"`
+	AdminID         string                `json:"admin_id" gorm:"not null"`
+	AreaTargeted    string                `json:"area_targeted" gorm:"size:255" binding:"omitempty"`
+	PincodeTargeted string                `json:"pincode_targeted" gorm:"size:20" binding:"omitempty"`
+	Latitude        float64               `json:"latitude" gorm:"type:decimal(10,7);"`
+	Longitude       float64               `json:"longitude" gorm:"type:decimal(10,7);"`
+	DistanceKM      float64               `json:"distance_km" gorm:"type:decimal(10,2);"`
 	Status          AdvertisementStatus   `json:"status" gorm:"size:50"`
 	Priority        AdvertisementPriority `json:"priority" gorm:"size:20"`
 }
 
 type SubTypeAttributes struct {
-	ID            uint   `json:"id" gorm:"primaryKey;not null"`
-	SubCategoryID uint   `json:"sub_category_id" gorm:"not null" binding:"required,numeric"`
-	FieldName     string `json:"field_name" gorm:"size:50" binding:"required"`
+	ID            uint      `json:"id" gorm:"primaryKey;not null"`
+	SubCategoryID uint      `json:"sub_category_id" gorm:"not null" binding:"required,numeric"`
+	FieldName     string    `json:"field_name" gorm:"size:50" binding:"required"`
 	FieldType     FieldType `json:"field_type" gorm:"size:20" binding:"required"` // dropdown, number, text
-	IsRequired    bool   `json:"is_required" gorm:"not null;default:true"`
-	SortOrder     int    `json:"sort_order" gorm:"not null;default:0"`
+	IsRequired    bool      `json:"is_required" gorm:"not null;default:true"`
+	SortOrder     int       `json:"sort_order" gorm:"not null;default:0"`
 }
 type SubTypeAttributeOptions struct {
 	ID                 uint `json:"id" gorm:"primaryKey;not null"`

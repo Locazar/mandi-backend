@@ -1,11 +1,15 @@
 package domain
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 type ShopDetails struct {
-	ID     uint   `json:"id" gorm:"primaryKey;"`
-	ShopID string `json:"shop_id" gorm:"-"`
-	AdminID uint   `json:"admin_id" gorm:";uniqueIndex"`
+	ID        uint   `json:"id" gorm:"primaryKey;"`
+	ShopID    string `json:"shop_id" gorm:"-"`
+	AdminID   uint   `json:"admin_id" gorm:";uniqueIndex"`
 	ShopName  string `json:"shop_name" gorm:"size:100;"`
 	OwnerName string `json:"owner_name" gorm:"size:100;"`
 	Email     string `json:"email" gorm:"size:100;"`
@@ -20,12 +24,12 @@ type ShopDetails struct {
 	Latitude     float64 `json:"latitude" gorm:"type:decimal(10,7);"`
 	Longitude    float64 `json:"longitude" gorm:"type:decimal(10,7);"`
 
-	ShopDescription      string `json:"shop_description" gorm:"type:text" binding:"omitempty"`
-	ShopVerificationDocs string `json:"shop_verification_docs" gorm:"type:text;" binding:"omitempty"`
+	ShopDescription      string           `json:"shop_description" gorm:"type:text" binding:"omitempty"`
+	ShopVerificationDocs string           `json:"shop_verification_docs" gorm:"type:text;" binding:"omitempty"`
 	Document_Type        ShopDocumentType `json:"document_type" gorm:"size:50" binding:"omitempty"`
-	Document_Value       string `json:"document_value" gorm:"type:text" binding:"omitempty"`
-	PanNumber            string `json:"pan_number" gorm:"type:text" binding:"omitempty"`         // encrypted at rest
-	ITRDocuments         string `json:"itr_documents" gorm:"type:text" binding:"omitempty"`     // encrypted at rest
+	Document_Value       string           `json:"document_value" gorm:"type:text" binding:"omitempty"`
+	PanNumber            string           `json:"pan_number" gorm:"type:text" binding:"omitempty"`    // encrypted at rest
+	ITRDocuments         string           `json:"itr_documents" gorm:"type:text" binding:"omitempty"` // encrypted at rest
 
 	ShopType   ShopType       `json:"shop_type" gorm:"size:50" binding:"omitempty"`
 	ShopStatus ShopStatusType `json:"shop_status" gorm:"size:50" binding:"omitempty"`
@@ -44,8 +48,9 @@ type ShopDetails struct {
 	Offers    []Offer `json:"offers" gorm:"many2many:shop_offers;"`
 	HasOffers bool    `json:"has_offers" gorm:"column:has_offers"`
 
-	CreatedAt time.Time `json:"created_at" gorm:";autoCreateTime"`
-	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+	CreatedAt time.Time      `json:"created_at" gorm:";autoCreateTime"`
+	UpdatedAt time.Time      `json:"updated_at" gorm:"autoUpdateTime"`
+	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
 }
 
 type ShopOffer struct {
@@ -60,14 +65,14 @@ type ShopOffer struct {
 }
 
 type ShopDepartment struct {
-	ID           uint      `json:"id" gorm:"primaryKey"`
-	AdminID      uint      `json:"admin_id" gorm:"not null;index"`
-	ShopID       uint      `json:"shop_id" gorm:"not null;index;uniqueIndex:idx_shop_department"`
-	DepartmentID uint      `json:"department_id" gorm:"not null;uniqueIndex:idx_shop_department"`
-	CategoryID   uint      `json:"category_id" gorm:"not null;uniqueIndex:idx_shop_department"`
+	ID            uint      `json:"id" gorm:"primaryKey"`
+	AdminID       uint      `json:"admin_id" gorm:"not null;index"`
+	ShopID        uint      `json:"shop_id" gorm:"not null;index;uniqueIndex:idx_shop_department"`
+	DepartmentID  uint      `json:"department_id" gorm:"not null;uniqueIndex:idx_shop_department"`
+	CategoryID    uint      `json:"category_id" gorm:"not null;uniqueIndex:idx_shop_department"`
 	SubCategoryID uint      `json:"sub_category_id" gorm:"not null;uniqueIndex:idx_shop_department"`
-	CreatedAt    time.Time `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt    time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+	CreatedAt     time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt     time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }
 
 // TableName specifies the table name for ShopDepartment

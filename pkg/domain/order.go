@@ -2,6 +2,8 @@ package domain
 
 import (
 	"time"
+
+	"gorm.io/gorm"
 )
 
 // for defining ENUM stasues
@@ -69,6 +71,8 @@ type ShopOrder struct {
 	PaymentMethodID uint            `json:"payment_method_id"`
 	PaymentMethod   PaymentMethod   `json:"-"`
 	ShopID          uint            `json:"shop_id"`
+
+	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
 }
 
 type OrderLine struct {
@@ -93,4 +97,3 @@ type OrderReturn struct {
 	ApprovalDate time.Time `json:"approval_date"`
 	AdminComment string    `json:"admin_comment"`
 }
-
