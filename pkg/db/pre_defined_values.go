@@ -52,21 +52,21 @@ func savePaymentMethods(db *gorm.DB) error {
 	paymentMethods := []domain.PaymentMethod{
 		{
 			Name:          domain.CodPayment,
-			MaximumAmount: domain.CodMaximumAmount,
+			MaximumAmount: domain.INR(domain.CodMaximumAmount),
 		},
 		{
 			Name:          domain.RazopayPayment,
-			MaximumAmount: domain.RazorPayMaximumAmount,
+			MaximumAmount: domain.INR(domain.RazorPayMaximumAmount),
 		},
 		{
 			Name:          domain.StripePayment,
-			MaximumAmount: domain.StripeMaximumAmount,
+			MaximumAmount: domain.INR(domain.StripeMaximumAmount),
 		},
 	}
 
 	var (
 		searchQuery = `SELECT CASE WHEN id != 0 THEN 'T' ELSE 'F' END as exist FROM payment_methods WHERE name = $1`
-		insertQuery = `INSERT INTO payment_methods (name, maximum_amount) VALUES ($1, $2)`
+		insertQuery = `INSERT INTO payment_methods (name, maximum_amount_amount_minor, maximum_amount_currency) VALUES ($1, $2, $3)`
 		exist       bool
 		err         error
 	)
@@ -78,7 +78,8 @@ func savePaymentMethods(db *gorm.DB) error {
 			return fmt.Errorf("failed to check payment methods already exist %w", err)
 		}
 		if !exist {
-			err = db.Exec(insertQuery, paymentMethod.Name, paymentMethod.MaximumAmount).Error
+			err = db.Exec(insertQuery, paymentMethod.Name,
+				paymentMethod.MaximumAmount.AmountMinor, paymentMethod.MaximumAmount.Currency).Error
 			if err != nil {
 				return fmt.Errorf("failed to save payment method %w", err)
 			}

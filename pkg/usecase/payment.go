@@ -80,7 +80,7 @@ func (c *paymentUseCase) MakeRazorpayOrder(ctx context.Context, userID, shopOrde
 	}
 
 	// check order total reached the payment method max amount
-	if shopOrder.OrderTotalPrice > payment.MaximumAmount {
+	if shopOrder.OrderTotal.AmountMinor > payment.MaximumAmount.AmountMinor {
 		return response.RazorpayOrder{}, ErrPaymentAmountReachedMax
 	}
 
@@ -91,7 +91,7 @@ func (c *paymentUseCase) MakeRazorpayOrder(ctx context.Context, userID, shopOrde
 	}
 
 	//razorpay amount is calculate on pisa for india so make the actual price into paisa
-	razorPayAmount := shopOrder.OrderTotalPrice * 100
+	razorPayAmount := uint(shopOrder.OrderTotal.AmountMinor) * 100
 
 	razorpayKey := c.config.RazorPayKey
 	razorpaySecret := c.config.RazorPaySecret
@@ -113,7 +113,7 @@ func (c *paymentUseCase) MakeRazorpayOrder(ctx context.Context, userID, shopOrde
 
 	razorPayOrder := response.RazorpayOrder{
 		ShopOrderID:     shopOrderID,
-		AmountToPay:     shopOrder.OrderTotalPrice,
+		AmountToPay:     uint(shopOrder.OrderTotal.AmountMinor),
 		RazorpayAmount:  razorPayAmount,
 		RazorpayKey:     razorpayKey,
 		RazorpayOrderID: razorpayOrderID,
@@ -180,7 +180,7 @@ func (c *paymentUseCase) MakeStripeOrder(ctx context.Context, userID, shopOrderI
 	}
 
 	// check order total reached the payment method max amount
-	if shopOrder.OrderTotalPrice > payment.MaximumAmount {
+	if shopOrder.OrderTotal.AmountMinor > payment.MaximumAmount.AmountMinor {
 		return response.StripeOrder{}, ErrPaymentAmountReachedMax
 	}
 
@@ -194,7 +194,7 @@ func (c *paymentUseCase) MakeStripeOrder(ctx context.Context, userID, shopOrderI
 	// create a payment param
 	params := &stripe.PaymentIntentParams{
 
-		Amount:       stripe.Int64(int64(shopOrder.OrderTotalPrice)),
+		Amount:       stripe.Int64(shopOrder.OrderTotal.AmountMinor),
 		ReceiptEmail: stripe.String(userDetails.Email),
 
 		Currency: stripe.String(string(stripe.CurrencyINR)),
@@ -215,7 +215,7 @@ func (c *paymentUseCase) MakeStripeOrder(ctx context.Context, userID, shopOrderI
 
 	stripeOrder := response.StripeOrder{
 		ShopOrderID:    shopOrderID,
-		AmountToPay:    shopOrder.OrderTotalPrice,
+		AmountToPay:    uint(shopOrder.OrderTotal.AmountMinor),
 		ClientSecret:   clientSecret,
 		PublishableKey: stripePublishKey,
 	}

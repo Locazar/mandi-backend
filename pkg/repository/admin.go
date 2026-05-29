@@ -221,11 +221,12 @@ func (c *adminDatabase) CreateFullSalesReport(ctc context.Context, salesReq requ
 	limit := salesReq.Pagination.Limit
 	offset := salesReq.Pagination.Offset
 
-	query := `SELECT u.first_name, u.email,  so.id AS shop_order_id, so.user_id, so.order_date, 
-	so.order_total_price, so.discount, os.status AS order_status, pm.payment_type FROM shop_orders so
-	INNER JOIN order_statuses os ON so.order_status_id = os.id 
-	INNER JOIN  payment_methods pm ON so.payment_method_id = pm.id 
-	INNER JOIN users u ON so.user_id = u.id 
+	query := `SELECT u.first_name, u.email,  so.id AS shop_order_id, so.user_id, so.order_date,
+	so.order_total_amount_minor AS order_total_price, so.discount_amount_minor AS discount,
+	os.status AS order_status, pm.payment_type FROM shop_orders so
+	INNER JOIN order_statuses os ON so.order_status_id = os.id
+	INNER JOIN  payment_methods pm ON so.payment_method_id = pm.id
+	INNER JOIN users u ON so.user_id = u.id
 	WHERE order_date >= $1 AND order_date <= $2
 	ORDER BY so.order_date LIMIT  $3 OFFSET $4`
 

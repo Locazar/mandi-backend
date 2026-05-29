@@ -52,12 +52,13 @@ func (c *OrderDatabase) FindAllShopOrdersByUserID(ctx context.Context, userID ui
 	limit := pagination.Limit
 	offset := pagination.Offset
 
-	query := `SELECT so.user_id, so.id AS shop_order_id, so.order_date, so.order_total_price, so.discount, 
-	so.order_status_id, os.status AS order_status,so.address_id, so.payment_method_id, pm.name AS payment_method_name  
-	FROM shop_orders so 
-	INNER JOIN order_statuses os ON so.order_status_id = os.id 
-	INNER JOIN payment_methods pm ON pm.id = so.payment_method_id 
-	WHERE user_id = $1 
+	query := `SELECT so.user_id, so.id AS shop_order_id, so.order_date,
+	so.order_total_amount_minor AS order_total_price, so.discount_amount_minor AS discount,
+	so.order_status_id, os.status AS order_status,so.address_id, so.payment_method_id, pm.name AS payment_method_name
+	FROM shop_orders so
+	INNER JOIN order_statuses os ON so.order_status_id = os.id
+	INNER JOIN payment_methods pm ON pm.id = so.payment_method_id
+	WHERE user_id = $1
 	ORDER BY order_date DESC LIMIT $2 OFFSET  $3`
 	err = c.DB.Raw(query, userID, limit, offset).Scan(&shopOrders).Error
 
@@ -71,11 +72,12 @@ func (c *OrderDatabase) FindAllShopOrders(ctx context.Context,
 	limit := pagination.Limit
 	offset := pagination.Offset
 
-	query := `SELECT so.user_id, so.id AS shop_order_id, so.order_date, so.order_total_price, so.discount, 
-	so.order_status_id, os.status AS order_status, so.address_id, so.payment_method_id, pm.name AS payment_method_name   
-	FROM shop_orders so 
-	INNER JOIN order_statuses os ON so.order_status_id = os.id 
-	INNER JOIN payment_methods pm ON so.payment_method_id = pm.id 
+	query := `SELECT so.user_id, so.id AS shop_order_id, so.order_date,
+	so.order_total_amount_minor AS order_total_price, so.discount_amount_minor AS discount,
+	so.order_status_id, os.status AS order_status, so.address_id, so.payment_method_id, pm.name AS payment_method_name
+	FROM shop_orders so
+	INNER JOIN order_statuses os ON so.order_status_id = os.id
+	INNER JOIN payment_methods pm ON so.payment_method_id = pm.id
 	ORDER BY so.order_date DESC LIMIT $1 OFFSET $2`
 
 	err = c.DB.Raw(query, limit, offset).Scan(&shopOrders).Error
@@ -90,13 +92,14 @@ func (c *OrderDatabase) FindAllOrdersItemsByShopOrderID(ctx context.Context,
 	limit := pagination.Limit
 	offset := pagination.Offset
 
-	query := `SELECT ol.product_item_id, p.name AS product_name, p.image, ol.price, so.order_date, os.status,ol.qty, 
-	(ol.price * ol.qty) AS sub_total FROM  order_lines ol 
-	INNER JOIN shop_orders so ON ol.shop_order_id = so.id 
+	query := `SELECT ol.product_item_id, p.name AS product_name, p.image,
+	ol.price_amount_minor AS price, so.order_date, os.status,ol.qty,
+	(ol.price_amount_minor * ol.qty) AS sub_total FROM  order_lines ol
+	INNER JOIN shop_orders so ON ol.shop_order_id = so.id
 	INNER JOIN product_items pi ON ol.product_item_id = pi.id
-	INNER JOIN products p ON pi.product_id = p.id 
-	INNER JOIN order_statuses os ON so.order_status_id = os.id 
-	AND ol.shop_order_id = $1 
+	INNER JOIN products p ON pi.product_id = p.id
+	INNER JOIN order_statuses os ON so.order_status_id = os.id
+	AND ol.shop_order_id = $1
 	ORDER BY ol.qty DESC LIMIT $2 OFFSET $3`
 
 	err = c.DB.Raw(query, shopOrderID, limit, offset).Scan(&orderItems).Error
@@ -109,12 +112,15 @@ func (c *OrderDatabase) FindAllOrdersItemsByShopOrderID(ctx context.Context,
 func (c *OrderDatabase) SaveShopOrder(ctx context.Context, shopOrder domain.ShopOrder) (shopOrderID uint, err error) {
 
 	// save the shop_order
-	query := `INSERT INTO shop_orders (user_id, address_id, order_total_price, discount, 
-	order_status_id, order_date) 
-	VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`
+	query := `INSERT INTO shop_orders (user_id, address_id,
+	order_total_amount_minor, order_total_currency, discount_amount_minor, discount_currency,
+	order_status_id, order_date)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`
 
 	orderDate := time.Now()
-	err = c.DB.Raw(query, shopOrder.UserID, shopOrder.AddressID, shopOrder.OrderTotalPrice, shopOrder.Discount,
+	err = c.DB.Raw(query, shopOrder.UserID, shopOrder.AddressID,
+		shopOrder.OrderTotal.AmountMinor, shopOrder.OrderTotal.Currency,
+		shopOrder.Discount.AmountMinor, shopOrder.Discount.Currency,
 		shopOrder.OrderStatusID, orderDate).Scan(&shopOrderID).Error
 
 	return shopOrderID, err
@@ -122,9 +128,10 @@ func (c *OrderDatabase) SaveShopOrder(ctx context.Context, shopOrder domain.Shop
 
 func (c *OrderDatabase) SaveOrderLine(ctx context.Context, orderLine domain.OrderLine) error {
 
-	query := `INSERT INTO order_lines (product_item_id, shop_order_id, qty, price) 
-	VALUES ($1, $2, $3, $4)`
-	err := c.DB.Exec(query, orderLine.ProductItemID, orderLine.ShopOrderID, orderLine.Qty, orderLine.Price).Error
+	query := `INSERT INTO order_lines (product_item_id, shop_order_id, qty, price_amount_minor, price_currency)
+	VALUES ($1, $2, $3, $4, $5)`
+	err := c.DB.Exec(query, orderLine.ProductItemID, orderLine.ShopOrderID, orderLine.Qty,
+		orderLine.Price.AmountMinor, orderLine.Price.Currency).Error
 
 	return err
 }
@@ -206,12 +213,12 @@ func (c *OrderDatabase) FindAllOrderReturns(ctx context.Context,
 	limit := pagination.Limit
 	offset := pagination.Offset
 
-	query := `SELECT ors.id AS order_return_id, ors.shop_order_id, ors.request_date, ors.return_reason, 
-		os.id AS order_status_id, os.status AS order_status,ors.refund_amount, 
-		ors.admin_comment, ors.is_approved, ors.approval_date, ors.return_date 
-		FROM order_returns ors 
-		INNER JOIN shop_orders so ON ors.shop_order_id =  so.id 
-		INNER JOIN order_statuses os ON so.order_status_id = os.id 
+	query := `SELECT ors.id AS order_return_id, ors.shop_order_id, ors.request_date, ors.return_reason,
+		os.id AS order_status_id, os.status AS order_status, ors.refund_amount_amount_minor AS refund_amount,
+		ors.admin_comment, ors.is_approved, ors.approval_date, ors.return_date
+		FROM order_returns ors
+		INNER JOIN shop_orders so ON ors.shop_order_id =  so.id
+		INNER JOIN order_statuses os ON so.order_status_id = os.id
 		ORDER BY ors.request_date LIMIT $1 OFFSET $2`
 	err = c.DB.Raw(query, limit, offset).Scan(&orderReturns).Error
 
@@ -231,12 +238,12 @@ func (c *OrderDatabase) FindAllPendingOrderReturns(ctx context.Context,
 		return nil, err
 	}
 
-	query := `SELECT ors.id AS order_return_id, ors.shop_order_id, ors.request_date, ors.return_reason, 
-	os.id AS order_status_id, os.status AS order_status,ors.refund_amount  
-	FROM order_returns ors 
-	INNER JOIN shop_orders so ON ors.shop_order_id =  so.id 
-	INNER JOIN order_statuses os ON so.order_status_id = os.id 
-	WHERE so.order_status_id = $1 OR so.order_status_id = $2 
+	query := `SELECT ors.id AS order_return_id, ors.shop_order_id, ors.request_date, ors.return_reason,
+	os.id AS order_status_id, os.status AS order_status, ors.refund_amount_amount_minor AS refund_amount
+	FROM order_returns ors
+	INNER JOIN shop_orders so ON ors.shop_order_id =  so.id
+	INNER JOIN order_statuses os ON so.order_status_id = os.id
+	WHERE so.order_status_id = $1 OR so.order_status_id = $2
 	ORDER BY ors.request_date DESC LIMIT $3 OFFSET $4`
 	err = c.DB.Raw(query, returnRequested.ID, returnApproved.ID, limit, offset).Scan(&pendingReturns).Error
 
@@ -246,10 +253,10 @@ func (c *OrderDatabase) FindAllPendingOrderReturns(ctx context.Context,
 // to save a return request
 func (c *OrderDatabase) SaveOrderReturn(ctx context.Context, orderReturn domain.OrderReturn) error {
 
-	query := `INSERT INTO order_returns (shop_order_id,return_reason,request_date,refund_amount,is_approved) 
-	VALUES($1,$2,$3,$4,$5)`
+	query := `INSERT INTO order_returns (shop_order_id,return_reason,request_date,refund_amount_amount_minor,refund_amount_currency,is_approved)
+	VALUES($1,$2,$3,$4,$5,$6)`
 	err := c.DB.Exec(query, orderReturn.ShopOrderID, orderReturn.ReturnReason,
-		orderReturn.RequestDate, orderReturn.RefundAmount, false).Error
+		orderReturn.RequestDate, orderReturn.RefundAmount.AmountMinor, orderReturn.RefundAmount.Currency, false).Error
 
 	return err
 }

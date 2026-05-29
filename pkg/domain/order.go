@@ -51,7 +51,7 @@ type PaymentMethod struct {
 	ID            uint        `json:"id" gorm:"primaryKey;not null"`
 	Name          PaymentType `json:"name" gorm:"unique;not null"`
 	BlockStatus   bool        `json:"block_status" gorm:"not null;default:false"`
-	MaximumAmount uint        `json:"maximum_amount" gorm:"not null"`
+	MaximumAmount Money       `json:"maximum_amount" gorm:"embedded;embeddedPrefix:maximum_amount_"`
 }
 
 type OrderStatus struct {
@@ -65,8 +65,8 @@ type ShopOrder struct {
 	OrderDate       time.Time     `json:"order_date" gorm:"not null"`
 	AddressID       uint          `json:"address_id" gorm:"not null"`
 	Address         Address       `json:"-"`
-	OrderTotalPrice uint          `json:"order_total_price" gorm:"not null"`
-	Discount        uint          `json:"discount" gorm:"not null"`
+	OrderTotal      Money         `json:"order_total" gorm:"embedded;embeddedPrefix:order_total_"`
+	Discount        Money         `json:"discount" gorm:"embedded;embeddedPrefix:discount_"`
 	OrderStatusID   uint          `json:"order_status_id" gorm:"not null"`
 	OrderStatus     OrderStatus   `json:"-"`
 	PaymentMethodID uint          `json:"payment_method_id"`
@@ -80,7 +80,7 @@ type OrderLine struct {
 	ShopOrderID   uint      `json:"shop_order_id" gorm:"not null"`
 	ShopOrder     ShopOrder `json:"-"`
 	Qty           uint      `json:"qty" gorm:"not null"`
-	Price         uint      `json:"price" gorm:"not null"`
+	Price         Money     `json:"price" gorm:"embedded;embeddedPrefix:price_"`
 }
 
 type OrderReturn struct {
@@ -89,7 +89,7 @@ type OrderReturn struct {
 	ShopOrder    ShopOrder `json:"-"`
 	RequestDate  time.Time `json:"request_date" gorm:"not null"`
 	ReturnReason string    `json:"return_reason" gorm:"not null"`
-	RefundAmount uint      `json:"refund_amount" gorm:"not null"`
+	RefundAmount Money     `json:"refund_amount" gorm:"embedded;embeddedPrefix:refund_amount_"`
 
 	IsApproved   bool      `json:"is_approved"`
 	ReturnDate   time.Time `json:"return_date"`

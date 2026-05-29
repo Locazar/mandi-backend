@@ -72,11 +72,11 @@ func (c *OrderUseCase) SaveOrder(ctx context.Context, userID, addressID uint) (u
 	orderTotal := cart.TotalPrice - cart.DiscountAmount
 
 	shopOrder := domain.ShopOrder{
-		UserID:          userID,
-		AddressID:       addressID,
-		OrderTotalPrice: orderTotal,
-		Discount:        cart.DiscountAmount,
-		OrderStatusID:   pendingOrderStatus.ID,
+		UserID:        userID,
+		AddressID:     addressID,
+		OrderTotal:    domain.INR(int64(orderTotal)),
+		Discount:      domain.INR(int64(cart.DiscountAmount)),
+		OrderStatusID: pendingOrderStatus.ID,
 	}
 
 	err = c.orderRepo.Transaction(func(trxRepo interfaces.OrderRepository) error {
@@ -105,7 +105,7 @@ func (c *OrderUseCase) SaveOrder(ctx context.Context, userID, addressID uint) (u
 				ProductItemID: cartItem.ProductItemId,
 				ShopOrderID:   shopOrder.ID,
 				Qty:           cartItem.Qty,
-				Price:         OrderPrice,
+				Price:         domain.INR(int64(OrderPrice)),
 			}
 			err = trxRepo.SaveOrderLine(ctx, orderLine)
 			if err != nil {
@@ -278,7 +278,7 @@ func (c *OrderUseCase) SubmitReturnRequest(ctx context.Context, returnDetails re
 		ShopOrderID:  returnDetails.ShopOrderID,
 		ReturnReason: returnDetails.ReturnReason,
 		RequestDate:  time.Now(),
-		RefundAmount: shopOrder.OrderTotalPrice,
+		RefundAmount: shopOrder.OrderTotal,
 	}
 
 	err = c.orderRepo.Transaction(func(trxRepo interfaces.OrderRepository) error {
@@ -388,7 +388,7 @@ func (c *OrderUseCase) UpdateReturnDetails(ctx context.Context, updateDetails re
 			}
 
 			// calculate wallet amount and update
-			newWalletTotal := wallet.TotalAmount + shopOrder.OrderTotalPrice
+			newWalletTotal := wallet.TotalAmount + uint(shopOrder.OrderTotal.AmountMinor)
 			err = trxRepo.UpdateWallet(ctx, wallet.ID, newWalletTotal)
 			if err != nil {
 				return fmt.Errorf("failed to update return amount to user wallet \nerror:%v", err.Error())
@@ -399,7 +399,7 @@ func (c *OrderUseCase) UpdateReturnDetails(ctx context.Context, updateDetails re
 				WalletID:        wallet.ID,
 				TransactionDate: time.Now(),
 				TransactionType: domain.Credit,
-				Amount:          shopOrder.OrderTotalPrice,
+				Amount:          uint(shopOrder.OrderTotal.AmountMinor),
 			}
 			err = trxRepo.SaveWalletTransaction(ctx, transaction)
 

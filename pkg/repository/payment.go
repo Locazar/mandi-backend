@@ -48,16 +48,20 @@ func (c *paymentDatabase) FindAllPaymentMethods(ctx context.Context) (paymentMet
 
 func (c *paymentDatabase) SavePaymentMethod(ctx context.Context, paymentMethod domain.PaymentMethod) (paymentMethodID uint, err error) {
 
-	query := `INSERT INTO payment_methods (name, block_status, maximum_amount) VALUES ($1, $2, $3)`
-	err = c.db.Raw(query, paymentMethod.Name, paymentMethod.BlockStatus, paymentMethod.MaximumAmount).Scan(&paymentMethod).Error
+	query := `INSERT INTO payment_methods (name, block_status, maximum_amount_amount_minor, maximum_amount_currency)
+	VALUES ($1, $2, $3, $4) RETURNING id`
+	err = c.db.Raw(query, paymentMethod.Name, paymentMethod.BlockStatus,
+		paymentMethod.MaximumAmount.AmountMinor, paymentMethod.MaximumAmount.Currency).Scan(&paymentMethod).Error
 
 	return paymentMethod.ID, err
 }
 func (c *paymentDatabase) UpdatePaymentMethod(ctx context.Context, paymentMethod request.PaymentMethodUpdate) error {
 
-	query := `UPDATE payment_methods SET  block_status = $1, maximum_amount = $2 WHERE id = $3`
+	query := `UPDATE payment_methods SET  block_status = $1,
+	maximum_amount_amount_minor = $2, maximum_amount_currency = $3 WHERE id = $4`
 
-	err := c.db.Exec(query, paymentMethod.BlockStatus, paymentMethod.MaximumAmount, paymentMethod.ID).Error
+	err := c.db.Exec(query, paymentMethod.BlockStatus,
+		paymentMethod.MaximumAmount, domain.CurrencyINR, paymentMethod.ID).Error
 
 	return err
 }
