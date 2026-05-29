@@ -7,7 +7,7 @@ require (
 	firebase.google.com/go/v4 v4.19.0
 	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/GoogleCloudPlatform/functions-framework-go v1.9.2
-	github.com/aws/aws-sdk-go v1.44.319
+	github.com/aws/aws-sdk-go v1.49.6
 	github.com/aws/aws-sdk-go-v2/config v1.31.19
 	github.com/aws/aws-sdk-go-v2/credentials v1.18.23
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.20.6
@@ -26,6 +26,7 @@ require (
 	github.com/jackc/pgx/v5 v5.7.6
 	github.com/jinzhu/copier v0.3.5
 	github.com/markbates/goth v1.77.0
+	github.com/nrednav/cuid2 v1.1.0
 	github.com/razorpay/razorpay-go v0.0.0-20230410044935-943abe07d4c1
 	github.com/spf13/viper v1.16.0
 	github.com/stretchr/testify v1.11.1
@@ -33,7 +34,6 @@ require (
 	github.com/swaggo/files v1.0.1
 	github.com/swaggo/gin-swagger v1.6.0
 	github.com/swaggo/swag v1.16.1
-	github.com/twilio/twilio-go v1.8.0
 	golang.org/x/crypto v0.40.0
 	google.golang.org/api v0.231.0
 	googlemaps.github.io/maps v1.7.0
@@ -57,7 +57,6 @@ require (
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-jose/go-jose/v4 v4.0.5 // indirect
 	github.com/mattn/go-sqlite3 v1.14.22 // indirect
-	github.com/nrednav/cuid2 v1.1.0 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/spiffe/go-spiffe/v2 v2.5.0 // indirect
 	github.com/zeebo/errs v1.4.0 // indirect
@@ -140,7 +139,6 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
-	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/quic-go/qpack v0.5.1 // indirect
 	github.com/quic-go/quic-go v0.54.0 // indirect
