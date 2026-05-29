@@ -226,7 +226,7 @@ func (c *adminUseCase) GenerateRefreshToken(ctx context.Context, tokenParams ser
 		UserID:       tokenParams.UserID,
 		UserType:     string(tokenParams.UserType),
 		TokenID:      tokenRes.TokenID,
-		RefreshToken: tokenRes.TokenString,
+		RefreshToken: utils.HashRefreshToken(tokenRes.TokenString),
 		ExpireAt:     expireAt.Format(time.RFC3339),
 	})
 	if err != nil {

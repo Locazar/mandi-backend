@@ -319,7 +319,7 @@ func (c *authUseCase) GenerateRefreshToken(ctx context.Context, tokenParams serv
 		UserID:       tokenParams.UserID,
 		TokenID:      tokenRes.TokenID,
 		UserType:     string(tokenReq.UsedFor),
-		RefreshToken: tokenRes.TokenString,
+		RefreshToken: utils.HashRefreshToken(tokenRes.TokenString),
 		ExpireAt:     expireAt.Format(time.RFC3339),
 	})
 	if err != nil {
