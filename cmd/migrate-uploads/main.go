@@ -13,6 +13,7 @@
 //
 // Target columns (app-authoritative per Phase 0 trace):
 //   admins.profile_image_url           -> admin-profiles/
+//   shop_details.shop_image_url        -> admin-profiles/
 //   products.image                     -> products/
 //   product_items.product_item_images  -> products/        (text[] array)
 //   categories.image_url               -> category-images/
@@ -50,6 +51,7 @@ type target struct {
 
 var targets = []target{
 	{table: "admins", column: "profile_image_url", namespace: "admin-profiles"},
+	{table: "shop_details", column: "shop_image_url", namespace: "admin-profiles"},
 	{table: "products", column: "image", namespace: "products"},
 	{table: "product_items", column: "product_item_images", isArray: true, namespace: "products"},
 	{table: "categories", column: "image_url", namespace: "category-images"},
