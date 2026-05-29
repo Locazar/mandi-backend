@@ -37,7 +37,7 @@ type Address struct {
 	Latitude     *float64  `json:"latitude" gorm:"type:decimal(10,7);"`
 	Longitude    *float64  `json:"longitude" gorm:"type:decimal(10,7);"`
 	PhoneNumber  string    `json:"phone_number" gorm:"not null"`
-	AddressType  string    `json:"address_type" gorm:"not null"`
+	AddressType  AddressType `json:"address_type" gorm:"not null"`
 	AddressLine1 string    `json:"address_line1" gorm:"not null"`
 	AddressLine2 string    `json:"address_line2" gorm:"not null"`
 	IsDefault    *bool     `json:"is_default" gorm:"type:boolean"`
@@ -119,7 +119,7 @@ type UserOfferHistory struct {
 	ID            uint      `json:"id" gorm:"primaryKey;not null"`
 	UserID        uint      `json:"user_id" gorm:"not null"`
 	OfferID       uint      `json:"offer_id" gorm:"not null"`
-	EventType     string    `json:"event_type" gorm:"not null"` // 'shown', 'clicked', 'dismissed', 'applied'
+	EventType     OfferEventType `json:"event_type" gorm:"not null"` // 'shown', 'clicked', 'dismissed', 'applied'
 	ExperimentVariant string `json:"experiment_variant" gorm:"not null"` // 'A', 'B', etc.
 	CreatedAt     time.Time `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt     time.Time `json:"updated_at" gorm:"autoUpdateTime"`

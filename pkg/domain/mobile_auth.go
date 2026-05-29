@@ -23,7 +23,7 @@ type OTPRequest struct {
 	ExpiresAt   time.Time `json:"expires_at" gorm:"index;not null"`
 	Attempts    int       `json:"attempts" gorm:"default:0"`
 	MaxAttempts int       `json:"max_attempts" gorm:"default:3"`
-	Status      string    `json:"status" gorm:"index;size:50;default:'active'"` // 'active', 'verified', 'expired', 'blocked'
+	Status      MobileAuthStatus `json:"status" gorm:"index;size:50;default:'active'"` // 'active', 'verified', 'expired', 'blocked'
 	IPAddress   string    `json:"ip_address" gorm:"size:50"`
 	UserAgent   string    `json:"user_agent" gorm:"type:text"`
 	CreatedAt   time.Time `json:"created_at" gorm:"autoCreateTime;index:,sort:desc"`

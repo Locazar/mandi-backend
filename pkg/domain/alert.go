@@ -13,7 +13,7 @@ type Alert struct {
 	Title       string                 `json:"title" gorm:"size:255;not null"`
 	Content     string                 `json:"content" gorm:"type:text"`
 	Description string                 `json:"description" gorm:"type:text"`
-	Type        string                 `json:"type" gorm:"size:50;default:'info'"` // info, warning, critical
+	Type        AlertType              `json:"type" gorm:"size:50;default:'info'"` // info, warning, critical
 	Priority    int                    `json:"priority" gorm:"default:0"`
 	Actions     []AlertAction          `json:"actions" gorm:"foreignKey:AlertID;constraint:OnDelete:CASCADE"`
 	IsActive    bool                   `json:"is_active" gorm:"default:true"`
@@ -32,7 +32,7 @@ type AlertAction struct {
 	AlertID    uint            `json:"alert_id" gorm:"not null"`
 	Label      string          `json:"label" gorm:"size:100;not null"`
 	ActionURL  string          `json:"action_url" gorm:"size:500"`
-	ActionType string          `json:"action_type" gorm:"size:50;not null"` // navigate, api_call, dismiss
+	ActionType AlertActionType `json:"action_type" gorm:"size:50;not null"` // navigate, api_call, dismiss
 	Payload    json.RawMessage `json:"payload" gorm:"type:jsonb;default:'{}'"`
 	CreatedAt  time.Time       `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt  time.Time       `json:"updated_at" gorm:"autoUpdateTime"`
@@ -53,7 +53,7 @@ type AlertTemplate struct {
 	Validity        json.RawMessage `json:"validity" gorm:"type:jsonb"`         // {valid_from, valid_until}
 	Enabled         bool            `json:"enabled" gorm:"default:true"`
 	TemplateType    string          `json:"template_type" gorm:"size:50;default:'announcement'"`
-	DisplayType     string          `json:"display_type" gorm:"size:50;default:'bottom_sheet'"`
+	DisplayType     AlertDisplayType `json:"display_type" gorm:"size:50;default:'bottom_sheet'"`
 	ContentSchema   json.RawMessage `json:"content_schema" gorm:"type:jsonb"`
 	FlowKey         string          `json:"flow_key" gorm:"size:100;index"`
 	CreatedAt       time.Time       `json:"created_at" gorm:"autoCreateTime"`

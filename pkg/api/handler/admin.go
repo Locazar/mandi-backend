@@ -1293,9 +1293,9 @@ func (a *adminHandler) SetShopTime(ctx *gin.Context) {
 
 	log.Printf("Parsed request body: %+v", req)
 
-	status := "close"
+	status := domain.ShopTimeClose
 	if req.Status {
-		status = "open"
+		status = domain.ShopTimeOpen
 	}
 
 	shopTime := domain.ShopTime{

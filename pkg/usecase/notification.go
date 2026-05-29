@@ -132,8 +132,8 @@ func resolveUintField(docData map[string]interface{}, fields ...string) uint {
 func (uc *notificationUseCase) SaveNotification(ctx context.Context, n request.Notification) error {
 	now := time.Now().UTC().Format(time.RFC3339)
 	record := domain.Notification{
-		SenderType:           n.SenderType,
-		ReceiverType:         n.ReceiverType,
+		SenderType:           domain.UserType(n.SenderType),
+		ReceiverType:         domain.UserType(n.ReceiverType),
 		SenderID:             n.SenderID,
 		Title:                n.Title,
 		Message:              n.Message,
@@ -146,7 +146,7 @@ func (uc *notificationUseCase) SaveNotification(ctx context.Context, n request.N
 		OfferID:              n.OfferID,
 		CategoryID:           n.CategoryID,
 		NotificationMetaData: n.NotificationMetaData,
-		Status:               n.Status,
+		Status:               domain.NotificationStatus(n.Status),
 		CreatedAt:            now,
 		UpdatedAt:            now,
 	}

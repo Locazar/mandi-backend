@@ -62,7 +62,7 @@ func (uc *alertTemplateUseCase) CreateTemplate(ctx context.Context, req map[stri
 		t.TemplateType = v
 	}
 	if v, ok := req["display_type"].(string); ok {
-		t.DisplayType = v
+		t.DisplayType = domain.AlertDisplayType(v)
 	}
 	if v, ok := req["flow_key"].(string); ok {
 		t.FlowKey = v
@@ -129,7 +129,7 @@ func (uc *alertTemplateUseCase) UpdateTemplate(ctx context.Context, key string, 
 		t.TemplateType = v
 	}
 	if v, ok := req["display_type"].(string); ok && v != "" {
-		t.DisplayType = v
+		t.DisplayType = domain.AlertDisplayType(v)
 	}
 	if v, ok := req["flow_key"].(string); ok && v != "" {
 		t.FlowKey = v
@@ -259,7 +259,7 @@ func (uc *alertTemplateUseCase) SeedDefaults(ctx context.Context) error {
 			Title:         s.title,
 			Description:   s.description,
 			TemplateType:  s.templateType,
-			DisplayType:   s.displayType,
+			DisplayType:   domain.AlertDisplayType(s.displayType),
 			Type:          s.alertType,
 			Priority:      s.priority,
 			Enabled:       true,

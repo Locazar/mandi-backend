@@ -237,7 +237,7 @@ func (c *authUseCase) AdminSignUpOtpSend(ctx context.Context, phone string) (str
 	otpSession := domain.OtpSession{
 		OtpID:    otpID,
 		Phone:    phone,
-		UserType: string(token.Admin),
+		UserType: domain.UserType(token.Admin),
 		AdminID:  admin.ID,
 		ExpireAt: time.Now().Add(otpExpireDuration),
 	}

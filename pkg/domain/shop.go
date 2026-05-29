@@ -22,13 +22,13 @@ type ShopDetails struct {
 
 	ShopDescription      string `json:"shop_description" gorm:"type:text" binding:"omitempty"`
 	ShopVerificationDocs string `json:"shop_verification_docs" gorm:"type:text;" binding:"omitempty"`
-	Document_Type        string `json:"document_type" gorm:"size:50" binding:"omitempty"`
+	Document_Type        ShopDocumentType `json:"document_type" gorm:"size:50" binding:"omitempty"`
 	Document_Value       string `json:"document_value" gorm:"type:text" binding:"omitempty"`
 	PanNumber            string `json:"pan_number" gorm:"type:text" binding:"omitempty"`         // encrypted at rest
 	ITRDocuments         string `json:"itr_documents" gorm:"type:text" binding:"omitempty"`     // encrypted at rest
 
-	ShopType   string `json:"shop_type" gorm:"size:50" binding:"omitempty"`
-	ShopStatus string `json:"shop_status" gorm:"size:50" binding:"omitempty"`
+	ShopType   ShopType       `json:"shop_type" gorm:"size:50" binding:"omitempty"`
+	ShopStatus ShopStatusType `json:"shop_status" gorm:"size:50" binding:"omitempty"`
 
 	BankAccountNumber string `json:"bank_account_number" gorm:"type:text" binding:"omitempty"` // encrypted at rest
 	BankIFSC          string `json:"bank_ifsc" gorm:"type:text" binding:"omitempty"`           // encrypted at rest

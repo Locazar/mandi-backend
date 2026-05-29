@@ -11,7 +11,7 @@ type Banner struct {
 	Active       bool      `json:"active" gorm:"not null;default:true"`
 	DepartmentID *uint     `json:"department_id" gorm:"index"`
 	CategoryID   *uint     `json:"category_id" gorm:"index"`
-	AppType      string    `json:"app_type" gorm:"size:50"`
+	AppType      BannerAppType `json:"app_type" gorm:"size:50"`
 	Latitude     float64   `json:"latitude" gorm:"type:decimal(10,7);default:0"`
 	Longitude    float64   `json:"longitude" gorm:"type:decimal(10,7);default:0"`
 	Pincode      string    `json:"pincode" gorm:"size:20"`

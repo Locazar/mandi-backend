@@ -165,7 +165,7 @@ func (u *UserHandler) SaveAddress(ctx *gin.Context) {
 	address.Latitude = body.Latitude
 	address.Longitude = body.Longitude
 	address.PhoneNumber = body.PhoneNumber
-	address.AddressType = body.AddressType
+	address.AddressType = domain.AddressType(body.AddressType)
 	address.AddressLine1 = body.AddressLine1
 	address.AddressLine2 = body.AddressLine2
 	address.IsDefault = body.IsDefault

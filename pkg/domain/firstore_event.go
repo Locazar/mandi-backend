@@ -67,7 +67,7 @@ type NotificationPayload struct {
 type NotificationRecipient struct {
 	UserID string   // User identifier
 	Tokens []string // FCM tokens
-	Type   string   // "user" or "admin"
+	Type   FirestoreEventType // "user" or "admin"
 }
 
 // EnquiryStatus represents different enquiry states

@@ -87,7 +87,7 @@ func (r *bannerRepository) GetBannersForUser(ctx context.Context, req request.Ba
 		//   - banners with app_type = "all"
 		//   - banners whose app_type exactly matches the request
 		if req.AppType != "" {
-			if b.AppType != "" && b.AppType != "all" && b.AppType != req.AppType {
+			if b.AppType != "" && b.AppType != "all" && b.AppType != domain.BannerAppType(req.AppType) {
 				continue
 			}
 		}

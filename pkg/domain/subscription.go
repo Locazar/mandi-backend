@@ -26,7 +26,7 @@ type SubscriptionOrder struct {
 	AmountPaise       uint       `json:"amount_paise" gorm:"not null"`
 	RazorpayOrderID   string     `json:"razorpay_order_id" gorm:"uniqueIndex;not null"`
 	RazorpayPaymentID *string    `json:"razorpay_payment_id" gorm:"uniqueIndex"`
-	Status            string     `json:"status" gorm:"not null;default:'created'"`
+	Status            SubscriptionStatus `json:"status" gorm:"not null;default:'created'"`
 	CreatedAt         time.Time  `json:"created_at" gorm:"autoCreateTime"`
 	PaidAt            *time.Time `json:"paid_at"`
 }

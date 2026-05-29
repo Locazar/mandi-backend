@@ -147,7 +147,7 @@ func (c *userUserCase) UpdateAddress(ctx context.Context, addressBody request.Ed
 	address.Latitude = addressBody.Latitude
 	address.Longitude = addressBody.Longitude
 	address.PhoneNumber = addressBody.PhoneNumber
-	address.AddressType = addressBody.AddressType
+	address.AddressType = domain.AddressType(addressBody.AddressType)
 	address.AddressLine1 = addressBody.AddressLine1
 	address.AddressLine2 = addressBody.AddressLine2
 

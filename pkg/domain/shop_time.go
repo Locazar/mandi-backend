@@ -5,7 +5,7 @@ import "time"
 type ShopTime struct {
 	ID        uint      `json:"id" gorm:"primaryKey;not null"`
 	ShopID    uint      `json:"shop_id" gorm:"not null"`
-	Status    string    `json:"status" gorm:"size:20;not null"` // "open" or "close"
+	Status    ShopTimeStatus `json:"status" gorm:"size:20;not null"` // "open" or "close"
 	OpenTime  string    `json:"open_time" gorm:"not null"`
 	CloseTime string    `json:"close_time" gorm:"not null"`
 	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`

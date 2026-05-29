@@ -233,7 +233,7 @@ func (r *DBDrivenAlertRule) Evaluate(ctx context.Context, sellerID string, data 
 		Key:         r.Template.Key,
 		Title:       r.Template.Title,
 		Description: r.Template.Description,
-		Type:        r.Template.Type,
+		Type:        domain.AlertType(r.Template.Type),
 		Priority:    r.Template.Priority,
 		IsActive:    r.Template.IsActive,
 	}

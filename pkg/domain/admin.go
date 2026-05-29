@@ -168,7 +168,7 @@ type SubTypeAttributes struct {
 	ID            uint   `json:"id" gorm:"primaryKey;not null"`
 	SubCategoryID uint   `json:"sub_category_id" gorm:"not null" binding:"required,numeric"`
 	FieldName     string `json:"field_name" gorm:"size:50" binding:"required"`
-	FieldType     string `json:"field_type" gorm:"size:20" binding:"required"` // dropdown, number, text
+	FieldType     FieldType `json:"field_type" gorm:"size:20" binding:"required"` // dropdown, number, text
 	IsRequired    bool   `json:"is_required" gorm:"not null;default:true"`
 	SortOrder     int    `json:"sort_order" gorm:"not null;default:0"`
 }

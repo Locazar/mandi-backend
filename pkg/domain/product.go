@@ -136,7 +136,7 @@ type Offer struct {
 	Name         string    `json:"offer_name" gorm:"not null" binding:"required"`
 	Description  string    `json:"description" gorm:"not null" binding:"required,min=6,max=50"`
 	DiscountRate uint      `json:"discount_rate" gorm:"not null" binding:"required,numeric,min=1,max=100"`
-	OfferType    string    `json:"offer_type" gorm:"not null" binding:"required"` // percentage,fixed
+	OfferType    OfferType `json:"offer_type" gorm:"not null" binding:"required"` // percentage,fixed
 	StartDate    time.Time `json:"start_date" gorm:"not null" binding:"required"`
 	EndDate      time.Time `json:"end_date" gorm:"not null" binding:"required"`
 	Image        string    `json:"image_url" gorm:"not null" binding:"required"`

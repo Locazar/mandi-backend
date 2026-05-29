@@ -1318,7 +1318,7 @@ func (c *productUseCase) SaveSubTypeAttribute(ctx context.Context, subCategoryID
 	// Convert request to domain model
 	domainAttribute := domain.SubTypeAttributes{
 		FieldName:  attribute.FieldName,
-		FieldType:  attribute.FieldType,
+		FieldType:  domain.FieldType(attribute.FieldType),
 		IsRequired: attribute.IsRequired,
 		SortOrder:  attribute.SortOrder,
 	}
