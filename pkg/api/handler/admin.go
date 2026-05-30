@@ -948,15 +948,6 @@ func (a *adminHandler) UpdateAdminProfile(ctx *gin.Context) {
 	// Implementation goes here
 }
 
-// Helper functions for file upload
-func ensureDir(dirName string) error {
-	err := os.MkdirAll(dirName, 0755)
-	if err == nil || os.IsExist(err) {
-		return nil
-	}
-	return err
-}
-
 func getFileExtension(filename string) string {
 	if idx := strings.LastIndex(filename, "."); idx != -1 {
 		return filename[idx:]
