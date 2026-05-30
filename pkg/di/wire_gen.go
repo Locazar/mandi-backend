@@ -38,10 +38,14 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	authUseCase := usecase.NewAuthUseCase(authRepository, tokenService, userRepository, adminRepository, otpAuth)
 	authHandler := handler.NewAuthHandler(authUseCase, cfg, tokenService)
 	middlewareMiddleware := middleware.NewMiddleware(tokenService)
+	cloudService, err := cloud.NewObjectStorageService(cfg)
+	if err != nil {
+		return nil, err
+	}
 	adminUseCase := usecase.NewAdminUseCase(adminRepository, userRepository, authRepository, otpAuth, tokenService)
 	shopTimeRepository := repository.NewShopTimeRepository(gormDB)
 	shopTimeUseCase := usecase.NewShopTimeUseCase(shopTimeRepository)
-	adminHandler := handler.NewAdminHandler(adminUseCase, shopTimeUseCase)
+	adminHandler := handler.NewAdminHandler(adminUseCase, shopTimeUseCase, cloudService)
 	cartRepository := repository.NewCartRepository(gormDB)
 	string2 := provideElasticURL(cfg)
 	elasticService, err := elasticsearch.NewElasticService(string2)
@@ -49,10 +53,6 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		return nil, err
 	}
 	productRepository := repository.NewProductRepository(gormDB, elasticService)
-	cloudService, err := cloud.NewAWSCloudService(cfg)
-	if err != nil {
-		return nil, err
-	}
 	userUseCase := usecase.NewUserUseCase(userRepository, cartRepository, productRepository, cloudService)
 	userHandler := handler.NewUserHandler(userUseCase)
 	cartUseCase := usecase.NewCartUseCase(cartRepository, productRepository)
@@ -64,16 +64,16 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	paymentHandler := handler.NewPaymentHandler(paymentUseCase)
 	productUseCase := usecase.NewProductUseCase(productRepository, cloudService, gormDB)
 	client := provideAIServiceClient(cfg)
-	productHandler := handler.NewProductHandler(productUseCase, tokenService, client)
+	productHandler := handler.NewProductHandler(productUseCase, tokenService, client, cloudService)
 	orderUseCase := usecase.NewOrderUseCase(orderRepository, cartRepository, userRepository, paymentRepository)
-	orderHandler := handler.NewOrderHandler(orderUseCase)
+	orderHandler := handler.NewOrderHandler(orderUseCase, cloudService)
 	couponUseCase := usecase.NewCouponUseCase(couponRepository, cartRepository)
 	couponHandler := handler.NewCouponHandler(couponUseCase)
 	offerRepository := repository.NewOfferRepository(gormDB)
 	bannerRepository := repository.NewBannerRepository(gormDB)
 	graphicsService := graphics.NewGraphicsService(string2)
 	offerUseCase := usecase.NewOfferUseCase(offerRepository, bannerRepository, gormDB, graphicsService)
-	offerHandler := handler.NewOfferHandler(offerUseCase, tokenService)
+	offerHandler := handler.NewOfferHandler(offerUseCase, tokenService, cloudService)
 	stockRepository := repository.NewStockRepository(gormDB)
 	stockUseCase := usecase.NewStockUseCase(stockRepository)
 	stockHandler := handler.NewStockHandler(stockUseCase)
@@ -91,7 +91,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	fcmTokenHandler := handler.NewFcmTokenHandler(fcmTokenUseCase)
 	searchRepository := repository.NewSearchRepository(gormDB, elasticService)
 	searchUseCase := usecase.NewSearchUseCase(searchRepository)
-	searchHandler := handler.NewSearchHandler(searchUseCase)
+	searchHandler := handler.NewSearchHandler(searchUseCase, cloudService)
 	alertRepository := repository.NewAlertRepository(gormDB)
 	ruleRegistry := provideAlertRuleRegistry()
 	alertUseCase := usecase.NewAlertUseCase(alertRepository, ruleRegistry)
@@ -100,7 +100,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	alertTemplateUseCase := usecase.NewAlertTemplateUseCase(alertRepository)
 	alertTemplateHandler := handler.NewAlertTemplateHandler(alertTemplateUseCase, adminUseCase)
 	bannerUseCase := usecase.NewBannerUseCase(bannerRepository)
-	bannerUserHandler := handler.NewBannerUserHandler(bannerUseCase)
+	bannerUserHandler := handler.NewBannerUserHandler(bannerUseCase, cloudService)
 	subscriptionRepository := repository.NewSubscriptionRepository(gormDB)
 	subscriptionPaymentUseCase := usecase.NewSubscriptionPaymentUseCase(subscriptionRepository, paymentRepository, userRepository, cfg)
 	subscriptionPaymentHandler := handler.NewSubscriptionPaymentHandler(subscriptionPaymentUseCase)

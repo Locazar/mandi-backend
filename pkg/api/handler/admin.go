@@ -18,6 +18,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
+	"github.com/rohit221990/mandi-backend/pkg/service/cloud"
 	"github.com/rohit221990/mandi-backend/pkg/service/token"
 	usecaseInterface "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
@@ -26,6 +27,7 @@ import (
 type adminHandler struct {
 	adminUseCase    usecaseInterface.AdminUseCase
 	shopTimeUseCase usecaseInterface.ShopTimeUseCase
+	cloudService    cloud.CloudService
 }
 
 // UserLogout implements the UserLogout method required by the AdminHandler interface.
@@ -43,10 +45,11 @@ func (a *adminHandler) UserLogout(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully logged out", nil)
 }
 
-func NewAdminHandler(adminUsecase usecaseInterface.AdminUseCase, shopTimeUseCase usecaseInterface.ShopTimeUseCase) interfaces.AdminHandler {
+func NewAdminHandler(adminUsecase usecaseInterface.AdminUseCase, shopTimeUseCase usecaseInterface.ShopTimeUseCase, cloudService cloud.CloudService) interfaces.AdminHandler {
 	return &adminHandler{
 		adminUseCase:    adminUsecase,
 		shopTimeUseCase: shopTimeUseCase,
+		cloudService:    cloudService,
 	}
 }
 
@@ -554,6 +557,7 @@ func (h *adminHandler) CreateShop(ctx *gin.Context) {
 	}
 	log.Printf("Shop created successfully with ID: %d", res.ID)
 
+	res.Shop_Image_URL = cloud.ResolveURL(h.cloudService, res.Shop_Image_URL)
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully created shop", res)
 }
 
@@ -579,6 +583,9 @@ func (h *adminHandler) GetAllShops(ctx *gin.Context) {
 		return
 	}
 
+	for i := range shops {
+		shops[i].Shop_Image_URL = cloud.ResolveURL(h.cloudService, shops[i].Shop_Image_URL)
+	}
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully got all shops", shops)
 }
 
@@ -608,6 +615,7 @@ func (h *adminHandler) GetShopByID(ctx *gin.Context) {
 		return
 	}
 
+	shop.Shop_Image_URL = cloud.ResolveURL(h.cloudService, shop.Shop_Image_URL)
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully got shop by ID", shop)
 }
 
@@ -713,6 +721,7 @@ func (h *adminHandler) GetShopByOwnerID(ctx *gin.Context) {
 		return
 	}
 
+	shop.Shop_Image_URL = cloud.ResolveURL(h.cloudService, shop.Shop_Image_URL)
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully got shop by owner ID", shop)
 }
 
@@ -797,12 +806,16 @@ func (a *adminHandler) UploadAdminProfileImage(ctx *gin.Context) {
 	}
 
 	fileHeader := req.Image
-	localPath, err := handleUpload(fileHeader)
+	processedPath, err := handleUpload(fileHeader)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to process image", err, nil)
 		return
 	}
-	_ = localPath
+	defer func() {
+		if rerr := os.Remove(processedPath); rerr != nil && !os.IsNotExist(rerr) {
+			log.Printf("failed to remove temp file %s: %v", processedPath, rerr)
+		}
+	}()
 
 	//get token from and send to decode and get the data
 	tokenString := ctx.GetHeader("Authorization")
@@ -872,36 +885,28 @@ func (a *adminHandler) UploadAdminProfileImage(ctx *gin.Context) {
 		}
 	}
 
-	// Save the file to local storage (you can modify this to use AWS S3 or other cloud storage)
-	uploadDir := "uploads/admin-profiles"
-
-	// Create upload directory if it doesn't exist
-	if err := ensureDir(uploadDir); err != nil {
-		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to create upload directory", err, nil)
-		return
-	}
-
-	// Generate unique filename to avoid conflicts
 	fileExt := getFileExtension(req.Image.Filename)
 	newFileName := fmt.Sprintf("admin_%s_%d%s", adminId, time.Now().Unix(), fileExt)
-	filePath := fmt.Sprintf("%s/%s", uploadDir, newFileName)
 
-	// Save the uploaded file
-	if err := ctx.SaveUploadedFile(req.Image, filePath); err != nil {
-		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to save uploaded file", err, nil)
+	objectKey, err := a.cloudService.SaveFile(ctx, req.Image, cloud.SaveOptions{
+		Namespace:   "admin-profiles",
+		Visibility:  cloud.VisibilityPublic,
+		ContentType: contentType,
+		Filename:    newFileName,
+	})
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to upload profile image", err, nil)
 		return
 	}
 
-	// Update database with the file path
-	imageURL, err := a.adminUseCase.UploadAdminProfileImage(ctx, adminId, filePath, shopId)
-	if err != nil {
+	if _, err := a.adminUseCase.UploadAdminProfileImage(ctx, adminId, objectKey, shopId); err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to update admin profile image", err, nil)
 		return
 	}
 
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully uploaded profile image", map[string]interface{}{
-		"image_url": imageURL,
-		"file_path": filePath,
+		"image_url": a.cloudService.PublicURL(objectKey),
+		"file_path": objectKey,
 	})
 
 }
@@ -941,15 +946,6 @@ func (a *adminHandler) GetAdminProfile(ctx *gin.Context) {
 // @Failure 500 {object} response.Response{} "failed to update admin profile"
 func (a *adminHandler) UpdateAdminProfile(ctx *gin.Context) {
 	// Implementation goes here
-}
-
-// Helper functions for file upload
-func ensureDir(dirName string) error {
-	err := os.MkdirAll(dirName, 0755)
-	if err == nil || os.IsExist(err) {
-		return nil
-	}
-	return err
 }
 
 func getFileExtension(filename string) string {
@@ -1261,7 +1257,7 @@ func (a *adminHandler) GetShopProfileImageById(ctx *gin.Context) {
 	}
 
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved shop profile image", map[string]interface{}{
-		"image_url": imageURL,
+		"image_url": cloud.ResolveURL(a.cloudService, imageURL),
 	})
 }
 
