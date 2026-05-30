@@ -56,6 +56,8 @@ type AlertTemplate struct {
 	DisplayType     AlertDisplayType `json:"display_type" gorm:"size:50;default:'bottom_sheet'"`
 	ContentSchema   json.RawMessage `json:"content_schema" gorm:"type:jsonb"`
 	FlowKey         string          `json:"flow_key" gorm:"size:100;index"`
+	CreatedBy       string          `json:"created_by" gorm:"type:varchar(32)"`
+	UpdatedBy       string          `json:"updated_by" gorm:"type:varchar(32)"`
 	CreatedAt       time.Time       `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt       time.Time       `json:"updated_at" gorm:"autoUpdateTime"`
 }

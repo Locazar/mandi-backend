@@ -15,6 +15,8 @@ type Coupon struct {
 	MinimumCartPrice Money     `json:"minimum_cart_price" gorm:"embedded;embeddedPrefix:minimum_cart_price_"`
 	Image            string    `json:"image" binding:"required"`
 	BlockStatus      bool      `json:"block_status" gorm:"not null"`
+	CreatedBy        string    `json:"created_by" gorm:"type:varchar(32)"`
+	UpdatedBy        string    `json:"updated_by" gorm:"type:varchar(32)"`
 	CreatedAt        time.Time `json:"created_at" gorm:"not null"`
 	UpdatedAt        time.Time `json:"updated_at"`
 }

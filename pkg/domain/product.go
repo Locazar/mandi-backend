@@ -13,6 +13,8 @@ type Product struct {
 	DepartmentID string    `json:"department_id" gorm:"type:varchar(32)" binding:"omitempty"`
 	Image        string    `json:"image" gorm:"not null"`
 	ShopID       string    `json:"shop_id" gorm:"type:varchar(32);not null"`
+	CreatedBy    string    `json:"created_by" gorm:"type:varchar(32)"`
+	UpdatedBy    string    `json:"updated_by" gorm:"type:varchar(32)"`
 	CreatedAt    time.Time `json:"created_at" gorm:"not null"`
 	UpdatedAt    time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }
@@ -28,6 +30,8 @@ type ProductItem struct {
 	AdminID           string    `json:"admin_id" gorm:"type:varchar(32);index"`
 	ProductItemImages []string  `json:"product_item_images" gorm:"type:text[]"`
 	ShopID            string    `json:"shop_id" gorm:"type:varchar(32)"`
+	CreatedBy         string    `json:"created_by" gorm:"type:varchar(32)"`
+	UpdatedBy         string    `json:"updated_by" gorm:"type:varchar(32)"`
 	CreatedAt         time.Time `json:"created_at" gorm:"not null"`
 	UpdatedAt         time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 	Stock             bool      `json:"stock" gorm:"not null;default:true"`
@@ -141,6 +145,8 @@ type Offer struct {
 	EndDate      time.Time `json:"end_date" gorm:"not null" binding:"required"`
 	Image        string    `json:"image_url" gorm:"not null" binding:"required"`
 	Thumbnail    string    `json:"thumbnail_url" binding:"required"`
+	CreatedBy   string    `json:"created_by" gorm:"type:varchar(32)"`
+	UpdatedBy   string    `json:"updated_by" gorm:"type:varchar(32)"`
 	CreatedAt    time.Time `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt    time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 	SortOrder   int       `json:"sort_order" gorm:"not null;default:0"`

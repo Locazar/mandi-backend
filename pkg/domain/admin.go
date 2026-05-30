@@ -126,6 +126,8 @@ type ShopVerification struct {
 	VerificationStatus bool      `json:"verification_status" gorm:"not null;default:false"`
 	Remarks            string    `json:"remarks" binding:"omitempty"`
 	AgentID            string    `json:"agent_id" gorm:"type:varchar(32)" binding:"omitempty"`
+	CreatedBy          string    `json:"created_by" gorm:"type:varchar(32)"`
+	UpdatedBy          string    `json:"updated_by" gorm:"type:varchar(32)"`
 	CreatedAt          time.Time `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt          time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }
@@ -158,6 +160,8 @@ type Advertisement struct {
 	DistanceKM      float64               `json:"distance_km" gorm:"type:decimal(10,2);"`
 	Status          AdvertisementStatus   `json:"status" gorm:"size:50"`
 	Priority        AdvertisementPriority `json:"priority" gorm:"size:20"`
+	CreatedBy       string                `json:"created_by" gorm:"type:varchar(32)"`
+	UpdatedBy       string                `json:"updated_by" gorm:"type:varchar(32)"`
 }
 
 type SubTypeAttributes struct {
