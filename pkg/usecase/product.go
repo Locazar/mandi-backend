@@ -291,17 +291,19 @@ func (c *productUseCase) SaveProduct(ctx context.Context, product request.Produc
 	// 	return 0, utils.PrependMessageToError(ErrProductAlreadyExist, "product name "+product.Name)
 	// }
 
-	// Save image to uploads folder in project directory
-	localPath, err := utils.SaveFileLocally(product.ImageFileHeader, "uploads/products")
+	objectKey, err := c.cloudService.SaveFile(ctx, product.ImageFileHeader, cloud.SaveOptions{
+		Namespace:  "products",
+		Visibility: cloud.VisibilityPublic,
+	})
 	if err != nil {
-		return "", utils.PrependMessageToError(err, "failed to save image locally")
+		return 0, utils.PrependMessageToError(err, "failed to upload product image")
 	}
 
 	productID, err = c.productRepo.SaveProduct(ctx, domain.Product{
 		Name:         product.Name,
 		Description:  product.Description,
 		CategoryID:   product.CategoryID,
-		Image:        localPath,
+		Image:        objectKey,
 		DepartmentID: product.DepartmentID,
 	}, adminID)
 	if err != nil {

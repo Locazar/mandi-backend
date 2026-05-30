@@ -63,3 +63,10 @@ stdout.log
 
 # Shell config accidentally created at repo root
 /.bashrc
+
+# Local upload directories (real ./uploads/ + any safety backups) — not source
+/uploads*/
+
+# Planning artifacts kept local-only
+/spec/
+

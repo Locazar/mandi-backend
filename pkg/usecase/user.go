@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"mime/multipart"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
@@ -255,12 +256,19 @@ func (c *userUserCase) FindLocation(ctx context.Context, lat string, long string
 }
 
 func (u *userUserCase) UploadProfileImage(ctx context.Context, userID string, fileHeader *multipart.FileHeader, imageSize int64, filename string, headerContent string) (string, error) {
-	// Use the S3ImageUploader to upload the file
-	image_path, err := u.imageUploader.SaveFile(ctx, fileHeader)
+	key, err := u.imageUploader.SaveFile(ctx, fileHeader, cloud.SaveOptions{
+		Namespace:   "user-profiles",
+		Visibility:  cloud.VisibilityPrivate,
+		ContentType: headerContent,
+	})
 	if err != nil {
 		return "", utils.PrependMessageToError(err, "failed to save image on cloud storage")
 	}
-	return image_path, nil
+	url, err := u.imageUploader.PresignedURL(ctx, key, 12*time.Hour)
+	if err != nil {
+		return "", utils.PrependMessageToError(err, "failed to presign image URL")
+	}
+	return url, nil
 }
 
 func (c *userUserCase) GetSellersByRadius(ctx context.Context, reqData request.SellerRadiusRequest) (sellers []response.Shop, err error) {

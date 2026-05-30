@@ -3,6 +3,7 @@ package config
 import (
 	"bytes"
 	"encoding/json"
+	"log"
 	"os"
 	"strings"
 
@@ -39,10 +40,19 @@ type Config struct {
 	GoauthClientSecret string `mapstructure:"GOAUTH_CLIENT_SECRET"`
 	GoauthCallbackUrl  string `mapstructure:"GOAUTH_CALL_BACK_URL"`
 
+	// Legacy AWS_* — kept as fallback for one release; remove after Phase G ships.
 	AwsAccessKeyID string `mapstructure:"AWS_ACCESS_KEY_ID"`
 	AwsSecretKey   string `mapstructure:"AWS_SECRET_ACCESS_KEY"`
 	AwsRegion      string `mapstructure:"AWS_REGION"`
 	AwsBucketName  string `mapstructure:"AWS_BUCKET_NAME"`
+
+	// Object Storage (Utho S3-compatible). Takes precedence over AWS_* above.
+	S3Endpoint      string `mapstructure:"S3_ENDPOINT"`
+	S3Region        string `mapstructure:"S3_REGION"`
+	S3Bucket        string `mapstructure:"S3_BUCKET"`
+	S3AccessKey     string `mapstructure:"S3_ACCESS_KEY"`
+	S3SecretKey     string `mapstructure:"S3_SECRET_KEY"`
+	S3PublicBaseURL string `mapstructure:"S3_PUBLIC_BASE_URL"`
 
 	SharedUploadsPath string `mapstructure:"SHARED_UPLOADS_PATH"`
 
@@ -111,8 +121,9 @@ var envsNames = []string{
 	"RAZOR_PAY_KEY", "RAZOR_PAY_SECRET", "RAZORPAY_WEBHOOK_SECRET", // razor pay
 	"STRIPE_SECRET", "STRIPE_PUBLISH_KEY", "STRIPE_WEBHOOK", // stripe
 	"GOAUTH_CLIENT_ID", "GOAUTH_CLIENT_SECRET", "GOAUTH_CALL_BACK_URL", //goath
-	"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_REGION", "AWS_BUCKET_NAME", // aws s3
-	"SHARED_UPLOADS_PATH", // shared uploads directory
+	"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_REGION", "AWS_BUCKET_NAME", // legacy aws fallback
+	"S3_ENDPOINT", "S3_REGION", "S3_BUCKET", "S3_ACCESS_KEY", "S3_SECRET_KEY", "S3_PUBLIC_BASE_URL", // object storage
+	"SHARED_UPLOADS_PATH", // shared uploads directory (deprecated)
 	"ELASTICSEARCH_URL",   // elasticsearch
 	"AI_SERVICE_URL",      // ai service
 	// Firebase — either an ADC credentials file path or inline JSON
@@ -256,6 +267,11 @@ func LoadConfig() (config Config, err error) {
 	// can correctly disable its enquiry watcher when Cloud Functions own that flow.
 	if mode := strings.Trim(strings.TrimSpace(viper.GetString("ENQUIRY_NOTIFICATION_HANDLER")), `"'`); mode != "" {
 		_ = os.Setenv("ENQUIRY_NOTIFICATION_HANDLER", mode)
+	}
+
+	if (config.S3Endpoint == "" || config.S3Bucket == "" || config.S3AccessKey == "" || config.S3SecretKey == "") &&
+		(config.AwsBucketName != "" || config.AwsAccessKeyID != "") {
+		log.Println("[deprecation] AWS_* env vars are being used as fallback for object storage; set S3_* vars before Phase G")
 	}
 
 	return config, nil

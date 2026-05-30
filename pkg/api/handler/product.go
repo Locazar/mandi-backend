@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,7 +14,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/disintegration/imaging"
@@ -25,6 +25,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	service "github.com/rohit221990/mandi-backend/pkg/service/ai"
+	"github.com/rohit221990/mandi-backend/pkg/service/cloud"
 	"github.com/rohit221990/mandi-backend/pkg/service/token"
 	"github.com/rohit221990/mandi-backend/pkg/usecase"
 	usecaseInterface "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
@@ -63,13 +64,15 @@ type ProductHandler struct {
 	productUseCase usecaseInterface.ProductUseCase
 	tokenService   token.TokenService
 	aiClient       service.Client
+	cloudService   cloud.CloudService
 }
 
-func NewProductHandler(productUsecase usecaseInterface.ProductUseCase, tokenService token.TokenService, aiClient *service.Client) interfaces.ProductHandler {
+func NewProductHandler(productUsecase usecaseInterface.ProductUseCase, tokenService token.TokenService, aiClient *service.Client, cloudService cloud.CloudService) interfaces.ProductHandler {
 	return &ProductHandler{
 		productUseCase: productUsecase,
 		tokenService:   tokenService,
 		aiClient:       *aiClient,
+		cloudService:   cloudService,
 	}
 }
 
@@ -194,6 +197,7 @@ func (p *ProductHandler) GetAllCategories(ctx *gin.Context) {
 		return
 	}
 
+	response.ResolveCategoriesImages(p.cloudService, categories)
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved all categories", categories)
 }
 
@@ -572,6 +576,7 @@ func (p *ProductHandler) getAllProducts() func(ctx *gin.Context) {
 			return
 		}
 
+		response.ResolveProductsImages(p.cloudService, products)
 		response.SuccessResponse(ctx, http.StatusOK, "Successfully found all products", products)
 	}
 
@@ -599,6 +604,7 @@ func (p *ProductHandler) GetProductByID(ctx *gin.Context) {
 		return
 	}
 
+	product.Image = cloud.ResolveURL(p.cloudService, product.Image)
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully found product", product)
 }
 
@@ -700,12 +706,8 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 
 		// Validate product image matches category using AI service if available
 		if categoryName != "" {
-			// Get absolute path for validation
-			wd, _ := os.Getwd()
-			absolutePath := filepath.Join(wd, localPath)
-
-			//validationResult, err := p.aiClient.ValidateProduct(absolutePath, categoryName)
-			_, err := p.aiClient.ValidateProduct(absolutePath, categoryName)
+			//validationResult, err := p.aiClient.ValidateProduct(localPath, categoryName)
+			_, err := p.aiClient.ValidateProduct(localPath, categoryName)
 			if err != nil {
 				response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to validate product image", err, nil)
 				return
@@ -721,7 +723,12 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 			// }
 		}
 
-		imagePaths = append(imagePaths, localPath)
+		objectKey, err := uploadProcessedToCloud(ctx, p.cloudService, localPath)
+		if err != nil {
+			response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to upload processed image", err, nil)
+			return
+		}
+		imagePaths = append(imagePaths, objectKey)
 
 		// If we have a subcategory image, ask the compare-images service to compare
 		// the uploaded product image with the subcategory reference image so external
@@ -1008,6 +1015,7 @@ func (p *ProductHandler) getAllProductItems(adminID string) func(ctx *gin.Contex
 			// Implement analytics logic here
 		}()
 
+		response.ResolveProductItemsImages(p.cloudService, productItems)
 		response.SuccessResponse(ctx, http.StatusOK, "Successfully get all product items", productItems)
 	}
 }
@@ -1107,6 +1115,7 @@ func (p *ProductHandler) GetProductItemsByShopID() func(ctx *gin.Context) {
 			return
 		}
 
+		response.ResolveProductItemsImages(p.cloudService, productItems)
 		response.SuccessResponse(ctx, http.StatusOK, "Successfully get product items for shop", productItems)
 	}
 }
@@ -1205,6 +1214,7 @@ func (p *ProductHandler) FindLowViewProductItems(ctx *gin.Context) {
 		return
 	}
 
+	response.ResolveProductItemsImages(p.cloudService, productItems)
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved low view product items", productItems)
 }
 
@@ -1984,6 +1994,7 @@ func (a *ProductHandler) GetAllDepartments(ctx *gin.Context) {
 		return
 	}
 
+	response.ResolveDepartmentsImages(a.cloudService, departments)
 	ctx.JSON(http.StatusOK, response.Response{
 		Status:  true,
 		Message: "Successfully get all departments",
@@ -2012,6 +2023,7 @@ func (a *ProductHandler) GetDepartmentByID(ctx *gin.Context) {
 		return
 	}
 
+	department.ResolveImages(a.cloudService)
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully get department", department)
 }
 
@@ -2036,6 +2048,7 @@ func (a *ProductHandler) GetAllCategoriesByDepartmentID(ctx *gin.Context) {
 		return
 	}
 
+	response.ResolveCategoriesImages(a.cloudService, categories)
 	ctx.JSON(http.StatusOK, response.Response{
 		Status:  true,
 		Message: "Successfully get all categories",
@@ -2064,6 +2077,7 @@ func (a *ProductHandler) GetAllSubCategoriesByCategoryID(ctx *gin.Context) {
 		return
 	}
 
+	response.ResolveSubCategoriesImages(a.cloudService, subCategories)
 	ctx.JSON(http.StatusOK, response.Response{
 		Status:  true,
 		Message: "Successfully get all sub-categories",
@@ -2499,11 +2513,7 @@ func (p *ProductHandler) UpdateProductItem(ctx *gin.Context) {
 
 		// Validate product image matches category using AI service if available
 		if categoryName != "" {
-			// Get absolute path for validation
-			wd, _ := os.Getwd()
-			absolutePath := filepath.Join(wd, localPath)
-
-			validationResult, err := p.aiClient.ValidateProduct(absolutePath, categoryName)
+			validationResult, err := p.aiClient.ValidateProduct(localPath, categoryName)
 			if err != nil {
 				response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to validate product image", err, nil)
 				return
@@ -2518,7 +2528,12 @@ func (p *ProductHandler) UpdateProductItem(ctx *gin.Context) {
 			}
 		}
 
-		imagePaths = append(imagePaths, localPath)
+		objectKey, err := uploadProcessedToCloud(ctx, p.cloudService, localPath)
+		if err != nil {
+			response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to upload processed image", err, nil)
+			return
+		}
+		imagePaths = append(imagePaths, objectKey)
 	}
 
 	type uploadResult struct {
@@ -2530,8 +2545,11 @@ func (p *ProductHandler) UpdateProductItem(ctx *gin.Context) {
 	uploadChan := make(chan uploadResult, len(files))
 	for i, fileHeader := range files {
 		go func(idx int, fh *multipart.FileHeader) {
-			path, err := utils.SaveFileLocally(fh, "uploads/products")
-			uploadChan <- uploadResult{path: path, err: err, index: idx}
+			key, err := p.cloudService.SaveFile(ctx, fh, cloud.SaveOptions{
+				Namespace:  "products",
+				Visibility: cloud.VisibilityPublic,
+			})
+			uploadChan <- uploadResult{path: key, err: err, index: idx}
 		}(i, fileHeader)
 	}
 
@@ -2648,23 +2666,44 @@ func (p *ProductHandler) GetProductItemsByOfferID(ctx *gin.Context) {
 
 }
 
-// handleUpload validates the file header for adult content and security checks
+// uploadProcessedToCloud uploads the processed JPEG at processedPath to object
+// storage under the products/ namespace and removes the temp file. Returns the
+// bare object key suitable for DB storage.
+func uploadProcessedToCloud(ctx context.Context, cs cloud.CloudService, processedPath string) (string, error) {
+	data, err := os.ReadFile(processedPath)
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		if rerr := os.Remove(processedPath); rerr != nil && !os.IsNotExist(rerr) {
+			log.Printf("failed to remove temp file %s: %v", processedPath, rerr)
+		}
+	}()
+	return cs.SaveBytes(ctx, data, cloud.SaveOptions{
+		Namespace:   "products",
+		Visibility:  cloud.VisibilityPublic,
+		ContentType: "image/jpeg",
+		Filename:    filepath.Base(processedPath),
+	})
+}
+
+// handleUpload runs the image-processing pipeline and adult-content moderation.
+// Returns the absolute path to a temp file holding the processed JPEG; the
+// caller is responsible for cleaning it up (uploadProcessedToCloud does so).
 func handleUpload(fileHeader *multipart.FileHeader) (string, error) {
-	// Check for adult content
 	savedPath, err := handleSecureMagic(fileHeader)
 	if err != nil {
 		return "", err
 	}
-	// Check for adult content
 	isAdult, err := utils.CheckNudity(savedPath)
 	if err != nil {
+		_ = os.Remove(savedPath)
 		return "", fmt.Errorf("failed to check nudity: %w", err)
 	}
-
 	if isAdult {
+		_ = os.Remove(savedPath)
 		return "", fmt.Errorf("image contains adult content and cannot be uploaded")
 	}
-
 	return savedPath, nil
 }
 
@@ -2728,19 +2767,8 @@ func handleSecureMagic(fileHeader *multipart.FileHeader) (string, error) {
 	// Light sharpening for product clarity
 	processed = imaging.Sharpen(processed, 0.6)
 
-	// Get the server root directory
-	wd, err := os.Getwd()
-	if err != nil {
-		return "", fmt.Errorf("failed to get working directory: %w", err)
-	}
-
-	// Save processed image directly to uploads/products with a unique filename
-	saveDir := filepath.Join(wd, "uploads", "products")
-	if err := os.MkdirAll(saveDir, 0755); err != nil {
-		return "", fmt.Errorf("failed to create directory: %w", err)
-	}
 	filename := fmt.Sprintf("%s_tweak.jpg", uuid.New().String())
-	savePath := filepath.Join(saveDir, filename)
+	savePath := filepath.Join(os.TempDir(), filename)
 	outFile, err := os.Create(savePath)
 	if err != nil {
 		return "", err
@@ -2750,29 +2778,9 @@ func handleSecureMagic(fileHeader *multipart.FileHeader) (string, error) {
 			log.Printf("failed to close file: %v", cerr)
 		}
 	}()
-	err = imaging.Encode(outFile, processed, imaging.JPEG, imaging.JPEGQuality(20))
-	if err != nil {
+	if err := imaging.Encode(outFile, processed, imaging.JPEG, imaging.JPEGQuality(20)); err != nil {
 		return "", err
 	}
-	// Return the relative path for database storage with forward slashes
-	relativePath := "uploads/products/" + filename
-	return filepath.ToSlash(relativePath), nil
+	return savePath, nil
 }
 
-// buildPublicURL converts a local relative path (uploads/...) or absolute path
-// to a HTTP URL that other services can fetch from this API server.
-func buildPublicURL(path string) string {
-	if path == "" {
-		return ""
-	}
-	// If already a full URL, return as-is
-	if strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") {
-		return path
-	}
-	// Ensure leading slash and forward slashes
-	p := filepath.ToSlash(path)
-	if !strings.HasPrefix(p, "/") {
-		p = "/" + p
-	}
-	return fmt.Sprintf("http://localhost:3000%s", p)
-}
