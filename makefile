@@ -1,8 +1,10 @@
 SHELL := /bin/bash
 
-.PHONY: all build test deps deps-cleancache
+.PHONY: all build test deps deps-cleancache migrate-up migrate-down migrate-create migrate-version migrate-force
 
 GOCMD=go
+DATABASE_URL ?= postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable
+MIGRATE_CMD=migrate -path db/migrations -database "$(DATABASE_URL)"
 BUILD_DIR=build
 BINARY_DIR=$(BUILD_DIR)/bin
 CODE_COVERAGE=code-coverage
@@ -71,6 +73,21 @@ docker-down: ## To down the docker compose file
 
 docker-build: ## To build newdocker file for this project
 	docker build -t rohit221990/mandi . 
+
+migrate-up: ## Apply all up migrations
+	$(MIGRATE_CMD) up
+
+migrate-down: ## Roll back one migration
+	$(MIGRATE_CMD) down 1
+
+migrate-create: ## Create a new migration: make migrate-create name=foo
+	migrate create -ext sql -dir db/migrations -seq $(name)
+
+migrate-version: ## Print current migration version
+	$(MIGRATE_CMD) version
+
+migrate-force: ## Force a version: make migrate-force version=N
+	$(MIGRATE_CMD) force $(version)
 
 help: ## Display this help screen
 	@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
