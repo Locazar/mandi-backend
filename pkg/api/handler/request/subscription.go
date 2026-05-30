@@ -1,7 +1,7 @@
 package request
 
 type CreateSubscriptionOrderRequest struct {
-	PlanID uint `json:"plan_id" binding:"required"`
+	PlanID string `json:"plan_id" binding:"required"`
 }
 
 type VerifySubscriptionPaymentRequest struct {

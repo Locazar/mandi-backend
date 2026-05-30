@@ -6,48 +6,48 @@ import (
 
 // represent a model of product
 type Product struct {
-	ID           uint      `json:"id" gorm:"primaryKey;not null"`
+	ID           string    `json:"id" gorm:"primaryKey;type:varchar(32)"`
 	Name         string    `json:"product_name" gorm:"not null" binding:"required,min=3,max=50"`
 	Description  string    `json:"description" gorm:"not null" binding:"required,min=10,max=100"`
-	CategoryID   uint      `json:"category_id" binding:"omitempty,numeric"`
-	DepartmentID uint      `json:"department_id" binding:"omitempty,numeric"`
+	CategoryID   string    `json:"category_id" gorm:"type:varchar(32)" binding:"omitempty"`
+	DepartmentID string    `json:"department_id" gorm:"type:varchar(32)" binding:"omitempty"`
 	Image        string    `json:"image" gorm:"not null"`
-	ShopID       uint      `json:"shop_id" gorm:"not null"`
+	ShopID       string    `json:"shop_id" gorm:"type:varchar(32);not null"`
 	CreatedAt    time.Time `json:"created_at" gorm:"not null"`
 	UpdatedAt    time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }
 
 // this for a specific variant of product
 type ProductItem struct {
-	ID                uint      `json:"id" gorm:"primaryKey;not null"`
+	ID                string    `json:"id" gorm:"primaryKey;type:varchar(32)"`
 	SubCategoryName   string    `json:"sub_category_name" gorm:"not null" binding:"required"`
-	SubCategoryID     uint      `json:"sub_category_id" binding:"omitempty,numeric"`
-	CategoryID        uint      `json:"category_id" binding:"omitempty,numeric"`
-	DepartmentID      uint      `json:"department_id" binding:"omitempty,numeric"`
+	SubCategoryID     string    `json:"sub_category_id" gorm:"type:varchar(32)" binding:"omitempty"`
+	CategoryID        string    `json:"category_id" gorm:"type:varchar(32)" binding:"omitempty"`
+	DepartmentID      string    `json:"department_id" gorm:"type:varchar(32)" binding:"omitempty"`
 	DynamicFields     string    `json:"dynamic_fields" gorm:"type:jsonb;not null"`
-	AdminID           string    `json:"admin_id" gorm:"type:jsonb;not null"` // stored as JSONB in DB
+	AdminID           string    `json:"admin_id" gorm:"type:varchar(32);index"`
 	ProductItemImages []string  `json:"product_item_images" gorm:"type:text[]"`
-	ShopID            uint      `json:"shop_id"`
+	ShopID            string    `json:"shop_id" gorm:"type:varchar(32)"`
 	CreatedAt         time.Time `json:"created_at" gorm:"not null"`
 	UpdatedAt         time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 	Stock             bool      `json:"stock" gorm:"not null;default:true"`
 }
 
 type ProductItemImage struct {
-	ID            uint        `json:"id" gorm:"primaryKey;not null"`
-	ProductItemID uint        `json:"product_item_id" binding:"required,numeric" gorm:"not null"`
+	ID            string      `json:"id" gorm:"primaryKey;type:varchar(32)"`
+	ProductItemID string      `json:"product_item_id" gorm:"type:varchar(32);not null" binding:"required"`
 	ProductItem   ProductItem `json:"-"`
 	ImageURL      []string    `json:"image_urls" gorm:"type:text[]"`
 	AltText       string      `json:"alt_text" gorm:"size:255" binding:"omitempty"`
 	SortOrder     int         `json:"sort_order" gorm:"not null;default:0"`
 	IsActive      bool        `json:"is_active" gorm:"not null;default:true"`
-	ShopID        uint        `json:"shop_id" gorm:"not null" binding:"required,numeric"`
+	ShopID        string      `json:"shop_id" gorm:"type:varchar(32);not null" binding:"required"`
 	CreatedAt     time.Time   `json:"created_at" gorm:"not null;autoCreateTime"`
 	UpdatedAt     time.Time   `json:"updated_at" gorm:"autoUpdateTime"`
 }
 
 type Department struct {
-	ID         uint   `json:"id" gorm:"primaryKey;not null"`
+	ID         string `json:"id" gorm:"primaryKey;type:varchar(32)"`
 	Name       string `json:"department_name" gorm:"unique;not null" binding:"required,min=1,max=50"`
 	SortOrder int    `json:"sort_order" gorm:"not null;default:0"`
 	IsActive  bool   `json:"is_active" gorm:"not null;default:true"`
@@ -57,8 +57,8 @@ type Department struct {
 
 // for a products category main and sub category as self joining
 type Category struct {
-	ID           uint   `json:"-" gorm:"primaryKey;not null"`
-	DepartmentID uint   `json:"department_id" gorm:"not null" binding:"required,numeric"`
+	ID           string `json:"-" gorm:"primaryKey;type:varchar(32)"`
+	DepartmentID string `json:"department_id" gorm:"type:varchar(32);not null" binding:"required"`
 	Name         string `json:"category_name" gorm:"not null" binding:"required,min=1,max=30"`
 	SortOrder   int    `json:"sort_order" gorm:"not null;default:0"`
 	IsActive    bool   `json:"is_active" gorm:"not null;default:true"`
@@ -67,9 +67,9 @@ type Category struct {
 }
 
 type SubCategory struct {
-	ID           uint   `json:"-" gorm:"primaryKey;not null"`
-	DepartmentID uint   `json:"department_id" gorm:"not null" binding:"required,numeric"`
-	CategoryID   uint   `json:"category_id" gorm:"not null" binding:"required,numeric"`
+	ID           string `json:"-" gorm:"primaryKey;type:varchar(32)"`
+	DepartmentID string `json:"department_id" gorm:"type:varchar(32);not null" binding:"required"`
+	CategoryID   string `json:"category_id" gorm:"type:varchar(32);not null" binding:"required"`
 	Name         string `json:"sub_category_name" gorm:"not null" binding:"required,min=1,max=30"`
 	SortOrder   int    `json:"sort_order" gorm:"not null;default:0"`
 	IsActive    bool   `json:"is_active" gorm:"not null;default:true"`
@@ -78,7 +78,7 @@ type SubCategory struct {
 }
 
 type Brand struct {
-	ID         uint   `json:"id" gorm:"primaryKey;not null"`
+	ID         string `json:"id" gorm:"primaryKey;type:varchar(32)"`
 	Name       string `json:"brand_name" gorm:"unique;not null"`
 	SortOrder int    `json:"sort_order" gorm:"not null;default:0"`
 	IsActive  bool   `json:"is_active" gorm:"not null;default:true"`
@@ -86,8 +86,8 @@ type Brand struct {
 
 // variation means size color etc..
 type Variation struct {
-	ID            uint     `json:"-" gorm:"primaryKey;not null"`
-	SubCategoryID uint     `json:"sub_category_id" gorm:"not null" binding:"required,numeric"`
+	ID            string   `json:"-" gorm:"primaryKey;type:varchar(32)"`
+	SubCategoryID string   `json:"sub_category_id" gorm:"type:varchar(32);not null" binding:"required"`
 	SubCategory   Category `json:"-"`
 	Name          string   `json:"variation_name" gorm:"not null" binding:"required"`
 	SortOrder    int      `json:"sort_order" gorm:"not null;default:0"`
@@ -96,8 +96,8 @@ type Variation struct {
 
 // variation option means values are like s,m,xl for size and blue,white,black for Color
 type VariationOption struct {
-	ID          uint      `json:"-" gorm:"primaryKey;not null"`
-	VariationID uint      `json:"variation_id" gorm:"not null" binding:"required,numeric"` // a specific field of variation like color/size
+	ID          string    `json:"-" gorm:"primaryKey;type:varchar(32)"`
+	VariationID string    `json:"variation_id" gorm:"type:varchar(32);not null" binding:"required"` // a specific field of variation like color/size
 	Variation   Variation `json:"-"`
 	Value       string    `json:"variation_value" gorm:"not null" binding:"required"` // the variations value like blue/XL
 	SortOrder  int       `json:"sort_order" gorm:"not null;default:0"`
@@ -105,9 +105,9 @@ type VariationOption struct {
 }
 
 type ProductConfiguration struct {
-	ProductItemID     uint            `json:"product_item_id" gorm:"not null"`
+	ProductItemID     string          `json:"product_item_id" gorm:"type:varchar(32);not null"`
 	ProductItem       ProductItem     `json:"-"`
-	VariationOptionID uint            `json:"variation_option_id" gorm:"not null"`
+	VariationOptionID string          `json:"variation_option_id" gorm:"type:varchar(32);not null"`
 	VariationOption   VariationOption `json:"-"`
 	SortOrder        int             `json:"sort_order" gorm:"not null;default:0"`
 	IsActive         bool            `json:"is_active" gorm:"not null;default:true"`
@@ -117,12 +117,12 @@ type ProductConfiguration struct {
 // so we can ote multiple images url for a ProductItem
 // one to many connection
 type ProductImage struct {
-	ID            uint        `json:"id" gorm:"primaryKey;not null"`
-	ProductItemID uint        `json:"product_item_id" gorm:"not null"`
+	ID            string      `json:"id" gorm:"primaryKey;type:varchar(32)"`
+	ProductItemID string      `json:"product_item_id" gorm:"type:varchar(32);not null"`
 	ProductItem   ProductItem `json:"-"`
 	ImageURL      []string    `json:"image_url" gorm:"type:text[]"`
-	ShopID        uint        `json:"shop_id" gorm:"not null"`
-	ProductID     uint        `json:"product_id" gorm:"not null"`
+	ShopID        string      `json:"shop_id" gorm:"type:varchar(32);not null"`
+	ProductID     string      `json:"product_id" gorm:"type:varchar(32);not null"`
 	AltText       string      `json:"alt_text" gorm:"size:255" binding:"omitempty"`
 	SortOrder     int         `json:"sort_order" gorm:"not null;default:0"`
 	IsActive      bool        `json:"is_active" gorm:"not null;default:true"`
@@ -132,7 +132,7 @@ type ProductImage struct {
 
 // offer
 type Offer struct {
-	ID           uint      `json:"id" gorm:"primaryKey;not null" swaggerignore:"true"`
+	ID           string    `json:"id" gorm:"primaryKey;type:varchar(32)" swaggerignore:"true"`
 	Name         string    `json:"offer_name" gorm:"not null" binding:"required"`
 	Description  string    `json:"description" gorm:"not null" binding:"required,min=6,max=50"`
 	DiscountRate uint      `json:"discount_rate" gorm:"not null" binding:"required,numeric,min=1,max=100"`
@@ -148,48 +148,48 @@ type Offer struct {
 }
 
 type OfferCategory struct {
-	ID         uint     `json:"id" gorm:"primaryKey;not null"`
-	OfferID    uint     `json:"offer_id" gorm:"not null"`
+	ID         string   `json:"id" gorm:"primaryKey;type:varchar(32)"`
+	OfferID    string   `json:"offer_id" gorm:"type:varchar(32);not null"`
 	Offer      Offer    `json:"-"`
-	CategoryID uint     `json:"category_id" gorm:"not null"`
+	CategoryID string   `json:"category_id" gorm:"type:varchar(32);not null"`
 	Category   Category `json:"-"`
 	SortOrder int      `json:"sort_order" gorm:"not null;default:0"`
 	IsActive  bool     `json:"is_active" gorm:"not null;default:true"`
 }
 
 type OfferProduct struct {
-	ID            uint `json:"id" gorm:"primaryKey;not null"`
-	OfferID       uint `json:"offer_id" gorm:"not null"`
-	ProductItemID uint `json:"product_item_id" gorm:"not null"`
+	ID            string `json:"id" gorm:"primaryKey;type:varchar(32)"`
+	OfferID       string `json:"offer_id" gorm:"type:varchar(32);not null"`
+	ProductItemID string `json:"product_item_id" gorm:"type:varchar(32);not null"`
 	SortOrder    int  `json:"sort_order" gorm:"not null;default:0"`
 	IsActive     bool `json:"is_active" gorm:"not null;default:true"`
 }
 
 type ProductItemView struct {
-	ID            uint      `json:"id" gorm:"primaryKey;not null"`
-	ProductItemID uint      `json:"product_item_id" gorm:"not null"`
-	ShopID        uint      `json:"shop_id" gorm:"not null"`
-	AdminID       string    `json:"admin_id" gorm:"type:jsonb;not null"`
+	ID            string    `json:"id" gorm:"primaryKey;type:varchar(32)"`
+	ProductItemID string    `json:"product_item_id" gorm:"type:varchar(32);not null"`
+	ShopID        string    `json:"shop_id" gorm:"type:varchar(32);not null"`
+	AdminID       string    `json:"admin_id" gorm:"type:varchar(32);index"`
 	ViewedAt      time.Time `json:"viewed_at" gorm:"not null;autoCreateTime"`
-	ViewCount     uint      `json:"view_count" gorm:"not null;default:1"`
+	ViewCount     int       `json:"view_count" gorm:"not null;default:1"`
 	CreatedAt     time.Time `json:"created_at" gorm:"not null;autoCreateTime"`
 	UpdatedAt     time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }
 
 type ProductItemFilterType struct {
-	ID         uint      `json:"id" gorm:"primaryKey;not null"`
+	ID         string    `json:"id" gorm:"primaryKey;type:varchar(32)"`
 	FilterName string    `json:"filter_name" gorm:"not null"`
-	ShopID     uint      `json:"shop_id"`
+	ShopID     string    `json:"shop_id" gorm:"type:varchar(32)"`
 	CreatedAt  time.Time `json:"created_at" gorm:"not null;autoCreateTime"`
 	UpdatedAt  time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }
 
 type PromotionsType struct {
-	ID                    uint      `json:"id"`
+	ID                    string    `json:"id" gorm:"primaryKey;type:varchar(32)"`
 	Name                  string    `json:"name"`
 	IsActive             bool      `json:"is_active"`
-	ShopID                string    `json:"shop_id"`
-	PromotionCategoryID   uint      `json:"promotion_category_id"`
+	ShopID                string    `json:"shop_id" gorm:"type:varchar(32)"`
+	PromotionCategoryID   string    `json:"promotion_category_id" gorm:"type:varchar(32)"`
 	PromotionOfferDetails string    `json:"offer_details" gorm:"type:jsonb;not null"`
 	IconPath             string    `json:"icon_path"`
 	CreatedAt             time.Time `json:"created_at" gorm:"not null;autoCreateTime"`
@@ -197,9 +197,9 @@ type PromotionsType struct {
 }
 
 type PromotionCategory struct {
-	ID        uint      `json:"id" gorm:"primaryKey;not null"`
+	ID        string    `json:"id" gorm:"primaryKey;type:varchar(32)"`
 	Name      string    `json:"name" gorm:"not null"`
-	ShopID    uint      `json:"shop_id"`
+	ShopID    string    `json:"shop_id" gorm:"type:varchar(32)"`
 	IsActive bool      `json:"is_active" gorm:"not null;default:true"`
 	IconPath string    `json:"icon_path"`
 	CreatedAt time.Time `json:"created_at" gorm:"not null;autoCreateTime"`
@@ -221,9 +221,9 @@ type PromotionOfferDetails struct {
 }
 
 type Promotion struct {
-	ID                     uint      `json:"id" gorm:"primaryKey;not null"`
-	PromotionCategoryID    uint      `json:"promotion_category_id"`
-	PromotionTypeID        uint      `json:"promotion_type_id"`
+	ID                     string    `json:"id" gorm:"primaryKey;type:varchar(32)"`
+	PromotionCategoryID    string    `json:"promotion_category_id" gorm:"type:varchar(32)"`
+	PromotionTypeID        string    `json:"promotion_type_id" gorm:"type:varchar(32)"`
 	OfferName              string    `json:"offer_name"`
 	Description            string    `json:"description"`
 	DiscountRate           float64   `json:"discount_rate"`
@@ -235,7 +235,7 @@ type Promotion struct {
 	BogoBuyQuantity        *int      `json:"bogo_buy_quantity,omitempty"`
 	BogoCombinationEnabled *bool     `json:"bogo_combination_enabled,omitempty"`
 	GiftDescription        *string   `json:"gift_description,omitempty"`
-	ShopID                 uint      `json:"shop_id"`
+	ShopID                 string    `json:"shop_id" gorm:"type:varchar(32)"`
 	IsActive               bool      `json:"is_active" gorm:"not null;default:true"`
 	CreatedAt              time.Time `json:"created_at" gorm:"not null;autoCreateTime"`
 	UpdatedAt              time.Time `json:"updated_at" gorm:"autoUpdateTime"`

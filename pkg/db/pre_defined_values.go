@@ -25,7 +25,7 @@ func savePaymentMethods(db *gorm.DB) error {
 	}
 
 	var (
-		searchQuery = `SELECT CASE WHEN id != 0 THEN 'T' ELSE 'F' END as exist FROM payment_methods WHERE name = $1`
+		searchQuery = `SELECT CASE WHEN id IS NOT NULL AND id != '' THEN 'T' ELSE 'F' END as exist FROM payment_methods WHERE name = $1`
 		insertQuery = `INSERT INTO payment_methods (name, maximum_amount_amount_minor, maximum_amount_currency) VALUES ($1, $2, $3)`
 		exist       bool
 		err         error
@@ -104,20 +104,20 @@ func saveAdmin(db *gorm.DB, email, password string) error {
 
 func SeedCountries(db *gorm.DB) error {
 	countries := []domain.Country{
-		{ID: 1, CountryName: "India", ISOCode: "IN"},
-		{ID: 2, CountryName: "United States", ISOCode: "US"},
-		{ID: 3, CountryName: "United Kingdom", ISOCode: "GB"},
-		{ID: 4, CountryName: "Canada", ISOCode: "CA"},
-		{ID: 5, CountryName: "Australia", ISOCode: "AU"},
-		{ID: 6, CountryName: "Germany", ISOCode: "DE"},
-		{ID: 7, CountryName: "France", ISOCode: "FR"},
-		{ID: 8, CountryName: "Japan", ISOCode: "JP"},
-		{ID: 9, CountryName: "China", ISOCode: "CN"},
-		{ID: 10, CountryName: "Brazil", ISOCode: "BR"},
+		{CountryName: "India", ISOCode: "IN"},
+		{CountryName: "United States", ISOCode: "US"},
+		{CountryName: "United Kingdom", ISOCode: "GB"},
+		{CountryName: "Canada", ISOCode: "CA"},
+		{CountryName: "Australia", ISOCode: "AU"},
+		{CountryName: "Germany", ISOCode: "DE"},
+		{CountryName: "France", ISOCode: "FR"},
+		{CountryName: "Japan", ISOCode: "JP"},
+		{CountryName: "China", ISOCode: "CN"},
+		{CountryName: "Brazil", ISOCode: "BR"},
 	}
 
 	for _, country := range countries {
-		if err := db.FirstOrCreate(&country, domain.Country{ID: country.ID}).Error; err != nil {
+		if err := db.FirstOrCreate(&country, domain.Country{ISOCode: country.ISOCode}).Error; err != nil {
 			return err
 		}
 	}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"strconv"
 
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
@@ -42,7 +41,7 @@ func (u *fcmTokenUseCase) DecodeTokenData(tokenString string) string {
 func (u *fcmTokenUseCase) SaveFcmToken(fcmToken domain.FcmToken) (domain.FcmToken, error) {
 
 	fmt.Printf("Saving FCM token: %s for owner_id: %s owner_type: %s\n", fcmToken.Token, fcmToken.OwnerID, fcmToken.OwnerType)
-	fmt.Printf("Received FCM token data: ShopID=%d AdminID=%d OwnerID=%s OwnerType=%s\n", fcmToken.ShopID, fcmToken.AdminID, fcmToken.OwnerID, fcmToken.OwnerType)
+	fmt.Printf("Received FCM token data: ShopID=%s AdminID=%s OwnerID=%s OwnerType=%s\n", fcmToken.ShopID, fcmToken.AdminID, fcmToken.OwnerID, fcmToken.OwnerType)
 	saved, err := u.repo.SaveFcmToken(fcmToken)
 	if err != nil {
 		return saved, err
@@ -56,17 +55,17 @@ func (u *fcmTokenUseCase) SaveFcmToken(fcmToken domain.FcmToken) (domain.FcmToke
 	if ownerType == "" {
 		ownerType = "seller"
 	}
-	if saved.ShopID != 0 {
-		shopID = strconv.FormatUint(uint64(saved.ShopID), 10)
+	if saved.ShopID != "" {
+		shopID = saved.ShopID
 	}
-	if saved.AdminID != 0 {
-		adminID = strconv.FormatUint(uint64(saved.AdminID), 10)
+	if saved.AdminID != "" {
+		adminID = saved.AdminID
 	}
 	if ownerID == "" {
-		if saved.ShopID != 0 {
-			ownerID = strconv.FormatUint(uint64(saved.ShopID), 10)
-		} else if saved.AdminID != 0 {
-			ownerID = strconv.FormatUint(uint64(saved.AdminID), 10)
+		if saved.ShopID != "" {
+			ownerID = saved.ShopID
+		} else if saved.AdminID != "" {
+			ownerID = saved.AdminID
 		}
 	}
 	if adminID == "" && ownerType == "seller" {
@@ -112,10 +111,10 @@ func (u *fcmTokenUseCase) UnregisterFcmToken(fcmToken domain.FcmToken) error {
 		ownerType = "seller"
 	}
 	if ownerID == "" {
-		if fcmToken.ShopID != 0 {
-			ownerID = strconv.FormatUint(uint64(fcmToken.ShopID), 10)
-		} else if fcmToken.AdminID != 0 {
-			ownerID = strconv.FormatUint(uint64(fcmToken.AdminID), 10)
+		if fcmToken.ShopID != "" {
+			ownerID = fcmToken.ShopID
+		} else if fcmToken.AdminID != "" {
+			ownerID = fcmToken.AdminID
 		}
 	}
 

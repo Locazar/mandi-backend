@@ -15,8 +15,8 @@ type OTPVerify struct {
 }
 
 type BlockUser struct {
-	UserID uint `json:"user_id" binding:"required,numeric"`
-	Block  bool `json:"block"`
+	UserID string `json:"user_id" binding:"required"`
+	Block  bool   `json:"block"`
 }
 
 type SalesReport struct {

@@ -3,24 +3,24 @@ package domain
 import "time"
 
 type Notification struct {
-	ID                   uint   `gorm:"primaryKey;autoIncrement"`
+	ID                   string `gorm:"primaryKey;type:varchar(32)"`
 	SenderType           UserType `gorm:"type:varchar(50);not null"`
 	ReceiverType         UserType `gorm:"type:varchar(50);not null"`
 	Type                 string `gorm:"type:varchar(100);not null"`
-	SenderID             uint   `gorm:"not null"`
+	SenderID             string `gorm:"type:varchar(32);not null"`
 	Title                string `gorm:"type:varchar(255);not null"`
 	Message              string `gorm:"type:text;not null"`
 	Body                 string `gorm:"type:text;not null"`
 	IsRead               bool   `gorm:"not null;default:false"`
-	ReceiverID           uint   `gorm:"not null"`
-	CategoryID           uint   `gorm:"not null"`
-	ProductID            uint   `gorm:"not null"`
-	VariationID          uint   `gorm:"not null"`
-	ShopID               uint   `gorm:"not null"`
-	UserID               uint   `gorm:"not null"`
-	AdminID              uint   `gorm:"not null"`
-	OrderID              uint   `gorm:"not null"`
-	OfferID              uint   `gorm:"not null"`
+	ReceiverID           string `gorm:"type:varchar(32);not null"`
+	CategoryID           string `gorm:"type:varchar(32);not null"`
+	ProductID            string `gorm:"type:varchar(32);not null"`
+	VariationID          string `gorm:"type:varchar(32);not null"`
+	ShopID               string `gorm:"type:varchar(32);not null"`
+	UserID               string `gorm:"type:varchar(32);not null"`
+	AdminID              string `gorm:"type:varchar(32);not null"`
+	OrderID              string `gorm:"type:varchar(32);not null"`
+	OfferID              string `gorm:"type:varchar(32);not null"`
 	NotificationMetaData string `gorm:"type:text"`
 	Status               NotificationStatus `gorm:"type:varchar(50);not null"`
 	CreatedAt            string `gorm:"type:varchar(50);not null"`
@@ -28,7 +28,7 @@ type Notification struct {
 }
 
 type NotificationDeviceToken struct {
-	ID        uint       `gorm:"primaryKey;autoIncrement"`
+	ID        string     `gorm:"primaryKey;type:varchar(32)"`
 	OwnerID   string     `gorm:"type:varchar(100);not null"`
 	ShopID    string     `gorm:"type:varchar(100);not null"`
 	AdminID   string     `gorm:"type:varchar(100);not null"`

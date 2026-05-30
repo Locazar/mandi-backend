@@ -55,7 +55,7 @@ func (c *adminUseCase) SignUp(ctx context.Context, signUpDetails domain.Admin) (
 	}
 	fmt.Printf("Existing admin details for phone %s: %+v\n", signUpDetails.Mobile, existAdmin)
 	// If admin already exists, return error
-	if existAdmin.ID != 0 && existAdmin.VerifiedSeller {
+	if existAdmin.ID != "" && existAdmin.VerifiedSeller {
 		return "", errors.New("Admin already exists with this phone")
 	}
 
@@ -84,7 +84,7 @@ func (c *adminUseCase) SignUp(ctx context.Context, signUpDetails domain.Admin) (
 	}()
 
 	fmt.Printf("Simulating OTP send to phone number: %s\n", signUpDetails.Mobile)
-	var adminID uint
+	var adminID string
 
 	// Save admin in goroutine
 	go func() {
@@ -133,7 +133,7 @@ func (c *adminUseCase) SignUp(ctx context.Context, signUpDetails domain.Admin) (
 		return "", utils.PrependMessageToError(err, "failed to save otp session")
 	}
 
-	fmt.Printf("OTP session created successfully with OTP ID: %s for admin ID: %d\n", otpID, adminID)
+	fmt.Printf("OTP session created successfully with OTP ID: %s for admin ID: %s\n", otpID, adminID)
 
 	return otpID, nil
 }
@@ -143,27 +143,27 @@ func (c *adminUseCase) GetAdminWithShopVerificationByPhone(ctx context.Context, 
 }
 
 func (c *adminUseCase) AdminSignUpOtpVerify(ctx context.Context,
-	otpVerifyDetails request.OTPVerify) (userID uint, shop domain.ShopDetails, err error) {
+	otpVerifyDetails request.OTPVerify) (userID string, shop domain.ShopDetails, err error) {
 	fmt.Printf("Starting OTP verification for OTP ID: %s\n", otpVerifyDetails.OtpID)
 	otpSession, err := c.authRepo.FindOtpSession(ctx, otpVerifyDetails.OtpID)
 	if err != nil {
-		return 0, domain.ShopDetails{}, utils.PrependMessageToError(err, "failed to find otp session from database")
+		return "", domain.ShopDetails{}, utils.PrependMessageToError(err, "failed to find otp session from database")
 	}
 	// if time.Since(otpSession.ExpireAt) > 0 {
-	// 	return 0, domain.ShopDetails{}, ErrOtpExpired
+	// 	return "", domain.ShopDetails{}, ErrOtpExpired
 	// }
 
 	// valid, err := c.optAuth.VerifyOtp(countryCode+otpSession.Phone, otpVerifyDetails.Otp)
 	if err != nil {
-		return 0, domain.ShopDetails{}, utils.PrependMessageToError(err, "failed to verify otp")
+		return "", domain.ShopDetails{}, utils.PrependMessageToError(err, "failed to verify otp")
 	}
 	// if !valid {
-	// 	return 0, ErrInvalidOtp
+	// 	return "", ErrInvalidOtp
 	// }
 
 	// Try to get existing admin by phone
 	admin, err := c.adminRepo.FindAdminByPhone(ctx, otpSession.Phone)
-	if err == nil && admin.ID != 0 {
+	if err == nil && admin.ID != "" {
 		// Admin exists, try to get their shop
 		shop, err := c.adminRepo.GetShopByOwnerID(ctx, admin.ID)
 		if err == nil {
@@ -182,20 +182,17 @@ func (c *adminUseCase) AdminSignUpOtpVerify(ctx context.Context,
 
 	savedAdmin, err := c.adminRepo.SaveAdmin(ctx, newAdmin)
 	if err != nil {
-		return 0, domain.ShopDetails{}, utils.PrependMessageToError(err, "failed to register admin")
+		return "", domain.ShopDetails{}, utils.PrependMessageToError(err, "failed to register admin")
 	}
 
-	if savedAdmin.ID == 0 {
-		return 0, domain.ShopDetails{}, fmt.Errorf("failed to create admin: admin ID is 0")
+	if savedAdmin.ID == "" {
+		return "", domain.ShopDetails{}, fmt.Errorf("failed to create admin: admin ID is empty")
 	}
 
 	return savedAdmin.ID, domain.ShopDetails{}, nil
-
-	return admin.ID, domain.ShopDetails{}, nil
-
 }
 func (c *adminUseCase) GenerateAccessToken(ctx context.Context, tokenParams service.GenerateTokenParams) (string, error) {
-	fmt.Printf("Generating access token for userID: %d, userType: %s\n", tokenParams.UserID, tokenParams.UserType)
+	fmt.Printf("Generating access token for userID: %s, userType: %s\n", tokenParams.UserID, tokenParams.UserType)
 	tokenReq := token.GenerateTokenRequest{
 		UserID:   tokenParams.UserID,
 		UsedFor:  tokenParams.UserType,
@@ -203,7 +200,7 @@ func (c *adminUseCase) GenerateAccessToken(ctx context.Context, tokenParams serv
 	}
 
 	tokenRes, err := c.tokenService.GenerateToken(tokenReq)
-	fmt.Printf("Token generation result for userID: %d, userType: %s, tokenRes: %+v, error: %v\n", tokenParams.UserID, tokenParams.UserType, tokenRes, err)
+	fmt.Printf("Token generation result for userID: %s, userType: %s, tokenRes: %+v, error: %v\n", tokenParams.UserID, tokenParams.UserType, tokenRes, err)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate access token \nerror:%w", err)
 	}
@@ -337,7 +334,7 @@ func (c *adminUseCase) GetAllShops(ctx context.Context, pagination request.Pagin
 	return shops, nil
 }
 
-func (c *adminUseCase) GetShopByID(ctx context.Context, shopID uint) (shop domain.ShopDetails, err error) {
+func (c *adminUseCase) GetShopByID(ctx context.Context, shopID string) (shop domain.ShopDetails, err error) {
 	shop, err = c.adminRepo.GetShopByID(ctx, shopID)
 	if err != nil {
 		return domain.ShopDetails{}, fmt.Errorf("failed to get shop by id \nerror:%v", err.Error())
@@ -352,7 +349,7 @@ func (c *adminUseCase) UpdateShop(ctx context.Context, shop map[string]interface
 	return updatedShop, nil
 }
 
-func (c *adminUseCase) GetShopByOwnerID(ctx context.Context, ownerID uint) (shop domain.ShopDetails, err error) {
+func (c *adminUseCase) GetShopByOwnerID(ctx context.Context, ownerID string) (shop domain.ShopDetails, err error) {
 	shop, err = c.adminRepo.GetShopByOwnerID(ctx, ownerID)
 	if err != nil {
 		return domain.ShopDetails{}, fmt.Errorf("failed to get shop by owner id \nerror:%v", err.Error())
@@ -368,7 +365,7 @@ func (c *adminUseCase) SendNotificationToUsersInRadius(ctx context.Context, requ
 	return nil
 }
 
-func (c *adminUseCase) SendNotificationToUser(ctx context.Context, userID uint, message string) error {
+func (c *adminUseCase) SendNotificationToUser(ctx context.Context, userID string, message string) error {
 	err := c.adminRepo.SendNotificationToUser(ctx, userID, message)
 	if err != nil {
 		return fmt.Errorf("failed to send notification to user \nerror:%v", err.Error())
@@ -391,7 +388,7 @@ func (c *adminUseCase) DecodeTokenData(tokenString string) string {
 	return c.tokenService.DecodeTokenData(tokenString)
 }
 
-func (c *adminUseCase) UploadShopDocument(ctx context.Context, shopID uint, documentType string, documentValue string) error {
+func (c *adminUseCase) UploadShopDocument(ctx context.Context, shopID string, documentType string, documentValue string) error {
 
 	err := c.adminRepo.UploadShopDocument(ctx, shopID, documentType, documentValue)
 	if err != nil {
@@ -476,7 +473,7 @@ func (c *adminUseCase) UserLogout(ctx context.Context, adminId string) error {
 	return nil
 }
 
-func (c *adminUseCase) GetShopSocialDetails(ctx context.Context, shopID uint) ([]domain.ShopSocial, error) {
+func (c *adminUseCase) GetShopSocialDetails(ctx context.Context, shopID string) ([]domain.ShopSocial, error) {
 	shopSocialDetails, err := c.adminRepo.GetShopSocialDetails(ctx, shopID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get shop social details \nerror:%v", err.Error())
@@ -484,6 +481,6 @@ func (c *adminUseCase) GetShopSocialDetails(ctx context.Context, shopID uint) ([
 	return shopSocialDetails, nil
 }
 
-func (c *adminUseCase) GetAdminByID(ctx context.Context, adminID uint) (domain.Admin, error) {
+func (c *adminUseCase) GetAdminByID(ctx context.Context, adminID string) (domain.Admin, error) {
 	return c.adminRepo.GetAdminByID(ctx, adminID)
 }

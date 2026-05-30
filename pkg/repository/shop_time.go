@@ -23,13 +23,13 @@ func (r *shopTimeRepository) CreateShopTime(ctx context.Context, shopTime domain
 	return r.db.WithContext(ctx).Create(&shopTime).Error
 }
 
-func (r *shopTimeRepository) GetShopTimeByShopID(ctx context.Context, shopID uint) (domain.ShopTime, error) {
+func (r *shopTimeRepository) GetShopTimeByShopID(ctx context.Context, shopID string) (domain.ShopTime, error) {
 	var shopTime domain.ShopTime
 	err := r.db.WithContext(ctx).Where("shop_id = ?", shopID).First(&shopTime).Error
 	return shopTime, err
 }
 
 func (r *shopTimeRepository) UpdateShopTime(ctx context.Context, shopTime domain.ShopTime) error {
-	fmt.Printf("Updating shop time for shop ID %d: %+v\n", shopTime.ShopID, shopTime)
+	fmt.Printf("Updating shop time for shop ID %s: %+v\n", shopTime.ShopID, shopTime)
 	return r.db.WithContext(ctx).Save(&shopTime).Error
 }

@@ -69,10 +69,10 @@ func (mr *MockAuthUseCaseMockRecorder) AdminSignUpOtpSend(ctx, phone interface{}
 }
 
 // AdminSignUpOtpVerify mocks base method.
-func (m *MockAuthUseCase) AdminSignUpOtpVerify(ctx context.Context, otpVerifyDetails request.OTPVerify) (uint, error) {
+func (m *MockAuthUseCase) AdminSignUpOtpVerify(ctx context.Context, otpVerifyDetails request.OTPVerify) (string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AdminSignUpOtpVerify", ctx, otpVerifyDetails)
-	ret0, _ := ret[0].(uint)
+	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -114,10 +114,10 @@ func (mr *MockAuthUseCaseMockRecorder) GenerateRefreshToken(ctx, tokenParams int
 }
 
 // GoogleLogin mocks base method.
-func (m *MockAuthUseCase) GoogleLogin(ctx context.Context, user domain.User) (uint, error) {
+func (m *MockAuthUseCase) GoogleLogin(ctx context.Context, user domain.User) (string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GoogleLogin", ctx, user)
-	ret0, _ := ret[0].(uint)
+	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -129,10 +129,10 @@ func (mr *MockAuthUseCaseMockRecorder) GoogleLogin(ctx, user interface{}) *gomoc
 }
 
 // LoginOtpVerify mocks base method.
-func (m *MockAuthUseCase) LoginOtpVerify(ctx context.Context, otpVerifyDetails request.OTPVerify) (uint, error) {
+func (m *MockAuthUseCase) LoginOtpVerify(ctx context.Context, otpVerifyDetails request.OTPVerify) (string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "LoginOtpVerify", ctx, otpVerifyDetails)
-	ret0, _ := ret[0].(uint)
+	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -144,10 +144,10 @@ func (mr *MockAuthUseCaseMockRecorder) LoginOtpVerify(ctx, otpVerifyDetails inte
 }
 
 // LoginOtpVerifyEmail mocks base method.
-func (m *MockAuthUseCase) LoginOtpVerifyEmail(ctx context.Context, otpVerifyDetails request.OTPVerify) (uint, error) {
+func (m *MockAuthUseCase) LoginOtpVerifyEmail(ctx context.Context, otpVerifyDetails request.OTPVerify) (string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "LoginOtpVerifyEmail", ctx, otpVerifyDetails)
-	ret0, _ := ret[0].(uint)
+	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -159,10 +159,10 @@ func (mr *MockAuthUseCaseMockRecorder) LoginOtpVerifyEmail(ctx, otpVerifyDetails
 }
 
 // SingUpOtpVerify mocks base method.
-func (m *MockAuthUseCase) SingUpOtpVerify(ctx context.Context, otpVerifyDetails request.OTPVerify) (uint, error) {
+func (m *MockAuthUseCase) SingUpOtpVerify(ctx context.Context, otpVerifyDetails request.OTPVerify) (string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SingUpOtpVerify", ctx, otpVerifyDetails)
-	ret0, _ := ret[0].(uint)
+	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -174,10 +174,10 @@ func (mr *MockAuthUseCaseMockRecorder) SingUpOtpVerify(ctx, otpVerifyDetails int
 }
 
 // UserLogin mocks base method.
-func (m *MockAuthUseCase) UserLogin(ctx context.Context, loginDetails request.Login) (uint, error) {
+func (m *MockAuthUseCase) UserLogin(ctx context.Context, loginDetails request.Login) (string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UserLogin", ctx, loginDetails)
-	ret0, _ := ret[0].(uint)
+	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

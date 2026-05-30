@@ -20,13 +20,13 @@ func TestGenerateToken(t *testing.T) {
 
 		{
 			name:            "InvalidUserTypeShouldReturnError",
-			input:           GenerateTokenRequest{UserID: 1, UsedFor: "Invalid user type"},
+			input:           GenerateTokenRequest{UserID: "usr_test1", UsedFor: "Invalid user type"},
 			expectingOutput: false,
 			expectedError:   ErrInvalidUserType,
 		},
 		{
 			name:            "ValidPayloadShouldReturnTokenString",
-			input:           GenerateTokenRequest{UserID: 12, UsedFor: User},
+			input:           GenerateTokenRequest{UserID: "usr_test12", UsedFor: User},
 			expectingOutput: true,
 			expectedError:   nil,
 		},
@@ -73,7 +73,7 @@ func TestVerifyToken(t *testing.T) {
 			expectedOutput: VerifyTokenResponse{},
 			buildStub: func(t *testing.T, tokenAuth TokenService) string {
 				response, err := tokenAuth.GenerateToken(GenerateTokenRequest{
-					UserID:   12,
+					UserID:   "usr_test12",
 					ExpireAt: time.Date(2000, 1, 1, 1, 1, 1, 1, time.UTC),
 					UsedFor:  User,
 				})
@@ -108,10 +108,10 @@ func TestVerifyToken(t *testing.T) {
 		{
 			name:           "ValidTokenShouldReturnResponse",
 			tokenUser:      Admin,
-			expectedOutput: VerifyTokenResponse{UserID: 12, TokenID: "token_id"},
+			expectedOutput: VerifyTokenResponse{UserID: "usr_test123", TokenID: "token_id"},
 			buildStub: func(t *testing.T, tokenAuth TokenService) string {
 				request := GenerateTokenRequest{
-					UserID:   12,
+					UserID:   "usr_test123",
 					UsedFor:  Admin,
 					ExpireAt: time.Now().Add(time.Hour * 1),
 				}

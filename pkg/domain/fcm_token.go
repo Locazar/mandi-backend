@@ -3,7 +3,7 @@ package domain
 import "time"
 
 type FcmToken struct {
-	ID        uint       `gorm:"primarykey;column:id" json:"id"`
+	ID        string     `gorm:"primaryKey;type:varchar(32)" json:"id"`
 	Token     string     `gorm:"column:token;unique;not null" json:"token"`
 	Device    string     `gorm:"column:device" json:"device"`
 	Platform  string     `gorm:"column:platform" json:"platform"`
@@ -14,6 +14,6 @@ type FcmToken struct {
 	UpdatedAt *time.Time `gorm:"column:updated_at" json:"updated_at,omitempty"`
 
 	// Compatibility fields used by existing handlers/usecases for owner resolution.
-	ShopID  uint `gorm:"-" json:"shop_id"`
-	AdminID uint `gorm:"-" json:"admin_id"`
+	ShopID  string `gorm:"-" json:"shop_id"`
+	AdminID string `gorm:"-" json:"admin_id"`
 }

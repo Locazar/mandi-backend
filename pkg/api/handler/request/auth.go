@@ -16,7 +16,7 @@ type OTPLoginEmail struct {
 
 type RefreshSession struct {
 	TokenID      string `json:"token_id"`
-	UserID       uint   `json:"user_id"`
+	UserID       string `json:"user_id"`
 	UserType     string `json:"user_type"`
 	RefreshToken string `json:"refresh_token"`
 	ExpireAt     string `json:"expire_at"`

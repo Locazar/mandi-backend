@@ -4,7 +4,7 @@ import "time"
 
 // MobileUser represents a user in the mobile authentication system
 type MobileUser struct {
-	ID        int64      `json:"id" gorm:"primaryKey"`
+	ID        string     `json:"id" gorm:"primaryKey;type:varchar(32)"`
 	Phone     string     `json:"phone" gorm:"uniqueIndex;not null;size:20"`
 	FirstName string     `json:"first_name" gorm:"size:100"`
 	LastName  string     `json:"last_name" gorm:"size:100"`
@@ -17,7 +17,7 @@ type MobileUser struct {
 
 // OTPRequest represents an OTP request for mobile authentication
 type OTPRequest struct {
-	ID          int64     `json:"id" gorm:"primaryKey"`
+	ID          string    `json:"id" gorm:"primaryKey;type:varchar(32)"`
 	Phone       string    `json:"phone" gorm:"index;not null;size:20"`
 	OTPHash     string    `json:"otp_hash" gorm:"not null;size:255"` // bcrypt hash of OTP
 	ExpiresAt   time.Time `json:"expires_at" gorm:"index;not null"`
@@ -32,7 +32,7 @@ type OTPRequest struct {
 
 // LoginAuditLog represents audit logs for compliance and security monitoring
 type LoginAuditLog struct {
-	ID        int64     `json:"id" gorm:"primaryKey"`
+	ID        string    `json:"id" gorm:"primaryKey;type:varchar(32)"`
 	Phone     string    `json:"phone" gorm:"index;not null;size:20"`
 	Event     string    `json:"event" gorm:"index;size:50"` // 'OTP_REQUESTED', 'OTP_SENT', 'OTP_VERIFIED', 'OTP_FAILED', 'OTP_EXPIRED', 'LOGIN_SUCCESS'
 	IPAddress string    `json:"ip_address" gorm:"size:50"`

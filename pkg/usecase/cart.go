@@ -24,7 +24,7 @@ func NewCartUseCase(cartRepo interfaces.CartRepository, productRepo interfaces.P
 }
 
 // get user cart(it include total price and cartId)
-func (c *cartUseCase) GetUserCart(ctx context.Context, userID uint) (cart domain.Cart, err error) {
+func (c *cartUseCase) GetUserCart(ctx context.Context, userID string) (cart domain.Cart, err error) {
 
 	cart, err = c.cartRepo.FindCartByUserID(ctx, userID)
 	if err != nil {
@@ -34,7 +34,7 @@ func (c *cartUseCase) GetUserCart(ctx context.Context, userID uint) (cart domain
 	return cart, nil
 }
 
-func (c *cartUseCase) SaveProductItemToCart(ctx context.Context, userID, productItemId uint) error {
+func (c *cartUseCase) SaveProductItemToCart(ctx context.Context, userID, productItemId string) error {
 
 	_, err := c.productRepo.FindProductItemByID(ctx, productItemId)
 	if err != nil {
@@ -51,7 +51,7 @@ func (c *cartUseCase) SaveProductItemToCart(ctx context.Context, userID, product
 	if err != nil {
 		return utils.PrependMessageToError(err, "failed to find user cart")
 	}
-	if cart.ID == 0 { // if there is no cart is available for user then create new cart
+	if cart.ID == "" { // if there is no cart is available for user then create new cart
 		cart.ID, err = c.cartRepo.SaveCart(ctx, userID)
 		if err != nil {
 			return err
@@ -63,7 +63,7 @@ func (c *cartUseCase) SaveProductItemToCart(ctx context.Context, userID, product
 	if err != nil {
 		return err
 	}
-	if cartItem.ID != 0 {
+	if cartItem.ID != "" {
 		return ErrCartItemAlreadyExist
 	}
 
@@ -76,14 +76,14 @@ func (c *cartUseCase) SaveProductItemToCart(ctx context.Context, userID, product
 	return nil
 }
 
-func (c *cartUseCase) RemoveProductItemFromCartItem(ctx context.Context, userID, productItemId uint) error {
+func (c *cartUseCase) RemoveProductItemFromCartItem(ctx context.Context, userID, productItemId string) error {
 
 	// Find cart of user
 	cart, err := c.cartRepo.FindCartByUserID(ctx, userID)
 	if err != nil {
 		return err
 	}
-	if cart.ID == 0 {
+	if cart.ID == "" {
 		return ErrEmptyCart
 	}
 
@@ -91,7 +91,7 @@ func (c *cartUseCase) RemoveProductItemFromCartItem(ctx context.Context, userID,
 	cartItem, err := c.cartRepo.FindCartItemByCartAndProductItemID(ctx, cart.ID, productItemId)
 	if err != nil {
 		return err
-	} else if cartItem.ID == 0 {
+	} else if cartItem.ID == "" {
 		return ErrCartItemNotExit
 	}
 
@@ -126,7 +126,7 @@ func (c *cartUseCase) UpdateCartItem(ctx context.Context, updateDetails request.
 	if err != nil {
 		return utils.PrependMessageToError(err, "failed find user cart")
 	}
-	if cart.ID == 0 {
+	if cart.ID == "" {
 		return ErrEmptyCart
 	}
 
@@ -135,7 +135,7 @@ func (c *cartUseCase) UpdateCartItem(ctx context.Context, updateDetails request.
 	if err != nil {
 		return utils.PrependMessageToError(err, "failed to find product item from cart")
 	}
-	if cartItem.ID == 0 {
+	if cartItem.ID == "" {
 		return ErrCartItemNotExit
 	}
 
@@ -147,7 +147,7 @@ func (c *cartUseCase) UpdateCartItem(ctx context.Context, updateDetails request.
 	return nil
 }
 
-func (c *cartUseCase) GetUserCartItems(ctx context.Context, cartId uint) (cartItems []response.CartItem, err error) {
+func (c *cartUseCase) GetUserCartItems(ctx context.Context, cartId string) (cartItems []response.CartItem, err error) {
 	// get the cart_items of user
 	cartItems, err = c.cartRepo.FindAllCartItemsByCartID(ctx, cartId)
 	if err != nil {

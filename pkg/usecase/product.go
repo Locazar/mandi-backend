@@ -189,7 +189,7 @@ func (c *productUseCase) SaveSubCategory(ctx context.Context, body request.SubCa
 }
 
 // to add new variation for a category
-func (c *productUseCase) SaveVariation(ctx context.Context, categoryID uint, variationNames []string) error {
+func (c *productUseCase) SaveVariation(ctx context.Context, categoryID string, variationNames []string) error {
 
 	err := c.productRepo.Transactions(ctx, func(repo interfaces.ProductRepository) error {
 
@@ -216,7 +216,7 @@ func (c *productUseCase) SaveVariation(ctx context.Context, categoryID uint, var
 }
 
 // to add new variation value for variation
-func (c *productUseCase) SaveVariationOption(ctx context.Context, variationID uint, variationOptionValues []string) error {
+func (c *productUseCase) SaveVariationOption(ctx context.Context, variationID string, variationOptionValues []string) error {
 
 	err := c.productRepo.Transactions(ctx, func(repo interfaces.ProductRepository) error {
 		for _, variationValue := range variationOptionValues {
@@ -240,7 +240,7 @@ func (c *productUseCase) SaveVariationOption(ctx context.Context, variationID ui
 	return err
 }
 
-func (c *productUseCase) FindAllVariationsAndItsValues(ctx context.Context, categoryID uint) ([]response.Variation, error) {
+func (c *productUseCase) FindAllVariationsAndItsValues(ctx context.Context, categoryID string) ([]response.Variation, error) {
 
 	variations, err := c.productRepo.FindAllVariationsByCategoryID(ctx, categoryID)
 	if err != nil {
@@ -272,7 +272,7 @@ func (c *productUseCase) FindAllProducts(ctx context.Context, pagination request
 }
 
 // to get product by ID
-func (c *productUseCase) FindProductByID(ctx context.Context, productID uint) (domain.Product, error) {
+func (c *productUseCase) FindProductByID(ctx context.Context, productID string) (domain.Product, error) {
 	product, err := c.productRepo.FindProductByID(ctx, productID)
 	if err != nil {
 		return product, utils.PrependMessageToError(err, "failed to get product from database")
@@ -281,7 +281,7 @@ func (c *productUseCase) FindProductByID(ctx context.Context, productID uint) (d
 }
 
 // to add new product
-func (c *productUseCase) SaveProduct(ctx context.Context, product request.Product, adminID string) (productID uint, err error) {
+func (c *productUseCase) SaveProduct(ctx context.Context, product request.Product, adminID string) (productID string, err error) {
 
 	// productNameExist, err := c.productRepo.IsProductNameExist(ctx, product.Name)
 	// if err != nil {
@@ -294,7 +294,7 @@ func (c *productUseCase) SaveProduct(ctx context.Context, product request.Produc
 	// Save image to uploads folder in project directory
 	localPath, err := utils.SaveFileLocally(product.ImageFileHeader, "uploads/products")
 	if err != nil {
-		return 0, utils.PrependMessageToError(err, "failed to save image locally")
+		return "", utils.PrependMessageToError(err, "failed to save image locally")
 	}
 
 	productID, err = c.productRepo.SaveProduct(ctx, domain.Product{
@@ -305,13 +305,13 @@ func (c *productUseCase) SaveProduct(ctx context.Context, product request.Produc
 		DepartmentID: product.DepartmentID,
 	}, adminID)
 	if err != nil {
-		return 0, utils.PrependMessageToError(err, "failed to save product")
+		return "", utils.PrependMessageToError(err, "failed to save product")
 	}
 	return productID, nil
 }
 
 // for add new productItem for a specific product
-func (c *productUseCase) SaveProductItem(ctx context.Context, productItem request.ProductItem, adminID string, shopID uint) error {
+func (c *productUseCase) SaveProductItem(ctx context.Context, productItem request.ProductItem, adminID string, shopID string) error {
 	_, err := c.productRepo.SaveProductItem(ctx, productItem, adminID, shopID)
 	if err != nil {
 		return utils.PrependMessageToError(err, "failed to save product item")
@@ -319,7 +319,7 @@ func (c *productUseCase) SaveProductItem(ctx context.Context, productItem reques
 	return nil
 }
 
-func (c *productUseCase) UpdateProductItem(ctx context.Context, productItemID uint, productItem request.ProductItem) error {
+func (c *productUseCase) UpdateProductItem(ctx context.Context, productItemID string, productItem request.ProductItem) error {
 	err := c.productRepo.UpdateProductItem(ctx, productItemID, productItem)
 	if err != nil {
 		return utils.PrependMessageToError(err, "failed to update product item")
@@ -336,9 +336,9 @@ func (c *productUseCase) UpdateProductItem(ctx context.Context, productItemID ui
 // step 7 : add each id on the map and increment its count
 // step 8 : check if any of the product items id's count is greater than the variation options ids length then return true
 // step 9 : if the loop exist means product configuration is not exist
-func (c *productUseCase) isProductVariationCombinationExist(productID uint, variationOptionIDs []uint) (exist bool, err error) {
+func (c *productUseCase) isProductVariationCombinationExist(productID string, variationOptionIDs []string) (exist bool, err error) {
 
-	setOfIds := map[uint]int{}
+	setOfIds := map[string]int{}
 
 	for _, variationOptionID := range variationOptionIDs {
 
@@ -385,7 +385,7 @@ func (c *productUseCase) FindLowViewProductItems(ctx context.Context, adminId st
 	return productItems, nil
 }
 
-func (c *productUseCase) DeleteProductItem(ctx context.Context, productItemID uint) error {
+func (c *productUseCase) DeleteProductItem(ctx context.Context, productItemID string) error {
 	err := c.productRepo.DeleteProductItem(ctx, productItemID)
 	if err != nil {
 		return utils.PrependMessageToError(err, "failed to delete product item")
@@ -726,7 +726,7 @@ func (s *productUseCase) GetCategoryFilters(ctx context.Context) ([]response.Cat
 	var categories []response.Category
 	for rows.Next() {
 		var c struct {
-			CategoryID uint
+			CategoryID string
 			Name       string
 		}
 		if err := rows.Scan(&c.CategoryID, &c.Name); err != nil {
@@ -1026,12 +1026,12 @@ func (s *productUseCase) GetNearbyProductsByPincode(ctx context.Context, pincode
 
 	var products []response.ProductItems
 	for rows.Next() {
-		var id uint
-		var shopID uint
+		var id string
+		var shopID string
 		var name string
-		var categoryID uint
-		var deptID uint
-		var subCatID uint
+		var categoryID string
+		var deptID string
+		var subCatID string
 		var images string
 		var dynamicFields []byte
 		var createdAt time.Time
@@ -1161,12 +1161,12 @@ func (c *productUseCase) GetProductsByRadius(ctx context.Context, latitude float
 	var products []response.ProductItems
 	count := 0
 	for rows.Next() {
-		var id uint
-		var shopID uint
+		var id string
+		var shopID string
 		var name string
-		var categoryID uint
-		var deptID uint
-		var subCatID uint
+		var categoryID string
+		var deptID string
+		var subCatID string
 		var images string
 		var dynamicFields []byte
 		var createdAt time.Time
@@ -1265,7 +1265,7 @@ func (c *productUseCase) GetAllDepartments(ctx context.Context) ([]response.Depa
 	return resDepartments, nil
 }
 
-func (c *productUseCase) GetDepartmentByID(ctx context.Context, departmentID uint) (response.Department, error) {
+func (c *productUseCase) GetDepartmentByID(ctx context.Context, departmentID string) (response.Department, error) {
 	department, err := c.productRepo.GetDepartmentByID(ctx, departmentID)
 	if err != nil {
 		return response.Department{}, utils.PrependMessageToError(err, "failed to get department by id")
@@ -1291,7 +1291,7 @@ func (c *productUseCase) GetAllSubCategories(ctx context.Context) ([]response.Su
 	return subCategories, nil
 }
 
-func (c *productUseCase) GetAllCategoriesByDepartmentID(ctx context.Context, departmentID uint) ([]response.Category, error) {
+func (c *productUseCase) GetAllCategoriesByDepartmentID(ctx context.Context, departmentID string) ([]response.Category, error) {
 	categories, err := c.productRepo.GetAllCategoriesByDepartmentID(ctx, departmentID)
 	if err != nil {
 		return nil, utils.PrependMessageToError(err, "failed to get categories by department id")
@@ -1305,7 +1305,7 @@ func (c *productUseCase) GetAllCategoriesByDepartmentID(ctx context.Context, dep
 	return categories, nil
 }
 
-func (c *productUseCase) GetAllSubCategoriesByCategoryID(ctx context.Context, categoryID uint) ([]response.SubCategory, error) {
+func (c *productUseCase) GetAllSubCategoriesByCategoryID(ctx context.Context, categoryID string) ([]response.SubCategory, error) {
 	subCategories, err := c.productRepo.GetAllSubCategoriesByCategoryID(ctx, categoryID)
 	if err != nil {
 		return nil, utils.PrependMessageToError(err, "failed to get sub-categories by category id")
@@ -1314,7 +1314,7 @@ func (c *productUseCase) GetAllSubCategoriesByCategoryID(ctx context.Context, ca
 }
 
 // SaveSubTypeAttribute saves a new sub type attribute
-func (c *productUseCase) SaveSubTypeAttribute(ctx context.Context, subCategoryID uint, attribute request.SubTypeAttribute) error {
+func (c *productUseCase) SaveSubTypeAttribute(ctx context.Context, subCategoryID string, attribute request.SubTypeAttribute) error {
 	// Convert request to domain model
 	domainAttribute := domain.SubTypeAttributes{
 		FieldName:  attribute.FieldName,
@@ -1327,7 +1327,7 @@ func (c *productUseCase) SaveSubTypeAttribute(ctx context.Context, subCategoryID
 }
 
 // GetAllSubTypeAttributes retrieves all sub type attributes for a subcategory
-func (c *productUseCase) GetAllSubTypeAttributes(ctx context.Context, subCategoryID uint) ([]response.SubTypeAttribute, error) {
+func (c *productUseCase) GetAllSubTypeAttributes(ctx context.Context, subCategoryID string) ([]response.SubTypeAttribute, error) {
 	attributes, err := c.productRepo.GetAllSubTypeAttributes(ctx, subCategoryID)
 	if err != nil {
 		return nil, utils.PrependMessageToError(err, "failed to get sub type attributes")
@@ -1336,7 +1336,7 @@ func (c *productUseCase) GetAllSubTypeAttributes(ctx context.Context, subCategor
 }
 
 // GetSubTypeAttributeByID retrieves a single sub type attribute by ID
-func (c *productUseCase) GetSubTypeAttributeByID(ctx context.Context, attributeID uint) (response.SubTypeAttribute, error) {
+func (c *productUseCase) GetSubTypeAttributeByID(ctx context.Context, attributeID string) (response.SubTypeAttribute, error) {
 	attribute, err := c.productRepo.GetSubTypeAttributeByID(ctx, attributeID)
 	if err != nil {
 		return response.SubTypeAttribute{}, utils.PrependMessageToError(err, "failed to get sub type attribute by id")
@@ -1345,7 +1345,7 @@ func (c *productUseCase) GetSubTypeAttributeByID(ctx context.Context, attributeI
 }
 
 // SaveSubTypeAttributeOption saves a new option for a sub type attribute
-func (c *productUseCase) SaveSubTypeAttributeOption(ctx context.Context, attributeID uint, option request.SubTypeAttributeOption) error {
+func (c *productUseCase) SaveSubTypeAttributeOption(ctx context.Context, attributeID string, option request.SubTypeAttributeOption) error {
 	// Convert request to domain model
 	domainOption := domain.SubTypeAttributeOptions{
 		OptionValue: option.OptionValue,
@@ -1356,7 +1356,7 @@ func (c *productUseCase) SaveSubTypeAttributeOption(ctx context.Context, attribu
 }
 
 // GetAllSubTypeAttributeOptions retrieves all options for a sub type attribute
-func (c *productUseCase) GetAllSubTypeAttributeOptions(ctx context.Context, attributeID uint) ([]response.SubTypeAttributeOption, error) {
+func (c *productUseCase) GetAllSubTypeAttributeOptions(ctx context.Context, attributeID string) ([]response.SubTypeAttributeOption, error) {
 	options, err := c.productRepo.GetAllSubTypeAttributeOptions(ctx, attributeID)
 	if err != nil {
 		return nil, utils.PrependMessageToError(err, "failed to get sub type attribute options")
@@ -1365,7 +1365,7 @@ func (c *productUseCase) GetAllSubTypeAttributeOptions(ctx context.Context, attr
 }
 
 // GetSubTypeAttributeOptionByID retrieves a single option by ID
-func (c *productUseCase) GetSubTypeAttributeOptionByID(ctx context.Context, optionID uint) (response.SubTypeAttributeOption, error) {
+func (c *productUseCase) GetSubTypeAttributeOptionByID(ctx context.Context, optionID string) (response.SubTypeAttributeOption, error) {
 	option, err := c.productRepo.GetSubTypeAttributeOptionByID(ctx, optionID)
 	if err != nil {
 		return response.SubTypeAttributeOption{}, utils.PrependMessageToError(err, "failed to get sub type attribute option by id")
@@ -1374,7 +1374,7 @@ func (c *productUseCase) GetSubTypeAttributeOptionByID(ctx context.Context, opti
 }
 
 // SaveCategoryImage saves a new category image
-func (c *productUseCase) SaveCategoryImage(ctx context.Context, categoryID uint, image request.CategoryImage) error {
+func (c *productUseCase) SaveCategoryImage(ctx context.Context, categoryID string, image request.CategoryImage) error {
 	categoryImage := domain.CategoryImage{
 		CategoryID: categoryID,
 		ImageURL:   image.ImageURL,
@@ -1393,7 +1393,7 @@ func (c *productUseCase) SaveCategoryImage(ctx context.Context, categoryID uint,
 }
 
 // GetAllCategoryImages retrieves all images for a category
-func (c *productUseCase) GetAllCategoryImages(ctx context.Context, categoryID uint) ([]response.CategoryImage, error) {
+func (c *productUseCase) GetAllCategoryImages(ctx context.Context, categoryID string) ([]response.CategoryImage, error) {
 	images, err := c.productRepo.GetAllCategoryImages(ctx, categoryID)
 	if err != nil {
 		return nil, utils.PrependMessageToError(err, "failed to get all category images")
@@ -1402,7 +1402,7 @@ func (c *productUseCase) GetAllCategoryImages(ctx context.Context, categoryID ui
 }
 
 // GetCategoryImageByID retrieves a single category image
-func (c *productUseCase) GetCategoryImageByID(ctx context.Context, imageID uint) (response.CategoryImage, error) {
+func (c *productUseCase) GetCategoryImageByID(ctx context.Context, imageID string) (response.CategoryImage, error) {
 	image, err := c.productRepo.GetCategoryImageByID(ctx, imageID)
 	if err != nil {
 		return response.CategoryImage{}, utils.PrependMessageToError(err, "failed to get category image by id")
@@ -1411,7 +1411,7 @@ func (c *productUseCase) GetCategoryImageByID(ctx context.Context, imageID uint)
 }
 
 // UpdateCategoryImage updates an existing category image
-func (c *productUseCase) UpdateCategoryImage(ctx context.Context, imageID uint, image request.CategoryImage) error {
+func (c *productUseCase) UpdateCategoryImage(ctx context.Context, imageID string, image request.CategoryImage) error {
 	categoryImage := domain.CategoryImage{
 		ID:        imageID,
 		ImageURL:  image.ImageURL,
@@ -1427,7 +1427,7 @@ func (c *productUseCase) UpdateCategoryImage(ctx context.Context, imageID uint, 
 }
 
 // DeleteCategoryImage soft deletes a category image
-func (c *productUseCase) DeleteCategoryImage(ctx context.Context, imageID uint) error {
+func (c *productUseCase) DeleteCategoryImage(ctx context.Context, imageID string) error {
 	err := c.productRepo.DeleteCategoryImage(ctx, imageID)
 	if err != nil {
 		return utils.PrependMessageToError(err, "failed to delete category image")
@@ -1435,7 +1435,7 @@ func (c *productUseCase) DeleteCategoryImage(ctx context.Context, imageID uint) 
 	return nil
 }
 
-func (c *productUseCase) GetProductItemByID(ctx context.Context, productItemID uint) (response.ProductItems, error) {
+func (c *productUseCase) GetProductItemByID(ctx context.Context, productItemID string) (response.ProductItems, error) {
 	productItem, err := c.productRepo.GetProductItemByID(ctx, productItemID)
 	if err != nil {
 		return response.ProductItems{}, utils.PrependMessageToError(err, "failed to get product item by id")
@@ -1443,7 +1443,7 @@ func (c *productUseCase) GetProductItemByID(ctx context.Context, productItemID u
 	return productItem, nil
 }
 
-func (c *productUseCase) IncrementProductItemViewCount(ctx context.Context, productItemID uint, adminID string) error {
+func (c *productUseCase) IncrementProductItemViewCount(ctx context.Context, productItemID string, adminID string) error {
 	err := c.productRepo.IncrementProductItemViewCount(ctx, productItemID, adminID)
 	if err != nil {
 		return utils.PrependMessageToError(err, "failed to increment product item view count")
@@ -1451,7 +1451,7 @@ func (c *productUseCase) IncrementProductItemViewCount(ctx context.Context, prod
 	return nil
 }
 
-func (c *productUseCase) GetProductItemViewCount(ctx context.Context, productItemID uint, adminID string) (uint, error) {
+func (c *productUseCase) GetProductItemViewCount(ctx context.Context, productItemID string, adminID string) (uint, error) {
 	count, err := c.productRepo.GetProductItemViewCount(ctx, productItemID, adminID)
 	if err != nil {
 		return 0, utils.PrependMessageToError(err, "failed to get product item view count")
@@ -1459,7 +1459,7 @@ func (c *productUseCase) GetProductItemViewCount(ctx context.Context, productIte
 	return count, nil
 }
 
-func (s *productUseCase) FindProductItemFilters(ctx context.Context, adminID string, shopID uint) ([]domain.ProductItemFilterType, error) {
+func (s *productUseCase) FindProductItemFilters(ctx context.Context, adminID string, shopID string) ([]domain.ProductItemFilterType, error) {
 	filters, err := s.productRepo.FindProductItemFilters(ctx, adminID, shopID)
 	if err != nil {
 		return nil, utils.PrependMessageToError(err, "failed to find product item filters")
@@ -1467,7 +1467,7 @@ func (s *productUseCase) FindProductItemFilters(ctx context.Context, adminID str
 	return filters, nil
 }
 
-func (s *productUseCase) GetProductItemsByOfferID(ctx context.Context, offerID uint, categoryID int, departmentID int, subCategoryID int, latStr string, lngStr string, pincode string, radiusKm float64, limit int, offset int) ([]response.ProductItems, error) {
+func (s *productUseCase) GetProductItemsByOfferID(ctx context.Context, offerID string, categoryID int, departmentID int, subCategoryID int, latStr string, lngStr string, pincode string, radiusKm float64, limit int, offset int) ([]response.ProductItems, error) {
 	products, err := s.productRepo.GetProductItemsByOfferID(ctx, offerID, categoryID, departmentID, subCategoryID, latStr, lngStr, pincode, radiusKm, limit, offset)
 	if err != nil {
 		return nil, utils.PrependMessageToError(err, "failed to get product items by offer id")

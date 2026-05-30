@@ -24,7 +24,7 @@ import (
 //	@Failure		500	{object}	response.Response{}	"Failed to create stripe order"
 func (c *paymentHandler) StripPaymentCheckout(ctx *gin.Context) {
 
-	shopOrderID, err := request.GetFormValuesAsUint(ctx, "shop_order_id")
+	shopOrderID, err := request.GetFormValuesAsString(ctx, "shop_order_id")
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, BindFormValueMessage, err, nil)
 		return
@@ -61,7 +61,7 @@ func (c *paymentHandler) StripPaymentCheckout(ctx *gin.Context) {
 //	@Failure		500	{object}	response.Response{}	"Failed to Approve order"
 func (c *paymentHandler) StripePaymentVeify(ctx *gin.Context) {
 
-	shopOrderID, err1 := request.GetFormValuesAsUint(ctx, "shop_order_id")
+	shopOrderID, err1 := request.GetFormValuesAsString(ctx, "shop_order_id")
 	stripePaymentID, err2 := request.GetFormValuesAsString(ctx, "stripe_payment_id")
 
 	err := errors.Join(err1, err2)

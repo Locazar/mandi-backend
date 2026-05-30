@@ -26,23 +26,23 @@ func NewAlertTemplateHandler(uc usecaseinterfaces.AlertTemplateUseCase, adminUC 
 
 // extractSellerID extracts and validates seller ID from the Authorization header.
 // Returns 0 and writes a 401 response if the token is missing, invalid, or unparseable.
-func (h *AlertTemplateHandler) extractSellerID(ctx *gin.Context) uint {
+func (h *AlertTemplateHandler) extractSellerID(ctx *gin.Context) string {
 	tokenString := ctx.GetHeader("Authorization")
 	if tokenString == "" {
 		response.ErrorResponse(ctx, http.StatusUnauthorized, "Unauthorized: missing token", nil, nil)
-		return 0
+		return ""
 	}
 	adminId := h.adminUC.DecodeTokenData(tokenString)
 	if adminId == "" {
 		response.ErrorResponse(ctx, http.StatusUnauthorized, "Unauthorized: invalid token", nil, nil)
-		return 0
+		return ""
 	}
-	ownerID, err := strconv.ParseUint(adminId, 10, 64)
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusUnauthorized, "Unauthorized: invalid seller ID in token", err, nil)
-		return 0
+	// adminId is already the string typed-prefix ID from the token
+	if adminId == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Unauthorized: invalid seller ID in token", nil, nil)
+		return ""
 	}
-	return uint(ownerID)
+	return adminId
 }
 
 // ListTemplates handles GET /api/admin/alert-templates
@@ -232,7 +232,7 @@ func (h *AlertTemplateHandler) SeedDefaults(ctx *gin.Context) {
 // @Router /alerts/flows [get]
 func (h *AlertTemplateHandler) GetFlows(ctx *gin.Context) {
 	sellerID := h.extractSellerID(ctx)
-	if sellerID == 0 {
+	if sellerID == "" {
 		return
 	}
 
@@ -273,7 +273,7 @@ func (h *AlertTemplateHandler) GetFlow(ctx *gin.Context) {
 	}
 
 	sellerID := h.extractSellerID(ctx)
-	if sellerID == 0 {
+	if sellerID == "" {
 		return
 	}
 
@@ -310,7 +310,7 @@ func (h *AlertTemplateHandler) GetTemplateForSeller(ctx *gin.Context) {
 	}
 
 	sellerID := h.extractSellerID(ctx)
-	if sellerID == 0 {
+	if sellerID == "" {
 		return
 	}
 
@@ -359,7 +359,7 @@ func (h *AlertTemplateHandler) CompleteStep(ctx *gin.Context) {
 	}
 
 	sellerID := h.extractSellerID(ctx)
-	if sellerID == 0 {
+	if sellerID == "" {
 		return
 	}
 

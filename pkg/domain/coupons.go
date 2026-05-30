@@ -5,7 +5,7 @@ import (
 )
 
 type Coupon struct {
-	CouponID   uint   `json:"coupon_id" gorm:"primaryKey;not null"`
+	CouponID   string `json:"coupon_id" gorm:"primaryKey;type:varchar(32)"`
 	CouponName string `json:"coupon_name" gorm:"unique;not null" binding:"required,min=3,max=25"`
 	CouponCode string `json:"coupon_code" gorm:"unique;not null"`
 
@@ -21,10 +21,10 @@ type Coupon struct {
 
 // which is for store the user who are used coupon
 type CouponUses struct {
-	CouponUsesID uint      `json:"coupon_uses_id" gorm:"primaryKey;not null"`
-	CouponID     uint      `json:"coupon_id" gorm:"not null"`
+	CouponUsesID string    `json:"coupon_uses_id" gorm:"primaryKey;type:varchar(32)"`
+	CouponID     string    `json:"coupon_id" gorm:"type:varchar(32);not null"`
 	Coupon       Coupon    `json:"-"`
-	UserID       uint      `json:"user_id" gorm:"not null"`
+	UserID       string    `json:"user_id" gorm:"type:varchar(32);not null"`
 	User         User      `json:"-"`
 	UsedAt       time.Time `json:"used_at" gorm:"not null"`
 }

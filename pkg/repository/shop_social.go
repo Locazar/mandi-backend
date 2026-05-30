@@ -16,7 +16,7 @@ func NewShopSocialRepository(db *gorm.DB) *ShopSocialRepository {
 }
 
 // GetShopSocialDetails returns all social details for a shop
-func (r *ShopSocialRepository) GetShopSocialDetails(ctx context.Context, shopID uint) ([]domain.ShopSocial, error) {
+func (r *ShopSocialRepository) GetShopSocialDetails(ctx context.Context, shopID string) ([]domain.ShopSocial, error) {
 	var details []domain.ShopSocial
 	if err := r.DB.WithContext(ctx).Where("shop_id = ?", shopID).Find(&details).Error; err != nil {
 		return nil, err

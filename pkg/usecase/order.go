@@ -43,30 +43,30 @@ func (c *OrderUseCase) FindAllOrderStatuses(ctx context.Context) ([]domain.Order
 }
 
 // Save order
-func (c *OrderUseCase) SaveOrder(ctx context.Context, userID, addressID uint) (uint, error) {
+func (c *OrderUseCase) SaveOrder(ctx context.Context, userID, addressID string) (string, error) {
 
 	cart, err := c.cartRepo.FindCartByUserID(ctx, userID)
 	if err != nil {
-		return 0, utils.PrependMessageToError(err, "failed to get user cart")
+		return "", utils.PrependMessageToError(err, "failed to get user cart")
 	}
 
 	if cart.TotalPrice.IsZero() {
-		return 0, ErrEmptyCart
+		return "", ErrEmptyCart
 	}
 
 	// check the cart of user is valid for place order
 	valid, err := c.cartRepo.IsCartValidForOrder(ctx, userID)
 	if err != nil {
-		return 0, utils.PrependMessageToError(err, "failed to check cart is valid for order")
+		return "", utils.PrependMessageToError(err, "failed to check cart is valid for order")
 	}
 
 	if !valid {
-		return 0, ErrOutOfStockOnCart
+		return "", ErrOutOfStockOnCart
 	}
 
 	orderTotal, err := cart.TotalPrice.Sub(cart.DiscountAmount)
 	if err != nil {
-		return 0, utils.PrependMessageToError(err, "failed to compute order total")
+		return "", utils.PrependMessageToError(err, "failed to compute order total")
 	}
 
 	shopOrder := domain.ShopOrder{
@@ -113,14 +113,14 @@ func (c *OrderUseCase) SaveOrder(ctx context.Context, userID, addressID uint) (u
 		return nil
 	})
 	if err != nil {
-		return 0, utils.PrependMessageToError(err, "failed to complete save order")
+		return "", utils.PrependMessageToError(err, "failed to complete save order")
 	}
 
 	return shopOrder.ID, nil
 }
 
 // Find all orders of a user
-func (c *OrderUseCase) FindUserShopOrder(ctx context.Context, userID uint,
+func (c *OrderUseCase) FindUserShopOrder(ctx context.Context, userID string,
 	pagination request.Pagination) ([]response.ShopOrder, error) {
 
 	shopOrders, err := c.orderRepo.FindAllShopOrdersByUserID(ctx, userID, pagination)
@@ -160,7 +160,7 @@ func (c *OrderUseCase) FindAllShopOrders(ctx context.Context, pagination request
 	return shopOrders, nil
 }
 
-func (c *OrderUseCase) FindOrderItems(ctx context.Context, shopOrderID uint,
+func (c *OrderUseCase) FindOrderItems(ctx context.Context, shopOrderID string,
 	pagination request.Pagination) (orderItems []response.OrderItem, err error) {
 
 	orderItems, err = c.orderRepo.FindAllOrdersItemsByShopOrderID(ctx, shopOrderID, pagination)
@@ -171,7 +171,7 @@ func (c *OrderUseCase) FindOrderItems(ctx context.Context, shopOrderID uint,
 	return orderItems, nil
 }
 
-func (c *OrderUseCase) CancelOrder(ctx context.Context, shopOrderID uint) error {
+func (c *OrderUseCase) CancelOrder(ctx context.Context, shopOrderID string) error {
 
 	shopOrder, err := c.orderRepo.FindShopOrderByShopOrderID(ctx, shopOrderID)
 	if err != nil {
@@ -191,7 +191,7 @@ func (c *OrderUseCase) CancelOrder(ctx context.Context, shopOrderID uint) error 
 }
 
 // update order
-func (c *OrderUseCase) UpdateOrderStatus(ctx context.Context, shopOrderID uint, newStatus domain.OrderStatusType) error {
+func (c *OrderUseCase) UpdateOrderStatus(ctx context.Context, shopOrderID string, newStatus domain.OrderStatusType) error {
 
 	if !newStatus.IsValid() {
 		return fmt.Errorf("invalid order status: %s", newStatus)
@@ -346,7 +346,7 @@ func (c *OrderUseCase) UpdateReturnDetails(ctx context.Context, updateDetails re
 				return fmt.Errorf("failed to get user wallet for refund amount \nerror:%v", err.Error())
 			}
 			// if user have no wallet then create a new wallet for user
-			if wallet.ID == 0 {
+			if wallet.ID == "" {
 				wallet.ID, err = c.orderRepo.SaveWallet(ctx, shopOrder.UserID)
 				if err != nil {
 					return fmt.Errorf("failed to create a wallet for user")

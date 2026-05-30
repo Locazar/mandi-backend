@@ -250,7 +250,7 @@ func (c *AuthHandler) AdminLogin(ctx *gin.Context) {
 // access and refresh token generating for user and admin is same so created
 // a common function for it.(differentiate user by user type )
 // customResponse is optional - if provided, it will be used instead of default success response
-func (c *AuthHandler) setupTokenAndResponse(ctx *gin.Context, tokenUser token.UserType, userID uint, customResponse ...interface{}) {
+func (c *AuthHandler) setupTokenAndResponse(ctx *gin.Context, tokenUser token.UserType, userID string, customResponse ...interface{}) {
 
 	tokenParams := usecaseInterface.GenerateTokenParams{
 		UserID:   userID,

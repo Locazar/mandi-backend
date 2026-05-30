@@ -39,7 +39,7 @@ func (c *offerUseCase) SaveOffer(ctx context.Context, offer request.Offer) error
 	if err != nil {
 		return utils.PrependMessageToError(err, "failed check offer name already exist")
 	}
-	if existOffer.ID != 0 {
+	if existOffer.ID != "" {
 		return ErrOfferNameAlreadyExist
 	}
 
@@ -82,7 +82,7 @@ func (c *offerUseCase) SaveOffer(ctx context.Context, offer request.Offer) error
 	return nil
 }
 
-func (c *offerUseCase) RemoveOffer(ctx context.Context, offerID uint) error {
+func (c *offerUseCase) RemoveOffer(ctx context.Context, offerID string) error {
 
 	err := c.offerRepo.Transactions(ctx, func(repo repo.OfferRepository) error {
 		// first delete all offer categories based on the removing offer
@@ -137,7 +137,7 @@ func (c *offerUseCase) SaveCategoryOffer(ctx context.Context, offerCategory requ
 	if err != nil {
 		return err
 	}
-	if category.ID != 0 {
+	if category.ID != "" {
 		return ErrCategoryOfferAlreadyExist
 	}
 
@@ -179,7 +179,7 @@ func (c *offerUseCase) FindAllCategoryOffers(ctx context.Context, pagination req
 }
 
 // remove offer from category
-func (c *offerUseCase) RemoveCategoryOffer(ctx context.Context, categoryOfferID uint) error {
+func (c *offerUseCase) RemoveCategoryOffer(ctx context.Context, categoryOfferID string) error {
 
 	err := c.offerRepo.Transactions(ctx, func(repo repo.OfferRepository) error {
 
@@ -208,7 +208,7 @@ func (c *offerUseCase) RemoveCategoryOffer(ctx context.Context, categoryOfferID 
 	return nil
 }
 
-func (c *offerUseCase) ChangeCategoryOffer(ctx context.Context, categoryOfferID, offerID uint) error {
+func (c *offerUseCase) ChangeCategoryOffer(ctx context.Context, categoryOfferID, offerID string) error {
 
 	err := c.offerRepo.Transactions(ctx, func(repo repo.OfferRepository) error {
 		err := c.offerRepo.UpdateCategoryOffer(ctx, categoryOfferID, offerID)
@@ -243,7 +243,7 @@ func (c *offerUseCase) SaveProductItemOffer(ctx context.Context, offerProduct do
 	if err != nil {
 		return utils.PrependMessageToError(err, "failed to check product have already offer exist")
 	}
-	if offerProductData.ID != 0 {
+	if offerProductData.ID != "" {
 		return ErrProductOfferAlreadyExist
 	}
 
@@ -277,7 +277,7 @@ func (c *offerUseCase) FindAllProductOffers(ctx context.Context, pagination requ
 }
 
 // remove offer form products
-func (c *offerUseCase) RemoveProductOffer(ctx context.Context, productOfferID uint) error {
+func (c *offerUseCase) RemoveProductOffer(ctx context.Context, productOfferID string) error {
 
 	err := c.offerRepo.Transactions(ctx, func(repo repo.OfferRepository) error {
 
@@ -304,7 +304,7 @@ func (c *offerUseCase) RemoveProductOffer(ctx context.Context, productOfferID ui
 	return nil
 }
 
-func (c *offerUseCase) ChangeProductOffer(ctx context.Context, productOfferID, offerID uint) error {
+func (c *offerUseCase) ChangeProductOffer(ctx context.Context, productOfferID, offerID string) error {
 
 	err := c.offerRepo.Transactions(ctx, func(repo repo.OfferRepository) error {
 		err := c.offerRepo.UpdateOfferProduct(ctx, productOfferID, offerID)
@@ -406,7 +406,7 @@ func (c *offerUseCase) FindActiveOffers(ctx context.Context) ([]domain.Offer, er
 	return offers, nil
 }
 
-func (c *offerUseCase) GetShopOffersByShopIDAndDateRange(ctx context.Context, shopID uint, startDate, endDate string) ([]domain.ShopOffer, error) {
+func (c *offerUseCase) GetShopOffersByShopIDAndDateRange(ctx context.Context, shopID string, startDate, endDate string) ([]domain.ShopOffer, error) {
 	// Parse the dates
 	start, err := time.Parse("2006-01-02", startDate)
 	if err != nil {
@@ -425,7 +425,7 @@ func (c *offerUseCase) GetShopOffersByShopIDAndDateRange(ctx context.Context, sh
 }
 
 // GetPostLoginOffer decides which offer to show to the user after login
-func (c *offerUseCase) GetPostLoginOffer(ctx context.Context, userID uint) (response.PostLoginOfferResponse, error) {
+func (c *offerUseCase) GetPostLoginOffer(ctx context.Context, userID string) (response.PostLoginOfferResponse, error) {
 	// Get user login history to check if first login
 	var user domain.User
 	err := c.DB.QueryRow(ctx, "SELECT id, created_at, updated_at FROM users WHERE id = $1", userID).Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt)
@@ -469,16 +469,16 @@ func (c *offerUseCase) GetPostLoginOffer(ctx context.Context, userID uint) (resp
 		offerType = "BANNER"
 	}
 
-	// A/B testing: simple hash-based bucket
+	// A/B testing: simple hash-based bucket using last char of string ID
 	variant := "A"
-	if int(userID)%100 < 50 {
+	if len(userID) > 0 && userID[len(userID)-1]%2 == 0 {
 		variant = "B"
 	}
 
 	return response.PostLoginOfferResponse{
 		ShowOffer:         true,
 		OfferType:         offerType,
-		OfferID:           fmt.Sprintf("OFFER_%d", selectedOffer.ID),
+		OfferID:           fmt.Sprintf("OFFER_%s", selectedOffer.ID),
 		Title:             selectedOffer.Name,
 		Description:       selectedOffer.Description,
 		CTA:               "Apply Now",
@@ -511,7 +511,7 @@ func (c *offerUseCase) GetBanners(ctx context.Context, departmentID, categoryID 
 	return responseBanners, nil
 }
 
-func (c *offerUseCase) GetShopOffersByShopID(ctx context.Context, shopID uint, adminID uint64) ([]domain.ShopOffer, error) {
+func (c *offerUseCase) GetShopOffersByShopID(ctx context.Context, shopID string, adminID string) ([]domain.ShopOffer, error) {
 
 	offers, err := c.offerRepo.FindShopOffersByShopID(ctx, shopID, adminID)
 	if err != nil {

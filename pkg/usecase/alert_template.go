@@ -274,7 +274,7 @@ func (uc *alertTemplateUseCase) SeedDefaults(ctx context.Context) error {
 }
 
 // GetTemplateForSeller returns a seller-facing view of a template
-func (uc *alertTemplateUseCase) GetTemplateForSeller(ctx context.Context, sellerID uint, key string) (map[string]interface{}, error) {
+func (uc *alertTemplateUseCase) GetTemplateForSeller(ctx context.Context, sellerID string, key string) (map[string]interface{}, error) {
 	t, err := uc.repo.GetAlertTemplateByKey(ctx, key)
 	if err != nil {
 		return nil, fmt.Errorf("template not found: %w", err)
@@ -313,7 +313,7 @@ func (uc *alertTemplateUseCase) GetTemplateForSeller(ctx context.Context, seller
 }
 
 // GetFlow returns the onboarding flow state for a seller
-func (uc *alertTemplateUseCase) GetFlow(ctx context.Context, sellerID uint, flowKey string) (map[string]interface{}, error) {
+func (uc *alertTemplateUseCase) GetFlow(ctx context.Context, sellerID string, flowKey string) (map[string]interface{}, error) {
 	t, err := uc.repo.GetAlertTemplateByKey(ctx, flowKey)
 	if err != nil {
 		return nil, fmt.Errorf("flow template not found: %w", err)
@@ -368,7 +368,7 @@ func (uc *alertTemplateUseCase) GetFlow(ctx context.Context, sellerID uint, flow
 }
 
 // CompleteStep logs a step completion for the given seller and flow
-func (uc *alertTemplateUseCase) CompleteStep(ctx context.Context, sellerID uint, flowKey string, stepNumber int) error {
+func (uc *alertTemplateUseCase) CompleteStep(ctx context.Context, sellerID string, flowKey string, stepNumber int) error {
 	if stepNumber <= 0 {
 		return fmt.Errorf("stepNumber must be >= 1, got %d", stepNumber)
 	}

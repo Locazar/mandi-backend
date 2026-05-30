@@ -52,7 +52,7 @@ func (mr *MockUserRepositoryMockRecorder) DeleteRefreshSessionByUserID(ctx, admi
 }
 
 // FindAddressByID mocks base method.
-func (m *MockUserRepository) FindAddressByID(ctx context.Context, addressID uint) (response.Address, error) {
+func (m *MockUserRepository) FindAddressByID(ctx context.Context, addressID string) (response.Address, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FindAddressByID", ctx, addressID)
 	ret0, _ := ret[0].(response.Address)
@@ -67,7 +67,7 @@ func (mr *MockUserRepositoryMockRecorder) FindAddressByID(ctx, addressID interfa
 }
 
 // FindAllAddressByUserID mocks base method.
-func (m *MockUserRepository) FindAllAddressByUserID(ctx context.Context, userID uint) ([]response.Address, error) {
+func (m *MockUserRepository) FindAllAddressByUserID(ctx context.Context, userID string) ([]response.Address, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FindAllAddressByUserID", ctx, userID)
 	ret0, _ := ret[0].([]response.Address)
@@ -82,7 +82,7 @@ func (mr *MockUserRepositoryMockRecorder) FindAllAddressByUserID(ctx, userID int
 }
 
 // FindAllWishListItemsByUserID mocks base method.
-func (m *MockUserRepository) FindAllWishListItemsByUserID(ctx context.Context, userID uint) ([]response.WishListItem, error) {
+func (m *MockUserRepository) FindAllWishListItemsByUserID(ctx context.Context, userID string) ([]response.WishListItem, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FindAllWishListItemsByUserID", ctx, userID)
 	ret0, _ := ret[0].([]response.WishListItem)
@@ -97,7 +97,7 @@ func (mr *MockUserRepositoryMockRecorder) FindAllWishListItemsByUserID(ctx, user
 }
 
 // FindCountryByID mocks base method.
-func (m *MockUserRepository) FindCountryByID(ctx context.Context, countryID uint) (domain.Country, error) {
+func (m *MockUserRepository) FindCountryByID(ctx context.Context, countryID string) (domain.Country, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FindCountryByID", ctx, countryID)
 	ret0, _ := ret[0].(domain.Country)
@@ -142,7 +142,7 @@ func (mr *MockUserRepositoryMockRecorder) FindSellersByRadius(ctx, reqData inter
 }
 
 // FindShopByID mocks base method.
-func (m *MockUserRepository) FindShopByID(ctx context.Context, shopID uint) (response.Shop, error) {
+func (m *MockUserRepository) FindShopByID(ctx context.Context, shopID string) (response.Shop, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FindShopByID", ctx, shopID)
 	ret0, _ := ret[0].(response.Shop)
@@ -187,7 +187,7 @@ func (mr *MockUserRepositoryMockRecorder) FindUserByPhoneNumber(ctx, phoneNumber
 }
 
 // FindUserByUserID mocks base method.
-func (m *MockUserRepository) FindUserByUserID(ctx context.Context, userID uint) (domain.User, error) {
+func (m *MockUserRepository) FindUserByUserID(ctx context.Context, userID string) (domain.User, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FindUserByUserID", ctx, userID)
 	ret0, _ := ret[0].(domain.User)
@@ -232,7 +232,7 @@ func (mr *MockUserRepositoryMockRecorder) FindUserByUserNameEmailOrPhoneNotID(ct
 }
 
 // FindWishListItem mocks base method.
-func (m *MockUserRepository) FindWishListItem(ctx context.Context, productID, userID uint) (domain.WishList, error) {
+func (m *MockUserRepository) FindWishListItem(ctx context.Context, productID, userID string) (domain.WishList, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FindWishListItem", ctx, productID, userID)
 	ret0, _ := ret[0].(domain.WishList)
@@ -247,7 +247,7 @@ func (mr *MockUserRepositoryMockRecorder) FindWishListItem(ctx, productID, userI
 }
 
 // FollowShop mocks base method.
-func (m *MockUserRepository) FollowShop(ctx context.Context, userID, shopID uint) error {
+func (m *MockUserRepository) FollowShop(ctx context.Context, userID, shopID string) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FollowShop", ctx, userID, shopID)
 	ret0, _ := ret[0].(error)
@@ -261,7 +261,7 @@ func (mr *MockUserRepositoryMockRecorder) FollowShop(ctx, userID, shopID interfa
 }
 
 // GetAllShopRatings mocks base method.
-func (m *MockUserRepository) GetAllShopRatings(ctx context.Context, shopID uint) ([]domain.ShopSocial, error) {
+func (m *MockUserRepository) GetAllShopRatings(ctx context.Context, shopID string) ([]domain.ShopSocial, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAllShopRatings", ctx, shopID)
 	ret0, _ := ret[0].([]domain.ShopSocial)
@@ -276,7 +276,7 @@ func (mr *MockUserRepositoryMockRecorder) GetAllShopRatings(ctx, shopID interfac
 }
 
 // GetAllShopReviews mocks base method.
-func (m *MockUserRepository) GetAllShopReviews(ctx context.Context, shopID uint) ([]domain.ShopSocial, error) {
+func (m *MockUserRepository) GetAllShopReviews(ctx context.Context, shopID string) ([]domain.ShopSocial, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAllShopReviews", ctx, shopID)
 	ret0, _ := ret[0].([]domain.ShopSocial)
@@ -291,7 +291,7 @@ func (mr *MockUserRepositoryMockRecorder) GetAllShopReviews(ctx, shopID interfac
 }
 
 // GetFollowedShops mocks base method.
-func (m *MockUserRepository) GetFollowedShops(ctx context.Context, userID uint) ([]response.Shop, error) {
+func (m *MockUserRepository) GetFollowedShops(ctx context.Context, userID string) ([]response.Shop, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetFollowedShops", ctx, userID)
 	ret0, _ := ret[0].([]response.Shop)
@@ -306,7 +306,7 @@ func (mr *MockUserRepositoryMockRecorder) GetFollowedShops(ctx, userID interface
 }
 
 // GetFollowers mocks base method.
-func (m *MockUserRepository) GetFollowers(ctx context.Context, shopID uint) ([]response.User, error) {
+func (m *MockUserRepository) GetFollowers(ctx context.Context, shopID string) ([]response.User, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetFollowers", ctx, shopID)
 	ret0, _ := ret[0].([]response.User)
@@ -321,7 +321,7 @@ func (mr *MockUserRepositoryMockRecorder) GetFollowers(ctx, shopID interface{}) 
 }
 
 // GetLikedShops mocks base method.
-func (m *MockUserRepository) GetLikedShops(ctx context.Context, userID uint) ([]response.Shop, error) {
+func (m *MockUserRepository) GetLikedShops(ctx context.Context, userID string) ([]response.Shop, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetLikedShops", ctx, userID)
 	ret0, _ := ret[0].([]response.Shop)
@@ -336,7 +336,7 @@ func (mr *MockUserRepositoryMockRecorder) GetLikedShops(ctx, userID interface{})
 }
 
 // GetShopAverageRating mocks base method.
-func (m *MockUserRepository) GetShopAverageRating(ctx context.Context, shopID uint) (float64, error) {
+func (m *MockUserRepository) GetShopAverageRating(ctx context.Context, shopID string) (float64, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetShopAverageRating", ctx, shopID)
 	ret0, _ := ret[0].(float64)
@@ -351,7 +351,7 @@ func (mr *MockUserRepositoryMockRecorder) GetShopAverageRating(ctx, shopID inter
 }
 
 // GetShopRatingDistribution mocks base method.
-func (m *MockUserRepository) GetShopRatingDistribution(ctx context.Context, shopID uint) ([]domain.ShopRatingDistribution, error) {
+func (m *MockUserRepository) GetShopRatingDistribution(ctx context.Context, shopID string) ([]domain.ShopRatingDistribution, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetShopRatingDistribution", ctx, shopID)
 	ret0, _ := ret[0].([]domain.ShopRatingDistribution)
@@ -366,7 +366,7 @@ func (mr *MockUserRepositoryMockRecorder) GetShopRatingDistribution(ctx, shopID 
 }
 
 // GetShopSocialDetails mocks base method.
-func (m *MockUserRepository) GetShopSocialDetails(ctx context.Context, shopID, userID uint) (domain.ShopSocialSummary, error) {
+func (m *MockUserRepository) GetShopSocialDetails(ctx context.Context, shopID, userID string) (domain.ShopSocialSummary, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetShopSocialDetails", ctx, shopID, userID)
 	ret0, _ := ret[0].(domain.ShopSocialSummary)
@@ -381,7 +381,7 @@ func (mr *MockUserRepositoryMockRecorder) GetShopSocialDetails(ctx, shopID, user
 }
 
 // GetUserShopRating mocks base method.
-func (m *MockUserRepository) GetUserShopRating(ctx context.Context, userID, shopID uint) (uint, error) {
+func (m *MockUserRepository) GetUserShopRating(ctx context.Context, userID, shopID string) (uint, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetUserShopRating", ctx, userID, shopID)
 	ret0, _ := ret[0].(uint)
@@ -396,7 +396,7 @@ func (mr *MockUserRepositoryMockRecorder) GetUserShopRating(ctx, userID, shopID 
 }
 
 // GetUserShopReview mocks base method.
-func (m *MockUserRepository) GetUserShopReview(ctx context.Context, userID, shopID uint) (string, error) {
+func (m *MockUserRepository) GetUserShopReview(ctx context.Context, userID, shopID string) (string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetUserShopReview", ctx, userID, shopID)
 	ret0, _ := ret[0].(string)
@@ -411,7 +411,7 @@ func (mr *MockUserRepositoryMockRecorder) GetUserShopReview(ctx, userID, shopID 
 }
 
 // IsAddressAlreadyExistForUser mocks base method.
-func (m *MockUserRepository) IsAddressAlreadyExistForUser(ctx context.Context, address domain.Address, userID uint) (bool, error) {
+func (m *MockUserRepository) IsAddressAlreadyExistForUser(ctx context.Context, address domain.Address, userID string) (bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "IsAddressAlreadyExistForUser", ctx, address, userID)
 	ret0, _ := ret[0].(bool)
@@ -426,7 +426,7 @@ func (mr *MockUserRepositoryMockRecorder) IsAddressAlreadyExistForUser(ctx, addr
 }
 
 // IsAddressIDExist mocks base method.
-func (m *MockUserRepository) IsAddressIDExist(ctx context.Context, addressID uint) (bool, error) {
+func (m *MockUserRepository) IsAddressIDExist(ctx context.Context, addressID string) (bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "IsAddressIDExist", ctx, addressID)
 	ret0, _ := ret[0].(bool)
@@ -441,7 +441,7 @@ func (mr *MockUserRepositoryMockRecorder) IsAddressIDExist(ctx, addressID interf
 }
 
 // IsFollowingShop mocks base method.
-func (m *MockUserRepository) IsFollowingShop(ctx context.Context, userID, shopID uint) (bool, error) {
+func (m *MockUserRepository) IsFollowingShop(ctx context.Context, userID, shopID string) (bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "IsFollowingShop", ctx, userID, shopID)
 	ret0, _ := ret[0].(bool)
@@ -456,7 +456,7 @@ func (mr *MockUserRepositoryMockRecorder) IsFollowingShop(ctx, userID, shopID in
 }
 
 // IsLikedShop mocks base method.
-func (m *MockUserRepository) IsLikedShop(ctx context.Context, userID, shopID uint) (bool, error) {
+func (m *MockUserRepository) IsLikedShop(ctx context.Context, userID, shopID string) (bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "IsLikedShop", ctx, userID, shopID)
 	ret0, _ := ret[0].(bool)
@@ -471,7 +471,7 @@ func (mr *MockUserRepositoryMockRecorder) IsLikedShop(ctx, userID, shopID interf
 }
 
 // IsTrialUsed mocks base method.
-func (m *MockUserRepository) IsTrialUsed(ctx context.Context, userID uint) (bool, error) {
+func (m *MockUserRepository) IsTrialUsed(ctx context.Context, userID string) (bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "IsTrialUsed", ctx, userID)
 	ret0, _ := ret[0].(bool)
@@ -486,7 +486,7 @@ func (mr *MockUserRepositoryMockRecorder) IsTrialUsed(ctx, userID interface{}) *
 }
 
 // LikeShop mocks base method.
-func (m *MockUserRepository) LikeShop(ctx context.Context, userID, shopID uint) error {
+func (m *MockUserRepository) LikeShop(ctx context.Context, userID, shopID string) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "LikeShop", ctx, userID, shopID)
 	ret0, _ := ret[0].(error)
@@ -500,7 +500,7 @@ func (mr *MockUserRepositoryMockRecorder) LikeShop(ctx, userID, shopID interface
 }
 
 // RateShop mocks base method.
-func (m *MockUserRepository) RateShop(ctx context.Context, userID, shopID, rating uint) error {
+func (m *MockUserRepository) RateShop(ctx context.Context, userID, shopID string, rating uint) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RateShop", ctx, userID, shopID, rating)
 	ret0, _ := ret[0].(error)
@@ -514,7 +514,7 @@ func (mr *MockUserRepositoryMockRecorder) RateShop(ctx, userID, shopID, rating i
 }
 
 // RemoveWishListItem mocks base method.
-func (m *MockUserRepository) RemoveWishListItem(ctx context.Context, userID, productItemID uint) error {
+func (m *MockUserRepository) RemoveWishListItem(ctx context.Context, userID, productItemID string) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RemoveWishListItem", ctx, userID, productItemID)
 	ret0, _ := ret[0].(error)
@@ -528,7 +528,7 @@ func (mr *MockUserRepositoryMockRecorder) RemoveWishListItem(ctx, userID, produc
 }
 
 // ReviewShop mocks base method.
-func (m *MockUserRepository) ReviewShop(ctx context.Context, userID, shopID uint, review string) error {
+func (m *MockUserRepository) ReviewShop(ctx context.Context, userID, shopID, review string) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ReviewShop", ctx, userID, shopID, review)
 	ret0, _ := ret[0].(error)
@@ -542,10 +542,10 @@ func (mr *MockUserRepositoryMockRecorder) ReviewShop(ctx, userID, shopID, review
 }
 
 // SaveAddress mocks base method.
-func (m *MockUserRepository) SaveAddress(ctx context.Context, address domain.Address) (uint, error) {
+func (m *MockUserRepository) SaveAddress(ctx context.Context, address domain.Address) (string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SaveAddress", ctx, address)
-	ret0, _ := ret[0].(uint)
+	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -557,10 +557,10 @@ func (mr *MockUserRepositoryMockRecorder) SaveAddress(ctx, address interface{}) 
 }
 
 // SaveUser mocks base method.
-func (m *MockUserRepository) SaveUser(ctx context.Context, user domain.User) (uint, error) {
+func (m *MockUserRepository) SaveUser(ctx context.Context, user domain.User) (string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SaveUser", ctx, user)
-	ret0, _ := ret[0].(uint)
+	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -615,7 +615,7 @@ func (mr *MockUserRepositoryMockRecorder) SearchShopList(ctx, reqData interface{
 }
 
 // UnfollowShop mocks base method.
-func (m *MockUserRepository) UnfollowShop(ctx context.Context, userID, shopID uint) error {
+func (m *MockUserRepository) UnfollowShop(ctx context.Context, userID, shopID string) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UnfollowShop", ctx, userID, shopID)
 	ret0, _ := ret[0].(error)
@@ -629,7 +629,7 @@ func (mr *MockUserRepositoryMockRecorder) UnfollowShop(ctx, userID, shopID inter
 }
 
 // UnlikeShop mocks base method.
-func (m *MockUserRepository) UnlikeShop(ctx context.Context, userID, shopID uint) error {
+func (m *MockUserRepository) UnlikeShop(ctx context.Context, userID, shopID string) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UnlikeShop", ctx, userID, shopID)
 	ret0, _ := ret[0].(error)
@@ -657,7 +657,7 @@ func (mr *MockUserRepositoryMockRecorder) UpdateAddress(ctx, address interface{}
 }
 
 // UpdateAdminVerified mocks base method.
-func (m *MockUserRepository) UpdateAdminVerified(ctx context.Context, adminID uint) error {
+func (m *MockUserRepository) UpdateAdminVerified(ctx context.Context, adminID string) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateAdminVerified", ctx, adminID)
 	ret0, _ := ret[0].(error)
@@ -671,7 +671,7 @@ func (mr *MockUserRepositoryMockRecorder) UpdateAdminVerified(ctx, adminID inter
 }
 
 // UpdateBlockStatus mocks base method.
-func (m *MockUserRepository) UpdateBlockStatus(ctx context.Context, userID uint, blockStatus bool) error {
+func (m *MockUserRepository) UpdateBlockStatus(ctx context.Context, userID string, blockStatus bool) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateBlockStatus", ctx, userID, blockStatus)
 	ret0, _ := ret[0].(error)
@@ -685,7 +685,7 @@ func (mr *MockUserRepositoryMockRecorder) UpdateBlockStatus(ctx, userID, blockSt
 }
 
 // UpdateTrialUsed mocks base method.
-func (m *MockUserRepository) UpdateTrialUsed(ctx context.Context, userID uint) error {
+func (m *MockUserRepository) UpdateTrialUsed(ctx context.Context, userID string) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateTrialUsed", ctx, userID)
 	ret0, _ := ret[0].(error)
@@ -727,7 +727,7 @@ func (mr *MockUserRepositoryMockRecorder) UpdateUserAddress(ctx, userAddress int
 }
 
 // UpdateVerified mocks base method.
-func (m *MockUserRepository) UpdateVerified(ctx context.Context, userID uint) error {
+func (m *MockUserRepository) UpdateVerified(ctx context.Context, userID string) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateVerified", ctx, userID)
 	ret0, _ := ret[0].(error)

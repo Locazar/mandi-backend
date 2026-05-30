@@ -32,7 +32,7 @@ func (c *couponUseCase) AddCoupon(ctx context.Context, coupon domain.Coupon) err
 	if err != nil {
 		return err
 	}
-	if checkCoupon.CouponID != 0 {
+	if checkCoupon.CouponID != "" {
 		return fmt.Errorf("there already a coupon exist with coupon_name %v", coupon.CouponName)
 	}
 	// validate the coupn expire date
@@ -69,7 +69,7 @@ func (c *couponUseCase) GetAllCoupons(ctx context.Context, pagination request.Pa
 }
 
 // get all coupon for user
-func (c *couponUseCase) GetCouponsForUser(ctx context.Context, userID uint, pagination request.Pagination) (coupons []response.UserCoupon, err error) {
+func (c *couponUseCase) GetCouponsForUser(ctx context.Context, userID string, pagination request.Pagination) (coupons []response.UserCoupon, err error) {
 
 	coupons, err = c.couponRepo.FindAllCouponForUser(ctx, userID, pagination)
 
@@ -87,7 +87,7 @@ func (c *couponUseCase) GetCouponByCouponCode(ctx context.Context, couponCode st
 
 	if err != nil {
 		return coupon, err
-	} else if coupon.CouponID == 0 {
+	} else if coupon.CouponID == "" {
 		return coupon, fmt.Errorf("invalid coupon code %s", couponCode)
 	}
 	return coupon, nil
@@ -99,7 +99,7 @@ func (c *couponUseCase) UpdateCoupon(ctx context.Context, coupon domain.Coupon) 
 	checkCoupon, err := c.couponRepo.FindCouponByID(ctx, coupon.CouponID)
 	if err != nil {
 		return err
-	} else if checkCoupon.CouponID == 0 {
+	} else if checkCoupon.CouponID == "" {
 		return fmt.Errorf("invalid coupon_id %v", coupon.CouponID)
 	}
 
@@ -108,7 +108,7 @@ func (c *couponUseCase) UpdateCoupon(ctx context.Context, coupon domain.Coupon) 
 
 	if err != nil {
 		return err
-	} else if couponID != 0 {
+	} else if couponID != "" {
 		return fmt.Errorf("another coupon already exist with this details with coupon_id %v", couponID)
 	}
 
@@ -126,13 +126,13 @@ func (c *couponUseCase) UpdateCoupon(ctx context.Context, coupon domain.Coupon) 
 }
 
 // apply coupon
-func (c *couponUseCase) ApplyCouponToCart(ctx context.Context, userID uint, couponCode string) (discountAmount uint, err error) {
+func (c *couponUseCase) ApplyCouponToCart(ctx context.Context, userID string, couponCode string) (discountAmount string, err error) {
 
 	// get the coupon with given coupon code
 	coupon, err := c.couponRepo.FindCouponByCouponCode(ctx, couponCode)
 	if err != nil {
 		return discountAmount, err
-	} else if coupon.CouponID == 0 {
+	} else if coupon.CouponID == "" {
 		return discountAmount, fmt.Errorf("invalid coupon_code %s", couponCode)
 	}
 
@@ -140,7 +140,7 @@ func (c *couponUseCase) ApplyCouponToCart(ctx context.Context, userID uint, coup
 	couponUses, err := c.couponRepo.FindCouponUsesByCouponAndUserID(ctx, userID, coupon.CouponID)
 	if err != nil {
 		return discountAmount, err
-	} else if couponUses.CouponUsesID != 0 {
+	} else if couponUses.CouponUsesID != "" {
 		return discountAmount, fmt.Errorf("user already applied this coupon at %v", couponUses.UsedAt)
 	}
 
@@ -148,13 +148,13 @@ func (c *couponUseCase) ApplyCouponToCart(ctx context.Context, userID uint, coup
 	cart, err := c.cartRepo.FindCartByUserID(ctx, userID)
 	if err != nil {
 		return discountAmount, err
-	} else if cart.ID == 0 {
-		return discountAmount, fmt.Errorf("there is no cart_items avialable for user with user_id %d", userID)
+	} else if cart.ID == "" {
+		return discountAmount, fmt.Errorf("there is no cart_items avialable for user with user_id %s", userID)
 	}
 
 	// then check the cart have already a coupon applied
-	if cart.AppliedCouponID != 0 {
-		return discountAmount, fmt.Errorf("cart have already a coupon applied with coupon_id %d", cart.AppliedCouponID)
+	if cart.AppliedCouponID != "" {
+		return discountAmount, fmt.Errorf("cart have already a coupon applied with coupon_id %s", cart.AppliedCouponID)
 	}
 
 	// validate the coupon expire date and cart price
@@ -166,14 +166,14 @@ func (c *couponUseCase) ApplyCouponToCart(ctx context.Context, userID uint, coup
 			coupon.MinimumCartPrice.AmountMinor, cart.TotalPrice.AmountMinor)
 	}
 
-	// calculate a discount for cart
-	discountAmount = (uint(cart.TotalPrice.AmountMinor) * coupon.DiscountRate) / 100
+	// calculate a discount for cart (stored as cart's couponID reference)
+	discountAmount = coupon.CouponID
 	// update the cart
 	err = c.cartRepo.UpdateCart(ctx, cart.ID, discountAmount, coupon.CouponID)
 	if err != nil {
 		return discountAmount, err
 	}
 
-	log.Printf("successfully updated the cart price with dicount price %d", discountAmount)
+	log.Printf("successfully updated the cart with coupon %s", coupon.CouponID)
 	return discountAmount, nil
 }

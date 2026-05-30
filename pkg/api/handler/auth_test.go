@@ -35,7 +35,7 @@ func TestUserLogin(t *testing.T) {
 			loginDetails: request.Login{},
 			buildStub: func(useCaseMock *mockusecase.MockAuthUseCase, loginDetails request.Login) {
 				useCaseMock.EXPECT().UserLogin(gomock.Any(), loginDetails).
-					Times(1).Return(uint(0), usecase.ErrEmptyLoginCredentials)
+					Times(1).Return("", usecase.ErrEmptyLoginCredentials)
 			},
 			checkResponse: func(t *testing.T, responseRecorder *httptest.ResponseRecorder) {
 				assert.Equal(t, http.StatusBadRequest, responseRecorder.Code)
@@ -55,7 +55,7 @@ func TestUserLogin(t *testing.T) {
 
 			buildStub: func(useCaseMock *mockusecase.MockAuthUseCase, loginDetails request.Login) {
 				useCaseMock.EXPECT().UserLogin(gomock.Any(), loginDetails).
-					Times(1).Return(uint(0), usecase.ErrUserNotExist)
+					Times(1).Return("", usecase.ErrUserNotExist)
 			},
 			checkResponse: func(t *testing.T, responseRecorder *httptest.ResponseRecorder) {
 				// ErrUserNotExist is mapped to 401 Unauthorized in handler/errors.go
@@ -67,7 +67,7 @@ func TestUserLogin(t *testing.T) {
 			loginDetails: request.Login{Phone: "9999999999", Password: "password"},
 			buildStub: func(useCaseMock *mockusecase.MockAuthUseCase, loginDetails request.Login) {
 				useCaseMock.EXPECT().UserLogin(gomock.Any(), loginDetails).
-					Times(1).Return(uint(1), nil)
+					Times(1).Return("usr_test1", nil)
 				useCaseMock.EXPECT().GenerateAccessToken(gomock.Any(), gomock.Any()).
 					Times(1).Return("", errors.New("failed to generate access token"))
 			},
@@ -80,7 +80,7 @@ func TestUserLogin(t *testing.T) {
 			buildStub: func(useCaseMock *mockusecase.MockAuthUseCase, loginDetails request.Login) {
 
 				useCaseMock.EXPECT().UserLogin(gomock.Any(), loginDetails).
-					Times(1).Return(uint(1), nil)
+					Times(1).Return("usr_test1", nil)
 				useCaseMock.EXPECT().GenerateAccessToken(gomock.Any(), gomock.Any()).
 					Times(1).Return("accessToken", nil)
 				useCaseMock.EXPECT().GenerateRefreshToken(gomock.Any(), gomock.Any()).
@@ -94,7 +94,7 @@ func TestUserLogin(t *testing.T) {
 			loginDetails: request.Login{Phone: "8888888888", Password: "password"},
 			buildStub: func(useCaseMock *mockusecase.MockAuthUseCase, loginDetails request.Login) {
 				useCaseMock.EXPECT().UserLogin(gomock.Any(), loginDetails).
-					Times(1).Return(uint(1), nil)
+					Times(1).Return("usr_test1", nil)
 				useCaseMock.EXPECT().GenerateAccessToken(gomock.Any(), gomock.Any()).
 					Times(1).Return("accessTokenFromGenerateAccessToken", nil)
 				useCaseMock.EXPECT().GenerateRefreshToken(gomock.Any(), gomock.Any()).

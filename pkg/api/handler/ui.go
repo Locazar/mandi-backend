@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/interfaces"
@@ -74,20 +73,14 @@ func (h *UIHandler) SellerUIEndpoint(ctx *gin.Context) {
 		return
 	}
 
-	shopID, err := strconv.ParseUint(shopIDStr, 10, 64)
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid shop_id format", err, nil)
-		return
-	}
-
 	// Get shop details to validate shop exists
-	shop, err := h.adminUseCase.GetShopByID(ctx, uint(shopID))
+	shop, err := h.adminUseCase.GetShopByID(ctx, shopIDStr)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to fetch shop details", err, nil)
 		return
 	}
 
-	if shop.ID == 0 {
+	if shop.ID == "" {
 		response.ErrorResponse(ctx, http.StatusNotFound, "Shop not found", nil, nil)
 		return
 	}
@@ -106,14 +99,8 @@ func (h *UIHandler) SellerUIEndpoint(ctx *gin.Context) {
 
 // forwardToExternalUIService sends enriched request with seller and shop data to external UI service
 func (h *UIHandler) forwardToExternalUIService(ctx *gin.Context, req request.UISellerRequest, sellerID string, shop *domain.ShopDetails) (interface{}, error) {
-	// Convert seller ID string to uint
-	sellerIDUint, err := strconv.ParseUint(sellerID, 10, 32)
-	if err != nil {
-		return nil, fmt.Errorf("invalid seller ID format: %w", err)
-	}
-
 	// Get seller/admin details from database
-	admin, err := h.adminUseCase.GetAdminByID(ctx, uint(sellerIDUint))
+	admin, err := h.adminUseCase.GetAdminByID(ctx, sellerID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch admin details: %w", err)
 	}
@@ -142,7 +129,7 @@ func (h *UIHandler) forwardToExternalUIService(ctx *gin.Context, req request.UIS
 	// Forward simplified requests for each intent with only intent, shop_id, and seller_id
 	var externalResponse interface{}
 	for _, intent := range intentsToForward {
-		resp, err := h.forwardSimplifiedRequest(ctx, intent, strconv.FormatUint(uint64(shop.ID), 10), sellerID)
+		resp, err := h.forwardSimplifiedRequest(ctx, intent, shop.ID, sellerID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to forward intent '%s': %w", intent, err)
 		}
@@ -275,31 +262,31 @@ func (h *UIHandler) validateDataForIntent(intent string, admin *domain.Admin, sh
 	switch intent {
 	case "shop_image":
 		// Shop image requires shop to exist and have basic info
-		if shop == nil || shop.ID == 0 {
+		if shop == nil || shop.ID == "" {
 			return fmt.Errorf("invalid shop data for shop_image intent")
 		}
 
 	case "shop_address":
 		// Shop address requires shop to exist
-		if shop == nil || shop.ID == 0 {
+		if shop == nil || shop.ID == "" {
 			return fmt.Errorf("invalid shop data for shop_address intent")
 		}
 
 	case "shop_verification":
 		// Shop verification requires admin and shop to exist
-		if admin == nil || admin.ID == 0 {
+		if admin == nil || admin.ID == "" {
 			return fmt.Errorf("invalid admin data for shop_verification intent")
 		}
-		if shop == nil || shop.ID == 0 {
+		if shop == nil || shop.ID == "" {
 			return fmt.Errorf("invalid shop data for shop_verification intent")
 		}
 
 	case "add_product":
 		// Add product requires seller to be verified and shop to exist
-		if admin == nil || admin.ID == 0 {
+		if admin == nil || admin.ID == "" {
 			return fmt.Errorf("invalid admin data for add_product intent")
 		}
-		if shop == nil || shop.ID == 0 {
+		if shop == nil || shop.ID == "" {
 			return fmt.Errorf("invalid shop data for add_product intent")
 		}
 		if shopVerification == nil || !shopVerification.VerificationStatus {
@@ -308,28 +295,28 @@ func (h *UIHandler) validateDataForIntent(intent string, admin *domain.Admin, sh
 
 	case "product_image":
 		// Product image requires admin and shop to exist
-		if admin == nil || admin.ID == 0 {
+		if admin == nil || admin.ID == "" {
 			return fmt.Errorf("invalid admin data for product_image intent")
 		}
-		if shop == nil || shop.ID == 0 {
+		if shop == nil || shop.ID == "" {
 			return fmt.Errorf("invalid shop data for product_image intent")
 		}
 
 	case "product_details":
 		// Product details requires admin and shop to exist
-		if admin == nil || admin.ID == 0 {
+		if admin == nil || admin.ID == "" {
 			return fmt.Errorf("invalid admin data for product_details intent")
 		}
-		if shop == nil || shop.ID == 0 {
+		if shop == nil || shop.ID == "" {
 			return fmt.Errorf("invalid shop data for product_details intent")
 		}
 
 	default:
 		// For unknown intents, ensure basic data exists
-		if admin == nil || admin.ID == 0 {
+		if admin == nil || admin.ID == "" {
 			return fmt.Errorf("invalid admin data for intent: %s", intent)
 		}
-		if shop == nil || shop.ID == 0 {
+		if shop == nil || shop.ID == "" {
 			return fmt.Errorf("invalid shop data for intent: %s", intent)
 		}
 	}

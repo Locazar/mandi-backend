@@ -117,7 +117,7 @@ func (m *mobileAuthUseCase) SendOTP(ctx context.Context, phone, ipAddress, userA
 		Event:     domain.AuditEventOTPSent,
 		IPAddress: ipAddress,
 		UserAgent: userAgent,
-		Details:   fmt.Sprintf(`{"otp_request_id":%d,"validity_seconds":%d}`, otpRequest.ID, domain.OTPValidityDuration/time.Second),
+		Details:   fmt.Sprintf(`{"otp_request_id":%s,"validity_seconds":%d}`, otpRequest.ID, domain.OTPValidityDuration/time.Second),
 	}
 	m.mobileAuthRepo.CreateAuditLog(ctx, auditLog)
 
@@ -236,7 +236,7 @@ func (m *mobileAuthUseCase) VerifyOTP(ctx context.Context, req *request.VerifyOT
 
 	// Generate JWT token
 	tokenReq := token.GenerateTokenRequest{
-		UserID:   uint(user.ID),
+		UserID:   user.ID,
 		UsedFor:  token.User,
 		ExpireAt: time.Now().Add(24 * time.Hour),
 	}
@@ -252,7 +252,7 @@ func (m *mobileAuthUseCase) VerifyOTP(ctx context.Context, req *request.VerifyOT
 		Event:     domain.AuditEventOTPVerified,
 		IPAddress: ipAddress,
 		UserAgent: userAgent,
-		Details:   fmt.Sprintf(`{"user_id":%d,"is_new_user":%v}`, user.ID, isNewUser),
+		Details:   fmt.Sprintf(`{"user_id":%q,"is_new_user":%v}`, user.ID, isNewUser),
 	}
 	m.mobileAuthRepo.CreateAuditLog(ctx, auditLog)
 
@@ -262,13 +262,13 @@ func (m *mobileAuthUseCase) VerifyOTP(ctx context.Context, req *request.VerifyOT
 		Event:     domain.AuditEventLoginSuccess,
 		IPAddress: ipAddress,
 		UserAgent: userAgent,
-		Details:   fmt.Sprintf(`{"user_id":%d,"token_issued":true}`, user.ID),
+		Details:   fmt.Sprintf(`{"user_id":%q,"token_issued":true}`, user.ID),
 	}
 	m.mobileAuthRepo.CreateAuditLog(ctx, successAuditLog)
 
 	// Prepare response
 	userDetails := response.VerifyOTPUserDetails{
-		ID:    uint(user.ID),
+		ID:    user.ID,
 		Phone: user.Phone,
 		Email: user.Email,
 		Name:  user.FirstName + " " + user.LastName,

@@ -4,11 +4,11 @@ import "time"
 
 // ShopSocial aggregates followers, ratings, and reviews for a shop in a single table.
 type ShopSocial struct {
-	ID      uint `json:"id" gorm:"primaryKey;autoIncrement"`
-	ShopID  uint `json:"shop_id" gorm:"index;not null"`
-	AdminID uint `json:"admin_id" gorm:"index;not null"` // Follower or reviewer
+	ID      string `json:"id" gorm:"primaryKey;type:varchar(32)"`
+	ShopID  string `json:"shop_id" gorm:"type:varchar(32);index;not null"`
+	AdminID string `json:"admin_id" gorm:"type:varchar(32);index;not null"` // Follower or reviewer
 	// Rating: if nonzero, this row is a rating by the user for the shop
-	UserID     uint      `json:"user_id" gorm:"index;not null"` // Follower or reviewer
+	UserID     string    `json:"user_id" gorm:"type:varchar(32);index;not null"` // Follower or reviewer
 	IsFollower bool      `json:"is_follower" gorm:"type:boolean;default:false"`
 	IsLiked    bool      `json:"is_liked" gorm:"type:boolean;default:false"`
 	Rating     uint      `json:"rating" gorm:"type:int;default:0"` // 1-5 stars
@@ -19,7 +19,7 @@ type ShopSocial struct {
 
 // ShopSocialSummary is an aggregated social payload for a shop and a user context.
 type ShopSocialSummary struct {
-	ShopID         uint    `json:"shop_id"`
+	ShopID         string  `json:"shop_id"`
 	FollowerCount  int64   `json:"follower_count"`
 	FollowingCount int64   `json:"following_count"`
 	LikeCount      int64   `json:"like_count"`

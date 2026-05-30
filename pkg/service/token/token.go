@@ -17,7 +17,7 @@ const (
 )
 
 type GenerateTokenRequest struct {
-	UserID   uint
+	UserID   string
 	UsedFor  UserType
 	ExpireAt time.Time
 }
@@ -34,5 +34,5 @@ type VerifyTokenRequest struct {
 
 type VerifyTokenResponse struct {
 	TokenID string
-	UserID  uint
+	UserID  string
 }

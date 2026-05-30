@@ -29,7 +29,7 @@ func (r *AlertRepositoryImpl) SaveAlert(ctx context.Context, alert *domain.Alert
 }
 
 // GetAlertByID retrieves an alert by ID
-func (r *AlertRepositoryImpl) GetAlertByID(ctx context.Context, alertID uint) (*domain.Alert, error) {
+func (r *AlertRepositoryImpl) GetAlertByID(ctx context.Context, alertID string) (*domain.Alert, error) {
 	var alert domain.Alert
 	err := r.db.WithContext(ctx).
 		Preload("Actions").
@@ -41,7 +41,7 @@ func (r *AlertRepositoryImpl) GetAlertByID(ctx context.Context, alertID uint) (*
 }
 
 // GetAlertsBySellerID retrieves alerts for a seller with pagination
-func (r *AlertRepositoryImpl) GetAlertsBySellerID(ctx context.Context, sellerID uint, limit int, offset int) ([]*domain.Alert, int64, error) {
+func (r *AlertRepositoryImpl) GetAlertsBySellerID(ctx context.Context, sellerID string, limit int, offset int) ([]*domain.Alert, int64, error) {
 	var alerts []*domain.Alert
 	var total int64
 
@@ -67,7 +67,7 @@ func (r *AlertRepositoryImpl) UpdateAlert(ctx context.Context, alert *domain.Ale
 }
 
 // DeleteAlert deletes an alert
-func (r *AlertRepositoryImpl) DeleteAlert(ctx context.Context, alertID uint) error {
+func (r *AlertRepositoryImpl) DeleteAlert(ctx context.Context, alertID string) error {
 	return r.db.WithContext(ctx).Delete(&domain.Alert{}, alertID).Error
 }
 
@@ -138,7 +138,7 @@ func (r *AlertRepositoryImpl) LogAlertAction(ctx context.Context, log *domain.Se
 }
 
 // GetLastAlertActionTime gets the last time an alert action was recorded
-func (r *AlertRepositoryImpl) GetLastAlertActionTime(ctx context.Context, sellerID uint, alertKey string) (*time.Time, error) {
+func (r *AlertRepositoryImpl) GetLastAlertActionTime(ctx context.Context, sellerID string, alertKey string) (*time.Time, error) {
 	var log domain.SellerAlertLog
 	err := r.db.WithContext(ctx).
 		Where("seller_id = ? AND alert_key = ? AND action = ?", sellerID, alertKey, "shown").
@@ -155,7 +155,7 @@ func (r *AlertRepositoryImpl) GetLastAlertActionTime(ctx context.Context, seller
 }
 
 // GetStepCompletions returns the step numbers completed by a seller for a given onboarding flow key
-func (r *AlertRepositoryImpl) GetStepCompletions(ctx context.Context, sellerID uint, flowKey string) ([]int, error) {
+func (r *AlertRepositoryImpl) GetStepCompletions(ctx context.Context, sellerID string, flowKey string) ([]int, error) {
 	var logs []domain.SellerAlertLog
 	// alert_key stores the flow key for step completion logs
 	err := r.db.WithContext(ctx).
@@ -194,7 +194,7 @@ func (r *AlertRepositoryImpl) GetStepCompletions(ctx context.Context, sellerID u
 }
 
 // GetAggregatedDataForSeller fetches all required data for rule evaluation in minimal queries
-func (r *AlertRepositoryImpl) GetAggregatedDataForSeller(ctx context.Context, adminID uint) (*domain.AggregatedData, error) {
+func (r *AlertRepositoryImpl) GetAggregatedDataForSeller(ctx context.Context, adminID string) (*domain.AggregatedData, error) {
 	// Fetch shop details
 	var shop domain.ShopDetails
 	err := r.db.WithContext(ctx).
@@ -202,7 +202,7 @@ func (r *AlertRepositoryImpl) GetAggregatedDataForSeller(ctx context.Context, ad
 		First(&shop).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return nil, fmt.Errorf("shop not found for admin_id %d", adminID)
+			return nil, fmt.Errorf("shop not found for admin_id %s", adminID)
 		}
 		return nil, err
 	}

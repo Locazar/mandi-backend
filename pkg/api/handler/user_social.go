@@ -3,7 +3,7 @@ package handler
 import (
 	"errors"
 	"net/http"
-	"strconv"
+	"fmt"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
@@ -12,25 +12,20 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/utils"
 )
 
-func parseShopID(ctx *gin.Context) (uint, error) {
-	shopIDStr := ctx.Param("shop_id")
-	shopID, err := strconv.ParseUint(shopIDStr, 10, 64)
-	if err != nil {
-		return 0, err
+func parseShopID(ctx *gin.Context) (string, error) {
+	shopID := ctx.Param("shop_id")
+	if shopID == "" {
+		return "", fmt.Errorf("missing shop_id parameter")
 	}
-	return uint(shopID), nil
+	return shopID, nil
 }
 
-func parseOptionalUserID(ctx *gin.Context) (uint, error) {
+func parseOptionalUserID(ctx *gin.Context) (string, error) {
 	idStr := ctx.Param("id")
 	if idStr == "" {
 		return utils.GetUserIdFromContext(ctx), nil
 	}
-	id, err := strconv.ParseUint(idStr, 10, 64)
-	if err != nil {
-		return 0, err
-	}
-	return uint(id), nil
+	return idStr, nil
 }
 
 // FollowShop godoc
@@ -180,7 +175,7 @@ func (c *UserHandler) GetFollowedShops(ctx *gin.Context) {
 //	@Failure		500	{object}	response.Response{}	"Failed to get followed shops"
 func (c *UserHandler) GetMyFollowedShops(ctx *gin.Context) {
 	userID := utils.GetUserIdFromContext(ctx)
-	if userID == 0 {
+	if userID == "" {
 		response.ErrorResponse(ctx, http.StatusUnauthorized, "Unauthorized", errors.New("user id not found in token"), nil)
 		return
 	}

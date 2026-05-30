@@ -7,7 +7,7 @@ import (
 )
 
 type SubscriptionUseCase interface {
-	GetSubscriptionStatus(ctx context.Context, userID uint) (response.SubscriptionStatusResponse, error)
-	StartTrial(ctx context.Context, userID uint) (response.SubscriptionStatusResponse, error)
+	GetSubscriptionStatus(ctx context.Context, userID string) (response.SubscriptionStatusResponse, error)
+	StartTrial(ctx context.Context, userID string) (response.SubscriptionStatusResponse, error)
 	GetPaidPlans(ctx context.Context) ([]response.SubscriptionPlanResponse, error)
 }

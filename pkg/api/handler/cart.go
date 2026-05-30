@@ -36,14 +36,10 @@ func NewCartHandler(cartUseCase usecaseInterface.CartUseCase) interfaces.CartHan
 //	@Failure		500	{object}	response.Response{}	"Failed to add product item into cart"
 func (u *cartHandler) AddToCart(ctx *gin.Context) {
 
-	productItemID, err := request.GetParamAsUint(ctx, "product_item_id")
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
-		return
-	}
+	productItemID := ctx.Param("product_item_id")
 
 	userID := utils.GetUserIdFromContext(ctx)
-	err = u.carUseCase.SaveProductItemToCart(ctx, userID, productItemID)
+	err := u.carUseCase.SaveProductItemToCart(ctx, userID, productItemID)
 
 	if err != nil {
 		errResponse(ctx, "Failed to add product item into cart", err)
@@ -68,18 +64,11 @@ func (u *cartHandler) AddToCart(ctx *gin.Context) {
 //	@Failure		500	{object}	response.Response{}	"Failed to remove product item from cart"
 func (u cartHandler) RemoveFromCart(ctx *gin.Context) {
 
-	productItemID, err := request.GetParamAsUint(ctx, "product_item_id")
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
-		return
-	}
+	productItemID := ctx.Param("product_item_id")
 
 	userID := utils.GetUserIdFromContext(ctx)
 
-	err = u.carUseCase.RemoveProductItemFromCartItem(ctx, userID, productItemID)
-
-	if err != nil {
-
+	if err := u.carUseCase.RemoveProductItemFromCartItem(ctx, userID, productItemID); err != nil {
 		errResponse(ctx, "Failed to remove product item from cart", err)
 		return
 	}
@@ -142,7 +131,7 @@ func (u *cartHandler) GetCart(ctx *gin.Context) {
 	}
 
 	// user have not cart created
-	if cart.ID == 0 {
+	if cart.ID == "" {
 		response.SuccessResponse(ctx, http.StatusNoContent, "User cart is empty")
 		return
 	}

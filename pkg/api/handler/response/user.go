@@ -4,7 +4,7 @@ import "time"
 
 // user details response
 type User struct {
-	ID          uint      `json:"id" copier:"must"`
+	ID          string    `json:"id" copier:"must"`
 	GoogleImage string    `json:"google_profile_image"`
 	FirstName   string    `json:"first_name"`
 	LastName    string    `json:"last_name"`
@@ -18,7 +18,7 @@ type User struct {
 }
 
 type CartItem struct {
-	ProductItemId uint   `json:"product_item_id"`
+	ProductItemId string `json:"product_item_id"`
 	ProductName   string `json:"product_name"`
 	Price         uint   `json:"price"`
 	DiscountPrice uint   `json:"discount_price"`
@@ -29,19 +29,19 @@ type CartItem struct {
 
 type Cart struct {
 	CartItems       []CartItem
-	AppliedCouponID uint `json:"applied_coupon_id"`
-	TotalPrice      uint `json:"total_price"`
-	DiscountAmount  uint `json:"discount_amount"`
+	AppliedCouponID string `json:"applied_coupon_id"`
+	TotalPrice      uint   `json:"total_price"`
+	DiscountAmount  uint   `json:"discount_amount"`
 }
 
 // address
 type Address struct {
-	ID           uint     `json:"address_id"`
+	ID           string   `json:"address_id"`
 	LandMark     string   `json:"land_mark"`
 	Area         string   `json:"area"`
 	City         string   `json:"city"`
-	Pincode      int64    `json:"pincode"`
-	CountryID    uint     `json:"country_id"`
+	Pincode      string   `json:"pincode"`
+	CountryID    string   `json:"country_id"`
 	CountryName  string   `json:"country_name"`
 	Latitude     *float64 `json:"latitude"`
 	Longitude    *float64 `json:"longitude"`
@@ -54,15 +54,15 @@ type Address struct {
 
 // wish list response
 type WishListItem struct {
-	ID            uint   `json:"wish_list_id"`
-	ProductItemID uint   `json:"product_item_id"`
+	ID            string `json:"wish_list_id"`
+	ProductItemID string `json:"product_item_id"`
 	Name          string `json:"product_name"`
-	ProductID     uint   `json:"product_id"`
+	ProductID     string `json:"product_id"`
 }
 
 type Admin struct {
-	ID        uint      `json:"admin_id"`
-	ShopID    uint      `json:"shop_id"`
+	ID        string    `json:"admin_id"`
+	ShopID    string    `json:"shop_id"`
 	ShopName  string    `json:"shop_name"`
 	Email     string    `json:"email"`
 	Phone     string    `json:"phone"`

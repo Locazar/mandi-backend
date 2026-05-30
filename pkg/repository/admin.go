@@ -19,13 +19,13 @@ import (
 
 // NotificationService abstracts sending notifications.
 type NotificationService interface {
-	SendNotification(userID uint, message string) error
+	SendNotification(userID string, message string) error
 }
 
 // noopNotificationService is a placeholder implementation; replace with real logic.
 type noopNotificationService struct{}
 
-func (n *noopNotificationService) SendNotification(userID uint, message string) error {
+func (n *noopNotificationService) SendNotification(userID string, message string) error {
 	// TODO: integrate actual notification provider (email, SMS, push, etc.)
 	return nil
 }
@@ -97,7 +97,7 @@ func (c *adminDatabase) FindAdminByEmail(ctx context.Context, email string) (dom
 	if err != nil {
 		return admin, err
 	}
-	if admin.ID == 0 {
+	if admin.ID == "" {
 		return admin, gorm.ErrRecordNotFound
 	}
 	c.decryptAdminPII(&admin)
@@ -111,7 +111,7 @@ func (c *adminDatabase) FindAdminByPhone(ctx context.Context, phone string) (dom
 	if err != nil {
 		return admin, err
 	}
-	if admin.ID == 0 {
+	if admin.ID == "" {
 		return admin, gorm.ErrRecordNotFound
 	}
 	c.decryptAdminPII(&admin)
@@ -135,18 +135,18 @@ func (c *adminDatabase) FindAdminWithShopVerificationByPhone(ctx context.Context
 	if err != nil {
 		return admin, shopVerification, err
 	}
-	if admin.ID == 0 {
+	if admin.ID == "" {
 		return admin, shopVerification, gorm.ErrRecordNotFound
 	}
 	c.decryptAdminPII(&admin)
 	// Then get shop verification data
-	shopQuery := `SELECT sv.id, sv.admin_id, sv.shop_id, sv.shop_name, sv.verification_status, 
+	shopQuery := `SELECT sv.id, sv.admin_id, sv.shop_id, sv.shop_name, sv.verification_status,
 		sv.remarks, sv.agent_id, sv.created_at, sv.updated_at
-	FROM shop_verifications sv 
+	FROM shop_verifications sv
 	WHERE sv.admin_id = $1`
 
-	// Use string conversion of admin ID
-	adminIDStr := fmt.Sprintf("%d", admin.ID)
+	// admin.ID is already a string typed-prefix ID
+	adminIDStr := admin.ID
 	shopErr := c.DB.Raw(shopQuery, adminIDStr).Scan(&shopVerification).Error
 	// Shop verification might not exist, so don't treat as error
 	if shopErr != nil {
@@ -177,24 +177,26 @@ func (c *adminDatabase) SaveAdmin(ctx context.Context, admin domain.Admin) (doma
 	if tx.Error != nil {
 		return domain.Admin{}, tx.Error
 	}
+	// Generate typed-prefix ID before INSERT (raw SQL bypasses BeforeCreate hook).
+	if admin.ID == "" {
+		admin.ID = domain.NewID(domain.PrefixAdmin)
+	}
+
 	// First insert into admins table
-	query := `INSERT INTO admins (full_name, email, mobile, password, user_name,
+	query := `INSERT INTO admins (id, full_name, email, mobile, password, user_name,
 		address_line1, address_line2, city, state, country, pincode,
 		bank_account_number, bank_ifsc, pan, aadhaar_last4, aadhaar_verified, agree_to_terms,
 		verified_seller, status, latitude, longitude, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
-		$12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23) RETURNING id`
+		$12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)`
 
-	var adminID uint
-	err = tx.Raw(query, admin.FullName, admin.Email, admin.Mobile, admin.Password, admin.UserName,
+	err = tx.Exec(query, admin.ID, admin.FullName, admin.Email, admin.Mobile, admin.Password, admin.UserName,
 		admin.AddressLine1, admin.AddressLine2, admin.City, admin.State, admin.Country, admin.Pincode,
 		encBankAccount, encBankIFSC, encPAN, admin.AadhaarLast4, admin.AadhaarVerified, admin.AgreeToTerms,
-		admin.VerifiedSeller, admin.Status, admin.Latitude, admin.Longitude, time.Now(), time.Now()).Scan(&adminID).Error
+		admin.VerifiedSeller, admin.Status, admin.Latitude, admin.Longitude, time.Now(), time.Now()).Error
 	if err != nil {
 		tx.Rollback()
 		return domain.Admin{}, err
 	}
-
-	admin.ID = adminID
 
 	// Commit transaction after admin insert only
 	if err := tx.Commit().Error; err != nil {
@@ -405,7 +407,7 @@ func (c *adminDatabase) CreateShop(ctx context.Context, shop domain.ShopDetails)
 		remarks = EXCLUDED.remarks,
 		updated_at = EXCLUDED.updated_at`
 
-	adminIDStr := fmt.Sprintf("%d", shop.AdminID)
+	adminIDStr := fmt.Sprintf("%s", shop.AdminID)
 	if err := tx.Exec(queryVerification, shop.ID, adminIDStr, shop.ShopVerificationStatus, shop.ShopVerificationRemarks, time.Now(), time.Now()).Error; err != nil {
 		tx.Rollback()
 		return shop, err
@@ -440,7 +442,7 @@ func (c *adminDatabase) GetAllShops(ctx context.Context, pagination request.Pagi
 	return shops, err
 }
 
-func (c *adminDatabase) GetShopByID(ctx context.Context, shopID uint) (shop domain.ShopDetails, err error) {
+func (c *adminDatabase) GetShopByID(ctx context.Context, shopID string) (shop domain.ShopDetails, err error) {
 	query := `SELECT sd.*, (EXISTS (SELECT 1 FROM shop_offers so WHERE so.shop_id = sd.id)) as has_offers FROM shop_details sd WHERE sd.id = $1`
 	err = c.DB.Raw(query, shopID).Scan(&shop).Error
 	c.decryptShopPII(&shop)
@@ -534,13 +536,13 @@ func (c *adminDatabase) UpdateShop(ctx context.Context, shop map[string]interfac
 	return shop, nil
 }
 
-func (c *adminDatabase) GetShopByOwnerID(ctx context.Context, ownerID uint) (shop domain.ShopDetails, err error) {
+func (c *adminDatabase) GetShopByOwnerID(ctx context.Context, ownerID string) (shop domain.ShopDetails, err error) {
 	query := `SELECT * FROM shop_details WHERE admin_id = $1`
 	err = c.DB.Raw(query, ownerID).Scan(&shop).Error
 	if err != nil {
 		return shop, err
 	}
-	if shop.ID == 0 {
+	if shop.ID == "" {
 		return shop, gorm.ErrRecordNotFound
 	}
 	c.decryptShopPII(&shop)
@@ -569,7 +571,7 @@ func (c *adminDatabase) SendNotificationToUsersInRadius(ctx context.Context, req
 	return nil
 }
 
-func (c *adminDatabase) SendNotificationToUser(ctx context.Context, userID uint, message string) error {
+func (c *adminDatabase) SendNotificationToUser(ctx context.Context, userID string, message string) error {
 	// Here, you would integrate with your notification service to send a notification to the userID
 	// For example:
 	err := notificationService.SendNotification(userID, message)
@@ -592,7 +594,7 @@ func (c *adminDatabase) UploadAdminProfileImage(ctx context.Context, adminID str
 	return imagePath, err
 }
 
-func (c *adminDatabase) UploadShopDocument(ctx context.Context, shopID uint, documentType string, documentValue string) error {
+func (c *adminDatabase) UploadShopDocument(ctx context.Context, shopID string, documentType string, documentValue string) error {
 	encDocValue, err := c.encrypt(documentValue)
 	if err != nil {
 		return err
@@ -703,7 +705,7 @@ func (c *adminDatabase) DeleteRefreshSessionByUserID(ctx context.Context, adminI
 	return err
 }
 
-func (c *adminDatabase) GetShopSocialDetails(ctx context.Context, shopID uint) ([]domain.ShopSocial, error) {
+func (c *adminDatabase) GetShopSocialDetails(ctx context.Context, shopID string) ([]domain.ShopSocial, error) {
 	var details []domain.ShopSocial
 	if err := c.DB.WithContext(ctx).Where("shop_id = ?", shopID).Find(&details).Error; err != nil {
 		return nil, err
@@ -711,7 +713,7 @@ func (c *adminDatabase) GetShopSocialDetails(ctx context.Context, shopID uint) (
 	return details, nil
 }
 
-func (c *adminDatabase) GetAdminByID(ctx context.Context, adminID uint) (domain.Admin, error) {
+func (c *adminDatabase) GetAdminByID(ctx context.Context, adminID string) (domain.Admin, error) {
 	var admin domain.Admin
 	err := c.DB.Raw("SELECT * FROM admins WHERE id = $1", adminID).Scan(&admin).Error
 	if err != nil {

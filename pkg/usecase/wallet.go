@@ -9,13 +9,13 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 )
 
-func (c *OrderUseCase) FindUserWallet(ctx context.Context, userID uint) (wallet domain.Wallet, err error) {
+func (c *OrderUseCase) FindUserWallet(ctx context.Context, userID string) (wallet domain.Wallet, err error) {
 
 	// first find the user wallet
 	wallet, err = c.orderRepo.FindWalletByUserID(ctx, userID)
 	if err != nil {
 		return wallet, err
-	} else if wallet.ID == 0 { // if user have no wallet then create a wallet for user
+	} else if wallet.ID == "" { // if user have no wallet then create a wallet for user
 		wallet.ID, err = c.orderRepo.SaveWallet(ctx, userID)
 		if err != nil {
 			return wallet, err
@@ -27,13 +27,13 @@ func (c *OrderUseCase) FindUserWallet(ctx context.Context, userID uint) (wallet 
 }
 
 func (c *OrderUseCase) FindUserWalletTransactions(ctx context.Context,
-	userID uint, pagination request.Pagination) (transactions []domain.Transaction, err error) {
+	userID string, pagination request.Pagination) (transactions []domain.Transaction, err error) {
 
 	// first find the user wallet
 	wallet, err := c.orderRepo.FindWalletByUserID(ctx, userID)
 	if err != nil {
 		return transactions, err
-	} else if wallet.ID == 0 {
+	} else if wallet.ID == "" {
 		return transactions, fmt.Errorf("there is no wallet for user with user_id %v for showing transaction", userID)
 	}
 

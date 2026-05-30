@@ -25,7 +25,7 @@ import (
 //	@Failure		500	{object}	response.Response{}	"Failed to make razorpay order"
 func (c *paymentHandler) RazorpayCheckout(ctx *gin.Context) {
 
-	shopOrderID, err := request.GetFormValuesAsUint(ctx, "shop_order_id")
+	shopOrderID, err := request.GetFormValuesAsString(ctx, "shop_order_id")
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, BindFormValueMessage, err, nil)
 		return
@@ -70,7 +70,7 @@ func (c *paymentHandler) RazorpayVerify(ctx *gin.Context) {
 	razorpayPaymentID, err1 := request.GetFormValuesAsString(ctx, "razorpay_payment_id")
 	razorpaySignature, err3 := request.GetFormValuesAsString(ctx, "razorpay_signature")
 
-	shopOrderID, err4 := request.GetFormValuesAsUint(ctx, "shop_order_id")
+	shopOrderID, err4 := request.GetFormValuesAsString(ctx, "shop_order_id")
 
 	err := errors.Join(err1, err2, err3, err4)
 

@@ -107,7 +107,7 @@ func TestFindUserByEmail(t *testing.T) {
 				mock.ExpectQuery(`SELECT  \* FROM users WHERE email \= \$1`).
 					WithArgs("nonExistingUser@gmail.com").
 					WillReturnRows(sqlmock.NewRows([]string{"id", "email"}).
-						AddRow(0, ""))
+						AddRow("", ""))
 			},
 			expectedError: nil,
 		},
@@ -115,7 +115,7 @@ func TestFindUserByEmail(t *testing.T) {
 			testName:   "exsitingEmailReturnUser",
 			inputEmail: "existingUser@gmail.com",
 			expectedOutput: domain.User{
-				ID:        1,
+				ID: "usr_test1",
 				Email:     "existingUser@gmail.com",
 				FirstName: "existingUserUserName",
 				Password:  "existingUserHashedPassword",
@@ -124,7 +124,7 @@ func TestFindUserByEmail(t *testing.T) {
 				mock.ExpectQuery(`SELECT  \* FROM users WHERE email \= \$1`).
 					WithArgs("existingUser@gmail.com").
 					WillReturnRows(sqlmock.NewRows([]string{"id", "email", "first_name", "password"}).
-						AddRow(1, "existingUser@gmail.com", "existingUserUserName", "existingUserHashedPassword"))
+						AddRow("usr_test1", "existingUser@gmail.com", "existingUserUserName", "existingUserHashedPassword"))
 			},
 			expectedError: nil,
 		},

@@ -46,7 +46,7 @@ func (r *promotionRepository) FindAllPromotionCategories(ctx context.Context, pa
 	return categories, nil
 }
 
-func (r *promotionRepository) FindPromotionCategoryByID(ctx context.Context, categoryID uint) (response.PromotionCategory, error) {
+func (r *promotionRepository) FindPromotionCategoryByID(ctx context.Context, categoryID string) (response.PromotionCategory, error) {
 	var category response.PromotionCategory
 
 	if err := r.db.Model(&domain.PromotionCategory{}).
@@ -77,7 +77,7 @@ func (r *promotionRepository) FindAllPromotionTypes(ctx context.Context, paginat
 	return types, nil
 }
 
-func (r *promotionRepository) FindPromotionTypesByCategoryID(ctx context.Context, categoryID uint, pagination request.Pagination) ([]response.PromotionsType, error) {
+func (r *promotionRepository) FindPromotionTypesByCategoryID(ctx context.Context, categoryID string, pagination request.Pagination) ([]response.PromotionsType, error) {
 	var types []response.PromotionsType
 
 	offset := pagination.Offset
@@ -96,7 +96,7 @@ func (r *promotionRepository) FindPromotionTypesByCategoryID(ctx context.Context
 	return types, nil
 }
 
-func (r *promotionRepository) FindPromotionTypeByID(ctx context.Context, typeID uint) (response.PromotionsType, error) {
+func (r *promotionRepository) FindPromotionTypeByID(ctx context.Context, typeID string) (response.PromotionsType, error) {
 	var promotionType response.PromotionsType
 
 	query := `SELECT pt.id, pt.name, pt.is_active, pt.shop_id, pt.promotion_category_id, pt.promotion_offer_details, pt.icon_path, pt.created_at, pt.updated_at, pt.type, pc.name as category_name
@@ -171,7 +171,7 @@ func (r *promotionRepository) GetAllPromotions(ctx context.Context, pagination r
 	return promotions, nil
 }
 
-func (r *promotionRepository) GetPromotionByID(ctx context.Context, promotionID uint) (response.Promotion, error) {
+func (r *promotionRepository) GetPromotionByID(ctx context.Context, promotionID string) (response.Promotion, error) {
 	var promotion response.Promotion
 
 	query := `SELECT p.id, p.promotion_category_id, p.promotion_type_id, p.shop_id, p.is_active, p.created_at, p.updated_at,
@@ -189,7 +189,7 @@ func (r *promotionRepository) GetPromotionByID(ctx context.Context, promotionID 
 	return promotion, nil
 }
 
-func (r *promotionRepository) DeletePromotion(ctx context.Context, promotionID uint) error {
+func (r *promotionRepository) DeletePromotion(ctx context.Context, promotionID string) error {
 	if err := r.db.Delete(&domain.Promotion{}, promotionID).Error; err != nil {
 		return fmt.Errorf("failed to delete promotion: %w", err)
 	}

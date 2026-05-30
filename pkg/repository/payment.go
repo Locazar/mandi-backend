@@ -19,7 +19,7 @@ func NewPaymentRepository(db *gorm.DB) interfaces.PaymentRepository {
 	}
 }
 
-func (c *paymentDatabase) FindPaymentMethodByID(ctx context.Context, paymentMethodID uint) (paymentMethods domain.PaymentMethod, err error) {
+func (c *paymentDatabase) FindPaymentMethodByID(ctx context.Context, paymentMethodID string) (paymentMethods domain.PaymentMethod, err error) {
 
 	query := `SELECT * FROM payment_methods WHERE id = $1`
 
@@ -46,14 +46,14 @@ func (c *paymentDatabase) FindAllPaymentMethods(ctx context.Context) (paymentMet
 	return paymentMethods, err
 }
 
-func (c *paymentDatabase) SavePaymentMethod(ctx context.Context, paymentMethod domain.PaymentMethod) (paymentMethodID uint, err error) {
+func (c *paymentDatabase) SavePaymentMethod(ctx context.Context, paymentMethod domain.PaymentMethod) (paymentMethodID string, err error) {
 
 	query := `INSERT INTO payment_methods (name, block_status, maximum_amount_amount_minor, maximum_amount_currency)
 	VALUES ($1, $2, $3, $4) RETURNING id`
 	err = c.db.Raw(query, paymentMethod.Name, paymentMethod.BlockStatus,
 		paymentMethod.MaximumAmount.AmountMinor, paymentMethod.MaximumAmount.Currency).Scan(&paymentMethod).Error
 
-	return paymentMethod.ID, err
+	return string(paymentMethod.ID), err
 }
 func (c *paymentDatabase) UpdatePaymentMethod(ctx context.Context, paymentMethod request.PaymentMethodUpdate) error {
 

@@ -21,10 +21,9 @@ func NewCouponRepository(db *gorm.DB) interfaces.CouponRepository {
 	return &couponDatabase{DB: db}
 }
 
-func (c *couponDatabase) CheckCouponDetailsAlreadyExist(ctx context.Context, coupon domain.Coupon) (couponID uint, err error) {
+func (c *couponDatabase) CheckCouponDetailsAlreadyExist(ctx context.Context, coupon domain.Coupon) (couponID string, err error) {
 
-	// query := `SELECT coupon_id FROM coupons WHERE (coupon_code = $1 OR coupon_name = $2) AND coupon_id != $3`
-	query := `SELECT coupon_id FROM coupons WHERE  coupon_name = $1 AND coupon_id != $2`
+	query := `SELECT coupon_id FROM coupons WHERE coupon_name = $1 AND coupon_id != $2`
 
 	err = c.DB.Raw(query, coupon.CouponName, coupon.CouponID).Scan(&couponID).Error
 
@@ -32,7 +31,7 @@ func (c *couponDatabase) CheckCouponDetailsAlreadyExist(ctx context.Context, cou
 }
 
 // find all coupon
-func (c *couponDatabase) FindCouponByID(ctx context.Context, couponID uint) (coupon domain.Coupon, err error) {
+func (c *couponDatabase) FindCouponByID(ctx context.Context, couponID string) (coupon domain.Coupon, err error) {
 	query := `SELECT * FROM coupons WHERE coupon_id = $1`
 	err = c.DB.Raw(query, couponID).Scan(&coupon).Error
 
@@ -121,7 +120,7 @@ func (c *couponDatabase) UpdateCoupon(ctx context.Context, coupon domain.Coupon)
 }
 
 // find couponUses which is also uses for checking a user is a coupon is used or not
-func (c *couponDatabase) FindCouponUsesByCouponAndUserID(ctx context.Context, userID, couopnID uint) (couponUses domain.CouponUses, err error) {
+func (c *couponDatabase) FindCouponUsesByCouponAndUserID(ctx context.Context, userID, couopnID string) (couponUses domain.CouponUses, err error) {
 	query := `SELECT * FROM  coupon_uses WHERE user_id = $1 AND coupon_id = $2`
 	err = c.DB.Raw(query, userID, couopnID).Scan(&couponUses).Error
 	if err != nil {
@@ -142,7 +141,7 @@ func (c *couponDatabase) SaveCouponUses(ctx context.Context, couponUses domain.C
 
 // find all coupons for user
 
-func (c *couponDatabase) FindAllCouponForUser(ctx context.Context, userID uint, pagination request.Pagination) (coupons []response.UserCoupon, err error) {
+func (c *couponDatabase) FindAllCouponForUser(ctx context.Context, userID string, pagination request.Pagination) (coupons []response.UserCoupon, err error) {
 
 	limit := pagination.Limit
 	offset := pagination.Offset

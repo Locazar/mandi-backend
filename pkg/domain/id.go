@@ -77,6 +77,8 @@ const (
 	PrefixUserConsent     IDPrefix = "cnst"
 	PrefixAuditLog        IDPrefix = "aud"
 	PrefixUserOfferHist   IDPrefix = "uoh"
+	PrefixMobileUser      IDPrefix = "musr"
+	PrefixOtpSession      IDPrefix = "otps"
 )
 
 // allPrefixes is the authoritative registry of every entity prefix. Used by
@@ -97,7 +99,7 @@ var allPrefixes = []IDPrefix{
 	PrefixSellerAlertLog, PrefixPromotion, PrefixPromotionType, PrefixPromotionCat,
 	PrefixBanner, PrefixSubscPlan, PrefixSubscOrder, PrefixUserSubsc,
 	PrefixOTPRequest, PrefixLoginAudit, PrefixUserConsent, PrefixAuditLog,
-	PrefixUserOfferHist,
+	PrefixUserOfferHist, PrefixMobileUser, PrefixOtpSession,
 }
 
 // NewID returns a fresh typed-prefix identifier, e.g. "usr_x7k2q9m4p3...".

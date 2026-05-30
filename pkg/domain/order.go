@@ -50,7 +50,7 @@ func (p PaymentType) IsValid() bool {
 }
 
 type PaymentMethod struct {
-	ID            uint        `json:"id" gorm:"primaryKey;not null"`
+	ID            string      `json:"id" gorm:"primaryKey;type:varchar(32)"`
 	Name          PaymentType `json:"name" gorm:"unique;not null"`
 	BlockStatus   bool        `json:"block_status" gorm:"not null;default:false"`
 	MaximumAmount Money       `json:"maximum_amount" gorm:"embedded;embeddedPrefix:maximum_amount_"`
@@ -59,34 +59,34 @@ type PaymentMethod struct {
 // ShopOrder.Status replaces the former OrderStatus lookup table +
 // OrderStatusID FK. The column is CHECK-constrained in the DB migration.
 type ShopOrder struct {
-	ID              uint            `json:"shop_order_id" gorm:"primaryKey;not null"`
-	UserID          uint            `json:"user_id" gorm:"not null"`
+	ID              string          `json:"shop_order_id" gorm:"primaryKey;type:varchar(32)"`
+	UserID          string          `json:"user_id" gorm:"type:varchar(32);not null"`
 	User            User            `json:"-"`
 	OrderDate       time.Time       `json:"order_date" gorm:"not null"`
-	AddressID       uint            `json:"address_id" gorm:"not null"`
+	AddressID       string          `json:"address_id" gorm:"type:varchar(32);not null"`
 	Address         Address         `json:"-"`
 	OrderTotal      Money           `json:"order_total" gorm:"embedded;embeddedPrefix:order_total_"`
 	Discount        Money           `json:"discount" gorm:"embedded;embeddedPrefix:discount_"`
 	Status          OrderStatusType `json:"status" gorm:"type:varchar(50);not null"`
-	PaymentMethodID uint            `json:"payment_method_id"`
+	PaymentMethodID string          `json:"payment_method_id" gorm:"type:varchar(32)"`
 	PaymentMethod   PaymentMethod   `json:"-"`
-	ShopID          uint            `json:"shop_id"`
+	ShopID          string          `json:"shop_id" gorm:"type:varchar(32)"`
 
 	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
 }
 
 type OrderLine struct {
-	ID            uint      `json:"id" gorm:"primaryKey;not null"`
-	ProductItemID uint      `json:"product_item_id" gorm:"not null"`
-	ShopOrderID   uint      `json:"shop_order_id" gorm:"not null"`
+	ID            string    `json:"id" gorm:"primaryKey;type:varchar(32)"`
+	ProductItemID string    `json:"product_item_id" gorm:"type:varchar(32);not null"`
+	ShopOrderID   string    `json:"shop_order_id" gorm:"type:varchar(32);not null"`
 	ShopOrder     ShopOrder `json:"-"`
 	Qty           uint      `json:"qty" gorm:"not null"`
 	Price         Money     `json:"price" gorm:"embedded;embeddedPrefix:price_"`
 }
 
 type OrderReturn struct {
-	ID           uint      `json:"id" gorm:"primaryKey;not null"`
-	ShopOrderID  uint      `json:"shop_order_id" gorm:"not null;unique"`
+	ID           string    `json:"id" gorm:"primaryKey;type:varchar(32)"`
+	ShopOrderID  string    `json:"shop_order_id" gorm:"type:varchar(32);not null;unique"`
 	ShopOrder    ShopOrder `json:"-"`
 	RequestDate  time.Time `json:"request_date" gorm:"not null"`
 	ReturnReason string    `json:"return_reason" gorm:"not null"`

@@ -3,7 +3,6 @@ package handler
 import (
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -68,14 +67,13 @@ func (h *PromotionHandler) GetAllPromotionCategories(ctx *gin.Context) {
 //	@Failure		400	{object}	response.Response{}	"Invalid category ID"
 //	@Failure		500	{object}	response.Response{}	"Internal server error"
 func (h *PromotionHandler) GetPromotionCategoryByID(ctx *gin.Context) {
-	categoryIDStr := ctx.Param("category_id")
-	categoryID, err := strconv.ParseUint(categoryIDStr, 10, 32)
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid category ID", err, nil)
+	categoryID := ctx.Param("category_id")
+	if categoryID == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid category ID", nil, nil)
 		return
 	}
 
-	category, err := h.promotionUseCase.FindPromotionCategoryByID(ctx, uint(categoryID))
+	category, err := h.promotionUseCase.FindPromotionCategoryByID(ctx, categoryID)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to retrieve promotion category", err, nil)
 		return
@@ -138,16 +136,15 @@ func (h *PromotionHandler) GetAllPromotionTypes(ctx *gin.Context) {
 //	@Failure		400	{object}	response.Response{}	"Invalid category ID"
 //	@Failure		500	{object}	response.Response{}	"Internal server error"
 func (h *PromotionHandler) GetPromotionTypesByCategoryID(ctx *gin.Context) {
-	categoryIDStr := ctx.Param("category_id")
-	categoryID, err := strconv.ParseUint(categoryIDStr, 10, 32)
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid category ID", err, nil)
+	categoryID := ctx.Param("category_id")
+	if categoryID == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid category ID", nil, nil)
 		return
 	}
 
 	pagination := request.GetPagination(ctx)
 
-	types, err := h.promotionUseCase.FindPromotionTypesByCategoryID(ctx, uint(categoryID), pagination)
+	types, err := h.promotionUseCase.FindPromotionTypesByCategoryID(ctx, categoryID, pagination)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to retrieve promotion types by category", err, nil)
 		return
@@ -179,14 +176,13 @@ func (h *PromotionHandler) GetPromotionTypesByCategoryID(ctx *gin.Context) {
 //	@Failure		400	{object}	response.Response{}	"Invalid type ID"
 //	@Failure		500	{object}	response.Response{}	"Internal server error"
 func (h *PromotionHandler) GetPromotionTypeByID(ctx *gin.Context) {
-	typeIDStr := ctx.Param("type_id")
-	typeID, err := strconv.ParseUint(typeIDStr, 10, 32)
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid type ID", err, nil)
+	typeID := ctx.Param("type_id")
+	if typeID == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid type ID", nil, nil)
 		return
 	}
 
-	promotionType, err := h.promotionUseCase.FindPromotionTypeByID(ctx, uint(typeID))
+	promotionType, err := h.promotionUseCase.FindPromotionTypeByID(ctx, typeID)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to retrieve promotion type", err, nil)
 		return
@@ -224,24 +220,9 @@ func (h *PromotionHandler) CreatePromotion(ctx *gin.Context) {
 		return
 	}
 
-	// Parse string IDs to uint
-	shopID, err := strconv.ParseUint(reqBody.ShopID, 10, 32)
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid shop_id", err, nil)
-		return
-	}
-
-	categoryID, err := strconv.ParseUint(reqBody.PromotionCategoryID, 10, 32)
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid promotion_category_id", err, nil)
-		return
-	}
-
-	typeID, err := strconv.ParseUint(reqBody.PromotionTypeID, 10, 32)
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid promotion_type_id", err, nil)
-		return
-	}
+	shopID := reqBody.ShopID
+	categoryID := reqBody.PromotionCategoryID
+	typeID := reqBody.PromotionTypeID
 
 	// Construct offer_details struct
 	offerDetails := domain.PromotionOfferDetails{
@@ -258,7 +239,7 @@ func (h *PromotionHandler) CreatePromotion(ctx *gin.Context) {
 		GiftDescription:        reqBody.GiftDescription,
 	}
 
-	promotion, err := h.promotionUseCase.CreatePromotion(ctx, uint(categoryID), uint(typeID), offerDetails, uint(shopID), reqBody.IsActive)
+	promotion, err := h.promotionUseCase.CreatePromotion(ctx, categoryID, typeID, offerDetails, shopID, reqBody.IsActive)
 	if err != nil {
 		fmt.Printf("Error creating promotion: %v\n", err)
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to create promotion", err, nil)
@@ -304,14 +285,13 @@ func (h *PromotionHandler) GetAllPromotions(ctx *gin.Context) {
 //	@Failure		400	{object}	response.Response{}	"Invalid promotion ID"
 //	@Failure		500	{object}	response.Response{}	"Internal server error"
 func (h *PromotionHandler) GetPromotionByID(ctx *gin.Context) {
-	promotionIDStr := ctx.Param("promotion_id")
-	promotionID, err := strconv.ParseUint(promotionIDStr, 10, 32)
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid promotion ID", err, nil)
+	promotionID := ctx.Param("promotion_id")
+	if promotionID == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid promotion ID", nil, nil)
 		return
 	}
 
-	promotion, err := h.promotionUseCase.GetPromotionByID(ctx, uint(promotionID))
+	promotion, err := h.promotionUseCase.GetPromotionByID(ctx, promotionID)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to retrieve promotion", err, nil)
 		return
@@ -333,14 +313,13 @@ func (h *PromotionHandler) GetPromotionByID(ctx *gin.Context) {
 //	@Failure		400	{object}	response.Response{}	"Invalid promotion ID"
 //	@Failure		500	{object}	response.Response{}	"Internal server error"
 func (h *PromotionHandler) DeletePromotion(ctx *gin.Context) {
-	promotionIDStr := ctx.Param("promotion_id")
-	promotionID, err := strconv.ParseUint(promotionIDStr, 10, 32)
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid promotion ID", err, nil)
+	promotionID := ctx.Param("promotion_id")
+	if promotionID == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid promotion ID", nil, nil)
 		return
 	}
 
-	err = h.promotionUseCase.DeletePromotion(ctx, uint(promotionID))
+	err := h.promotionUseCase.DeletePromotion(ctx, promotionID)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to delete promotion", err, nil)
 		return

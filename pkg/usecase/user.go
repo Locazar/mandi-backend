@@ -44,7 +44,7 @@ func NewUserUseCase(userRepo interfaces.UserRepository, cartRepo interfaces.Cart
 	}
 }
 
-func (c *userUserCase) FindProfile(ctx context.Context, userID uint) (domain.User, error) {
+func (c *userUserCase) FindProfile(ctx context.Context, userID string) (domain.User, error) {
 
 	user, err := c.userRepo.FindUserByUserID(ctx, userID)
 	if err != nil {
@@ -61,7 +61,7 @@ func (c *userUserCase) UpdateProfile(ctx context.Context, user domain.User) erro
 	if err != nil {
 		return err
 	}
-	if checkUser.ID != 0 { // if there is an user exist with given details then make it as error
+	if checkUser.ID != "" { // if there is an user exist with given details then make it as error
 		err = utils.CompareUserExistingDetails(user, checkUser)
 		return err
 	}
@@ -85,7 +85,7 @@ func (c *userUserCase) UpdateProfile(ctx context.Context, user domain.User) erro
 }
 
 // adddress
-func (c *userUserCase) SaveAddress(ctx context.Context, userID uint, address domain.Address, isDefault bool) error {
+func (c *userUserCase) SaveAddress(ctx context.Context, userID string, address domain.Address, isDefault bool) error {
 
 	exist, err := c.userRepo.IsAddressAlreadyExistForUser(ctx, address, userID)
 	if err != nil {
@@ -99,7 +99,7 @@ func (c *userUserCase) SaveAddress(ctx context.Context, userID uint, address dom
 	country, err := c.userRepo.FindCountryByID(ctx, address.CountryID)
 	if err != nil {
 		return err
-	} else if country.ID == 0 {
+	} else if country.ID == "" {
 		return errors.New("invalid country id")
 	}
 
@@ -129,7 +129,7 @@ func (c *userUserCase) SaveAddress(ctx context.Context, userID uint, address dom
 	return nil
 }
 
-func (c *userUserCase) UpdateAddress(ctx context.Context, addressBody request.EditAddress, userID uint) error {
+func (c *userUserCase) UpdateAddress(ctx context.Context, addressBody request.EditAddress, userID string) error {
 
 	if exist, err := c.userRepo.IsAddressIDExist(ctx, addressBody.ID); err != nil {
 		return err
@@ -173,7 +173,7 @@ func (c *userUserCase) UpdateAddress(ctx context.Context, addressBody request.Ed
 }
 
 // get all address
-func (c *userUserCase) FindAddresses(ctx context.Context, userID uint) ([]response.Address, error) {
+func (c *userUserCase) FindAddresses(ctx context.Context, userID string) ([]response.Address, error) {
 
 	return c.userRepo.FindAllAddressByUserID(ctx, userID)
 }
@@ -186,7 +186,7 @@ func (c *userUserCase) SaveToWishList(ctx context.Context, wishList domain.WishL
 	if err != nil {
 		return utils.PrependMessageToError(err, "failed to check product item already exist on wish list")
 	}
-	if checkWishList.ID != 0 {
+	if checkWishList.ID != "" {
 		return ErrExistWishListProductItem
 	}
 
@@ -199,7 +199,7 @@ func (c *userUserCase) SaveToWishList(ctx context.Context, wishList domain.WishL
 }
 
 // remove from wishlist
-func (c *userUserCase) RemoveFromWishList(ctx context.Context, userID, productItemID uint) error {
+func (c *userUserCase) RemoveFromWishList(ctx context.Context, userID, productItemID string) error {
 
 	err := c.userRepo.RemoveWishListItem(ctx, userID, productItemID)
 	if err != nil {
@@ -209,7 +209,7 @@ func (c *userUserCase) RemoveFromWishList(ctx context.Context, userID, productIt
 	return nil
 }
 
-func (c *userUserCase) FindAllWishListItems(ctx context.Context, userID uint) ([]response.WishListItem, error) {
+func (c *userUserCase) FindAllWishListItems(ctx context.Context, userID string) ([]response.WishListItem, error) {
 
 	wishListItems, err := c.userRepo.FindAllWishListItemsByUserID(ctx, userID)
 	if err != nil {
@@ -299,23 +299,23 @@ func (c *userUserCase) SearchShopList(ctx context.Context, reqData request.Searc
 	return shops, nil
 }
 
-func (c *userUserCase) GetProductItemsByDepartment(ctx context.Context, documentID uint) ([]response.ProductItems, error) {
+func (c *userUserCase) GetProductItemsByDepartment(ctx context.Context, documentID string) ([]response.ProductItems, error) {
 	return c.productRepo.GetProductItemsByDepartment(ctx, documentID)
 }
 
-func (c *userUserCase) GetProductItemsByCategory(ctx context.Context, categoryID uint) ([]response.ProductItems, error) {
+func (c *userUserCase) GetProductItemsByCategory(ctx context.Context, categoryID string) ([]response.ProductItems, error) {
 	return c.productRepo.GetProductItemsByCategory(ctx, categoryID)
 }
 
-func (c *userUserCase) GetProductItemsBySubCategory(ctx context.Context, subCategoryID uint) ([]response.ProductItems, error) {
+func (c *userUserCase) GetProductItemsBySubCategory(ctx context.Context, subCategoryID string) ([]response.ProductItems, error) {
 	return c.productRepo.GetProductItemsBySubCategory(ctx, subCategoryID)
 }
 
-func (c *userUserCase) GetProductItemsByShop(ctx context.Context, adminID uint) ([]response.ProductItems, error) {
+func (c *userUserCase) GetProductItemsByShop(ctx context.Context, adminID string) ([]response.ProductItems, error) {
 	return c.productRepo.GetProductItemsByShop(ctx, adminID)
 }
 
-func (c *userUserCase) GetShopByID(ctx context.Context, shopID uint) (response.Shop, error) {
+func (c *userUserCase) GetShopByID(ctx context.Context, shopID string) (response.Shop, error) {
 	shop, err := c.userRepo.FindShopByID(ctx, shopID)
 	if err != nil {
 		return response.Shop{}, fmt.Errorf("failed to find shop by ID: %v", err)

@@ -12,7 +12,7 @@ type AdminRepository interface {
 	FindAdminByEmail(ctx context.Context, email string) (domain.Admin, error)
 	FindAdminByPhone(ctx context.Context, userName string) (domain.Admin, error)
 	FindAdminWithShopVerificationByPhone(ctx context.Context, phone string) (domain.Admin, domain.ShopVerification, error)
-	GetAdminByID(ctx context.Context, adminID uint) (domain.Admin, error)
+	GetAdminByID(ctx context.Context, adminID string) (domain.Admin, error)
 	SaveAdmin(ctx context.Context, admin domain.Admin) (domain.Admin, error)
 
 	FindAllUser(ctx context.Context, pagination request.Pagination) (users []response.User, err error)
@@ -31,19 +31,19 @@ type AdminRepository interface {
 	//Shop Details
 	CreateShop(ctx context.Context, shop domain.ShopDetails) (domain.ShopDetails, error)
 	GetAllShops(ctx context.Context, pagination request.Pagination) (shops []domain.ShopDetails, err error)
-	GetShopByID(ctx context.Context, shopID uint) (shop domain.ShopDetails, err error)
+	GetShopByID(ctx context.Context, shopID string) (shop domain.ShopDetails, err error)
 	UpdateShop(ctx context.Context, shop map[string]interface{}, shopId string) (map[string]interface{}, error)
-	GetShopByOwnerID(ctx context.Context, ownerID uint) (shop domain.ShopDetails, err error)
+	GetShopByOwnerID(ctx context.Context, ownerID string) (shop domain.ShopDetails, err error)
 
 	SendNotificationToUsersInRadius(ctx context.Context, requestData request.NotificationRadiusRequest) error
-	SendNotificationToUser(ctx context.Context, userID uint, message string) error
+	SendNotificationToUser(ctx context.Context, userID string, message string) error
 	UploadAdminProfileImage(ctx context.Context, adminID string, imagePath string, shopId string) (string, error)
-	UploadShopDocument(ctx context.Context, shopID uint, documentType string, documentValue string) error
+	UploadShopDocument(ctx context.Context, shopID string, documentType string, documentValue string) error
 	UploadAddress(ctx context.Context, adminId string, address request.AddressRequest) error
 	UploadAdminDocumentOtpSend(ctx context.Context, adminID string, documentType string, documentValue string) error
 
 	GetVerificationStatus(ctx context.Context, adminId string) (domain.Admin, domain.ShopVerification, error)
 	GetShopProfileImageById(ctx context.Context, shopId string) (string, error)
 	DeleteRefreshSessionByUserID(ctx context.Context, adminId string) error
-	GetShopSocialDetails(ctx context.Context, shopID uint) ([]domain.ShopSocial, error)
+	GetShopSocialDetails(ctx context.Context, shopID string) ([]domain.ShopSocial, error)
 }

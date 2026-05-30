@@ -47,7 +47,7 @@ func (c *paymentUseCase) FindAllPaymentMethods(ctx context.Context) ([]domain.Pa
 	return c.paymentRepo.FindAllPaymentMethods(ctx)
 }
 
-func (c *paymentUseCase) FindPaymentMethodByID(ctx context.Context, paymentMethodID uint) (domain.PaymentMethod, error) {
+func (c *paymentUseCase) FindPaymentMethodByID(ctx context.Context, paymentMethodID string) (domain.PaymentMethod, error) {
 	return c.paymentRepo.FindPaymentMethodByID(ctx, paymentMethodID)
 }
 
@@ -62,7 +62,7 @@ func (c *paymentUseCase) UpdatePaymentMethod(ctx context.Context, paymentMethod 
 }
 
 // To create a razor pay order
-func (c *paymentUseCase) MakeRazorpayOrder(ctx context.Context, userID, shopOrderID uint) (response.RazorpayOrder, error) {
+func (c *paymentUseCase) MakeRazorpayOrder(ctx context.Context, userID, shopOrderID string) (response.RazorpayOrder, error) {
 
 	shopOrder, err := c.orderRepo.FindShopOrderByShopOrderID(ctx, shopOrderID)
 	if err != nil {
@@ -161,7 +161,7 @@ func (c *paymentUseCase) VerifyRazorPay(ctx context.Context, verifyReq request.R
 }
 
 // To mak a stripe order
-func (c *paymentUseCase) MakeStripeOrder(ctx context.Context, userID, shopOrderID uint) (response.StripeOrder, error) {
+func (c *paymentUseCase) MakeStripeOrder(ctx context.Context, userID, shopOrderID string) (response.StripeOrder, error) {
 
 	shopOrder, err := c.orderRepo.FindShopOrderByShopOrderID(ctx, shopOrderID)
 	if err != nil {
@@ -243,7 +243,7 @@ func (c *paymentUseCase) VerifyStripOrder(ctx context.Context, stripePaymentID s
 }
 
 // Approve the order and clear the cart (if coupon applied then change it used for this user)
-func (c *paymentUseCase) ApproveShopOrderAndClearCart(ctx context.Context, userID uint,
+func (c *paymentUseCase) ApproveShopOrderAndClearCart(ctx context.Context, userID string,
 	approveDetails request.ApproveOrder) error {
 
 	// find the payment method of given payment type
@@ -267,7 +267,7 @@ func (c *paymentUseCase) ApproveShopOrderAndClearCart(ctx context.Context, userI
 		}
 
 		// if user applied a coupon on cart then save coupon uses for user
-		if cart.AppliedCouponID != 0 {
+		if cart.AppliedCouponID != "" {
 			err = c.couponRepo.SaveCouponUses(ctx, domain.CouponUses{
 				UserID:   userID,
 				CouponID: cart.AppliedCouponID,

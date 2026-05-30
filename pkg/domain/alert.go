@@ -7,8 +7,8 @@ import (
 
 // Alert represents a seller alert
 type Alert struct {
-	ID          uint                   `json:"id" gorm:"primaryKey"`
-	SellerID    uint                   `json:"seller_id" gorm:"not null;index"`
+	ID          string                 `json:"id" gorm:"primaryKey;type:varchar(32)"`
+	SellerID    string                 `json:"seller_id" gorm:"type:varchar(32);not null;index"`
 	Key         string                 `json:"key" gorm:"size:100;not null;index"`
 	Title       string                 `json:"title" gorm:"size:255;not null"`
 	Content     string                 `json:"content" gorm:"type:text"`
@@ -28,8 +28,8 @@ type Alert struct {
 
 // AlertAction represents an action that can be taken on an alert
 type AlertAction struct {
-	ID         uint            `json:"id" gorm:"primaryKey"`
-	AlertID    uint            `json:"alert_id" gorm:"not null"`
+	ID         string          `json:"id" gorm:"primaryKey;type:varchar(32)"`
+	AlertID    string          `json:"alert_id" gorm:"type:varchar(32);not null"`
 	Label      string          `json:"label" gorm:"size:100;not null"`
 	ActionURL  string          `json:"action_url" gorm:"size:500"`
 	ActionType AlertActionType `json:"action_type" gorm:"size:50;not null"` // navigate, api_call, dismiss
@@ -40,7 +40,7 @@ type AlertAction struct {
 
 // AlertTemplate defines reusable alert configurations from DB
 type AlertTemplate struct {
-	ID              uint            `json:"id" gorm:"primaryKey"`
+	ID              string          `json:"id" gorm:"primaryKey;type:varchar(32)"`
 	Key             string          `json:"key" gorm:"size:100;not null;uniqueIndex"`
 	Title           string          `json:"title" gorm:"size:255;not null"`
 	Description     string          `json:"description" gorm:"type:text"`
@@ -62,8 +62,8 @@ type AlertTemplate struct {
 
 // SellerAlertLog tracks alert dismissals and interactions
 type SellerAlertLog struct {
-	ID        uint            `json:"id" gorm:"primaryKey"`
-	SellerID  uint            `json:"seller_id" gorm:"not null;index"`
+	ID        string          `json:"id" gorm:"primaryKey;type:varchar(32)"`
+	SellerID  string          `json:"seller_id" gorm:"type:varchar(32);not null;index"`
 	AlertKey  string          `json:"alert_key" gorm:"size:100;not null"`
 	Action    string          `json:"action" gorm:"size:50;not null"` // shown, dismissed, clicked
 	ActionURL string          `json:"action_url" gorm:"size:500"`
@@ -77,14 +77,14 @@ type AggregatedData struct {
 	ProductCount int
 	IsVerified   bool
 	HasShopPhoto bool
-	AdminID      uint
-	ShopID       uint
+	AdminID      string
+	ShopID       string
 	FetchedAt    time.Time
 }
 
 // AlertResponse is the API response structure for a single alert
 type AlertResponse struct {
-	ID          uint                   `json:"id"`
+	ID          string                 `json:"id"`
 	Key         string                 `json:"key"`
 	Title       string                 `json:"title"`
 	Content     string                 `json:"content"`

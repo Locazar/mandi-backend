@@ -23,7 +23,7 @@ func NewUserRepository(DB *gorm.DB) interfaces.UserRepository {
 	return &userDatabase{DB: DB}
 }
 
-func (c *userDatabase) FindUserByUserID(ctx context.Context, userID uint) (user domain.User, err error) {
+func (c *userDatabase) FindUserByUserID(ctx context.Context, userID string) (user domain.User, err error) {
 
 	query := `SELECT * FROM users WHERE id = $1`
 	err = c.DB.Raw(query, userID).Scan(&user).Error
@@ -65,7 +65,7 @@ func (c *userDatabase) FindUserByUserNameEmailOrPhoneNotID(ctx context.Context,
 	return
 }
 
-func (c *userDatabase) SaveUser(ctx context.Context, user domain.User) (userID uint, err error) {
+func (c *userDatabase) SaveUser(ctx context.Context, user domain.User) (userID string, err error) {
 	// Build dynamic column list and values
 	columns := []string{}
 	placeholders := []string{}
@@ -99,7 +99,7 @@ func (c *userDatabase) SaveUser(ctx context.Context, user domain.User) (userID u
 	return userID, err
 }
 
-func (c *userDatabase) UpdateVerified(ctx context.Context, userID uint) error {
+func (c *userDatabase) UpdateVerified(ctx context.Context, userID string) error {
 
 	query := `UPDATE users SET phone_verified = true WHERE id = $1`
 	err := c.DB.Exec(query, userID).Error
@@ -107,7 +107,7 @@ func (c *userDatabase) UpdateVerified(ctx context.Context, userID uint) error {
 	return err
 }
 
-func (c *userDatabase) UpdateAdminVerified(ctx context.Context, adminID uint) error {
+func (c *userDatabase) UpdateAdminVerified(ctx context.Context, adminID string) error {
 
 	query := `UPDATE admins SET verified_seller = 'T' WHERE id = $1`
 	err := c.DB.Exec(query, adminID).Error
@@ -132,12 +132,12 @@ func (c *userDatabase) UpdateUser(ctx context.Context, user domain.User) (err er
 	}
 
 	if err != nil {
-		return fmt.Errorf("filed to update user detail of user with user_id %d", user.ID)
+		return fmt.Errorf("filed to update user detail of user with user_id %s", user.ID)
 	}
 	return nil
 }
 
-func (c *userDatabase) UpdateBlockStatus(ctx context.Context, userID uint, blockStatus bool) error {
+func (c *userDatabase) UpdateBlockStatus(ctx context.Context, userID string, blockStatus bool) error {
 
 	query := `UPDATE users SET block_status = $1 WHERE id = $2`
 	err := c.DB.Exec(query, blockStatus, userID).Error
@@ -145,13 +145,13 @@ func (c *userDatabase) UpdateBlockStatus(ctx context.Context, userID uint, block
 	return err
 }
 
-func (c *userDatabase) IsAddressIDExist(ctx context.Context, addressID uint) (exist bool, err error) {
+func (c *userDatabase) IsAddressIDExist(ctx context.Context, addressID string) (exist bool, err error) {
 	query := `SELECT EXISTS(SELECT 1 FROM addresses WHERE id = $1) AS exist FROM addresses`
 	err = c.DB.Raw(query, addressID).Scan(&exist).Error
 
 	return
 }
-func (c *userDatabase) FindAddressByID(ctx context.Context, addressID uint) (address response.Address, err error) {
+func (c *userDatabase) FindAddressByID(ctx context.Context, addressID string) (address response.Address, err error) {
 
 	query := `SELECT adrs.id, adrs.land_mark, adrs.area, adrs.city, adrs.pincode, adrs.country_id, c.country_name, adrs.latitude, adrs.longitude, adrs.phone_number, adrs.address_type, adrs.address_line1, adrs.address_line2, adrs.is_default
 	FROM addresses adrs 
@@ -162,7 +162,7 @@ func (c *userDatabase) FindAddressByID(ctx context.Context, addressID uint) (add
 	return
 }
 
-func (c *userDatabase) IsAddressAlreadyExistForUser(ctx context.Context, address domain.Address, userID uint) (exist bool, err error) {
+func (c *userDatabase) IsAddressAlreadyExistForUser(ctx context.Context, address domain.Address, userID string) (exist bool, err error) {
 
 	query := `SELECT DISTINCT CASE  WHEN adrs.id != 0 THEN 'T' ELSE 'F' END AS exist 
 	FROM addresses adrs 
@@ -170,12 +170,12 @@ func (c *userDatabase) IsAddressAlreadyExistForUser(ctx context.Context, address
 	WHERE adrs.land_mark = $1 AND adrs.city = $2 AND adrs.pincode = $3 AND adrs.country_id = $4 AND urs.user_id = $5`
 	err = c.DB.Raw(query, address.LandMark, address.City, address.Pincode, address.CountryID, userID).Scan(&exist).Error
 	if err != nil {
-		return exist, fmt.Errorf("filed to check address already exist for user with user_id %d", userID)
+		return exist, fmt.Errorf("filed to check address already exist for user with user_id %s", userID)
 	}
 	return
 }
 
-func (c *userDatabase) FindAllAddressByUserID(ctx context.Context, userID uint) (addresses []response.Address, err error) {
+func (c *userDatabase) FindAllAddressByUserID(ctx context.Context, userID string) (addresses []response.Address, err error) {
 
 	query := `SELECT a.id, a.land_mark, a.area, a.city, a.pincode, a.country_id, c.country_name, a.latitude, a.longitude, a.phone_number, a.address_type, a.address_line1, a.address_line2, a.is_default, ua.is_default
 	FROM user_addresses ua JOIN addresses a ON ua.address_id=a.id 
@@ -186,7 +186,7 @@ func (c *userDatabase) FindAllAddressByUserID(ctx context.Context, userID uint) 
 	return addresses, err
 }
 
-func (c *userDatabase) FindCountryByID(ctx context.Context, countryID uint) (domain.Country, error) {
+func (c *userDatabase) FindCountryByID(ctx context.Context, countryID string) (domain.Country, error) {
 
 	var country domain.Country
 
@@ -198,7 +198,7 @@ func (c *userDatabase) FindCountryByID(ctx context.Context, countryID uint) (dom
 }
 
 // save address
-func (c *userDatabase) SaveAddress(ctx context.Context, address domain.Address) (addressID uint, err error) {
+func (c *userDatabase) SaveAddress(ctx context.Context, address domain.Address) (addressID string, err error) {
 	query := `INSERT INTO addresses (user_id, land_mark, area, city, pincode, country_id, latitude, longitude, phone_number, address_type, address_line1, address_line2, is_default, created_at, updated_at) 
 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id`
 
@@ -272,7 +272,7 @@ func (c *userDatabase) UpdateUserAddress(ctx context.Context, userAddress domain
 
 // wish list
 
-func (c *userDatabase) FindWishListItem(ctx context.Context, productID, userID uint) (domain.WishList, error) {
+func (c *userDatabase) FindWishListItem(ctx context.Context, productID, userID string) (domain.WishList, error) {
 
 	var wishList domain.WishList
 	query := `SELECT * FROM wish_lists WHERE user_id=? AND product_item_id=?`
@@ -282,7 +282,7 @@ func (c *userDatabase) FindWishListItem(ctx context.Context, productID, userID u
 	return wishList, nil
 }
 
-func (c *userDatabase) FindAllWishListItemsByUserID(ctx context.Context, userID uint) (productItems []response.WishListItem, err error) {
+func (c *userDatabase) FindAllWishListItemsByUserID(ctx context.Context, userID string) (productItems []response.WishListItem, err error) {
 
 	query := `SELECT p.name, wl.id, pi.id AS product_item_id, pi.product_id, FROM wish_lists wl 
 	INNER JOIN product_items pi ON wl.product_item_id = pi.id 
@@ -303,7 +303,7 @@ func (c *userDatabase) SaveWishListItem(ctx context.Context, wishList domain.Wis
 	return nil
 }
 
-func (c *userDatabase) RemoveWishListItem(ctx context.Context, userID, productItemID uint) error {
+func (c *userDatabase) RemoveWishListItem(ctx context.Context, userID, productItemID string) error {
 
 	query := `DELETE FROM wish_lists WHERE product_item_id = $1 AND user_id = $2`
 	err := c.DB.Exec(query, productItemID, userID).Error
@@ -488,15 +488,15 @@ func (c *userDatabase) SearchShopList(ctx context.Context, reqData request.Searc
 
 	// Batch-fetch reviews AND shop_times for all returned shops.
 	if len(shops) > 0 {
-		shopIDs := make([]uint, len(shops))
+		shopIDs := make([]string, len(shops))
 		for i, s := range shops {
 			shopIDs[i] = s.ID
 		}
 
 		// --- Reviews ---
 		type reviewRow struct {
-			ShopID    uint      `gorm:"column:shop_id"`
-			UserID    uint      `gorm:"column:user_id"`
+			ShopID    string    `gorm:"column:shop_id"`
+			UserID    string    `gorm:"column:user_id"`
 			Rating    uint      `gorm:"column:rating"`
 			Review    string    `gorm:"column:review"`
 			CreatedAt time.Time `gorm:"column:created_at"`
@@ -510,7 +510,7 @@ func (c *userDatabase) SearchShopList(ctx context.Context, reqData request.Searc
 			ORDER BY updated_at DESC
 		`, shopIDs).Scan(&reviewRows)
 
-		reviewMap := make(map[uint][]response.ShopReview, len(shops))
+		reviewMap := make(map[string][]response.ShopReview, len(shops))
 		for _, r := range reviewRows {
 			reviewMap[r.ShopID] = append(reviewMap[r.ShopID], response.ShopReview{
 				UserID:    r.UserID,
@@ -530,7 +530,7 @@ func (c *userDatabase) SearchShopList(ctx context.Context, reqData request.Searc
 
 		// --- is_open: computed in Go using IST ---
 		type shopTimeRow struct {
-			ShopID    uint   `gorm:"column:shop_id"`
+			ShopID    string   `gorm:"column:shop_id"`
 			Status    string `gorm:"column:status"`
 			OpenTime  string `gorm:"column:open_time"`
 			CloseTime string `gorm:"column:close_time"`
@@ -547,7 +547,7 @@ func (c *userDatabase) SearchShopList(ctx context.Context, reqData request.Searc
 		nowIST := time.Now().In(istLoc)
 		nowStr := nowIST.Format("15:04") // HH:MM
 
-		shopTimeMap := make(map[uint]shopTimeRow, len(shopTimes))
+		shopTimeMap := make(map[string]shopTimeRow, len(shopTimes))
 		for _, st := range shopTimes {
 			shopTimeMap[st.ShopID] = st
 		}
@@ -583,7 +583,7 @@ func (c *userDatabase) DeleteRefreshSessionByUserID(ctx context.Context, userId 
 		return err
 	}
 }
-func (c *userDatabase) FindShopByID(ctx context.Context, shopID uint) (response.Shop, error) {
+func (c *userDatabase) FindShopByID(ctx context.Context, shopID string) (response.Shop, error) {
 
 	var shop response.Shop
 	query := `
@@ -611,11 +611,11 @@ func (c *userDatabase) FindShopByID(ctx context.Context, shopID uint) (response.
 	return shop, nil
 }
 
-func (c *userDatabase) UpdateTrialUsed(ctx context.Context, userID uint) error {
+func (c *userDatabase) UpdateTrialUsed(ctx context.Context, userID string) error {
 	return c.DB.Exec("UPDATE users SET trial_used = true WHERE id = $1", userID).Error
 }
 
-func (c *userDatabase) IsTrialUsed(ctx context.Context, userID uint) (bool, error) {
+func (c *userDatabase) IsTrialUsed(ctx context.Context, userID string) (bool, error) {
 	var trialUsed bool
 	err := c.DB.Raw("SELECT trial_used FROM users WHERE id = $1", userID).Scan(&trialUsed).Error
 	return trialUsed, err

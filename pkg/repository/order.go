@@ -36,7 +36,7 @@ func (c *OrderDatabase) Transaction(callBack func(trxRepo interfaces.OrderReposi
 }
 
 // find a specific shop order by shopOrderID
-func (c *OrderDatabase) FindShopOrderByShopOrderID(ctx context.Context, shopOrderID uint) (shopOrder domain.ShopOrder, err error) {
+func (c *OrderDatabase) FindShopOrderByShopOrderID(ctx context.Context, shopOrderID string) (shopOrder domain.ShopOrder, err error) {
 
 	query := `SELECT * FROM shop_orders WHERE id = $1`
 	err = c.DB.Raw(query, shopOrderID).Scan(&shopOrder).Error
@@ -45,7 +45,7 @@ func (c *OrderDatabase) FindShopOrderByShopOrderID(ctx context.Context, shopOrde
 }
 
 // get all shop order of user
-func (c *OrderDatabase) FindAllShopOrdersByUserID(ctx context.Context, userID uint,
+func (c *OrderDatabase) FindAllShopOrdersByUserID(ctx context.Context, userID string,
 	pagination request.Pagination) (shopOrders []response.ShopOrder, err error) {
 
 	limit := pagination.Limit
@@ -84,7 +84,7 @@ func (c *OrderDatabase) FindAllShopOrders(ctx context.Context,
 
 // get order items of a specific order
 func (c *OrderDatabase) FindAllOrdersItemsByShopOrderID(ctx context.Context,
-	shopOrderID uint, pagination request.Pagination) (orderItems []response.OrderItem, err error) {
+	shopOrderID string, pagination request.Pagination) (orderItems []response.OrderItem, err error) {
 
 	limit := pagination.Limit
 	offset := pagination.Offset
@@ -105,7 +105,7 @@ func (c *OrderDatabase) FindAllOrdersItemsByShopOrderID(ctx context.Context,
 
 // ! order place
 
-func (c *OrderDatabase) SaveShopOrder(ctx context.Context, shopOrder domain.ShopOrder) (shopOrderID uint, err error) {
+func (c *OrderDatabase) SaveShopOrder(ctx context.Context, shopOrder domain.ShopOrder) (shopOrderID string, err error) {
 
 	// save the shop_order — status is now stored directly as a varchar column.
 	query := `INSERT INTO shop_orders (user_id, address_id,
@@ -136,7 +136,7 @@ func (c *OrderDatabase) SaveOrderLine(ctx context.Context, orderLine domain.Orde
 
 // FindOrderStatusByShopOrderID returns the status string of the given order.
 func (c *OrderDatabase) FindOrderStatusByShopOrderID(ctx context.Context,
-	shopOrderID uint) (domain.OrderStatusType, error) {
+	shopOrderID string) (domain.OrderStatusType, error) {
 
 	var status domain.OrderStatusType
 	query := `SELECT status FROM shop_orders WHERE id = $1`
@@ -160,7 +160,7 @@ func (c *OrderDatabase) FindAllOrderStatuses(ctx context.Context) ([]domain.Orde
 
 // UpdateShopOrderStatus sets the status column directly (replaces the former
 // order_status_id FK update).
-func (c *OrderDatabase) UpdateShopOrderStatus(ctx context.Context, shopOrderID uint, status domain.OrderStatusType) error {
+func (c *OrderDatabase) UpdateShopOrderStatus(ctx context.Context, shopOrderID string, status domain.OrderStatusType) error {
 
 	query := `UPDATE shop_orders SET status = $1 WHERE id = $2`
 	err := c.DB.Exec(query, status, shopOrderID).Error
@@ -171,7 +171,7 @@ func (c *OrderDatabase) UpdateShopOrderStatus(ctx context.Context, shopOrderID u
 // UpdateShopOrderStatusAndSavePaymentMethod atomically updates status and
 // payment method on an order (called when payment is approved).
 func (c *OrderDatabase) UpdateShopOrderStatusAndSavePaymentMethod(ctx context.Context,
-	shopOrderID uint, status domain.OrderStatusType, paymentID uint) error {
+	shopOrderID string, status domain.OrderStatusType, paymentID string) error {
 
 	query := `UPDATE shop_orders SET status = $1, payment_method_id = $2 WHERE id = $3`
 	err := c.DB.Exec(query, status, paymentID, shopOrderID).Error
@@ -180,7 +180,7 @@ func (c *OrderDatabase) UpdateShopOrderStatusAndSavePaymentMethod(ctx context.Co
 }
 
 func (c *OrderDatabase) FindOrderReturnByReturnID(ctx context.Context,
-	orderReturnID uint) (orderReturn domain.OrderReturn, err error) {
+	orderReturnID string) (orderReturn domain.OrderReturn, err error) {
 
 	query := `SELECT *  FROM order_returns WHERE id = $1`
 	err = c.DB.Raw(query, orderReturnID).Scan(&orderReturn).Error
@@ -188,7 +188,7 @@ func (c *OrderDatabase) FindOrderReturnByReturnID(ctx context.Context,
 	return orderReturn, err
 }
 func (c *OrderDatabase) FindOrderReturnByShopOrderID(ctx context.Context,
-	shopOrderID uint) (orderReturn domain.OrderReturn, err error) {
+	shopOrderID string) (orderReturn domain.OrderReturn, err error) {
 
 	query := `SELECT *  FROM order_returns WHERE shop_order_id = $1`
 	err = c.DB.Raw(query, shopOrderID).Scan(&orderReturn).Error

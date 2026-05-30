@@ -46,14 +46,14 @@ func (c *brandDatabase) FindAll(pagination request.Pagination) (brands []domain.
 	return
 }
 
-func (c *brandDatabase) FindOne(brandID uint) (brand domain.Brand, err error) {
+func (c *brandDatabase) FindOne(brandID string) (brand domain.Brand, err error) {
 
 	err = c.DB.Where("id = ?", brandID).First(&brand).Error
 
 	return
 }
 
-func (c *brandDatabase) Delete(brandID uint) error {
+func (c *brandDatabase) Delete(brandID string) error {
 
 	return c.DB.Where("id = ?", brandID).Delete(&domain.Brand{}).Error
 }

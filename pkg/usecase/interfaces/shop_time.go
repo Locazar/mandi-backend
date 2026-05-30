@@ -7,6 +7,6 @@ import (
 )
 
 type ShopTimeUseCase interface {
-	SetShopTime(ctx context.Context, shopID uint, shopTime domain.ShopTime) error
-	GetShopTime(ctx context.Context, shopID uint) (domain.ShopTime, error)
+	SetShopTime(ctx context.Context, shopID string, shopTime domain.ShopTime) error
+	GetShopTime(ctx context.Context, shopID string) (domain.ShopTime, error)
 }

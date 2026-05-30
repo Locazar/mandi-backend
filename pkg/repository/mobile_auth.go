@@ -118,7 +118,7 @@ func (m *mobileAuthDatabase) GetLatestOTPRequest(ctx context.Context, phone stri
 }
 
 // GetOTPRequestByID retrieves an OTP request by ID
-func (m *mobileAuthDatabase) GetOTPRequestByID(ctx context.Context, id int64) (*domain.OTPRequest, error) {
+func (m *mobileAuthDatabase) GetOTPRequestByID(ctx context.Context, id string) (*domain.OTPRequest, error) {
 	query := `
 		SELECT id, phone, otp_hash, expires_at, attempts, max_attempts, status, ip_address, user_agent, created_at, updated_at
 		FROM otp_requests
@@ -154,7 +154,7 @@ func (m *mobileAuthDatabase) UpdateOTPRequest(ctx context.Context, otpReq *domai
 }
 
 // IncrementOTPAttempts increments the attempts counter for an OTP request
-func (m *mobileAuthDatabase) IncrementOTPAttempts(ctx context.Context, id int64) error {
+func (m *mobileAuthDatabase) IncrementOTPAttempts(ctx context.Context, id string) error {
 	query := `
 		UPDATE otp_requests
 		SET attempts = attempts + 1, updated_at = NOW()
