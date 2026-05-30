@@ -43,13 +43,13 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	authUseCase := usecase.NewAuthUseCase(authRepository, tokenService, userRepository, adminRepository, otpAuth)
 	authHandler := handler.NewAuthHandler(authUseCase, cfg, tokenService)
 	middlewareMiddleware := middleware.NewMiddleware(tokenService)
+	adminUseCase := usecase.NewAdminUseCase(adminRepository, userRepository, authRepository, otpAuth, tokenService)
+	shopTimeRepository := repository.NewShopTimeRepository(gormDB)
+	shopTimeUseCase := usecase.NewShopTimeUseCase(shopTimeRepository)
 	cloudService, err := cloud.NewObjectStorageService(cfg)
 	if err != nil {
 		return nil, err
 	}
-	adminUseCase := usecase.NewAdminUseCase(adminRepository, userRepository, authRepository, otpAuth, tokenService)
-	shopTimeRepository := repository.NewShopTimeRepository(gormDB)
-	shopTimeUseCase := usecase.NewShopTimeUseCase(shopTimeRepository)
 	adminHandler := handler.NewAdminHandler(adminUseCase, shopTimeUseCase, cloudService)
 	cartRepository := repository.NewCartRepository(gormDB)
 	string2 := provideElasticURL(cfg)
@@ -111,7 +111,8 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	subscriptionPaymentHandler := handler.NewSubscriptionPaymentHandler(subscriptionPaymentUseCase)
 	subscriptionUseCase := usecase.NewSubscriptionUseCase(subscriptionRepository, userRepository)
 	subscriptionHandler := handler.NewSubscriptionHandler(subscriptionUseCase)
-	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler)
+	sellerGuideHandler := handler.NewSellerGuideHandler()
+	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler)
 	return serverHTTP, nil
 }
 
