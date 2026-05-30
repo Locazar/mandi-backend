@@ -109,8 +109,6 @@ type Admin struct {
 	AadhaarLast4    string `json:"aadhaar_last4" gorm:"size:4" binding:"omitempty"`
 	AadhaarVerified bool   `json:"aadhaar_verified" gorm:"not null;default:false"`
 
-	AgreeToTerms bool `json:"agree_to_terms" gorm:"size:50"`
-
 	CreatedAt time.Time `json:"created_at" gorm:"not null;autoCreateTime"`
 	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 
