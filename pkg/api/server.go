@@ -99,15 +99,10 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 	// Send logs to file
 	log.SetOutput(file)
 
-	// Serve static files
-	engine.StaticFS("/uploads/admin-profiles", http.Dir("./uploads/admin-profiles"))
-	engine.StaticFS("/uploads/category-images", http.Dir("./uploads/category-images"))
-	engine.StaticFS("/uploads/departments", http.Dir("./uploads/departments"))
+	// Offers still write to local disk; keep until that namespace is migrated.
 	engine.StaticFS("/uploads/offers", http.Dir("./uploads/offers"))
-	engine.StaticFS("/uploads/products", http.Dir("./uploads/products"))
+	// Bundled assets — not user uploads.
 	engine.StaticFS("/uploads/promotions", http.Dir("./uploads/promotions"))
-	engine.StaticFS("/uploads/sub-category-images", http.Dir("./uploads/sub-category-images"))
-	engine.StaticFS("/uploads/banners", http.Dir("./uploads/banners"))
 
 	// set up routes
 	routes.UserRoutes(engine.Group("/api"), authHandler, middleware, userHandler, cartHandler,

@@ -6,16 +6,19 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
+	"github.com/rohit221990/mandi-backend/pkg/service/cloud"
 	usecaseInterface "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 )
 
 type BannerUserHandler struct {
 	bannerUseCase usecaseInterface.BannerUseCase
+	cloudService  cloud.CloudService
 }
 
-func NewBannerUserHandler(bannerUseCase usecaseInterface.BannerUseCase) *BannerUserHandler {
+func NewBannerUserHandler(bannerUseCase usecaseInterface.BannerUseCase, cloudService cloud.CloudService) *BannerUserHandler {
 	return &BannerUserHandler{
 		bannerUseCase: bannerUseCase,
+		cloudService:  cloudService,
 	}
 }
 
@@ -44,6 +47,10 @@ func (h *BannerUserHandler) GetFilteredBanners(ctx *gin.Context) {
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to fetch banners", err, nil)
 		return
+	}
+
+	for i := range banners {
+		banners[i].ImageURL = cloud.ResolveURL(h.cloudService, banners[i].ImageURL)
 	}
 
 	response.SuccessResponse(ctx, http.StatusOK, "Banners fetched successfully", map[string]interface{}{

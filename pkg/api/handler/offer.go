@@ -11,6 +11,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
+	"github.com/rohit221990/mandi-backend/pkg/service/cloud"
 	"github.com/rohit221990/mandi-backend/pkg/service/token"
 	usecaseInterface "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 )
@@ -18,12 +19,14 @@ import (
 type offerHandler struct {
 	offerUseCase usecaseInterface.OfferUseCase
 	tokenService token.TokenService
+	cloudService cloud.CloudService
 }
 
-func NewOfferHandler(offerUseCase usecaseInterface.OfferUseCase, tokenService token.TokenService) interfaces.OfferHandler {
+func NewOfferHandler(offerUseCase usecaseInterface.OfferUseCase, tokenService token.TokenService, cloudService cloud.CloudService) interfaces.OfferHandler {
 	return &offerHandler{
 		offerUseCase: offerUseCase,
 		tokenService: tokenService,
+		cloudService: cloudService,
 	}
 }
 
@@ -78,6 +81,10 @@ func (c *offerHandler) GetAllOffers(ctx *gin.Context) {
 		return
 	}
 
+	for i := range offersAndPromotions.Offers {
+		offersAndPromotions.Offers[i].Image = cloud.ResolveURL(c.cloudService, offersAndPromotions.Offers[i].Image)
+		offersAndPromotions.Offers[i].Thumbnail = cloud.ResolveURL(c.cloudService, offersAndPromotions.Offers[i].Thumbnail)
+	}
 	response.SuccessResponse(ctx, http.StatusOK, "Offers retrieved successfully", offersAndPromotions)
 }
 
@@ -396,6 +403,10 @@ func (c *offerHandler) GetActiveOffers(ctx *gin.Context) {
 		response.SuccessResponse(ctx, http.StatusOK, "No active offers found", offers)
 		return
 	}
+	for i := range offers {
+		offers[i].Image = cloud.ResolveURL(c.cloudService, offers[i].Image)
+		offers[i].Thumbnail = cloud.ResolveURL(c.cloudService, offers[i].Thumbnail)
+	}
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully found active offers", offers)
 }
 
@@ -495,6 +506,7 @@ func (c *offerHandler) GetBanners(ctx *gin.Context) {
 		return
 	}
 
+	response.ResolveBannersImages(c.cloudService, banners)
 	response.SuccessResponse(ctx, http.StatusOK, "Banners retrieved successfully", banners)
 }
 
