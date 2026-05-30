@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
@@ -37,19 +36,14 @@ func NewAlertHandler(alertUseCase usecaseinterfaces.AlertUseCase, adminUseCase u
 func (h *AlertHandler) GetSellerAlerts(ctx *gin.Context) {
 	// Extract seller_id from authentication context
 	tokenString := ctx.GetHeader("Authorization")
-	adminId := h.adminUseCase.DecodeTokenData(tokenString)
-	ownerID, err := strconv.ParseUint(adminId, 10, 64)
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid owner ID", err, nil)
-		return
-	}
-	if ownerID == 0 {
+	sellerID := h.adminUseCase.DecodeTokenData(tokenString)
+	if sellerID == "" {
 		response.ErrorResponse(ctx, http.StatusUnauthorized, "Unauthorized: seller_id not found", nil, nil)
 		return
 	}
 
 	// Get alerts
-	alerts, err := h.alertUseCase.GetSellerAlerts(ctx, strconv.FormatUint(ownerID, 10))
+	alerts, err := h.alertUseCase.GetSellerAlerts(ctx, sellerID)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to fetch alerts", err, nil)
 		return
