@@ -279,6 +279,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			{
 				document.POST("/send-otp", adminHandler.UploadShopDocument)
 				document.POST("/verify-otp", adminHandler.VerifyShopDocument)
+				document.POST("/upload", middleware.AuthenticateAdmin(), adminHandler.UploadBusinessDocument)
 			}
 
 			address := shop.Group("/address-details")

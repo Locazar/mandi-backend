@@ -905,6 +905,72 @@ func (a *adminHandler) UploadAdminProfileImage(ctx *gin.Context) {
 
 }
 
+// UploadBusinessDocument godoc
+// @summary api for admin to upload a business document
+// @id UploadBusinessDocument
+// @tags Admin Shop
+// @Param document formData file true "Business Document"
+// @Router /admin/shops/business-document/upload [post]
+// @Success 200 {object} response.Response{} "Successfully uploaded business document"
+// @Failure 400 {object} response.Response{} "invalid input"
+// @Failure 401 {object} response.Response{} "unauthorized"
+// @Failure 500 {object} response.Response{} "failed to upload business document"
+func (a *adminHandler) UploadBusinessDocument(ctx *gin.Context) {
+	// Parse the multipart form (10 MB limit)
+	if err := ctx.Request.ParseMultipartForm(10 << 20); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to parse multipart form", err, nil)
+		return
+	}
+
+	fileHeader, err := ctx.FormFile("document")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Document file is required", err, nil)
+		return
+	}
+
+	// Validate file size (max 10 MB)
+	if fileHeader.Size > 10<<20 {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "File size exceeds 10MB limit", fmt.Errorf("file size %d exceeds limit", fileHeader.Size), nil)
+		return
+	}
+
+	// Extract owner ID from token
+	tokenString := ctx.GetHeader("Authorization")
+	ownerID := a.adminUseCase.DecodeTokenData(tokenString)
+	if ownerID == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Invalid token data", fmt.Errorf("failed to decode owner ID from token"), nil)
+		return
+	}
+
+	// Build unique filename and namespace for S3
+	timestamp := time.Now().Unix()
+	uniqueFilename := fmt.Sprintf("%d-%s", timestamp, fileHeader.Filename)
+	namespace := fmt.Sprintf("business-docs/%s", ownerID)
+	// Final key will be: business-docs/{ownerID}/{timestamp}-{filename}
+
+	// Determine content type
+	contentType := fileHeader.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+
+	savedKey, err := a.cloudService.SaveFile(ctx, fileHeader, cloud.SaveOptions{
+		Namespace:   namespace,
+		Visibility:  cloud.VisibilityPublic,
+		ContentType: contentType,
+		Filename:    uniqueFilename,
+	})
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to upload business document", err, nil)
+		return
+	}
+
+	fileURL := a.cloudService.PublicURL(savedKey)
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully uploaded business document", map[string]interface{}{
+		"document_url": fileURL,
+	})
+}
+
 // AddAdminProfile godoc
 // @summary api for admin to add profile
 // @id AddAdminProfile

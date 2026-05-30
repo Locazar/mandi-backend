@@ -29,6 +29,7 @@ type AdminHandler interface {
 	GetShopSocialDetails(ctx *gin.Context)
 
 	UploadAdminProfileImage(ctx *gin.Context)
+	UploadBusinessDocument(ctx *gin.Context)
 	AddAdminProfile(ctx *gin.Context)
 	GetAdminProfile(ctx *gin.Context)
 	UpdateAdminProfile(ctx *gin.Context)
