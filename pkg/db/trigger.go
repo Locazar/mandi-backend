@@ -162,25 +162,22 @@ var (
 	orderReturnProductUpdate = `CREATE OR REPLACE FUNCTION update_product_quantity_on_return()
 	RETURNS TRIGGER AS $$
 	BEGIN
-	  IF (TG_OP = 'UPDATE') THEN 
-		EXECUTE format('UPDATE product_items pi
-						SET qty_in_stock = qty_in_stock + ol.qty
-						FROM %I ol
-						WHERE pi.id = ol.product_item_id
-						AND ol.shop_order_id = $1.id',
-						'order_lines')
-		USING NEW;
-	  
+	  IF (TG_OP = 'UPDATE' AND NEW.status = 'order returned') THEN 
+		UPDATE product_items pi
+		SET qty_in_stock = qty_in_stock + ol.qty
+		FROM order_lines ol
+		WHERE pi.id = ol.product_item_id
+		AND ol.shop_order_id = NEW.id;
+
 		RETURN NEW;
-	  ELSE
-		RETURN NULL;
 	  END IF;
+
+	  RETURN NEW;
 	END;
 	$$ LANGUAGE plpgsql;`
 
 	orderReturnProductUpdateExec = `CREATE OR REPLACE TRIGGER update_product_qty_on_order_return
-	AFTER UPDATE OF status ON shop_orders
+	AFTER UPDATE ON shop_orders
 	FOR EACH ROW
-	WHEN (NEW.status = 'order returned')
 	EXECUTE FUNCTION update_product_quantity_on_return();`
 )

@@ -25,7 +25,7 @@ func savePaymentMethods(db *gorm.DB) error {
 	}
 
 	var (
-		searchQuery = `SELECT CASE WHEN id IS NOT NULL AND id != '' THEN 'T' ELSE 'F' END as exist FROM payment_methods WHERE name = $1`
+		searchQuery = `SELECT EXISTS(SELECT 1 FROM payment_methods WHERE name = $1) AS exist`
 		insertQuery = `INSERT INTO payment_methods (name, maximum_amount_amount_minor, maximum_amount_currency) VALUES ($1, $2, $3)`
 		exist       bool
 		err         error

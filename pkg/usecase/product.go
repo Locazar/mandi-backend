@@ -296,7 +296,7 @@ func (c *productUseCase) SaveProduct(ctx context.Context, product request.Produc
 		Visibility: cloud.VisibilityPublic,
 	})
 	if err != nil {
-		return 0, utils.PrependMessageToError(err, "failed to upload product image")
+		return "", utils.PrependMessageToError(err, "failed to upload product image")
 	}
 
 	productID, err = c.productRepo.SaveProduct(ctx, domain.Product{

@@ -20,6 +20,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/service/token"
 	service "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
+	"gorm.io/gorm"
 )
 
 type adminUseCase struct {
@@ -122,6 +123,7 @@ func (c *adminUseCase) SignUp(ctx context.Context, signUpDetails domain.Admin) (
 	otpID := uuid.NewString()
 	otpSession := domain.OtpSession{
 		OtpID:    otpID,
+		UserID:   adminID,
 		AdminID:  adminID, // Using admin ID as user ID for OTP session
 		Phone:    signUpDetails.Mobile,
 		UserType: "Seller",
@@ -352,6 +354,9 @@ func (c *adminUseCase) UpdateShop(ctx context.Context, shop map[string]interface
 func (c *adminUseCase) GetShopByOwnerID(ctx context.Context, ownerID string) (shop domain.ShopDetails, err error) {
 	shop, err = c.adminRepo.GetShopByOwnerID(ctx, ownerID)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return domain.ShopDetails{}, nil
+		}
 		return domain.ShopDetails{}, fmt.Errorf("failed to get shop by owner id \nerror:%v", err.Error())
 	}
 	return shop, nil

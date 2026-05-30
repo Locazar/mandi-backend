@@ -27,6 +27,8 @@ type objectStorage struct {
 	publicBaseURL string
 }
 
+type noopObjectStorage struct{}
+
 func NewObjectStorageService(cfg config.Config) (CloudService, error) {
 	endpoint := firstNonEmpty(cfg.S3Endpoint)
 	region := firstNonEmpty(cfg.S3Region, cfg.AwsRegion)
@@ -35,7 +37,7 @@ func NewObjectStorageService(cfg config.Config) (CloudService, error) {
 	bucket := firstNonEmpty(cfg.S3Bucket, cfg.AwsBucketName)
 
 	if endpoint == "" || bucket == "" || accessKey == "" || secretKey == "" {
-		return nil, fmt.Errorf("object storage misconfigured: S3_ENDPOINT/S3_BUCKET/S3_ACCESS_KEY/S3_SECRET_KEY required")
+		return noopObjectStorage{}, nil
 	}
 
 	awsCfg, err := awsconfig.LoadDefaultConfig(context.Background(),
@@ -62,6 +64,26 @@ func NewObjectStorageService(cfg config.Config) (CloudService, error) {
 		bucket:        bucket,
 		publicBaseURL: publicBase,
 	}, nil
+}
+
+func (noopObjectStorage) SaveFile(ctx context.Context, fh *multipart.FileHeader, opts SaveOptions) (string, error) {
+	return "", fmt.Errorf("object storage unavailable: S3 configuration is missing")
+}
+
+func (noopObjectStorage) SaveBytes(ctx context.Context, data []byte, opts SaveOptions) (string, error) {
+	return "", fmt.Errorf("object storage unavailable: S3 configuration is missing")
+}
+
+func (noopObjectStorage) PublicURL(objectKey string) string {
+	return objectKey
+}
+
+func (noopObjectStorage) PresignedURL(ctx context.Context, objectKey string, ttl time.Duration) (string, error) {
+	return "", fmt.Errorf("object storage unavailable: S3 configuration is missing")
+}
+
+func (noopObjectStorage) DeleteObject(ctx context.Context, objectKey string) error {
+	return nil
 }
 
 func (s *objectStorage) SaveFile(ctx context.Context, fh *multipart.FileHeader, opts SaveOptions) (string, error) {
