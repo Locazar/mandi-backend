@@ -1,0 +1,55 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "mandi: deps",
+      "type": "shell",
+      "command": "make",
+      "args": ["deps"],
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "mandi: run",
+      "type": "shell",
+      "command": "make",
+      "args": ["run"],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "mandi: test",
+      "type": "shell",
+      "command": "make",
+      "args": ["test"],
+      "group": "test",
+      "problemMatcher": ["$go"]
+    },
+    {
+      "label": "mandi: lint",
+      "type": "shell",
+      "command": "make",
+      "args": ["check"],
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "mandi: wire",
+      "type": "shell",
+      "command": "make",
+      "args": ["wire"],
+      "problemMatcher": []
+    },
+    {
+      "label": "mandi: swag",
+      "type": "shell",
+      "command": "make",
+      "args": ["swag"],
+      "problemMatcher": []
+    }
+  ]
+}

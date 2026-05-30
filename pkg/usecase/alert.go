@@ -54,22 +54,22 @@ func (uc *AlertUseCaseImpl) GetSellerAlerts(ctx context.Context, sellerID string
 	}
 	alerts = append(alerts, dbAlerts...)
 
+	// Collect all alert keys first so we can fetch show-times in one query
+	keys := make([]string, 0, len(alerts))
+	for _, alert := range alerts {
+		keys = append(keys, alert.Key)
+	}
+	lastShownTimes, _ := uc.alertRepo.GetLastAlertActionTimes(ctx, sellerID, keys)
+
 	// Filter alerts by validity and frequency
 	validAlerts := make([]*domain.Alert, 0)
 	for _, alert := range alerts {
-		// Check validity window
 		if !alert_engine.IsAlertValid(alert) {
 			continue
 		}
-
-		// Check frequency - get last shown time
-		lastShownAt, _ := uc.alertRepo.GetLastAlertActionTime(ctx, sellerID, alert.Key)
-
-		// Check if we should show this alert
-		if !alert_engine.ShouldShowAlert(alert, lastShownAt) {
+		if !alert_engine.ShouldShowAlert(alert, lastShownTimes[alert.Key]) {
 			continue
 		}
-
 		validAlerts = append(validAlerts, alert)
 	}
 

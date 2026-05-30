@@ -27,6 +27,7 @@ type AlertRepository interface {
 	// SellerAlertLog operations
 	LogAlertAction(ctx context.Context, log *domain.SellerAlertLog) error
 	GetLastAlertActionTime(ctx context.Context, sellerID string, alertKey string) (*time.Time, error)
+	GetLastAlertActionTimes(ctx context.Context, sellerID string, alertKeys []string) (map[string]*time.Time, error)
 	GetStepCompletions(ctx context.Context, sellerID string, flowKey string) ([]int, error)
 
 	// Aggregated data operations

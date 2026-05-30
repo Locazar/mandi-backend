@@ -1,0 +1,11 @@
+ALTER TABLE users ADD COLUMN IF NOT EXISTS verified BOOLEAN DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS age      BIGINT;
+
+UPDATE users SET verified = phone_verified;
+
+ALTER TABLE users DROP COLUMN IF EXISTS email_verified;
+ALTER TABLE users DROP COLUMN IF EXISTS phone_verified;
+ALTER TABLE users DROP COLUMN IF EXISTS date_of_birth;
+ALTER TABLE users DROP COLUMN IF EXISTS deleted_at;
+
+DROP INDEX IF EXISTS idx_users_deleted_at;

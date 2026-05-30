@@ -15,6 +15,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/interfaces"
+	"gorm.io/gorm"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
@@ -1377,6 +1378,10 @@ func (a *adminHandler) GetShopTime(ctx *gin.Context) {
 
 	shopTime, err := a.shopTimeUseCase.GetShopTime(ctx, shopIDStr)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			response.ErrorResponse(ctx, http.StatusNotFound, "Shop time not configured", domain.NotFoundError("shop time not found for this shop"), nil)
+			return
+		}
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get shop time", err, nil)
 		return
 	}

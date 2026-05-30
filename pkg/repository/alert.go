@@ -154,6 +154,36 @@ func (r *AlertRepositoryImpl) GetLastAlertActionTime(ctx context.Context, seller
 	return &log.CreatedAt, nil
 }
 
+// GetLastAlertActionTimes fetches the most-recent "shown" timestamp for each of the given alert keys
+// in a single query, returning a map of alertKey → last shown time (nil if never shown).
+func (r *AlertRepositoryImpl) GetLastAlertActionTimes(ctx context.Context, sellerID string, alertKeys []string) (map[string]*time.Time, error) {
+	result := make(map[string]*time.Time, len(alertKeys))
+	if len(alertKeys) == 0 {
+		return result, nil
+	}
+
+	type row struct {
+		AlertKey  string    `gorm:"column:alert_key"`
+		CreatedAt time.Time `gorm:"column:created_at"`
+	}
+	var rows []row
+	err := r.db.WithContext(ctx).
+		Model(&domain.SellerAlertLog{}).
+		Select("DISTINCT ON (alert_key) alert_key, created_at").
+		Where("seller_id = ? AND alert_key IN ? AND action = ?", sellerID, alertKeys, "shown").
+		Order("alert_key, created_at DESC").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+
+	for _, r := range rows {
+		t := r.CreatedAt
+		result[r.AlertKey] = &t
+	}
+	return result, nil
+}
+
 // GetStepCompletions returns the step numbers completed by a seller for a given onboarding flow key
 func (r *AlertRepositoryImpl) GetStepCompletions(ctx context.Context, sellerID string, flowKey string) ([]int, error) {
 	var logs []domain.SellerAlertLog
