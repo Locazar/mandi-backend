@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/rohit221990/mandi-backend/pkg/config"
-	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	gormlogger "gorm.io/gorm/logger"
@@ -47,105 +46,9 @@ func ConnectDatabase(cfg config.Config) (*gorm.DB, error) {
 		_ = sqlDB.PingContext(pingCtx) // record error if necessary
 	}
 
-	// migrate the database tables
-	err = db.AutoMigrate(
-
-		//auth
-		domain.AdminRefreshSession{},
-		domain.UserRefreshSession{},
-		domain.OtpSession{},
-		//user
-		domain.User{},
-		domain.Country{},
-		domain.Address{},
-		domain.UserAddress{},
-
-		//admin
-		domain.Admin{},
-		domain.ShopVerification{},
-		domain.ShopVerificationHistory{},
-
-		//product
-		domain.Category{},
-		domain.Product{},
-		domain.Brand{},
-		domain.Variation{},
-		domain.VariationOption{},
-		domain.ProductItem{},
-		domain.ProductConfiguration{},
-		domain.ProductImage{},
-
-		// wish list
-		domain.WishList{},
-
-		// cart
-		domain.Cart{},
-		domain.CartItem{},
-
-		// order
-		domain.ShopOrder{},
-		domain.OrderLine{},
-		domain.OrderReturn{},
-
-		//offer
-		domain.Offer{},
-		domain.OfferCategory{},
-		domain.OfferProduct{},
-
-		// coupon
-		domain.Coupon{},
-		domain.CouponUses{},
-
-		//wallet
-		domain.Wallet{},
-		domain.Transaction{},
-
-		//Advertisement
-		domain.Advertisement{},
-
-		//Notification
-		domain.Notification{},
-		domain.NotificationDeviceToken{},
-
-		//Shop Details
-		domain.ShopDetails{},
-		domain.ShopOffer{},
-		domain.ShopDepartment{},
-
-		//Payment Methods
-		domain.PaymentMethod{},
-
-		//Alerts
-		domain.Alert{},
-		domain.AlertAction{},
-		domain.AlertTemplate{},
-		domain.SellerAlertLog{},
-
-		// department
-		domain.Department{},
-		domain.SubCategory{},
-
-		domain.SubTypeAttributes{},
-		domain.SubTypeAttributeOptions{},
-		domain.ProductItemView{},
-		domain.ProductItemFilterType{},
-		domain.PromotionsType{},
-		domain.PromotionCategory{},
-		domain.Promotion{},
-		domain.Banner{},
-		domain.ShopTime{},
-		// Shop social (followers, ratings, reviews)
-		domain.ShopSocial{},
-
-		// Subscriptions
-		domain.SubscriptionPlan{},
-		domain.SubscriptionOrder{},
-		domain.UserSubscription{},
-	)
-
-	if err != nil {
-		log.Printf("Warning: failed to migrate database models: %v. Continuing with existing schema.", err)
-		// Don't return error - continue with existing database schema
+	// run versioned migrations (fail-fast on any error or dirty state)
+	if err := RunMigrations(db); err != nil {
+		return nil, fmt.Errorf("database migration failed: %w", err)
 	}
 
 	// setup the triggers
