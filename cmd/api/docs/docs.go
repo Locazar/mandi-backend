@@ -766,6 +766,278 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/alert-templates": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns all alert templates",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin AlertTemplates"
+                ],
+                "summary": "List all alert templates (Admin)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Creates a new alert template",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin AlertTemplates"
+                ],
+                "summary": "Create an alert template (Admin)",
+                "parameters": [
+                    {
+                        "description": "Template data",
+                        "name": "inputs",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/alert-templates/seed": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Seeds the database with default alert templates",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin AlertTemplates"
+                ],
+                "summary": "Seed default templates (Admin)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/alert-templates/{key}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Updates an existing alert template by key",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin AlertTemplates"
+                ],
+                "summary": "Update an alert template (Admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Template key",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Template data",
+                        "name": "inputs",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Deletes an alert template by key",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin AlertTemplates"
+                ],
+                "summary": "Delete an alert template (Admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Template key",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Enables or disables an alert template",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin AlertTemplates"
+                ],
+                "summary": "Toggle an alert template (Admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Template key",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "enabled flag",
+                        "name": "inputs",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/attributes/{attribute_id}/options": {
             "post": {
                 "description": "API endpoint to create a new option for a specific sub type attribute.",
@@ -947,6 +1219,118 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Failed to login",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/auth/sign-up/otp/send": {
+            "post": {
+                "description": "API for admin to send OTP for signup",
+                "tags": [
+                    "Admin Authentication"
+                ],
+                "summary": "Send OTP for Admin Signup",
+                "operationId": "AdminSignUpOtpSend",
+                "parameters": [
+                    {
+                        "description": "Mobile number to send OTP",
+                        "name": "inputs",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.OTPLogin"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully sent OTP to admin's mobile number",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "409": {
+                        "description": "Admin already exists",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to send OTP",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/auth/sign-up/otp/verify": {
+            "post": {
+                "description": "API for admin to verify OTP for signup and either login or register",
+                "tags": [
+                    "Admin Authentication"
+                ],
+                "summary": "Verify OTP for Admin Signup",
+                "operationId": "AdminSignUpOtpVerify",
+                "parameters": [
+                    {
+                        "description": "OTP verification details",
+                        "name": "inputs",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.OTPVerify"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully verified OTP and logged in/registered admin",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/response.TokenResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid inputs",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "OTP not matched",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "410": {
+                        "description": "OTP Expired",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to verify OTP",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -1814,6 +2198,63 @@ const docTemplate = `{
                         "description": "Token saved",
                         "schema": {
                             "$ref": "#/definitions/domain.FcmToken"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin FCM"
+                ],
+                "summary": "Unregister an FCM device token",
+                "operationId": "UnregisterFcmToken",
+                "parameters": [
+                    {
+                        "description": "FCM token payload",
+                        "name": "input",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/domain.FcmToken"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Token unregistered",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "400": {
@@ -4543,6 +4984,212 @@ const docTemplate = `{
                 }
             }
         },
+        "/alerts/flows": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns all active onboarding_step templates",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Seller AlertTemplates"
+                ],
+                "summary": "Get onboarding flows for seller",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/alerts/flows/{key}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a specific flow and the seller's progress through it",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Seller AlertTemplates"
+                ],
+                "summary": "Get a specific onboarding flow for a seller",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Flow key",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/alerts/flows/{key}/step/{step_number}/complete": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Marks a specific step in a flow as completed for a seller",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Seller AlertTemplates"
+                ],
+                "summary": "Complete a step in an onboarding flow",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Flow key",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Step number",
+                        "name": "step_number",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/alerts/templates/{key}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a specific alert template with seller context",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Seller AlertTemplates"
+                ],
+                "summary": "Get a specific template for a seller",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Template key",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/admin/items/lowViewproductitems": {
             "get": {
                 "description": "Get product items with low views for a specific shop in the 10-20 day period after creation",
@@ -4624,6 +5271,155 @@ const docTemplate = `{
                         "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/banners/filtered": {
+            "post": {
+                "description": "Returns active banners filtered by lat/lng with radius (Haversine),\npincode match, department_id, category_id, and app_type.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User Banners"
+                ],
+                "summary": "Get filtered banners by location and category",
+                "parameters": [
+                    {
+                        "description": "Banner filter criteria",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.BannerFilterRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved filtered banners",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve banners",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/seller/alerts": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Fetch all dynamic alerts for the logged-in seller",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Alerts"
+                ],
+                "summary": "Get seller alerts",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/seller/alerts/{key}/dismiss": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mark an alert as dismissed to prevent repeated display",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Alerts"
+                ],
+                "summary": "Dismiss an alert",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Alert key",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     }
                 }
@@ -5272,6 +6068,20 @@ const docTemplate = `{
                 ],
                 "summary": "api to get banners",
                 "operationId": "GetBanners",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Department ID",
+                        "name": "department_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Category ID",
+                        "name": "category_id",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "successfully retrieved banners",
@@ -6425,6 +7235,157 @@ const docTemplate = `{
                 }
             }
         },
+        "/global-search": {
+            "get": {
+                "description": "Searches across all entity types simultaneously. Returns grouped results.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Global Search"
+                ],
+                "summary": "Global search across products, categories, shops, brands, departments, and offers",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Search query (min 1 char)",
+                        "name": "q",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Comma-separated entity types filter (products,categories,shops,brands,departments,offers)",
+                        "name": "types",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Latitude for geo-filtering shops",
+                        "name": "lat",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Longitude for geo-filtering shops",
+                        "name": "lng",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Radius in km for geo-filtering shops",
+                        "name": "radius",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Pincode for location-based shop filtering",
+                        "name": "pincode",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Results per entity type (default 5, max 50)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Offset for pagination (default 0)",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/response.GlobalSearchResult"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/global-search/autocomplete": {
+            "get": {
+                "description": "Returns fast autocomplete suggestions from products, categories, shops, brands, departments, and offers.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Global Search"
+                ],
+                "summary": "Autocomplete suggestions across all entity types",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Search prefix (min 1 char)",
+                        "name": "q",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Max suggestions (default 10, max 20)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/response.AutocompleteSuggestion"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/items/{product_item_id}": {
             "delete": {
                 "security": [
@@ -6662,7 +7623,7 @@ const docTemplate = `{
                 "operationId": "GetNotificationsBy",
                 "parameters": [
                     {
-                        "type": "integer",
+                        "type": "string",
                         "name": "admin_id",
                         "in": "query"
                     },
@@ -6672,17 +7633,17 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "type": "integer",
+                        "type": "string",
                         "name": "order_id",
                         "in": "query"
                     },
                     {
-                        "type": "integer",
+                        "type": "string",
                         "name": "product_id",
                         "in": "query"
                     },
                     {
-                        "type": "integer",
+                        "type": "string",
                         "name": "shop_id",
                         "in": "query"
                     },
@@ -6692,7 +7653,7 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "type": "integer",
+                        "type": "string",
                         "name": "user_id",
                         "in": "query"
                     },
@@ -7802,6 +8763,12 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
+                        "description": "Department ID",
+                        "name": "department_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
                         "description": "Brand ID",
                         "name": "brand_id",
                         "in": "query"
@@ -8260,6 +9227,47 @@ const docTemplate = `{
             }
         },
         "/review/shop/{shop_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "User Review"
+                ],
+                "summary": "Get all shop reviews with user_id (User)",
+                "operationId": "GetUserShopReview",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Shop ID",
+                        "name": "shop_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully got shop reviews",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid shop ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to get reviews",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
             "post": {
                 "security": [
                     {
@@ -8350,49 +9358,6 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Failed to get reviews",
-                        "schema": {
-                            "$ref": "#/definitions/response.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/review/shop/{shop_id}/user-review": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "tags": [
-                    "User Review"
-                ],
-                "summary": "Get current user review for a shop (User)",
-                "operationId": "GetUserShopReview",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Shop ID",
-                        "name": "shop_id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Successfully got user review",
-                        "schema": {
-                            "$ref": "#/definitions/response.Response"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid shop ID",
-                        "schema": {
-                            "$ref": "#/definitions/response.Response"
-                        }
-                    },
-                    "500": {
-                        "description": "Failed to get user review",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -8626,6 +9591,40 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Failed to get sellers by radius",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/social/follow/my-shops": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "User Social"
+                ],
+                "summary": "Get followed shops of logged-in user (User)",
+                "operationId": "GetMyFollowedShops",
+                "responses": {
+                    "200": {
+                        "description": "Successfully got followed shops",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to get followed shops",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -8888,6 +9887,277 @@ const docTemplate = `{
                 }
             }
         },
+        "/subscriptions/create-order": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Creates a Razorpay order for a subscription plan",
+                "tags": [
+                    "User Subscription"
+                ],
+                "summary": "Create subscription order (User)",
+                "operationId": "CreateSubscriptionOrder",
+                "parameters": [
+                    {
+                        "description": "Plan ID",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.CreateSubscriptionOrderRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully created subscription order",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to create subscription order",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/subscriptions/payment-failed": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Logs a subscription payment failure for observability",
+                "tags": [
+                    "User Subscription"
+                ],
+                "summary": "Log payment failure (User)",
+                "operationId": "HandlePaymentFailure",
+                "parameters": [
+                    {
+                        "description": "Failure details",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.PaymentFailureRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Payment failure logged",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/subscriptions/plans": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns available paid subscription plans (excludes free trial)",
+                "tags": [
+                    "User Subscription"
+                ],
+                "summary": "Get paid subscription plans (User)",
+                "operationId": "GetPaidPlans",
+                "responses": {
+                    "200": {
+                        "description": "Subscription plans",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to get plans",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/subscriptions/start-trial": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Activates a 90-day free trial for the authenticated user",
+                "tags": [
+                    "User Subscription"
+                ],
+                "summary": "Start free trial (User)",
+                "operationId": "StartTrial",
+                "responses": {
+                    "200": {
+                        "description": "Free trial activated",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "409": {
+                        "description": "Trial already used or active subscription exists",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to start trial",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/subscriptions/status": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns current subscription/trial status for the authenticated user",
+                "tags": [
+                    "User Subscription"
+                ],
+                "summary": "Get subscription status (User)",
+                "operationId": "GetSubscriptionStatus",
+                "responses": {
+                    "200": {
+                        "description": "Subscription status",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to get subscription status",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/subscriptions/verify-payment": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Verifies Razorpay payment for a subscription",
+                "tags": [
+                    "User Subscription"
+                ],
+                "summary": "Verify subscription payment (User)",
+                "operationId": "VerifySubscriptionPayment",
+                "parameters": [
+                    {
+                        "description": "Razorpay verification data",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.VerifySubscriptionPaymentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully verified subscription payment",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "402": {
+                        "description": "Payment not approved",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to verify payment",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/ui/seller": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "API for seller to get UI template for different actions",
+                "tags": [
+                    "Seller UI"
+                ],
+                "summary": "Get seller UI template based on intent",
+                "operationId": "SellerUIEndpoint",
+                "parameters": [
+                    {
+                        "description": "Intent and context",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.UISellerRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved UI template",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or missing parameters",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized - Invalid token",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve UI template",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/user/post-login-offer": {
             "get": {
                 "security": [
@@ -8916,17 +10186,42 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/webhook/razorpay": {
+            "post": {
+                "description": "Receives Razorpay webhook events — no auth required",
+                "tags": [
+                    "Webhook"
+                ],
+                "summary": "Razorpay webhook (Public)",
+                "operationId": "HandleWebhook",
+                "responses": {
+                    "200": {
+                        "description": "Webhook processed",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid webhook signature",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
         "domain.Admin": {
             "type": "object",
-            "required": [
-                "password"
-            ],
             "properties": {
-                "aadhar": {
+                "aadhaar_last4": {
+                    "description": "Aadhaar is minimized per DPDP: the full number is never persisted, only\nthe last four digits plus a verification flag.",
                     "type": "string"
+                },
+                "aadhaar_verified": {
+                    "type": "boolean"
                 },
                 "address_line1": {
                     "type": "string"
@@ -8934,10 +10229,11 @@ const docTemplate = `{
                 "address_line2": {
                     "type": "string"
                 },
-                "agree_to_terms": {
-                    "type": "boolean"
+                "admin_id": {
+                    "type": "string"
                 },
                 "bank_account_number": {
+                    "description": "Encrypted at rest (AES-256-GCM) by the repository; columns hold ciphertext.",
                     "type": "string"
                 },
                 "bank_ifsc": {
@@ -8959,12 +10255,10 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "full_name": {
-                    "type": "string",
-                    "maxLength": 50,
-                    "minLength": 2
+                    "type": "string"
                 },
                 "id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "latitude": {
                     "type": "number"
@@ -8977,11 +10271,6 @@ const docTemplate = `{
                 },
                 "pan": {
                     "type": "string"
-                },
-                "password": {
-                    "type": "string",
-                    "maxLength": 30,
-                    "minLength": 5
                 },
                 "payment_date": {
                     "type": "string"
@@ -9005,17 +10294,31 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "status": {
-                    "description": "e.g. \"active\", \"inactive\", \"suspended\"",
-                    "type": "string"
+                    "$ref": "#/definitions/domain.AdminStatus"
                 },
                 "updated_at": {
                     "type": "string"
                 },
+                "user_name": {
+                    "type": "string"
+                },
                 "verified_seller": {
-                    "description": "e.g. \"yes\", \"no\", \"pending\"",
                     "type": "boolean"
                 }
             }
+        },
+        "domain.AdminStatus": {
+            "type": "string",
+            "enum": [
+                "active",
+                "inactive",
+                "suspended"
+            ],
+            "x-enum-varnames": [
+                "AdminStatusActive",
+                "AdminStatusInactive",
+                "AdminStatusSuspended"
+            ]
         },
         "domain.Advertisement": {
             "type": "object",
@@ -9038,8 +10341,11 @@ const docTemplate = `{
                 "created_at": {
                     "type": "string"
                 },
+                "created_by": {
+                    "type": "string"
+                },
                 "created_by_admin": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "distance_km": {
                     "type": "number"
@@ -9048,7 +10354,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "image_url": {
                     "type": "string"
@@ -9063,15 +10369,13 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "priority": {
-                    "description": "e.g. \"high\", \"medium\", \"low\"",
-                    "type": "string"
+                    "$ref": "#/definitions/domain.AdvertisementPriority"
                 },
                 "start_date": {
                     "type": "string"
                 },
                 "status": {
-                    "description": "e.g. \"active\", \"inactive\", \"expired\"",
-                    "type": "string"
+                    "$ref": "#/definitions/domain.AdvertisementStatus"
                 },
                 "target_url": {
                     "type": "string"
@@ -9081,28 +10385,73 @@ const docTemplate = `{
                 },
                 "updated_at": {
                     "type": "string"
+                },
+                "updated_by": {
+                    "type": "string"
                 }
             }
+        },
+        "domain.AdvertisementPriority": {
+            "type": "string",
+            "enum": [
+                "high",
+                "medium",
+                "low"
+            ],
+            "x-enum-varnames": [
+                "AdvertisementPriorityHigh",
+                "AdvertisementPriorityMedium",
+                "AdvertisementPriorityLow"
+            ]
+        },
+        "domain.AdvertisementStatus": {
+            "type": "string",
+            "enum": [
+                "active",
+                "inactive",
+                "expired"
+            ],
+            "x-enum-varnames": [
+                "AdvertisementStatusActive",
+                "AdvertisementStatusInactive",
+                "AdvertisementStatusExpired"
+            ]
         },
         "domain.FcmToken": {
             "type": "object",
             "properties": {
                 "admin_id": {
-                    "type": "integer"
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
                 },
                 "device": {
                     "type": "string"
                 },
                 "id": {
-                    "type": "integer"
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "owner_id": {
+                    "type": "string"
+                },
+                "owner_type": {
+                    "type": "string"
                 },
                 "platform": {
                     "type": "string"
                 },
                 "shop_id": {
-                    "type": "integer"
+                    "description": "Compatibility fields used by existing handlers/usecases for owner resolution.",
+                    "type": "string"
                 },
                 "token": {
+                    "type": "string"
+                },
+                "updated_at": {
                     "type": "string"
                 }
             }
@@ -9121,6 +10470,9 @@ const docTemplate = `{
             ],
             "properties": {
                 "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
                     "type": "string"
                 },
                 "description": {
@@ -9147,7 +10499,11 @@ const docTemplate = `{
                 },
                 "offer_type": {
                     "description": "percentage,fixed",
-                    "type": "string"
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/domain.OfferType"
+                        }
+                    ]
                 },
                 "sort_order": {
                     "type": "integer"
@@ -9160,8 +10516,45 @@ const docTemplate = `{
                 },
                 "updated_at": {
                     "type": "string"
+                },
+                "updated_by": {
+                    "type": "string"
                 }
             }
+        },
+        "domain.OfferType": {
+            "type": "string",
+            "enum": [
+                "percentage",
+                "fixed"
+            ],
+            "x-enum-varnames": [
+                "OfferTypePercentage",
+                "OfferTypeFixed"
+            ]
+        },
+        "domain.OrderStatusType": {
+            "type": "string",
+            "enum": [
+                "payment pending",
+                "order placed",
+                "order cancelled",
+                "order delivered",
+                "return requested",
+                "return approved",
+                "return cancelled",
+                "order returned"
+            ],
+            "x-enum-varnames": [
+                "StatusPaymentPending",
+                "StatusOrderPlaced",
+                "StatusOrderCancelled",
+                "StatusOrderDelivered",
+                "StatusReturnRequested",
+                "StatusReturnApproved",
+                "StatusReturnCancelled",
+                "StatusOrderReturned"
+            ]
         },
         "domain.ShopDetails": {
             "type": "object",
@@ -9176,12 +10569,14 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "admin_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "bank_account_number": {
+                    "description": "encrypted at rest",
                     "type": "string"
                 },
                 "bank_ifsc": {
+                    "description": "encrypted at rest",
                     "type": "string"
                 },
                 "business_doc_verification": {
@@ -9197,7 +10592,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "document_type": {
-                    "type": "string"
+                    "$ref": "#/definitions/domain.ShopDocumentType"
                 },
                 "document_value": {
                     "type": "string"
@@ -9209,12 +10604,13 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "identity_doc_verification": {
                     "type": "boolean"
                 },
                 "itr_documents": {
+                    "description": "encrypted at rest",
                     "type": "string"
                 },
                 "latitude": {
@@ -9233,6 +10629,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "pan_number": {
+                    "description": "encrypted at rest",
                     "type": "string"
                 },
                 "phone": {
@@ -9247,6 +10644,9 @@ const docTemplate = `{
                 "shop_description": {
                     "type": "string"
                 },
+                "shop_id": {
+                    "type": "string"
+                },
                 "shop_image_url": {
                     "type": "string"
                 },
@@ -9254,10 +10654,10 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "shop_status": {
-                    "type": "string"
+                    "$ref": "#/definitions/domain.ShopStatusType"
                 },
                 "shop_type": {
-                    "type": "string"
+                    "$ref": "#/definitions/domain.ShopType"
                 },
                 "shop_verification_docs": {
                     "type": "string"
@@ -9276,6 +10676,47 @@ const docTemplate = `{
                 }
             }
         },
+        "domain.ShopDocumentType": {
+            "type": "string",
+            "enum": [
+                "gst",
+                "pan",
+                "aadhaar",
+                "license"
+            ],
+            "x-enum-varnames": [
+                "ShopDocGST",
+                "ShopDocPAN",
+                "ShopDocAadhaar",
+                "ShopDocLicense"
+            ]
+        },
+        "domain.ShopStatusType": {
+            "type": "string",
+            "enum": [
+                "active",
+                "inactive",
+                "suspended"
+            ],
+            "x-enum-varnames": [
+                "ShopStatusActive",
+                "ShopStatusInactive",
+                "ShopStatusSuspended"
+            ]
+        },
+        "domain.ShopType": {
+            "type": "string",
+            "enum": [
+                "retail",
+                "wholesale",
+                "service"
+            ],
+            "x-enum-varnames": [
+                "ShopTypeRetail",
+                "ShopTypeWholesale",
+                "ShopTypeService"
+            ]
+        },
         "domain.ShopVerification": {
             "type": "object",
             "required": [
@@ -9286,24 +10727,30 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "agent_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "created_at": {
                     "type": "string"
                 },
+                "created_by": {
+                    "type": "string"
+                },
                 "id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "remarks": {
                     "type": "string"
                 },
                 "shop_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "shop_name": {
                     "type": "string"
                 },
                 "updated_at": {
+                    "type": "string"
+                },
+                "updated_by": {
                     "type": "string"
                 },
                 "verification_status": {
@@ -9340,7 +10787,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "country_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "is_default": {
                     "type": "boolean"
@@ -9360,7 +10807,7 @@ const docTemplate = `{
                     "minLength": 10
                 },
                 "pincode": {
-                    "type": "integer"
+                    "type": "string"
                 }
             }
         },
@@ -9382,10 +10829,37 @@ const docTemplate = `{
                     "$ref": "#/definitions/request.CustomTime"
                 },
                 "promotion_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "start_date": {
                     "$ref": "#/definitions/request.CustomTime"
+                }
+            }
+        },
+        "request.BannerFilterRequest": {
+            "type": "object",
+            "properties": {
+                "app_type": {
+                    "type": "string"
+                },
+                "category_id": {
+                    "type": "string"
+                },
+                "department_id": {
+                    "type": "string"
+                },
+                "lat": {
+                    "type": "number"
+                },
+                "lng": {
+                    "type": "number"
+                },
+                "pincode": {
+                    "description": "optional: for pincode-based matching",
+                    "type": "string"
+                },
+                "radius": {
+                    "type": "number"
                 }
             }
         },
@@ -9399,7 +10873,7 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "user_id": {
-                    "type": "integer"
+                    "type": "string"
                 }
             }
         },
@@ -9548,6 +11022,17 @@ const docTemplate = `{
                 }
             }
         },
+        "request.CreateSubscriptionOrderRequest": {
+            "type": "object",
+            "required": [
+                "plan_id"
+            ],
+            "properties": {
+                "plan_id": {
+                    "type": "string"
+                }
+            }
+        },
         "request.CustomTime": {
             "type": "object",
             "properties": {
@@ -9584,7 +11069,7 @@ const docTemplate = `{
             ],
             "properties": {
                 "address_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "address_line1": {
                     "type": "string"
@@ -9602,7 +11087,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "country_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "is_default": {
                     "type": "boolean"
@@ -9622,7 +11107,7 @@ const docTemplate = `{
                     "minLength": 10
                 },
                 "pincode": {
-                    "type": "integer"
+                    "type": "string"
                 }
             }
         },
@@ -9711,17 +11196,12 @@ const docTemplate = `{
         },
         "request.Login": {
             "type": "object",
-            "required": [
-                "password"
-            ],
             "properties": {
                 "email": {
                     "type": "string"
                 },
                 "password": {
-                    "type": "string",
-                    "maxLength": 30,
-                    "minLength": 5
+                    "type": "string"
                 },
                 "phone": {
                     "type": "string",
@@ -9748,7 +11228,7 @@ const docTemplate = `{
                     "minLength": 5
                 },
                 "category_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "created_at": {
                     "type": "string"
@@ -9765,16 +11245,16 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "offer_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "order_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "product_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "receiver_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "receiver_type": {
                     "type": "string",
@@ -9785,7 +11265,7 @@ const docTemplate = `{
                     ]
                 },
                 "sender_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "sender_type": {
                     "type": "string",
@@ -9796,7 +11276,7 @@ const docTemplate = `{
                     ]
                 },
                 "shop_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "status": {
                     "type": "string",
@@ -9812,7 +11292,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "variation_id": {
-                    "type": "integer"
+                    "type": "string"
                 }
             }
         },
@@ -9955,10 +11435,10 @@ const docTemplate = `{
             ],
             "properties": {
                 "category_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "offer_id": {
-                    "type": "integer"
+                    "type": "string"
                 }
             }
         },
@@ -9970,10 +11450,24 @@ const docTemplate = `{
             ],
             "properties": {
                 "offer_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "product_item_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "request.PaymentFailureRequest": {
+            "type": "object",
+            "properties": {
+                "code": {
                     "type": "integer"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "order_id": {
+                    "type": "string"
                 }
             }
         },
@@ -9999,7 +11493,7 @@ const docTemplate = `{
                     "minLength": 6
                 },
                 "shop_order_id": {
-                    "type": "integer"
+                    "type": "string"
                 }
             }
         },
@@ -10051,8 +11545,7 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "close_time",
-                "open_time",
-                "status"
+                "open_time"
             ],
             "properties": {
                 "close_time": {
@@ -10099,7 +11592,7 @@ const docTemplate = `{
             ],
             "properties": {
                 "admin_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "amount": {
                     "type": "integer"
@@ -10114,10 +11607,10 @@ const docTemplate = `{
                     "minimum": 1
                 },
                 "shop_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "shop_order_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "verified": {
                     "type": "boolean",
@@ -10180,6 +11673,18 @@ const docTemplate = `{
                 }
             }
         },
+        "request.UISellerRequest": {
+            "type": "object",
+            "required": [
+                "context"
+            ],
+            "properties": {
+                "context": {
+                    "type": "object",
+                    "additionalProperties": true
+                }
+            }
+        },
         "request.UnregisterDeviceToken": {
             "type": "object",
             "required": [
@@ -10214,7 +11719,7 @@ const docTemplate = `{
                     "minimum": 1
                 },
                 "product_item_id": {
-                    "type": "integer"
+                    "type": "string"
                 }
             }
         },
@@ -10226,10 +11731,10 @@ const docTemplate = `{
             ],
             "properties": {
                 "category_offer_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "offer_id": {
-                    "type": "integer"
+                    "type": "string"
                 }
             }
         },
@@ -10239,11 +11744,11 @@ const docTemplate = `{
                 "shop_order_id"
             ],
             "properties": {
-                "order_status_id": {
-                    "type": "integer"
+                "order_status": {
+                    "$ref": "#/definitions/domain.OrderStatusType"
                 },
                 "shop_order_id": {
-                    "type": "integer"
+                    "type": "string"
                 }
             }
         },
@@ -10252,7 +11757,7 @@ const docTemplate = `{
             "required": [
                 "admin_comment",
                 "order_return_id",
-                "order_status_id"
+                "order_status"
             ],
             "properties": {
                 "admin_comment": {
@@ -10261,10 +11766,10 @@ const docTemplate = `{
                     "minLength": 6
                 },
                 "order_return_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
-                "order_status_id": {
-                    "type": "integer"
+                "order_status": {
+                    "$ref": "#/definitions/domain.OrderStatusType"
                 },
                 "return_date": {
                     "type": "string"
@@ -10283,10 +11788,10 @@ const docTemplate = `{
             ],
             "properties": {
                 "brand_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "category_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "description": {
                     "type": "string",
@@ -10300,7 +11805,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "product_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "product_name": {
                     "type": "string",
@@ -10317,10 +11822,10 @@ const docTemplate = `{
             ],
             "properties": {
                 "offer_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "product_offer_id": {
-                    "type": "integer"
+                    "type": "string"
                 }
             }
         },
@@ -10376,6 +11881,128 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "type": "string"
+                    }
+                }
+            }
+        },
+        "request.VerifySubscriptionPaymentRequest": {
+            "type": "object",
+            "required": [
+                "razorpay_order_id",
+                "razorpay_payment_id",
+                "razorpay_signature"
+            ],
+            "properties": {
+                "razorpay_order_id": {
+                    "type": "string"
+                },
+                "razorpay_payment_id": {
+                    "type": "string"
+                },
+                "razorpay_signature": {
+                    "type": "string"
+                }
+            }
+        },
+        "response.AutocompleteSuggestion": {
+            "type": "object",
+            "properties": {
+                "entity_id": {
+                    "type": "integer"
+                },
+                "entity_type": {
+                    "type": "string"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "text": {
+                    "type": "string"
+                }
+            }
+        },
+        "response.BrandSearchItem": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "response.CategorySearchItem": {
+            "type": "object",
+            "properties": {
+                "department_id": {
+                    "type": "string"
+                },
+                "department_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "response.DepartmentSearchItem": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "response.GlobalSearchResult": {
+            "type": "object",
+            "properties": {
+                "brands": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/response.BrandSearchItem"
+                    }
+                },
+                "categories": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/response.CategorySearchItem"
+                    }
+                },
+                "departments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/response.DepartmentSearchItem"
+                    }
+                },
+                "offers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/response.OfferSearchItem"
+                    }
+                },
+                "products": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/response.ProductSearchItem"
+                    }
+                },
+                "shops": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/response.ShopSearchItem"
                     }
                 }
             }
@@ -10439,13 +12066,13 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "offer_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "offer_name": {
                     "type": "string"
                 },
                 "offer_product_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "product_name": {
                     "type": "string"
@@ -10460,6 +12087,35 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "thumbnail": {
+                    "type": "string"
+                }
+            }
+        },
+        "response.OfferSearchItem": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "discount_rate": {
+                    "type": "integer"
+                },
+                "end_date": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "offer_type": {
+                    "type": "string"
+                },
+                "start_date": {
                     "type": "string"
                 }
             }
@@ -10505,7 +12161,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "category_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "category_name": {
                     "type": "string"
@@ -10514,10 +12170,13 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "department_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "discount_rate": {
                     "type": "integer"
+                },
+                "distance_km": {
+                    "type": "number"
                 },
                 "dynamic_fields": {
                     "type": "object",
@@ -10533,7 +12192,7 @@ const docTemplate = `{
                     }
                 },
                 "product_item_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "product_item_images": {
                     "type": "array",
@@ -10545,13 +12204,16 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "shop_id": {
-                    "type": "integer"
+                    "type": "string"
+                },
+                "shop_name": {
+                    "type": "string"
                 },
                 "stock": {
                     "type": "boolean"
                 },
                 "sub_category_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "sub_category_image_url": {
                     "type": "string"
@@ -10561,6 +12223,47 @@ const docTemplate = `{
                 },
                 "view_count": {
                     "type": "integer"
+                }
+            }
+        },
+        "response.ProductSearchItem": {
+            "type": "object",
+            "properties": {
+                "category_id": {
+                    "type": "string"
+                },
+                "category_name": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "discount_rate": {
+                    "type": "integer"
+                },
+                "dynamic_fields": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "images": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "shop_id": {
+                    "type": "integer"
+                },
+                "shop_name": {
+                    "type": "string"
                 }
             }
         },
@@ -10574,7 +12277,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "is_active": {
                     "type": "boolean"
@@ -10583,7 +12286,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "shop_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "updated_at": {
                     "type": "string"
@@ -10603,7 +12306,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "is_active": {
                     "type": "boolean"
@@ -10615,7 +12318,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "promotion_category_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "shop_id": {
                     "type": "string"
@@ -10641,6 +12344,38 @@ const docTemplate = `{
                 }
             }
         },
+        "response.ShopSearchItem": {
+            "type": "object",
+            "properties": {
+                "city": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "latitude": {
+                    "type": "number"
+                },
+                "longitude": {
+                    "type": "number"
+                },
+                "pincode": {
+                    "type": "string"
+                },
+                "shop_image_url": {
+                    "type": "string"
+                },
+                "shop_name": {
+                    "type": "string"
+                },
+                "shop_type": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                }
+            }
+        },
         "response.TokenResponse": {
             "type": "object",
             "properties": {
@@ -10648,6 +12383,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "refresh_token": {
+                    "type": "string"
+                },
+                "user_id": {
                     "type": "string"
                 }
             }
