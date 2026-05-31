@@ -20,28 +20,38 @@ func NewPlatformUserRepository(db *gorm.DB) interfaces.PlatformUserRepository {
 func (r *platformUserRepository) ListAdmins(ctx context.Context, pagination request.Pagination) ([]domain.Admin, error) {
 	var admins []domain.Admin
 	err := r.db.WithContext(ctx).
+		Select("id, user_name, full_name, email, mobile, profile_image_url, status, role, created_at, updated_at").
+		Order("created_at DESC").
 		Offset(int(pagination.Offset)).
 		Limit(int(pagination.Limit)).
 		Find(&admins).Error
 	return admins, err
 }
 
-func (r *platformUserRepository) GetAdminByID(ctx context.Context, adminID string) (domain.Admin, error) {
-	var admin domain.Admin
-	err := r.db.WithContext(ctx).Where("id = ?", adminID).First(&admin).Error
-	return admin, err
-}
-
 func (r *platformUserRepository) UpdateAdminRole(ctx context.Context, adminID string, role domain.AdminRole) error {
-	return r.db.WithContext(ctx).
+	result := r.db.WithContext(ctx).
 		Model(&domain.Admin{}).
 		Where("id = ?", adminID).
-		Update("role", role).Error
+		Update("role", role)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 func (r *platformUserRepository) DeactivateAdmin(ctx context.Context, adminID string) error {
-	return r.db.WithContext(ctx).
+	result := r.db.WithContext(ctx).
 		Model(&domain.Admin{}).
 		Where("id = ?", adminID).
-		Update("status", domain.AdminStatusSuspended).Error
+		Update("status", domain.AdminStatusSuspended)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
