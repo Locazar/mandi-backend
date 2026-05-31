@@ -45,6 +45,7 @@ type AdminUseCase interface {
 	GetShopProfileImageById(ctx context.Context, shopId string) (string, error)
 	UserLogout(ctx context.Context, adminId string) error
 	GetShopSocialDetails(ctx context.Context, shopID string) ([]domain.ShopSocial, error)
+	GetDashboardStats(ctx context.Context) (domain.DashboardStats, error)
 }
 
 // GetCategory(ctx context.Context) (helper.Category, any)

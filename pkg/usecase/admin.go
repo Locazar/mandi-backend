@@ -489,3 +489,7 @@ func (c *adminUseCase) GetShopSocialDetails(ctx context.Context, shopID string) 
 func (c *adminUseCase) GetAdminByID(ctx context.Context, adminID string) (domain.Admin, error) {
 	return c.adminRepo.GetAdminByID(ctx, adminID)
 }
+
+func (c *adminUseCase) GetDashboardStats(ctx context.Context) (domain.DashboardStats, error) {
+	return c.adminRepo.GetDashboardStats(ctx)
+}
