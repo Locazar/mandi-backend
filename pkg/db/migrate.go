@@ -25,13 +25,20 @@ func RunMigrations(gormDB *gorm.DB) error {
 	if err != nil {
 		return fmt.Errorf("migrate: get sql.DB: %w", err)
 	}
-	driver, err := postgres.WithInstance(sqlDB, &postgres.Config{})
-	if err != nil {
-		return fmt.Errorf("migrate: postgres driver: %w", err)
-	}
+
 	legacyBootstrap, err := shouldUseLegacyBootstrap(sqlDB)
 	if err != nil {
 		return fmt.Errorf("migrate: detect legacy bootstrap: %w", err)
+	}
+	if legacyBootstrap {
+		if err := resetMigrationState(sqlDB); err != nil {
+			return fmt.Errorf("migrate: reset migration state: %w", err)
+		}
+	}
+
+	driver, err := postgres.WithInstance(sqlDB, &postgres.Config{})
+	if err != nil {
+		return fmt.Errorf("migrate: postgres driver: %w", err)
 	}
 
 	var sourceFS fs.FS = migrationsFS
@@ -56,23 +63,8 @@ func RunMigrations(gormDB *gorm.DB) error {
 }
 
 func shouldUseLegacyBootstrap(db *sql.DB) (bool, error) {
-	var hasSchemaMigrations bool
-	err := db.QueryRow(`
-		SELECT EXISTS (
-			SELECT 1
-			FROM information_schema.tables
-			WHERE table_schema = 'public' AND table_name = 'schema_migrations'
-		)
-	`).Scan(&hasSchemaMigrations)
-	if err != nil {
-		return false, err
-	}
-	if hasSchemaMigrations {
-		return false, nil
-	}
-
 	var isLegacy bool
-	err = db.QueryRow(`
+	err := db.QueryRow(`
 		SELECT (
 			EXISTS (
 				SELECT 1
@@ -94,6 +86,29 @@ func shouldUseLegacyBootstrap(db *sql.DB) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	if isLegacy {
+		return true, nil
+	}
 
-	return isLegacy, nil
+	var hasSchemaMigrations bool
+	err = db.QueryRow(`
+		SELECT EXISTS (
+			SELECT 1
+			FROM information_schema.tables
+			WHERE table_schema = 'public' AND table_name = 'schema_migrations'
+		)
+	`).Scan(&hasSchemaMigrations)
+	if err != nil {
+		return false, err
+	}
+	if hasSchemaMigrations {
+		return false, nil
+	}
+
+	return false, nil
+}
+
+func resetMigrationState(db *sql.DB) error {
+	_, err := db.Exec(`DROP TABLE IF EXISTS schema_migrations`)
+	return err
 }

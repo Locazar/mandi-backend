@@ -232,6 +232,15 @@ WHERE a.role = 'super_admin'
       OR EXISTS (SELECT 1 FROM shop_details sd WHERE sd.admin_id = a.id)
   );
 
+UPDATE shop_details sd
+SET admin_id = NULL
+WHERE sd.admin_id IS NOT NULL
+    AND NOT EXISTS (
+            SELECT 1
+            FROM admins a
+            WHERE a.id = sd.admin_id
+    );
+
 DO $$
 BEGIN
     IF EXISTS (
@@ -466,6 +475,8 @@ CREATE TABLE IF NOT EXISTS alert_templates (
     updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+ALTER TABLE alert_templates ADD COLUMN IF NOT EXISTS flow_key VARCHAR(100);
+
 CREATE INDEX IF NOT EXISTS idx_alert_templates_is_active ON alert_templates (is_active);
 CREATE INDEX IF NOT EXISTS idx_alert_templates_flow_key ON alert_templates (flow_key);
 
@@ -594,17 +605,26 @@ CREATE TABLE IF NOT EXISTS user_refresh_sessions (
 CREATE INDEX IF NOT EXISTS idx_user_refresh_sessions_user_id ON user_refresh_sessions (user_id);
 CREATE INDEX IF NOT EXISTS idx_user_refresh_sessions_admin_id ON user_refresh_sessions (admin_id);
 
-INSERT INTO admin_refresh_sessions (token_id, user_id, admin_id, user_type, refresh_token, expire_at, is_blocked)
-SELECT rs.token_id, rs.user_id, rs.admin_id, COALESCE(NULLIF(rs.user_type, ''), 'admin'), rs.refresh_token, rs.expire_at, COALESCE(rs.is_blocked, FALSE)
-FROM refresh_sessions rs
-WHERE COALESCE(NULLIF(rs.user_type, ''), 'user') = 'admin'
-ON CONFLICT (token_id) DO NOTHING;
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'refresh_sessions'
+    ) THEN
+        INSERT INTO admin_refresh_sessions (token_id, user_id, admin_id, user_type, refresh_token, expire_at, is_blocked)
+        SELECT rs.token_id, rs.user_id, rs.admin_id, COALESCE(NULLIF(rs.user_type, ''), 'admin'), rs.refresh_token, rs.expire_at, COALESCE(rs.is_blocked, FALSE)
+        FROM refresh_sessions rs
+        WHERE COALESCE(NULLIF(rs.user_type, ''), 'user') = 'admin'
+        ON CONFLICT (token_id) DO NOTHING;
 
-INSERT INTO user_refresh_sessions (token_id, user_id, admin_id, user_type, refresh_token, expire_at, is_blocked)
-SELECT rs.token_id, rs.user_id, rs.admin_id, COALESCE(NULLIF(rs.user_type, ''), 'user'), rs.refresh_token, rs.expire_at, COALESCE(rs.is_blocked, FALSE)
-FROM refresh_sessions rs
-WHERE COALESCE(NULLIF(rs.user_type, ''), 'user') <> 'admin'
-ON CONFLICT (token_id) DO NOTHING;
+        INSERT INTO user_refresh_sessions (token_id, user_id, admin_id, user_type, refresh_token, expire_at, is_blocked)
+        SELECT rs.token_id, rs.user_id, rs.admin_id, COALESCE(NULLIF(rs.user_type, ''), 'user'), rs.refresh_token, rs.expire_at, COALESCE(rs.is_blocked, FALSE)
+        FROM refresh_sessions rs
+        WHERE COALESCE(NULLIF(rs.user_type, ''), 'user') <> 'admin'
+        ON CONFLICT (token_id) DO NOTHING;
+    END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS otp_sessions_email (
     id         VARCHAR(32) PRIMARY KEY,
@@ -676,6 +696,7 @@ DROP FUNCTION IF EXISTS _legacy_ensure_text_id_default(TEXT, TEXT);
 DO $$
 DECLARE
     rec RECORD;
+    column_nullable TEXT;
 BEGIN
     FOR rec IN
         SELECT * FROM (VALUES
@@ -697,8 +718,6 @@ BEGIN
             ('product_items', 'sub_category_id', 'sub_categories', 'id', 'fk_product_items_sub_category_id', 'SET NULL'),
             ('product_items', 'category_id', 'categories', 'id', 'fk_product_items_category_id', 'SET NULL'),
             ('product_items', 'department_id', 'departments', 'id', 'fk_product_items_department_id', 'SET NULL'),
-            ('product_items', 'admin_id', 'admins', 'id', 'fk_product_items_admin_id', 'SET NULL'),
-            ('product_items', 'shop_id', 'shop_details', 'id', 'fk_product_items_shop_id', 'CASCADE'),
             ('product_images', 'product_item_id', 'product_items', 'id', 'fk_product_images_product_item_id', 'CASCADE'),
             ('product_images', 'shop_id', 'shop_details', 'id', 'fk_product_images_shop_id', 'CASCADE'),
             ('product_images', 'product_id', 'products', 'id', 'fk_product_images_product_id', 'CASCADE'),
@@ -757,14 +776,181 @@ BEGIN
             ('jobs', 'location_id', 'job_locations', 'id', 'fk_jobs_location_id', 'RESTRICT')
         ) AS t(table_name, column_name, ref_table, ref_column, constraint_name, on_delete)
     LOOP
-        EXECUTE format(
-            'ALTER TABLE %I ADD CONSTRAINT %I FOREIGN KEY (%I) REFERENCES %I (%I) ON DELETE %s',
-            rec.table_name,
-            rec.constraint_name,
-            rec.column_name,
-            rec.ref_table,
-            rec.ref_column,
-            rec.on_delete
-        );
+        SELECT c.is_nullable
+          INTO column_nullable
+          FROM information_schema.columns c
+         WHERE c.table_schema = 'public'
+           AND c.table_name = rec.table_name
+           AND c.column_name = rec.column_name;
+
+        IF NOT FOUND THEN
+            CONTINUE;
+        END IF;
+
+        IF NOT EXISTS (
+            SELECT 1
+            FROM information_schema.tables t
+            WHERE t.table_schema = 'public'
+              AND t.table_name = rec.ref_table
+        ) THEN
+            CONTINUE;
+        END IF;
+
+        IF column_nullable = 'YES' THEN
+            EXECUTE format(
+                'UPDATE %I child SET %I = NULL WHERE %I IS NOT NULL AND NOT EXISTS (SELECT 1 FROM %I parent WHERE parent.%I::text = child.%I::text)',
+                rec.table_name,
+                rec.column_name,
+                rec.column_name,
+                rec.ref_table,
+                rec.ref_column,
+                rec.column_name
+            );
+        ELSE
+            EXECUTE format(
+                'DELETE FROM %I child WHERE %I IS NOT NULL AND NOT EXISTS (SELECT 1 FROM %I parent WHERE parent.%I::text = child.%I::text)',
+                rec.table_name,
+                rec.column_name,
+                rec.ref_table,
+                rec.ref_column,
+                rec.column_name
+            );
+        END IF;
+    END LOOP;
+END $$;
+
+DO $$
+DECLARE
+    rec RECORD;
+    child_udt TEXT;
+    parent_udt TEXT;
+BEGIN
+    FOR rec IN
+        SELECT * FROM (VALUES
+            ('addresses', 'user_id', 'users', 'id', 'fk_addresses_user_id', 'CASCADE'),
+            ('addresses', 'country_id', 'countries', 'id', 'fk_addresses_country_id', 'RESTRICT'),
+            ('user_addresses', 'user_id', 'users', 'id', 'fk_user_addresses_user_id', 'CASCADE'),
+            ('user_addresses', 'address_id', 'addresses', 'id', 'fk_user_addresses_address_id', 'CASCADE'),
+            ('shop_details', 'admin_id', 'admins', 'id', 'fk_shop_details_admin_id', 'CASCADE'),
+            ('categories', 'department_id', 'departments', 'id', 'fk_categories_department_id', 'RESTRICT'),
+            ('sub_categories', 'department_id', 'departments', 'id', 'fk_sub_categories_department_id', 'RESTRICT'),
+            ('sub_categories', 'category_id', 'categories', 'id', 'fk_sub_categories_category_id', 'RESTRICT'),
+            ('variations', 'sub_category_id', 'sub_categories', 'id', 'fk_variations_sub_category_id', 'RESTRICT'),
+            ('variation_options', 'variation_id', 'variations', 'id', 'fk_variation_options_variation_id', 'RESTRICT'),
+            ('sub_type_attributes', 'sub_category_id', 'sub_categories', 'id', 'fk_sub_type_attributes_sub_category_id', 'CASCADE'),
+            ('sub_type_attribute_options', 'sub_type_attribute_id', 'sub_type_attributes', 'id', 'fk_sub_type_attribute_options_sub_type_attribute_id', 'CASCADE'),
+            ('products', 'category_id', 'categories', 'id', 'fk_products_category_id', 'SET NULL'),
+            ('products', 'department_id', 'departments', 'id', 'fk_products_department_id', 'SET NULL'),
+            ('products', 'shop_id', 'shop_details', 'id', 'fk_products_shop_id', 'CASCADE'),
+            ('product_items', 'sub_category_id', 'sub_categories', 'id', 'fk_product_items_sub_category_id', 'SET NULL'),
+            ('product_items', 'category_id', 'categories', 'id', 'fk_product_items_category_id', 'SET NULL'),
+            ('product_items', 'department_id', 'departments', 'id', 'fk_product_items_department_id', 'SET NULL'),
+            ('product_images', 'product_item_id', 'product_items', 'id', 'fk_product_images_product_item_id', 'CASCADE'),
+            ('product_images', 'shop_id', 'shop_details', 'id', 'fk_product_images_shop_id', 'CASCADE'),
+            ('product_images', 'product_id', 'products', 'id', 'fk_product_images_product_id', 'CASCADE'),
+            ('product_configurations', 'product_item_id', 'product_items', 'id', 'fk_product_configurations_product_item_id', 'CASCADE'),
+            ('product_configurations', 'variation_option_id', 'variation_options', 'id', 'fk_product_configurations_variation_option_id', 'RESTRICT'),
+            ('category_images', 'category_id', 'categories', 'id', 'fk_category_images_category_id', 'CASCADE'),
+            ('offer_categories', 'offer_id', 'offers', 'id', 'fk_offer_categories_offer_id', 'CASCADE'),
+            ('offer_categories', 'category_id', 'categories', 'id', 'fk_offer_categories_category_id', 'CASCADE'),
+            ('offer_products', 'offer_id', 'offers', 'id', 'fk_offer_products_offer_id', 'CASCADE'),
+            ('offer_products', 'product_item_id', 'product_items', 'id', 'fk_offer_products_product_item_id', 'CASCADE'),
+            ('coupon_uses', 'coupon_id', 'coupons', 'coupon_id', 'fk_coupon_uses_coupon_id', 'RESTRICT'),
+            ('coupon_uses', 'user_id', 'users', 'id', 'fk_coupon_uses_user_id', 'RESTRICT'),
+            ('wallets', 'user_id', 'users', 'id', 'fk_wallets_user_id', 'RESTRICT'),
+            ('transactions', 'wallet_id', 'wallets', 'id', 'fk_transactions_wallet_id', 'RESTRICT'),
+            ('carts', 'user_id', 'users', 'id', 'fk_carts_user_id', 'CASCADE'),
+            ('carts', 'applied_coupon_id', 'coupons', 'coupon_id', 'fk_carts_applied_coupon_id', 'SET NULL'),
+            ('cart_items', 'cart_id', 'carts', 'id', 'fk_cart_items_cart_id', 'CASCADE'),
+            ('cart_items', 'product_item_id', 'product_items', 'id', 'fk_cart_items_product_item_id', 'CASCADE'),
+            ('wish_lists', 'user_id', 'users', 'id', 'fk_wish_lists_user_id', 'CASCADE'),
+            ('wish_lists', 'shop_id', 'shop_details', 'id', 'fk_wish_lists_shop_id', 'CASCADE'),
+            ('wish_lists', 'product_item_id', 'product_items', 'id', 'fk_wish_lists_product_item_id', 'CASCADE'),
+            ('shop_orders', 'user_id', 'users', 'id', 'fk_shop_orders_user_id', 'RESTRICT'),
+            ('shop_orders', 'address_id', 'addresses', 'id', 'fk_shop_orders_address_id', 'RESTRICT'),
+            ('shop_orders', 'payment_method_id', 'payment_methods', 'id', 'fk_shop_orders_payment_method_id', 'SET NULL'),
+            ('shop_orders', 'shop_id', 'shop_details', 'id', 'fk_shop_orders_shop_id', 'SET NULL'),
+            ('order_lines', 'product_item_id', 'product_items', 'id', 'fk_order_lines_product_item_id', 'CASCADE'),
+            ('order_lines', 'shop_order_id', 'shop_orders', 'id', 'fk_order_lines_shop_order_id', 'RESTRICT'),
+            ('order_returns', 'shop_order_id', 'shop_orders', 'id', 'fk_order_returns_shop_order_id', 'RESTRICT'),
+            ('shop_offers', 'shop_id', 'shop_details', 'id', 'fk_shop_offers_shop_id', 'CASCADE'),
+            ('shop_offers', 'offer_id', 'offers', 'id', 'fk_shop_offers_offer_id', 'CASCADE'),
+            ('shop_departments', 'admin_id', 'admins', 'id', 'fk_shop_departments_admin_id', 'CASCADE'),
+            ('shop_departments', 'shop_id', 'shop_details', 'id', 'fk_shop_departments_shop_id', 'CASCADE'),
+            ('shop_departments', 'department_id', 'departments', 'id', 'fk_shop_departments_department_id', 'RESTRICT'),
+            ('shop_departments', 'category_id', 'categories', 'id', 'fk_shop_departments_category_id', 'RESTRICT'),
+            ('shop_departments', 'sub_category_id', 'sub_categories', 'id', 'fk_shop_departments_sub_category_id', 'RESTRICT'),
+            ('shop_times', 'shop_id', 'shop_details', 'id', 'fk_shop_times_shop_id', 'CASCADE'),
+            ('shop_socials', 'shop_id', 'shop_details', 'id', 'fk_shop_socials_shop_id', 'CASCADE'),
+            ('shop_socials', 'admin_id', 'admins', 'id', 'fk_shop_socials_admin_id', 'CASCADE'),
+            ('shop_socials', 'user_id', 'users', 'id', 'fk_shop_socials_user_id', 'CASCADE'),
+            ('shop_verifications', 'admin_id', 'admins', 'id', 'fk_shop_verifications_admin_id', 'RESTRICT'),
+            ('shop_verifications', 'shop_id', 'shop_details', 'id', 'fk_shop_verifications_shop_id', 'SET NULL'),
+            ('shop_verification_histories', 'admin_id', 'admins', 'id', 'fk_shop_verification_histories_admin_id', 'RESTRICT'),
+            ('shop_verification_histories', 'shop_id', 'shop_details', 'id', 'fk_shop_verification_histories_shop_id', 'CASCADE'),
+            ('advertisements', 'admin_id', 'admins', 'id', 'fk_advertisements_admin_id', 'SET NULL'),
+            ('user_consents', 'user_id', 'users', 'id', 'fk_user_consents_user_id', 'CASCADE'),
+            ('subscription_orders', 'user_id', 'users', 'id', 'fk_subscription_orders_user_id', 'RESTRICT'),
+            ('subscription_orders', 'plan_id', 'subscription_plans', 'id', 'fk_subscription_orders_plan_id', 'RESTRICT'),
+            ('user_subscriptions', 'user_id', 'users', 'id', 'fk_user_subscriptions_user_id', 'RESTRICT'),
+            ('user_subscriptions', 'plan_id', 'subscription_plans', 'id', 'fk_user_subscriptions_plan_id', 'RESTRICT'),
+            ('user_subscriptions', 'subscription_order_id', 'subscription_orders', 'id', 'fk_user_subscriptions_subscription_order_id', 'SET NULL'),
+            ('alerts', 'seller_id', 'shop_details', 'id', 'fk_alerts_seller_id', 'CASCADE'),
+            ('alert_actions', 'alert_id', 'alerts', 'id', 'fk_alert_actions_alert_id', 'CASCADE'),
+            ('seller_alert_logs', 'seller_id', 'shop_details', 'id', 'fk_seller_alert_logs_seller_id', 'CASCADE'),
+            ('jobs', 'category_id', 'job_categories', 'id', 'fk_jobs_category_id', 'RESTRICT'),
+            ('jobs', 'user_id', 'users', 'id', 'fk_jobs_user_id', 'RESTRICT'),
+            ('jobs', 'location_id', 'job_locations', 'id', 'fk_jobs_location_id', 'RESTRICT')
+        ) AS t(table_name, column_name, ref_table, ref_column, constraint_name, on_delete)
+    LOOP
+        -- Only reattach constraints when both sides have matching underlying types.
+        SELECT c.udt_name
+          INTO child_udt
+          FROM information_schema.columns c
+         WHERE c.table_schema = 'public'
+           AND c.table_name = rec.table_name
+           AND c.column_name = rec.column_name;
+
+        IF NOT FOUND THEN
+            CONTINUE;
+        END IF;
+
+        SELECT c.udt_name
+          INTO parent_udt
+          FROM information_schema.columns c
+         WHERE c.table_schema = 'public'
+           AND c.table_name = rec.ref_table
+           AND c.column_name = rec.ref_column;
+
+        IF NOT FOUND THEN
+            CONTINUE;
+        END IF;
+
+        IF child_udt <> parent_udt THEN
+            CONTINUE;
+        END IF;
+
+        BEGIN
+            EXECUTE format(
+                'ALTER TABLE %I ADD CONSTRAINT %I FOREIGN KEY (%I) REFERENCES %I (%I) ON DELETE %s',
+                rec.table_name,
+                rec.constraint_name,
+                rec.column_name,
+                rec.ref_table,
+                rec.ref_column,
+                rec.on_delete
+            );
+        EXCEPTION
+            WHEN duplicate_object THEN
+                NULL;
+            WHEN others THEN
+                RAISE NOTICE 'Skipping legacy FK % on %.% -> %.% (%).',
+                    rec.constraint_name,
+                    rec.table_name,
+                    rec.column_name,
+                    rec.ref_table,
+                    rec.ref_column,
+                    SQLERRM;
+        END;
     END LOOP;
 END $$;
