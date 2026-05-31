@@ -17,6 +17,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 	alertHandler handlerInterface.AlertHandler, uiHandler handlerInterface.UIHandler,
 	alertTemplateHandler handlerInterface.AlertTemplateHandler,
 	jobHandler *handler.JobHandler, jobCategoryHandler *handler.JobCategoryHandler,
+	platformUserHandler handlerInterface.PlatformUserHandler,
 ) {
 
 	auth := api.Group("/auth")
@@ -87,6 +88,14 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		{
 			user.GET("/", adminHandler.GetAllUsers)
 			user.PATCH("/block", adminHandler.BlockUser)
+		}
+
+		platformUsers := api.Group("/platform-users")
+		{
+			platformUsers.GET("/", platformUserHandler.ListAdmins)
+			platformUsers.POST("/", platformUserHandler.CreateAdmin)
+			platformUsers.PATCH("/:admin_id/role", platformUserHandler.UpdateAdminRole)
+			platformUsers.PATCH("/:admin_id/deactivate", platformUserHandler.DeactivateAdmin)
 		}
 
 		//department
