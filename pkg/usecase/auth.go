@@ -277,6 +277,7 @@ func (c *authUseCase) AdminSignUpOtpVerify(ctx context.Context, otpVerifyDetails
 		Mobile:         otpSession.Phone,
 		Status:         "active",
 		VerifiedSeller: false,
+		Role:           domain.AdminRoleSeller,
 	}
 
 	savedAdmin, err := c.adminRepo.SaveAdmin(ctx, newAdmin)

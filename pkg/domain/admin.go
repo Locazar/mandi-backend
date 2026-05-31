@@ -31,11 +31,12 @@ const (
 	AdminRoleSupportStaff     AdminRole = "support_staff"
 	AdminRoleCatalogManager   AdminRole = "catalog_manager"
 	AdminRoleMarketingManager AdminRole = "marketing_manager"
+	AdminRoleSeller           AdminRole = "seller"
 )
 
 func (r AdminRole) IsValid() bool {
 	switch r {
-	case AdminRoleSuperAdmin, AdminRoleSupportStaff, AdminRoleCatalogManager, AdminRoleMarketingManager:
+	case AdminRoleSuperAdmin, AdminRoleSupportStaff, AdminRoleCatalogManager, AdminRoleMarketingManager, AdminRoleSeller:
 		return true
 	}
 	return false
