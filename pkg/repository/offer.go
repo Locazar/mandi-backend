@@ -370,8 +370,8 @@ func (c *offerDatabase) RemoveProductItemsDiscountByProductOfferID(ctx context.C
 func (c *offerDatabase) ApplyOfferToShop(ctx context.Context, adminID string, shopID string, body request.ApplyOfferToShop) error {
 
 	// Insert into shop_offers with shop_id
-	query := `INSERT INTO shop_offers (offer_id, shop_id, admin_id, start_date, end_date, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`
-	err := c.DB.Exec(query, body.PromotionID, shopID, adminID, body.StartDate.Time, body.EndDate.Time).Error
+	query := `INSERT INTO shop_offers (id, offer_id, shop_id, admin_id, start_date, end_date, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())`
+	err := c.DB.Exec(query, domain.NewID(domain.PrefixShopOffer), body.PromotionID, shopID, adminID, body.StartDate.Time, body.EndDate.Time).Error
 	return err
 }
 

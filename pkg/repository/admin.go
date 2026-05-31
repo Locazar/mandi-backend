@@ -399,8 +399,8 @@ func (c *adminDatabase) CreateShop(ctx context.Context, shop domain.ShopDetails)
 	}
 
 	// Use UPSERT to handle existing admin_id (unique constraint)
-	queryVerification := `INSERT INTO shop_verifications (shop_id, admin_id, verification_status, remarks, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6)
+	queryVerification := `INSERT INTO shop_verifications (id, shop_id, admin_id, verification_status, remarks, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		ON CONFLICT (admin_id) DO UPDATE SET
 		shop_id = EXCLUDED.shop_id,
 		verification_status = EXCLUDED.verification_status,
@@ -408,16 +408,16 @@ func (c *adminDatabase) CreateShop(ctx context.Context, shop domain.ShopDetails)
 		updated_at = EXCLUDED.updated_at`
 
 	adminIDStr := fmt.Sprintf("%s", shop.AdminID)
-	if err := tx.Exec(queryVerification, shop.ID, adminIDStr, shop.ShopVerificationStatus, shop.ShopVerificationRemarks, time.Now(), time.Now()).Error; err != nil {
+	if err := tx.Exec(queryVerification, domain.NewID(domain.PrefixShopVerif), shop.ID, adminIDStr, shop.ShopVerificationStatus, shop.ShopVerificationRemarks, time.Now(), time.Now()).Error; err != nil {
 		tx.Rollback()
 		return shop, err
 	}
 
 	// Insert default shop time record
-	queryShopTime := `INSERT INTO shop_times (shop_id, status, open_time, close_time, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6)`
+	queryShopTime := `INSERT INTO shop_times (id, shop_id, status, open_time, close_time, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)`
 
-	if err := tx.Exec(queryShopTime, shop.ID, "close", "09:00", "21:00", time.Now(), time.Now()).Error; err != nil {
+	if err := tx.Exec(queryShopTime, domain.NewID(domain.PrefixShopTime), shop.ID, "close", "09:00", "21:00", time.Now(), time.Now()).Error; err != nil {
 		tx.Rollback()
 		return shop, err
 	}

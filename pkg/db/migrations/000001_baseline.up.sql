@@ -733,6 +733,7 @@ CREATE TABLE IF NOT EXISTS shop_verifications (
     updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS uidx_shop_verifications_admin_id ON shop_verifications (admin_id);
 CREATE INDEX IF NOT EXISTS idx_shop_verifications_admin_id ON shop_verifications (admin_id);
 CREATE INDEX IF NOT EXISTS idx_shop_verifications_shop_id  ON shop_verifications (shop_id);
 
@@ -1239,7 +1240,7 @@ CREATE TABLE IF NOT EXISTS otp_sessions (
     expire_at  TIMESTAMPTZ
 );
 
-CREATE TABLE IF NOT EXISTS otp_session_emails (
+CREATE TABLE IF NOT EXISTS otp_sessions_email (
     id         VARCHAR(32) PRIMARY KEY,
     otp_id     VARCHAR(255) NOT NULL UNIQUE,
     user_id    VARCHAR(32)  NOT NULL,
