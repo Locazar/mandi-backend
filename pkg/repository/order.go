@@ -254,9 +254,9 @@ func (c *OrderDatabase) UpdateOrderReturn(ctx context.Context, orderReturn domai
 
 func (c *OrderDatabase) SaveShoppingFeedback(ctx context.Context, feedback request.ShoppingFeedback) error {
 
-	query := `INSERT INTO shopping_feedbacks (shop_order_id, rating, comment, shop_id, amount, admin_id) 
-	VALUES ($1, $2, $3, $4, $5, $6)`
-	err := c.DB.Exec(query, feedback.ShopOrderID, feedback.Rating, feedback.Comment,
+	query := `INSERT INTO shopping_feedbacks (id, shop_order_id, rating, comment, shop_id, amount, admin_id) 
+	VALUES ($1, $2, $3, $4, $5, $6, $7)`
+	err := c.DB.Exec(query, domain.NewID(domain.PrefixFeedback), feedback.ShopOrderID, feedback.Rating, feedback.Comment,
 		feedback.ShopID, feedback.Amount, feedback.AdminID).Error
 	return err
 }

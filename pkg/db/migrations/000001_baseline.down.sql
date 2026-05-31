@@ -6,7 +6,7 @@ DROP TABLE IF EXISTS audit_logs                   CASCADE;
 DROP TABLE IF EXISTS user_consents                CASCADE;
 
 -- Auth sessions
-DROP TABLE IF EXISTS otp_session_emails           CASCADE;
+DROP TABLE IF EXISTS otp_sessions_email           CASCADE;
 DROP TABLE IF EXISTS otp_sessions                 CASCADE;
 DROP TABLE IF EXISTS user_refresh_sessions        CASCADE;
 DROP TABLE IF EXISTS admin_refresh_sessions       CASCADE;

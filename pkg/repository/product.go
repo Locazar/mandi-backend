@@ -1913,9 +1913,9 @@ func (c *productDatabase) IncrementProductItemViewCount(ctx context.Context, pro
 		return nil
 	}
 
-	insertQuery := `INSERT INTO product_item_views (product_item_id, shop_id, admin_id, view_count, created_at, viewed_at)
-		VALUES ($1, $2, to_jsonb($3::text), 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
-	return c.DB.Exec(insertQuery, productItemID, shopID, adminID).Error
+	insertQuery := `INSERT INTO product_item_views (id, product_item_id, shop_id, admin_id, view_count, created_at, viewed_at)
+		VALUES ($1, $2, $3, $4, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+	return c.DB.Exec(insertQuery, domain.NewID(domain.PrefixProductItemView), productItemID, shopID, adminID).Error
 }
 func (c *productDatabase) GetProductItemViewCount(ctx context.Context, productItemID string, adminID string) (viewCount uint, err error) {
 	// Get shop ID using admin ID
