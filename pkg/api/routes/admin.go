@@ -78,6 +78,8 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 	{
 		// Common routes
 		api.GET("/banner", offerHandler.GetBanners)
+		// Dashboard stats
+		api.GET("/dashboard/stats", adminHandler.GetDashboardStats)
 		// user side
 		user := api.Group("/users")
 		{

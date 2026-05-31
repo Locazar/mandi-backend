@@ -1414,3 +1414,12 @@ func (h *adminHandler) GetShopSocialDetails(ctx *gin.Context) {
 	}
 	response.SuccessResponse(ctx, http.StatusOK, "Shop social details fetched", details)
 }
+
+func (a *adminHandler) GetDashboardStats(ctx *gin.Context) {
+	stats, err := a.adminUseCase.GetDashboardStats(ctx)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to fetch dashboard stats", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "dashboard stats fetched", stats)
+}

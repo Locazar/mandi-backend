@@ -54,4 +54,7 @@ type AdminHandler interface {
 	GetShopTime(ctx *gin.Context)
 	// Logout
 	UserLogout(ctx *gin.Context)
+
+	// Dashboard
+	GetDashboardStats(ctx *gin.Context)
 }
