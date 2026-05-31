@@ -35,8 +35,9 @@ func (h *platformUserHandler) handleAppErr(ctx *gin.Context, fallbackMsg string,
 }
 
 func (h *platformUserHandler) ListAdmins(ctx *gin.Context) {
+	callerID := h.callerID(ctx)
 	pagination := request.GetPagination(ctx)
-	admins, err := h.useCase.ListAdmins(ctx, pagination)
+	admins, err := h.useCase.ListAdmins(ctx, callerID, pagination)
 	if err != nil {
 		h.handleAppErr(ctx, "Failed to list platform users", err)
 		return
@@ -45,12 +46,13 @@ func (h *platformUserHandler) ListAdmins(ctx *gin.Context) {
 }
 
 func (h *platformUserHandler) CreateAdmin(ctx *gin.Context) {
+	callerID := h.callerID(ctx)
 	var body domain.Admin
 	if err := ctx.ShouldBindJSON(&body); err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
 		return
 	}
-	otpID, err := h.useCase.CreateAdmin(ctx, body)
+	otpID, err := h.useCase.CreateAdmin(ctx, callerID, body)
 	if err != nil {
 		h.handleAppErr(ctx, "Failed to create platform user", err)
 		return

@@ -2,6 +2,10 @@ package usecase
 
 import (
 	"context"
+	"errors"
+	"strings"
+
+	"gorm.io/gorm"
 
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
@@ -18,12 +22,33 @@ func NewPlatformUserUseCase(repo repoInterfaces.PlatformUserRepository, adminUC 
 	return &platformUserUseCase{repo: repo, adminUC: adminUC}
 }
 
-func (u *platformUserUseCase) ListAdmins(ctx context.Context, pagination request.Pagination) ([]domain.Admin, error) {
+func (u *platformUserUseCase) ListAdmins(ctx context.Context, callerID string, pagination request.Pagination) ([]domain.Admin, error) {
+	caller, err := u.adminUC.GetAdminByID(ctx, callerID)
+	if err != nil {
+		return nil, domain.NotFoundError("caller admin")
+	}
+	if caller.Role != domain.AdminRoleSuperAdmin {
+		return nil, domain.ForbiddenError("only super admins can list platform users")
+	}
 	return u.repo.ListAdmins(ctx, pagination)
 }
 
-func (u *platformUserUseCase) CreateAdmin(ctx context.Context, body domain.Admin) (string, error) {
-	return u.adminUC.SignUp(ctx, body)
+func (u *platformUserUseCase) CreateAdmin(ctx context.Context, callerID string, body domain.Admin) (string, error) {
+	caller, err := u.adminUC.GetAdminByID(ctx, callerID)
+	if err != nil {
+		return "", domain.NotFoundError("caller admin")
+	}
+	if caller.Role != domain.AdminRoleSuperAdmin {
+		return "", domain.ForbiddenError("only super admins can create platform users")
+	}
+	otpID, err := u.adminUC.SignUp(ctx, body)
+	if err != nil {
+		if strings.Contains(err.Error(), "already exists") {
+			return "", domain.ConflictError("phone number already registered", "an admin account with this phone number already exists")
+		}
+		return "", err
+	}
+	return otpID, nil
 }
 
 func (u *platformUserUseCase) UpdateAdminRole(ctx context.Context, callerID, targetID string, role domain.AdminRole) error {
@@ -44,7 +69,13 @@ func (u *platformUserUseCase) UpdateAdminRole(ctx context.Context, callerID, tar
 		return domain.ValidationError("role", "invalid or disallowed role; seller accounts are managed separately")
 	}
 
-	return u.repo.UpdateAdminRole(ctx, targetID, role)
+	if err := u.repo.UpdateAdminRole(ctx, targetID, role); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return domain.NotFoundError("admin")
+		}
+		return err
+	}
+	return nil
 }
 
 func (u *platformUserUseCase) DeactivateAdmin(ctx context.Context, callerID, targetID string) error {
@@ -61,5 +92,11 @@ func (u *platformUserUseCase) DeactivateAdmin(ctx context.Context, callerID, tar
 		return domain.ForbiddenError("only super admins can deactivate accounts")
 	}
 
-	return u.repo.DeactivateAdmin(ctx, targetID)
+	if err := u.repo.DeactivateAdmin(ctx, targetID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return domain.NotFoundError("admin")
+		}
+		return err
+	}
+	return nil
 }
