@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log"
 	"mime/multipart"
 	"path/filepath"
 	"strings"
@@ -36,7 +37,7 @@ func NewObjectStorageService(cfg config.Config) (CloudService, error) {
 	secretKey := firstNonEmpty(cfg.S3SecretKey, cfg.AwsSecretKey)
 	bucket := firstNonEmpty(cfg.S3Bucket, cfg.AwsBucketName)
 
-	if endpoint == "" || bucket == "" || accessKey == "" || secretKey == "" {
+	if bucket == "" || accessKey == "" || secretKey == "" {
 		return noopObjectStorage{}, nil
 	}
 
@@ -49,13 +50,19 @@ func NewObjectStorageService(cfg config.Config) (CloudService, error) {
 	}
 
 	client := s3.NewFromConfig(awsCfg, func(o *s3.Options) {
-		o.BaseEndpoint = aws.String(endpoint)
-		o.UsePathStyle = true
+		if endpoint != "" {
+			o.BaseEndpoint = aws.String(endpoint)
+			o.UsePathStyle = true
+		}
 	})
 
 	publicBase := strings.TrimRight(cfg.S3PublicBaseURL, "/")
 	if publicBase == "" {
-		publicBase = strings.TrimRight(endpoint, "/") + "/" + bucket
+		if endpoint != "" {
+			publicBase = strings.TrimRight(endpoint, "/") + "/" + bucket
+		} else {
+			publicBase = fmt.Sprintf("https://%s.s3.%s.amazonaws.com", bucket, region)
+		}
 	}
 
 	return &objectStorage{
@@ -110,6 +117,7 @@ func (s *objectStorage) SaveFile(ctx context.Context, fh *multipart.FileHeader, 
 	}
 
 	if _, err := s.client.PutObject(ctx, input); err != nil {
+		log.Printf("cloud SaveFile PutObject failed: bucket=%s key=%s contentType=%s visibility=%d filename=%s err=%v", s.bucket, key, contentType, opts.Visibility, fh.Filename, err)
 		return "", utils.PrependMessageToError(err, "failed to upload file")
 	}
 	return key, nil
@@ -133,6 +141,7 @@ func (s *objectStorage) SaveBytes(ctx context.Context, data []byte, opts SaveOpt
 	}
 
 	if _, err := s.client.PutObject(ctx, input); err != nil {
+		log.Printf("cloud SaveBytes PutObject failed: bucket=%s key=%s contentType=%s visibility=%d bytes=%d err=%v", s.bucket, key, contentType, opts.Visibility, len(data), err)
 		return "", utils.PrependMessageToError(err, "failed to upload bytes")
 	}
 	return key, nil

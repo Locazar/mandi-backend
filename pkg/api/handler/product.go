@@ -670,7 +670,8 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 
 	shopID := ctx.PostForm("shop_id")
 	if shopID == "" {
-		shopID = adminID
+		response.ErrorResponse(ctx, http.StatusBadRequest, "shop_id is required", nil, nil)
+		return
 	}
 
 	subCategoryID := ctx.PostForm("sub_category_id")
@@ -725,6 +726,7 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 
 		objectKey, err := uploadProcessedToCloud(ctx, p.cloudService, localPath)
 		if err != nil {
+			log.Printf("SaveProductItem processed image upload failed: localPath=%s originalFilename=%s size=%d category=%s err=%v", localPath, fileHeader.Filename, fileHeader.Size, categoryName, err)
 			response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to upload processed image", err, nil)
 			return
 		}
@@ -2672,6 +2674,7 @@ func (p *ProductHandler) GetProductItemsByOfferID(ctx *gin.Context) {
 func uploadProcessedToCloud(ctx context.Context, cs cloud.CloudService, processedPath string) (string, error) {
 	data, err := os.ReadFile(processedPath)
 	if err != nil {
+		log.Printf("uploadProcessedToCloud read failed: path=%s err=%v", processedPath, err)
 		return "", err
 	}
 	defer func() {
@@ -2679,12 +2682,19 @@ func uploadProcessedToCloud(ctx context.Context, cs cloud.CloudService, processe
 			log.Printf("failed to remove temp file %s: %v", processedPath, rerr)
 		}
 	}()
-	return cs.SaveBytes(ctx, data, cloud.SaveOptions{
+	log.Printf("uploadProcessedToCloud start: path=%s bytes=%d filename=%s", processedPath, len(data), filepath.Base(processedPath))
+	objectKey, err := cs.SaveBytes(ctx, data, cloud.SaveOptions{
 		Namespace:   "products",
 		Visibility:  cloud.VisibilityPublic,
 		ContentType: "image/jpeg",
 		Filename:    filepath.Base(processedPath),
 	})
+	if err != nil {
+		log.Printf("uploadProcessedToCloud save failed: path=%s bytes=%d err=%v", processedPath, len(data), err)
+		return "", err
+	}
+	log.Printf("uploadProcessedToCloud success: path=%s objectKey=%s bytes=%d", processedPath, objectKey, len(data))
+	return objectKey, nil
 }
 
 // handleUpload runs the image-processing pipeline and adult-content moderation.
@@ -2783,4 +2793,3 @@ func handleSecureMagic(fileHeader *multipart.FileHeader) (string, error) {
 	}
 	return savePath, nil
 }
-

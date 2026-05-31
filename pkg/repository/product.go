@@ -320,8 +320,8 @@ func (c *productDatabase) FindAllProducts(ctx context.Context, pagination reques
 
 	// Temporary struct for scanning (without ProductItems slice)
 	type productDB struct {
-		ID          string       `gorm:"column:id"`
-		CategoryID    string       `gorm:"column:category_id"`
+		ID               string     `gorm:"column:id"`
+		CategoryID       string     `gorm:"column:category_id"`
 		Price            uint       `gorm:"column:price"`
 		DiscountPrice    uint       `gorm:"column:discount_price"`
 		Name             string     `gorm:"column:name"`
@@ -329,7 +329,7 @@ func (c *productDatabase) FindAllProducts(ctx context.Context, pagination reques
 		CategoryName     string     `gorm:"column:category_name"`
 		CategoryImageURL string     `gorm:"column:category_image_url"`
 		MainCategoryName string     `gorm:"column:main_category_name"`
-		BrandID       string       `gorm:"column:brand_id"`
+		BrandID          string     `gorm:"column:brand_id"`
 		BrandName        string     `gorm:"column:brand_name"`
 		Image            string     `gorm:"column:image"`
 		CreatedAt        time.Time  `gorm:"column:created_at"`
@@ -392,8 +392,8 @@ func (c *productDatabase) findProductItemsByProductID(ctx context.Context, produ
 
 	type productItemDB struct {
 		Name             string `gorm:"column:sub_category_name"`
-		ID          string   `gorm:"column:id"`
-		CategoryID    string   `gorm:"column:category_id"`
+		ID               string `gorm:"column:id"`
+		CategoryID       string `gorm:"column:category_id"`
 		CategoryName     string `gorm:"column:category_name"`
 		MainCategoryName string `gorm:"column:main_category_name"`
 	}
@@ -425,15 +425,15 @@ func (c *productDatabase) findProductItemsByProductID(ctx context.Context, produ
 func (c *productDatabase) FindProductItemByID(ctx context.Context, productItemID string) (productItem domain.ProductItem, err error) {
 	// Use a temporary struct to scan the array as string
 	type tempProductItem struct {
-		ID          string      `gorm:"column:id"`
+		ID                string    `gorm:"column:id"`
 		SubCategoryName   string    `gorm:"column:sub_category_name"`
-		SubCategoryID string      `gorm:"column:sub_category_id"`
-		CategoryID    string      `gorm:"column:category_id"`
-		DepartmentID  string      `gorm:"column:department_id"`
+		SubCategoryID     string    `gorm:"column:sub_category_id"`
+		CategoryID        string    `gorm:"column:category_id"`
+		DepartmentID      string    `gorm:"column:department_id"`
 		DynamicFields     string    `gorm:"column:dynamic_fields"`
 		AdminID           string    `gorm:"column:admin_id"`
 		ProductItemImages string    `gorm:"column:product_item_images"` // Scan as string
-		ShopID        string      `gorm:"column:shop_id"`
+		ShopID            string    `gorm:"column:shop_id"`
 		CreatedAt         time.Time `gorm:"column:created_at"`
 		UpdatedAt         time.Time `gorm:"column:updated_at"`
 	}
@@ -546,7 +546,14 @@ VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`
 		return "", err
 	}
 
-	err = c.DB.Raw(query, adminID, productItem.SubCategoryName, dynamicFieldsJSON, productItem.ProductItemImages, productItem.CategoryID, productItem.DepartmentID, productItem.SubCategoryID, shopID, createdAt, createdAt).Scan(&productItemID).Error
+	var productItemImagesStr string
+	if len(productItem.ProductItemImages) > 0 {
+		productItemImagesStr = "{" + strings.Join(productItem.ProductItemImages, ",") + "}"
+	} else {
+		productItemImagesStr = "{}"
+	}
+
+	err = c.DB.Raw(query, adminID, productItem.SubCategoryName, dynamicFieldsJSON, productItemImagesStr, productItem.CategoryID, productItem.DepartmentID, productItem.SubCategoryID, shopID, createdAt, createdAt).Scan(&productItemID).Error
 
 	if err == nil && c.ElasticClient != nil {
 		domainItem := domain.ProductItem{
@@ -853,10 +860,10 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context, adminID strin
 	// Internal struct for scanning DB result
 	type productItemDB struct {
 		Name                string        `gorm:"column:sub_category_name"`
-		ID          string          `gorm:"column:id"`
-		CategoryID    string          `gorm:"column:category_id"`
-		DepartmentID  string          `gorm:"column:department_id"`
-		SubCategoryID string          `gorm:"column:sub_category_id"`
+		ID                  string        `gorm:"column:id"`
+		CategoryID          string        `gorm:"column:category_id"`
+		DepartmentID        string        `gorm:"column:department_id"`
+		SubCategoryID       string        `gorm:"column:sub_category_id"`
 		CategoryName        string        `gorm:"column:category_name"`
 		DepartmentName      string        `gorm:"column:department_name"`
 		SubCategoryNameRef  string        `gorm:"column:sub_category_name_ref"`
@@ -1115,10 +1122,10 @@ func (c *productDatabase) FindLowViewProductItems(ctx context.Context,
 	// Internal struct for scanning DB result
 	type productItemDB struct {
 		Name                string        `gorm:"column:sub_category_name"`
-		ID          string          `gorm:"column:id"`
-		CategoryID    string          `gorm:"column:category_id"`
-		DepartmentID  string          `gorm:"column:department_id"`
-		SubCategoryID string          `gorm:"column:sub_category_id"`
+		ID                  string        `gorm:"column:id"`
+		CategoryID          string        `gorm:"column:category_id"`
+		DepartmentID        string        `gorm:"column:department_id"`
+		SubCategoryID       string        `gorm:"column:sub_category_id"`
 		CategoryName        string        `gorm:"column:category_name"`
 		DepartmentName      string        `gorm:"column:department_name"`
 		SubCategoryNameRef  string        `gorm:"column:sub_category_name_ref"`
@@ -1228,10 +1235,34 @@ func (c *productDatabase) SaveProductItemImage(ctx context.Context, productItemI
 
 // To find all images of a product item
 func (c *productDatabase) FindAllProductItemImages(ctx context.Context, productItemID string) (images []string, err error) {
+	query := `SELECT COALESCE(product_item_images, ARRAY[]::text[])::text AS product_item_images FROM product_items WHERE id = $1`
 
-	query := `SELECT product_item_images FROM product_items WHERE id = $1`
+	var rawImages string
+	err = c.DB.Raw(query, productItemID).Scan(&rawImages).Error
+	if err != nil {
+		return nil, err
+	}
 
-	err = c.DB.Raw(query, productItemID).Scan(&images).Error
+	if rawImages == "" || rawImages == "{}" {
+		return []string{}, nil
+	}
+
+	if strings.HasPrefix(rawImages, "{") && strings.HasSuffix(rawImages, "}") {
+		rawImages = rawImages[1 : len(rawImages)-1]
+	}
+
+	if strings.TrimSpace(rawImages) == "" {
+		return []string{}, nil
+	}
+
+	parts := strings.Split(rawImages, ",")
+	images = make([]string, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.Trim(strings.TrimSpace(part), `"`)
+		if trimmed != "" {
+			images = append(images, trimmed)
+		}
+	}
 
 	return
 }
@@ -1470,15 +1501,15 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 	// Scan into internal DB struct to correctly parse JSONB and array columns
 	type productItemDB struct {
 		Name                string    `gorm:"column:sub_category_name"`
-		ID          string      `gorm:"column:id"`
-		CategoryID    string      `gorm:"column:category_id"`
-		DepartmentID  string      `gorm:"column:department_id"`
-		SubCategoryID string      `gorm:"column:sub_category_id"`
+		ID                  string    `gorm:"column:id"`
+		CategoryID          string    `gorm:"column:category_id"`
+		DepartmentID        string    `gorm:"column:department_id"`
+		SubCategoryID       string    `gorm:"column:sub_category_id"`
 		CategoryName        string    `gorm:"column:category_name"`
 		DepartmentName      string    `gorm:"column:department_name"`
 		SubCategoryNameRef  string    `gorm:"column:sub_category_name_ref"`
 		SubCategoryImageURL string    `gorm:"column:sub_category_image_url"`
-		ShopID        string      `gorm:"column:shop_id"`
+		ShopID              string    `gorm:"column:shop_id"`
 		ShopName            string    `gorm:"column:shop_name"`
 		ProductItemImages   string    `gorm:"column:product_item_images"`
 		DynamicFields       []byte    `gorm:"column:dynamic_fields"`
@@ -1612,6 +1643,7 @@ func (c *productDatabase) GetAllSubCategoriesByCategoryID(ctx context.Context, c
 
 	return
 }
+
 // SaveSubTypeAttribute saves a new sub type attribute for a subcategory
 func (c *productDatabase) SaveSubTypeAttribute(ctx context.Context, locationID string, attribute domain.SubTypeAttributes) error {
 	attribute.SubCategoryID = locationID
@@ -1778,26 +1810,26 @@ func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID 
 	               WHERE op.product_item_id = $1 AND p.is_active = true`
 
 	var offerRows []struct {
-		OfferProductID string      `gorm:"column:offer_product_id"`
+		OfferProductID                   string    `gorm:"column:offer_product_id"`
 		ProductName                      string    `gorm:"column:product_name"`
-		OfferID      string      `gorm:"column:offer_id"`
+		OfferID                          string    `gorm:"column:offer_id"`
 		OfferName                        string    `gorm:"column:offer_name"`
 		DiscountRate                     uint      `gorm:"column:discount_rate"`
 		Description                      string    `gorm:"column:description"`
 		StartDate                        string    `gorm:"column:start_date"`
 		EndDate                          string    `gorm:"column:end_date"`
-		PromotionCategoryID string      `gorm:"column:promotion_category_id"`
+		PromotionCategoryID              string    `gorm:"column:promotion_category_id"`
 		PromotionCategoryName            string    `gorm:"column:promotion_category_name"`
-		PromotionCategoryShopID string      `gorm:"column:promotion_category_shop_id"`
+		PromotionCategoryShopID          string    `gorm:"column:promotion_category_shop_id"`
 		PromotionCategoryIsActive        bool      `gorm:"column:promotion_category_is_active"`
 		PromotionCategoryIconPath        string    `gorm:"column:promotion_category_icon_path"`
 		PromotionCategoryCreatedAt       time.Time `gorm:"column:promotion_category_created_at"`
 		PromotionCategoryUpdatedAt       time.Time `gorm:"column:promotion_category_updated_at"`
-		PromotionTypeID         string      `gorm:"column:promotion_type_id"`
+		PromotionTypeID                  string    `gorm:"column:promotion_type_id"`
 		PromotionTypeName                string    `gorm:"column:promotion_type_name"`
 		PromotionTypeIsActive            bool      `gorm:"column:promotion_type_is_active"`
 		PromotionTypeShopID              string    `gorm:"column:promotion_type_shop_id"`
-		PromotionTypePromotionCategoryID string      `gorm:"column:promotion_type_promotion_category_id"`
+		PromotionTypePromotionCategoryID string    `gorm:"column:promotion_type_promotion_category_id"`
 		PromotionTypeType                string    `gorm:"column:promotion_type_type"`
 		PromotionTypeIconPath            string    `gorm:"column:promotion_type_icon_path"`
 		PromotionTypeCreatedAt           time.Time `gorm:"column:promotion_type_created_at"`
@@ -1915,8 +1947,8 @@ func (c *productDatabase) FindProductItemsByDocument(ctx context.Context, docume
 
 	type productItemDB struct {
 		Name              string    `gorm:"column:sub_category_name"`
-		ID          string      `gorm:"column:id"`
-		CategoryID    string      `gorm:"column:category_id"`
+		ID                string    `gorm:"column:id"`
+		CategoryID        string    `gorm:"column:category_id"`
 		CategoryName      string    `gorm:"column:category_name"`
 		MainCategoryName  string    `gorm:"column:main_category_name"`
 		ProductItemImages string    `gorm:"column:product_item_images"`
@@ -2016,10 +2048,10 @@ func (c *productDatabase) GetProductItemsByDepartment(ctx context.Context, brand
 	// Internal struct mirrors FindAllProductItems scanning for reuse
 	type productItemDB struct {
 		Name                string        `gorm:"column:sub_category_name"`
-		ID          string          `gorm:"column:id"`
-		CategoryID    string          `gorm:"column:category_id"`
-		DepartmentID  string          `gorm:"column:department_id"`
-		SubCategoryID string          `gorm:"column:sub_category_id"`
+		ID                  string        `gorm:"column:id"`
+		CategoryID          string        `gorm:"column:category_id"`
+		DepartmentID        string        `gorm:"column:department_id"`
+		SubCategoryID       string        `gorm:"column:sub_category_id"`
 		CategoryName        string        `gorm:"column:category_name"`
 		DepartmentName      string        `gorm:"column:department_name"`
 		SubCategoryNameRef  string        `gorm:"column:sub_category_name_ref"`
@@ -2142,10 +2174,10 @@ func (c *productDatabase) GetProductItemsByCategory(ctx context.Context, categor
 
 	type productItemDB struct {
 		Name                string    `gorm:"column:sub_category_name"`
-		ID          string      `gorm:"column:id"`
-		CategoryID    string      `gorm:"column:category_id"`
-		DepartmentID  string      `gorm:"column:department_id"`
-		SubCategoryID string      `gorm:"column:sub_category_id"`
+		ID                  string    `gorm:"column:id"`
+		CategoryID          string    `gorm:"column:category_id"`
+		DepartmentID        string    `gorm:"column:department_id"`
+		SubCategoryID       string    `gorm:"column:sub_category_id"`
 		CategoryName        string    `gorm:"column:category_name"`
 		DepartmentName      string    `gorm:"column:department_name"`
 		SubCategoryNameRef  string    `gorm:"column:sub_category_name_ref"`
@@ -2260,10 +2292,10 @@ func (c *productDatabase) GetProductItemsBySubCategory(ctx context.Context, loca
 
 	type productItemDB struct {
 		Name                string    `gorm:"column:sub_category_name"`
-		ID          string      `gorm:"column:id"`
-		CategoryID    string      `gorm:"column:category_id"`
-		DepartmentID  string      `gorm:"column:department_id"`
-		SubCategoryID string      `gorm:"column:sub_category_id"`
+		ID                  string    `gorm:"column:id"`
+		CategoryID          string    `gorm:"column:category_id"`
+		DepartmentID        string    `gorm:"column:department_id"`
+		SubCategoryID       string    `gorm:"column:sub_category_id"`
 		CategoryName        string    `gorm:"column:category_name"`
 		DepartmentName      string    `gorm:"column:department_name"`
 		SubCategoryNameRef  string    `gorm:"column:sub_category_name_ref"`
@@ -2390,10 +2422,10 @@ func (c *productDatabase) GetProductItemsByShop(ctx context.Context, adminID str
 
 	type productItemDB struct {
 		Name                string    `gorm:"column:sub_category_name"`
-		ID          string      `gorm:"column:id"`
-		CategoryID    string      `gorm:"column:category_id"`
-		DepartmentID  string      `gorm:"column:department_id"`
-		SubCategoryID string      `gorm:"column:sub_category_id"`
+		ID                  string    `gorm:"column:id"`
+		CategoryID          string    `gorm:"column:category_id"`
+		DepartmentID        string    `gorm:"column:department_id"`
+		SubCategoryID       string    `gorm:"column:sub_category_id"`
 		CategoryName        string    `gorm:"column:category_name"`
 		DepartmentName      string    `gorm:"column:department_name"`
 		SubCategoryNameRef  string    `gorm:"column:sub_category_name_ref"`
@@ -2496,7 +2528,7 @@ func (c *productDatabase) FindProductItemFilters(ctx context.Context, adminID st
 
 	// Get products for the admin
 	var products []struct {
-		CategoryID    string `json:"category_id"`
+		CategoryID string `json:"category_id"`
 	}
 	productQuery := `SELECT category_id FROM product_items WHERE shop_id = $1`
 	err = c.DB.Raw(productQuery, shopID).Scan(&products).Error
@@ -2642,10 +2674,10 @@ func GetProductItemsByOfferID(ctx context.Context, db *gorm.DB, offerID string, 
 
 	type offerProductDB struct {
 		Name                string    `gorm:"column:sub_category_name"`
-		ID          string      `gorm:"column:id"`
-		CategoryID    string      `gorm:"column:category_id"`
-		DepartmentID  string      `gorm:"column:department_id"`
-		SubCategoryID string      `gorm:"column:sub_category_id"`
+		ID                  string    `gorm:"column:id"`
+		CategoryID          string    `gorm:"column:category_id"`
+		DepartmentID        string    `gorm:"column:department_id"`
+		SubCategoryID       string    `gorm:"column:sub_category_id"`
 		CategoryName        string    `gorm:"column:category_name"`
 		DepartmentName      string    `gorm:"column:department_name"`
 		SubCategoryNameRef  string    `gorm:"column:sub_category_name_ref"`
@@ -2658,7 +2690,7 @@ func GetProductItemsByOfferID(ctx context.Context, db *gorm.DB, offerID string, 
 		ViewCount           uint      `gorm:"column:view_count"`
 
 		// Offer details
-		OfferID      string      `gorm:"column:offer_id"`
+		OfferID      string    `gorm:"column:offer_id"`
 		OfferName    string    `gorm:"column:offer_name"`
 		DiscountRate uint      `gorm:"column:discount_rate"`
 		Description  string    `gorm:"column:description"`
@@ -2666,20 +2698,20 @@ func GetProductItemsByOfferID(ctx context.Context, db *gorm.DB, offerID string, 
 		EndDate      time.Time `gorm:"column:end_date"`
 
 		// Promotion category details
-		PromotionCategoryID string      `gorm:"column:promotion_category_id"`
+		PromotionCategoryID        string    `gorm:"column:promotion_category_id"`
 		PromotionCategoryName      string    `gorm:"column:promotion_category_name"`
-		PromotionCategoryShopID string      `gorm:"column:promotion_category_shop_id"`
+		PromotionCategoryShopID    string    `gorm:"column:promotion_category_shop_id"`
 		PromotionCategoryIsActive  bool      `gorm:"column:promotion_category_is_active"`
 		PromotionCategoryIconPath  string    `gorm:"column:promotion_category_icon_path"`
 		PromotionCategoryCreatedAt time.Time `gorm:"column:promotion_category_created_at"`
 		PromotionCategoryUpdatedAt time.Time `gorm:"column:promotion_category_updated_at"`
 
 		// Promotion type details
-		PromotionTypeID         string      `gorm:"column:promotion_type_id"`
+		PromotionTypeID                  string    `gorm:"column:promotion_type_id"`
 		PromotionTypeName                string    `gorm:"column:promotion_type_name"`
 		PromotionTypeIsActive            bool      `gorm:"column:promotion_type_is_active"`
 		PromotionTypeShopID              uint      `gorm:"column:promotion_type_shop_id"`
-		PromotionTypePromotionCategoryID string      `gorm:"column:promotion_type_promotion_category_id"`
+		PromotionTypePromotionCategoryID string    `gorm:"column:promotion_type_promotion_category_id"`
 		PromotionTypeType                string    `gorm:"column:promotion_type_type"`
 		PromotionTypeIconPath            string    `gorm:"column:promotion_type_icon_path"`
 		PromotionTypeCreatedAt           time.Time `gorm:"column:promotion_type_created_at"`
