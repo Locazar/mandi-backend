@@ -23,6 +23,24 @@ func (s AdminStatus) IsValid() bool {
 	return false
 }
 
+// AdminRole is the permission level of an admin account.
+type AdminRole string
+
+const (
+	AdminRoleSuperAdmin       AdminRole = "super_admin"
+	AdminRoleSupportStaff     AdminRole = "support_staff"
+	AdminRoleCatalogManager   AdminRole = "catalog_manager"
+	AdminRoleMarketingManager AdminRole = "marketing_manager"
+)
+
+func (r AdminRole) IsValid() bool {
+	switch r {
+	case AdminRoleSuperAdmin, AdminRoleSupportStaff, AdminRoleCatalogManager, AdminRoleMarketingManager:
+		return true
+	}
+	return false
+}
+
 // VerificationStatusType is the shop verification review state.
 type VerificationStatusType string
 
@@ -114,6 +132,7 @@ type Admin struct {
 
 	VerifiedSeller bool        `json:"verified_seller" gorm:"not null;default:false"`
 	Status         AdminStatus `json:"status" gorm:"size:50"`
+	Role           AdminRole   `json:"role" gorm:"size:50;not null;default:'super_admin'"`
 
 	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
 }
@@ -189,4 +208,16 @@ type CategoryImage struct {
 	IsActive   bool      `json:"is_active" gorm:"not null;default:true"`
 	CreatedAt  time.Time `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt  time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+}
+
+type DashboardStats struct {
+	TotalSellers         int64   `json:"total_sellers"`
+	ActiveSellers        int64   `json:"active_sellers"`
+	TotalShops           int64   `json:"total_shops"`
+	VerifiedShops        int64   `json:"verified_shops"`
+	PendingVerifications int64   `json:"pending_verifications"`
+	TotalOrders          int64   `json:"total_orders"`
+	TotalCustomers       int64   `json:"total_customers"`
+	TotalRevenue         float64 `json:"total_revenue"`
+	TotalProducts        int64   `json:"total_products"`
 }
