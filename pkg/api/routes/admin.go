@@ -2,6 +2,7 @@ package routes
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/rohit221990/mandi-backend/pkg/api/handler"
 	handlerInterface "github.com/rohit221990/mandi-backend/pkg/api/handler/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/api/middleware"
 )
@@ -15,6 +16,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 	notificationHandler handlerInterface.NotificationHandler,
 	alertHandler handlerInterface.AlertHandler, uiHandler handlerInterface.UIHandler,
 	alertTemplateHandler handlerInterface.AlertTemplateHandler,
+	jobHandler *handler.JobHandler, jobCategoryHandler *handler.JobCategoryHandler,
 ) {
 
 	auth := api.Group("/auth")
@@ -372,6 +374,16 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			alertTemplates.DELETE("/:key", alertTemplateHandler.DeleteTemplate)
 			alertTemplates.PATCH("/:key/toggle", alertTemplateHandler.ToggleTemplate)
 			alertTemplates.POST("/seed", alertTemplateHandler.SeedDefaults)
+		}
+
+		// Job admin (read-only)
+		jobs := api.Group("/jobs")
+		{
+			jobs.GET("/", jobHandler.GetAllJobs())
+		}
+		jobCategories := api.Group("/job-categories")
+		{
+			jobCategories.GET("/", jobCategoryHandler.GetAllJobCategories())
 		}
 	}
 }

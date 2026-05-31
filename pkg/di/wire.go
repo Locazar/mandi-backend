@@ -153,6 +153,11 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		wire.Bind(new(interfaces.BannerUserHandler), new(*handler.BannerUserHandler)),
 		handler.NewSellerGuideHandler,
 		wire.Bind(new(interfaces.SellerGuideHandler), new(*handler.SellerGuideHandler)),
+		handler.NewJobHandler,
+		usecase.NewJobService,
+		handler.NewJobCategoryHandler,
+		usecase.NewJobCategoryService,
+		wire.Bind(new(handler.JobCategoryService), new(*usecase.JobCategoryService)),
 
 		http.NewServerHTTP,
 	)

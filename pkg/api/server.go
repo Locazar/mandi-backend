@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/rohit221990/mandi-backend/cmd/api/docs"
+	"github.com/rohit221990/mandi-backend/pkg/api/handler"
 	handlerInterface "github.com/rohit221990/mandi-backend/pkg/api/handler/interfaces"
 	mw "github.com/rohit221990/mandi-backend/pkg/api/middleware"
 	"github.com/rohit221990/mandi-backend/pkg/api/routes"
@@ -51,6 +52,8 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 	subscriptionPaymentHandler handlerInterface.SubscriptionPaymentHandler,
 	subscriptionHandler handlerInterface.SubscriptionHandler,
 	sellerGuideHandler handlerInterface.SellerGuideHandler,
+	jobHandler *handler.JobHandler,
+	jobCategoryHandler *handler.JobCategoryHandler,
 ) *ServerHTTP {
 
 	engine := gin.New()
@@ -111,7 +114,8 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 	routes.UserBannerRoutes(engine.Group("/api"), bannerUserHandler)
 	routes.SellerGuideRoutes(engine.Group("/api"), sellerGuideHandler)
 	routes.AdminRoutes(engine.Group("/api/admin"), authHandler, middleware, adminHandler,
-		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler, promotionHandler, fcmTokenHandler, notificationHandler, alertHandler, uiHandler, alertTemplateHandler)
+		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler, promotionHandler, fcmTokenHandler, notificationHandler, alertHandler, uiHandler, alertTemplateHandler,
+		jobHandler, jobCategoryHandler)
 	routes.UIRoutes(engine.Group("/api/web"), middleware, uiHandler)
 
 	// log registered routes for debug

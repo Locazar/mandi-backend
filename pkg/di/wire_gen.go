@@ -112,7 +112,11 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	subscriptionUseCase := usecase.NewSubscriptionUseCase(subscriptionRepository, userRepository)
 	subscriptionHandler := handler.NewSubscriptionHandler(subscriptionUseCase)
 	sellerGuideHandler := handler.NewSellerGuideHandler()
-	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler)
+	jobService := usecase.NewJobService(gormDB)
+	jobHandler := handler.NewJobHandler(jobService)
+	jobCategoryService := usecase.NewJobCategoryService(gormDB)
+	jobCategoryHandler := handler.NewJobCategoryHandler(jobCategoryService)
+	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler, jobHandler, jobCategoryHandler)
 	return serverHTTP, nil
 }
 
