@@ -1,16 +1,15 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/rohit221990/mandi-backend/pkg/config"
 	"github.com/rohit221990/mandi-backend/pkg/db"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
-	"gorm.io/gorm"
 )
 
 // platformAdmins are the internal ops accounts seeded into the DB.
@@ -58,24 +57,30 @@ func main() {
 		log.Fatalf("failed to load config: %v", err)
 	}
 
+	// ConnectDatabase also runs golang-migrate, so migration 000007 (add role column)
+	// will be applied automatically before we insert.
 	database, err := db.ConnectDatabase(cfg)
 	if err != nil {
 		log.Fatalf("failed to connect to database: %v", err)
+	}
+
+	sqlDB, err := database.DB()
+	if err != nil {
+		log.Fatalf("failed to get sql.DB: %v", err)
 	}
 
 	created := 0
 	skipped := 0
 
 	for _, a := range platformAdmins {
-		var existing domain.Admin
-		err := database.Where("email = ?", a.Email).First(&existing).Error
-		if err == nil {
-			fmt.Printf("  SKIP  %-30s (already exists, role=%s)\n", a.Email, existing.Role)
+		var count int
+		if err := sqlDB.QueryRow(`SELECT COUNT(*) FROM admins WHERE email = $1`, a.Email).Scan(&count); err != nil {
+			log.Fatalf("db error checking %s: %v", a.Email, err)
+		}
+		if count > 0 {
+			fmt.Printf("  SKIP  %-32s (already exists)\n", a.Email)
 			skipped++
 			continue
-		}
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			log.Fatalf("db error checking %s: %v", a.Email, err)
 		}
 
 		hash, err := utils.GenerateHashFromPassword(a.Password)
@@ -83,20 +88,24 @@ func main() {
 			log.Fatalf("failed to hash password for %s: %v", a.Email, err)
 		}
 
-		admin := domain.Admin{
-			FullName: a.FullName,
-			UserName: a.UserName,
-			Email:    a.Email,
-			Password: hash,
-			Status:   domain.AdminStatusActive,
-			Role:     a.Role,
-		}
+		now := time.Now()
+		var insertedID int64
 
-		if err := database.Create(&admin).Error; err != nil {
+		// INSERT into the actual table schema (bigint auto-increment id, no deleted_at).
+		// The role column is added by migration 000007 which runs above via ConnectDatabase.
+		err = sqlDB.QueryRow(`
+			INSERT INTO admins (user_name, full_name, email, password, status, role, verified_seller, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6, FALSE, $7, $8)
+			RETURNING id`,
+			a.UserName, a.FullName, a.Email, hash,
+			string(domain.AdminStatusActive), string(a.Role),
+			now, now,
+		).Scan(&insertedID)
+		if err != nil {
 			log.Fatalf("failed to create %s: %v", a.Email, err)
 		}
 
-		fmt.Printf("  CREATE %-30s id=%s role=%s\n", a.Email, admin.ID, admin.Role)
+		fmt.Printf("  CREATE %-32s id=%-6d role=%s\n", a.Email, insertedID, a.Role)
 		created++
 	}
 
