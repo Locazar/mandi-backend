@@ -65,8 +65,10 @@ check: ## To check the code standard violations and errors
 mockgen: # Generate mock files for the test
 	mockgen -source=pkg/repository/interfaces/auth.go -destination=pkg/mock/mockrepo/auth_mock.go -package=mockrepo
 	mockgen -source=pkg/repository/interfaces/user.go -destination=pkg/mock/mockrepo/user_mock.go -package=mockrepo
+	mockgen -source=pkg/repository/interfaces/platform_user.go -destination=pkg/mock/mockrepo/platform_user_mock.go -package=mockrepo
 	mockgen -source=pkg/service/token/token.go -destination=pkg/mock/mockservice/token_mock.go -package=mockservice
 	mockgen -source=pkg/usecase/interfaces/auth.go -destination=pkg/mock/mockusecase/auth_mock.go -package=mockusecase
+	mockgen -source=pkg/usecase/interfaces/platform_user.go -destination=pkg/mock/mockusecase/platform_user_mock.go -package=mockusecase
 
 docker-up: ## To up the docker compose file
 	docker-compose up 
