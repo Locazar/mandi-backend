@@ -21,14 +21,13 @@ func NewJobService(db *gorm.DB) *JobService {
 func (s *JobService) GetAllJobs(ctx context.Context) ([]domain.Job, error) {
 	var jobs []domain.Job
 	result := s.DB.WithContext(ctx).
-		Where("is_active = ?", true).
 		Order("posted_date DESC").
 		Find(&jobs)
 	return jobs, result.Error
 }
 
 func (s *JobService) SearchJobs(ctx context.Context, keyword string, categoryID, locationID uuid.UUID, limit, offset int) ([]domain.Job, error) {
-	query := s.DB.WithContext(ctx).Where("is_active = ?", true)
+	query := s.DB.WithContext(ctx).Model(&domain.Job{})
 
 	if keyword != "" {
 		query = query.Where("to_tsvector('english', title || ' ' || description) @@ plainto_tsquery('english', ?)", keyword)
