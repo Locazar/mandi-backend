@@ -25,6 +25,9 @@ build-run: build ## run project build file if not exist build it
 run: ## Start application
 	$(GOCMD) run ./cmd/api/main.go
 
+seed: ## Seed platform admin accounts (idempotent — skips existing emails)
+	$(GOCMD) run ./cmd/seed/main.go
+
 run-no-lint: ## Start application without lint checks
 	$(GOCMD) run ./cmd/api/main.go
 
