@@ -46,4 +46,5 @@ type AdminRepository interface {
 	GetShopProfileImageById(ctx context.Context, shopId string) (string, error)
 	DeleteRefreshSessionByUserID(ctx context.Context, adminId string) error
 	GetShopSocialDetails(ctx context.Context, shopID string) ([]domain.ShopSocial, error)
+	GetDashboardStats(ctx context.Context) (domain.DashboardStats, error)
 }

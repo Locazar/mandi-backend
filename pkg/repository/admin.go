@@ -722,3 +722,46 @@ func (c *adminDatabase) GetAdminByID(ctx context.Context, adminID string) (domai
 	c.decryptAdminPII(&admin)
 	return admin, nil
 }
+
+func (a *adminDatabase) GetDashboardStats(ctx context.Context) (domain.DashboardStats, error) {
+	var stats domain.DashboardStats
+
+	if err := a.DB.WithContext(ctx).Model(&domain.Admin{}).Count(&stats.TotalSellers).Error; err != nil {
+		return stats, err
+	}
+	if err := a.DB.WithContext(ctx).Model(&domain.Admin{}).Where("status = ?", domain.AdminStatusActive).Count(&stats.ActiveSellers).Error; err != nil {
+		return stats, err
+	}
+	if err := a.DB.WithContext(ctx).Model(&domain.ShopDetails{}).Count(&stats.TotalShops).Error; err != nil {
+		return stats, err
+	}
+	if err := a.DB.WithContext(ctx).Model(&domain.ShopDetails{}).Where("shop_verification_status = ?", true).Count(&stats.VerifiedShops).Error; err != nil {
+		return stats, err
+	}
+	if err := a.DB.WithContext(ctx).Model(&domain.ShopVerification{}).Where("verification_status = ?", false).Count(&stats.PendingVerifications).Error; err != nil {
+		return stats, err
+	}
+	if err := a.DB.WithContext(ctx).Model(&domain.ShopOrder{}).Count(&stats.TotalOrders).Error; err != nil {
+		return stats, err
+	}
+	if err := a.DB.WithContext(ctx).Model(&domain.User{}).Count(&stats.TotalCustomers).Error; err != nil {
+		return stats, err
+	}
+
+	var revenue *int64
+	if err := a.DB.WithContext(ctx).Model(&domain.ShopOrder{}).
+		Where("status = ?", domain.StatusOrderDelivered).
+		Select("COALESCE(SUM(order_total_amount_minor), 0)").
+		Scan(&revenue).Error; err != nil {
+		return stats, err
+	}
+	if revenue != nil {
+		stats.TotalRevenue = float64(*revenue)
+	}
+
+	if err := a.DB.WithContext(ctx).Model(&domain.ProductItem{}).Count(&stats.TotalProducts).Error; err != nil {
+		return stats, err
+	}
+
+	return stats, nil
+}
