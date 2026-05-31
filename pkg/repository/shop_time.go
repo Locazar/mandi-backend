@@ -25,8 +25,14 @@ func (r *shopTimeRepository) CreateShopTime(ctx context.Context, shopTime domain
 
 func (r *shopTimeRepository) GetShopTimeByShopID(ctx context.Context, shopID string) (domain.ShopTime, error) {
 	var shopTime domain.ShopTime
-	err := r.db.WithContext(ctx).Where("shop_id = ?", shopID).First(&shopTime).Error
-	return shopTime, err
+	result := r.db.WithContext(ctx).Where("shop_id = ?", shopID).Find(&shopTime)
+	if result.Error != nil {
+		return shopTime, result.Error
+	}
+	if result.RowsAffected == 0 {
+		return shopTime, gorm.ErrRecordNotFound
+	}
+	return shopTime, nil
 }
 
 func (r *shopTimeRepository) UpdateShopTime(ctx context.Context, shopTime domain.ShopTime) error {

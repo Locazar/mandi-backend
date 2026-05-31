@@ -1,10 +1,15 @@
 package domain
 
-import "gorm.io/gorm"
+import (
+	"fmt"
+	"time"
 
-// BeforeCreate hooks assign typed-prefix IDs to every persisted model before
-// the first INSERT. If a non-empty ID is already present it is kept as-is so
-// that callers can supply a known ID (e.g. in tests or imports).
+	"gorm.io/gorm"
+)
+
+// BeforeCreate hooks assign IDs to persisted models before the first INSERT.
+// Most entities use typed-prefix IDs, while legacy-compatible tables can use
+// a different format when their database schema requires it.
 
 func (m *User) BeforeCreate(*gorm.DB) error {
 	if m.ID == "" {
@@ -421,7 +426,7 @@ func (m *SubscriptionOrder) BeforeCreate(*gorm.DB) error {
 
 func (m *UserSubscription) BeforeCreate(*gorm.DB) error {
 	if m.ID == "" {
-		m.ID = NewID(PrefixUserSubsc)
+		m.ID = fmt.Sprintf("%d", time.Now().UnixNano())
 	}
 	return nil
 }

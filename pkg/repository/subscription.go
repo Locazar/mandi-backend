@@ -75,8 +75,19 @@ func (r *subscriptionDatabase) FindSubscriptionPlanByName(ctx context.Context, n
 
 func (r *subscriptionDatabase) FindPaidSubscriptionPlans(ctx context.Context) ([]domain.SubscriptionPlan, error) {
 	var plans []domain.SubscriptionPlan
-	err := r.db.Where("price_monthly_amount_minor > 0 AND is_active = true").Find(&plans).Error
-	return plans, err
+	err := r.db.Where("is_active = ?", true).Find(&plans).Error
+	if err != nil {
+		return nil, err
+	}
+
+	paidPlans := make([]domain.SubscriptionPlan, 0, len(plans))
+	for _, plan := range plans {
+		if plan.PriceMonthly.AmountMinor > 0 {
+			paidPlans = append(paidPlans, plan)
+		}
+	}
+
+	return paidPlans, nil
 }
 
 func (r *subscriptionDatabase) ActivateSubscription(ctx context.Context, sub domain.UserSubscription) error {

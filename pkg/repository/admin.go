@@ -691,7 +691,7 @@ func (c *adminDatabase) GetVerificationStatus(ctx context.Context, adminId strin
 
 func (c *adminDatabase) GetShopProfileImageById(ctx context.Context, shopId string) (string, error) {
 	var shopProfileImage string
-	query := `SELECT shop_image_url FROM shop_details WHERE id = $1`
+	query := `SELECT COALESCE(shop_image_url, '') FROM shop_details WHERE id = $1`
 	err := c.DB.Raw(query, shopId).Scan(&shopProfileImage).Error
 	if err != nil {
 		return "", err
