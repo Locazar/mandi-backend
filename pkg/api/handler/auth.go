@@ -244,7 +244,13 @@ func (c *AuthHandler) AdminLogin(ctx *gin.Context) {
 	}
 
 	// setup token common part
-	c.setupTokenAndResponse(ctx, token.Admin, admin.ID)
+	role := string(admin.Role)
+	if role == "" {
+		role = string(domain.AdminRoleSuperAdmin)
+	}
+	c.setupTokenAndResponse(ctx, token.Admin, admin.ID, map[string]interface{}{
+		"role": role,
+	})
 }
 
 // access and refresh token generating for user and admin is same so created
