@@ -16,8 +16,9 @@ import (
 )
 
 func TestSaveRefreshSession(t *testing.T) {
-	refreshInsertQuery := `INSERT INTO refresh_sessions \(token_id, user_id, refresh_token, expire_at\) 
-VALUES \(\$1, \$2, \$3, \$4\)`
+	// Production uses user_refresh_sessions with 5 columns (added user_type).
+	refreshInsertQuery := `INSERT INTO user_refresh_sessions \(token_id, user_id, refresh_token, expire_at, user_type\)
+VALUES \(\$1, \$2, \$3, \$4, \$5\)`
 	tests := []struct {
 		testName      string
 		inputField    request.RefreshSession
@@ -29,7 +30,7 @@ VALUES \(\$1, \$2, \$3, \$4\)`
 			inputField: request.RefreshSession{},
 			buildStub: func(mock sqlmock.Sqlmock, input request.RefreshSession) {
 				mock.ExpectExec(refreshInsertQuery).
-					WithArgs(input.TokenID, input.UserID, input.RefreshToken, input.ExpireAt).
+					WithArgs(input.TokenID, input.UserID, input.RefreshToken, input.ExpireAt, input.UserType).
 					WillReturnError(errors.New("insert into refresh_table violate not null constraints"))
 			},
 			expectedError: errors.New("insert into refresh_table violate not null constraints"),
@@ -39,7 +40,7 @@ VALUES \(\$1, \$2, \$3, \$4\)`
 			inputField: request.RefreshSession{TokenID: "token_id", RefreshToken: "refreshTokenString", ExpireAt: time.Now().Format(time.RFC3339)},
 			buildStub: func(mock sqlmock.Sqlmock, input request.RefreshSession) {
 				mock.ExpectExec(refreshInsertQuery).
-					WithArgs(input.TokenID, input.UserID, input.RefreshToken, input.ExpireAt).
+					WithArgs(input.TokenID, input.UserID, input.RefreshToken, input.ExpireAt, input.UserType).
 					WillReturnResult(driver.ResultNoRows)
 			},
 			expectedError: nil,
@@ -68,7 +69,8 @@ VALUES \(\$1, \$2, \$3, \$4\)`
 }
 
 func TestFindRefreshSessionByTokenID(t *testing.T) {
-	findRefreshSessionQuery := `SELECT \* FROM refresh_sessions WHERE token_id \= \$1`
+	// Production uses user_refresh_sessions (or admin_refresh_sessions) based on userType.
+	findRefreshSessionQuery := `SELECT \* FROM user_refresh_sessions WHERE token_id \= \$1`
 	expireAt := time.Now().Add(time.Hour * 1)
 	tests := []struct {
 		testName               string

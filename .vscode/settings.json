@@ -1,10 +1,17 @@
 {
-  // Go extension settings for gopls language server
+  // Go extension settings for language and linting support
   "go.lintOnSave": "package",
   "go.lintTool": "golangci-lint",
   "go.lintFlags": ["--timeout=5m"],
-  // Enable gopls features (language server protocol)
-  "go.useLanguageServer": true,
+  "go.toolsManagement.autoUpdate": true,
+  "go.testFlags": ["-v"],
+  // gopls settings
+  "gopls": {
+    "gofumpt": true,
+    "local": "github.com/rohit221990/mandi-backend",
+    "semanticTokens": true,
+    "staticcheck": true
+  },
   "[go]": {
     "editor.defaultFormatter": "golang.go",
     "editor.formatOnSave": true,
@@ -12,15 +19,10 @@
       "source.organizeImports": "explicit"
     }
   },
-  // GoLang settings for better definition/reference support
+  // Go settings for better definition/reference support
   "go.lintOnChange": "off",
   "go.coverOnSave": false,
   "editor.formatOnSave": true,
-  // Ensure gopls is properly configured
-  "[go][gopls]": {
-    "gofumpt": true,
-    "local": "github.com/rohit221990/mandi-backend"
-  },
   // File watching exclusions (reduces lag)
   "files.exclude": {
     "**/build": true,

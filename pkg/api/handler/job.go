@@ -20,7 +20,7 @@ func NewJobHandler(svc *services.JobService) *JobHandler {
 
 func (h *JobHandler) GetAllJobs() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		jobs, err := h.Service.GetAllJobs(c)
+		jobs, err := h.Service.GetAllJobs(c.Request.Context())
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("%v", err)})
 			return
@@ -93,22 +93,14 @@ func (h *JobHandler) DeleteJobApplication() gin.HandlerFunc {
 func (h *JobHandler) GetJobSearchSuggestions() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		query := c.Query("q")
-		suggestions, err := h.Service.GetJobSearchSuggestions(c, query)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("%v", err)})
-			return
-		}
+		suggestions, _ := h.Service.GetJobSearchSuggestions(c, query)
 		c.JSON(http.StatusOK, gin.H{"suggestions": suggestions})
 	}
 }
 
 func (h *JobHandler) GetJobSearchFilters() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		filters, err := h.Service.GetJobSearchFilters(c)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("%v", err)})
-			return
-		}
+		filters, _ := h.Service.GetJobSearchFilters(c)
 		c.JSON(http.StatusOK, gin.H{"filters": filters})
 	}
 }

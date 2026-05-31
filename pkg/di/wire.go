@@ -15,6 +15,7 @@ import (
 	aiservice "github.com/rohit221990/mandi-backend/pkg/service/ai"
 	"github.com/rohit221990/mandi-backend/pkg/service/alert_engine"
 	"github.com/rohit221990/mandi-backend/pkg/service/cloud"
+	"github.com/rohit221990/mandi-backend/pkg/service/crypto"
 	elasticsearch "github.com/rohit221990/mandi-backend/pkg/service/elasticsearch"
 	"github.com/rohit221990/mandi-backend/pkg/service/graphics"
 	"github.com/rohit221990/mandi-backend/pkg/service/otp"
@@ -28,6 +29,14 @@ func provideElasticURL(cfg config.Config) string {
 
 func provideAIServiceClient(cfg config.Config) *aiservice.Client {
 	return aiservice.NewClient(cfg.AIServiceURL)
+}
+
+func provideCryptoService(cfg config.Config) (*crypto.Service, error) {
+	keys, err := crypto.ParseKeyring(cfg.PIIEncryptionKeys)
+	if err != nil {
+		return nil, err
+	}
+	return crypto.NewService(keys, cfg.PIIEncryptionActiveKey)
 }
 
 func provideAlertRuleRegistry() *alert_engine.RuleRegistry {
@@ -59,6 +68,9 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		// graphics
 		graphics.NewGraphicsService,
 
+		// PII field encryption
+		provideCryptoService,
+
 		// alert engine
 		provideAlertRuleRegistry,
 
@@ -85,6 +97,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		repository.NewSearchRepository,
 		repository.NewNotificationRepository,
 		repository.NewAlertRepository,
+		repository.NewPlatformUserRepository,
 
 		//usecase — constructors that return interface directly need no Bind;
 		//          constructors that return *concrete need Bind
@@ -109,6 +122,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		usecase.NewAlertUseCase,
 		usecase.NewAlertTemplateUseCase,
 		usecase.NewBannerUseCase,
+		usecase.NewPlatformUserUseCase,
 
 		// handler
 		handler.NewAuthHandler,
@@ -139,6 +153,14 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		handler.NewUIHandler,
 		handler.NewBannerUserHandler,
 		wire.Bind(new(interfaces.BannerUserHandler), new(*handler.BannerUserHandler)),
+		handler.NewSellerGuideHandler,
+		wire.Bind(new(interfaces.SellerGuideHandler), new(*handler.SellerGuideHandler)),
+		handler.NewJobHandler,
+		usecase.NewJobService,
+		handler.NewJobCategoryHandler,
+		usecase.NewJobCategoryService,
+		wire.Bind(new(handler.JobCategoryService), new(*usecase.JobCategoryService)),
+		handler.NewPlatformUserHandler,
 
 		http.NewServerHTTP,
 	)

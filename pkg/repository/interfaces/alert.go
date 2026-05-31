@@ -11,10 +11,10 @@ import (
 type AlertRepository interface {
 	// Alert operations
 	SaveAlert(ctx context.Context, alert *domain.Alert) error
-	GetAlertByID(ctx context.Context, alertID uint) (*domain.Alert, error)
-	GetAlertsBySellerID(ctx context.Context, sellerID uint, limit int, offset int) ([]*domain.Alert, int64, error)
+	GetAlertByID(ctx context.Context, alertID string) (*domain.Alert, error)
+	GetAlertsBySellerID(ctx context.Context, sellerID string, limit int, offset int) ([]*domain.Alert, int64, error)
 	UpdateAlert(ctx context.Context, alert *domain.Alert) error
-	DeleteAlert(ctx context.Context, alertID uint) error
+	DeleteAlert(ctx context.Context, alertID string) error
 
 	// AlertTemplate operations
 	GetActiveAlertTemplates(ctx context.Context) ([]*domain.AlertTemplate, error)
@@ -26,9 +26,10 @@ type AlertRepository interface {
 
 	// SellerAlertLog operations
 	LogAlertAction(ctx context.Context, log *domain.SellerAlertLog) error
-	GetLastAlertActionTime(ctx context.Context, sellerID uint, alertKey string) (*time.Time, error)
-	GetStepCompletions(ctx context.Context, sellerID uint, flowKey string) ([]int, error)
+	GetLastAlertActionTime(ctx context.Context, sellerID string, alertKey string) (*time.Time, error)
+	GetLastAlertActionTimes(ctx context.Context, sellerID string, alertKeys []string) (map[string]*time.Time, error)
+	GetStepCompletions(ctx context.Context, sellerID string, flowKey string) ([]int, error)
 
 	// Aggregated data operations
-	GetAggregatedDataForSeller(ctx context.Context, adminID uint) (*domain.AggregatedData, error)
+	GetAggregatedDataForSeller(ctx context.Context, adminID string) (*domain.AggregatedData, error)
 }

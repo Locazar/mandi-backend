@@ -46,7 +46,7 @@ func NewSubscriptionPaymentUseCase(
 }
 
 // CreateSubscriptionOrder creates a Razorpay order for a subscription plan.
-func (uc *subscriptionPaymentUseCase) CreateSubscriptionOrder(ctx context.Context, userID uint, req request.CreateSubscriptionOrderRequest) (response.SubscriptionOrderResponse, error) {
+func (uc *subscriptionPaymentUseCase) CreateSubscriptionOrder(ctx context.Context, userID string, req request.CreateSubscriptionOrderRequest) (response.SubscriptionOrderResponse, error) {
 	// 1. Look up plan
 	plan, err := uc.subRepo.FindSubscriptionPlanByID(ctx, req.PlanID)
 	if err != nil {
@@ -86,9 +86,10 @@ func (uc *subscriptionPaymentUseCase) CreateSubscriptionOrder(ctx context.Contex
 	}
 
 	// 5. Create Razorpay order
-	amountPaise := plan.PriceMonthly * 100
+	// PriceMonthly is stored in minor units (paise), which is exactly what Razorpay expects.
+	amountPaise := plan.PriceMonthly.AmountMinor
 	client := razorpay.NewClient(uc.config.RazorPayKey, uc.config.RazorPaySecret)
-	receipt := fmt.Sprintf("sub_%d_%d_%d", userID, plan.ID, time.Now().Unix())
+	receipt := fmt.Sprintf("sub_%s_%s_%d", userID, plan.ID, time.Now().Unix())
 
 	rzpData := map[string]interface{}{
 		"amount":   amountPaise,
@@ -107,8 +108,7 @@ func (uc *subscriptionPaymentUseCase) CreateSubscriptionOrder(ctx context.Contex
 	subOrder := domain.SubscriptionOrder{
 		UserID:          userID,
 		PlanID:          plan.ID,
-		Amount:          plan.PriceMonthly,
-		AmountPaise:     amountPaise,
+		Price:           plan.PriceMonthly,
 		RazorpayOrderID: rzpOrderID,
 		Status:          domain.SubStatusCreated,
 	}
@@ -122,7 +122,7 @@ func (uc *subscriptionPaymentUseCase) CreateSubscriptionOrder(ctx context.Contex
 	return response.SubscriptionOrderResponse{
 		OrderID:     rzpOrderID,
 		KeyID:       uc.config.RazorPayKey,
-		Amount:      amountPaise,
+		Amount:      uint(amountPaise),
 		Currency:    "INR",
 		ShopOrderID: subOrder.ID,
 		Prefill: response.SubscriptionPrefill{
@@ -133,7 +133,7 @@ func (uc *subscriptionPaymentUseCase) CreateSubscriptionOrder(ctx context.Contex
 }
 
 // VerifySubscriptionPayment performs the 4-step verification.
-func (uc *subscriptionPaymentUseCase) VerifySubscriptionPayment(ctx context.Context, userID uint, req request.VerifySubscriptionPaymentRequest) (response.SubscriptionVerificationResponse, error) {
+func (uc *subscriptionPaymentUseCase) VerifySubscriptionPayment(ctx context.Context, userID string, req request.VerifySubscriptionPaymentRequest) (response.SubscriptionVerificationResponse, error) {
 	// Step A: Signature verification
 	if err := uc.verifySignature(req.OrderID, req.PaymentID, req.Signature, uc.config.RazorPaySecret); err != nil {
 		return response.SubscriptionVerificationResponse{}, err
@@ -168,7 +168,7 @@ func (uc *subscriptionPaymentUseCase) VerifySubscriptionPayment(ctx context.Cont
 	}
 
 	// Step C: Payment cross-check via Razorpay API
-	if err := uc.crossCheckPayment(req.PaymentID, req.OrderID, order.AmountPaise); err != nil {
+	if err := uc.crossCheckPayment(req.PaymentID, req.OrderID, uint(order.Price.AmountMinor)); err != nil {
 		return response.SubscriptionVerificationResponse{}, err
 	}
 
@@ -219,8 +219,8 @@ func (uc *subscriptionPaymentUseCase) VerifySubscriptionPayment(ctx context.Cont
 }
 
 // HandlePaymentFailure logs a payment failure without changing order state.
-func (uc *subscriptionPaymentUseCase) HandlePaymentFailure(ctx context.Context, userID uint, req request.PaymentFailureRequest) error {
-	log.Printf("[SUBSCRIPTION_PAYMENT_FAILURE] user_id=%d order_id=%s code=%d message=%s time=%s",
+func (uc *subscriptionPaymentUseCase) HandlePaymentFailure(ctx context.Context, userID string, req request.PaymentFailureRequest) error {
+	log.Printf("[SUBSCRIPTION_PAYMENT_FAILURE] user_id=%s order_id=%s code=%d message=%s time=%s",
 		userID, req.OrderID, req.Code, req.Message, time.Now().Format(time.RFC3339))
 	return nil
 }
@@ -284,9 +284,9 @@ func (uc *subscriptionPaymentUseCase) HandleWebhook(ctx context.Context, signatu
 
 	// 6. Cross-check amount
 	webhookAmountPaise := uint(event.Payload.Payment.Entity.Amount)
-	if webhookAmountPaise != order.AmountPaise {
+	if webhookAmountPaise != uint(order.Price.AmountMinor) {
 		log.Printf("[WEBHOOK_AMOUNT_MISMATCH] order_id=%s expected=%d got=%d",
-			rzpOrderID, order.AmountPaise, webhookAmountPaise)
+			rzpOrderID, order.Price.AmountMinor, webhookAmountPaise)
 		return ErrPaymentAmountMismatch
 	}
 

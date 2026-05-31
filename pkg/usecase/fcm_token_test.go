@@ -16,7 +16,7 @@ import (
 // mockFcmTokenRepo implements interfaces.FcmTokenRepository.
 type mockFcmTokenRepo struct {
 	saveFn          func(domain.FcmToken) (domain.FcmToken, error)
-	upsertFn        func(token, ownerID, ownerType, platform string) error
+	upsertFn        func(token, ownerID, ownerType, platform, shopID, adminID string) error
 	upsertCalled    bool
 	upsertToken     string
 	upsertOwnerID   string
@@ -27,13 +27,13 @@ func (m *mockFcmTokenRepo) SaveFcmToken(f domain.FcmToken) (domain.FcmToken, err
 	return m.saveFn(f)
 }
 
-func (m *mockFcmTokenRepo) UpsertDeviceToken(token, ownerID, ownerType, platform string) error {
+func (m *mockFcmTokenRepo) UpsertDeviceToken(token, ownerID, ownerType, platform, shopID, adminID string) error {
 	m.upsertCalled = true
 	m.upsertToken = token
 	m.upsertOwnerID = ownerID
 	m.upsertOwnerType = ownerType
 	if m.upsertFn != nil {
-		return m.upsertFn(token, ownerID, ownerType, platform)
+		return m.upsertFn(token, ownerID, ownerType, platform, shopID, adminID)
 	}
 	return nil
 }
@@ -98,7 +98,7 @@ func TestSaveFcmToken_ShopID_SyncsToSellers(t *testing.T) {
 
 	const (
 		testToken    = "fcm-token-abc123"
-		testShopID   = uint(42)
+		testShopID   = "shp_test42"
 		testPlatform = "android"
 	)
 
@@ -132,8 +132,8 @@ func TestSaveFcmToken_ShopID_SyncsToSellers(t *testing.T) {
 	if push.savedFirestoreCollection != "sellers" {
 		t.Errorf("Firestore collection = %q, want %q", push.savedFirestoreCollection, "sellers")
 	}
-	if push.savedFirestoreOwnerID != "42" {
-		t.Errorf("Firestore ownerID = %q, want \"42\"", push.savedFirestoreOwnerID)
+	if push.savedFirestoreOwnerID != testShopID {
+		t.Errorf("Firestore ownerID = %q, want %q", push.savedFirestoreOwnerID, testShopID)
 	}
 	if push.savedFirestoreToken != testToken {
 		t.Errorf("Firestore token = %q, want %q", push.savedFirestoreToken, testToken)
@@ -143,8 +143,8 @@ func TestSaveFcmToken_ShopID_SyncsToSellers(t *testing.T) {
 	if !repo.upsertCalled {
 		t.Fatal("UpsertDeviceToken was NOT called — SendPushNotification will find 0 tokens in Postgres")
 	}
-	if repo.upsertOwnerID != "42" {
-		t.Errorf("upsert ownerID = %q, want \"42\"", repo.upsertOwnerID)
+	if repo.upsertOwnerID != testShopID {
+		t.Errorf("upsert ownerID = %q, want %q", repo.upsertOwnerID, testShopID)
 	}
 	if repo.upsertOwnerType != "seller" {
 		t.Errorf("upsert ownerType = %q, want \"seller\"", repo.upsertOwnerType)
@@ -159,7 +159,7 @@ func TestSaveFcmToken_ShopID_SyncsToSellers(t *testing.T) {
 func TestSaveFcmToken_AdminID_FallsBackToSellers(t *testing.T) {
 	const (
 		testToken   = "fcm-token-admin-xyz"
-		testAdminID = uint(7)
+		testAdminID = "adm_test7"
 	)
 
 	repo := &mockFcmTokenRepo{
@@ -216,7 +216,7 @@ func TestSaveFcmToken_RepoError_Propagates(t *testing.T) {
 	push := &mockPushSender{}
 	uc := newTestFcmTokenUseCase(repo, push)
 
-	_, err := uc.SaveFcmToken(domain.FcmToken{Token: "t", ShopID: 1})
+	_, err := uc.SaveFcmToken(domain.FcmToken{Token: "t", ShopID: "shp_test1"})
 	if !errors.Is(err, dbErr) {
 		t.Errorf("expected db error, got %v", err)
 	}
@@ -234,7 +234,7 @@ func TestSaveFcmToken_FirestoreError_DoesNotBlock(t *testing.T) {
 	push := &mockPushSender{saveToFirestoreErr: errors.New("firebase: quota exceeded")}
 	uc := newTestFcmTokenUseCase(repo, push)
 
-	_, err := uc.SaveFcmToken(domain.FcmToken{Token: "t", ShopID: 99})
+	_, err := uc.SaveFcmToken(domain.FcmToken{Token: "t", ShopID: "shp_test99"})
 	if err != nil {
 		t.Errorf("Firestore error must not bubble up; got: %v", err)
 	}
@@ -253,14 +253,14 @@ func TestSaveFcmToken_ShopID_TakesPrecedence(t *testing.T) {
 	push := &mockPushSender{}
 	uc := newTestFcmTokenUseCase(repo, push)
 
-	_, err := uc.SaveFcmToken(domain.FcmToken{Token: "t", ShopID: 10, AdminID: 99})
+	_, err := uc.SaveFcmToken(domain.FcmToken{Token: "t", ShopID: "shp_test10", AdminID: "adm_test99"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if push.savedFirestoreOwnerID != "10" {
-		t.Errorf("expected Firestore ownerID \"10\" (ShopID), got %q", push.savedFirestoreOwnerID)
+	if push.savedFirestoreOwnerID != "shp_test10" {
+		t.Errorf("expected Firestore ownerID \"shp_test10\" (ShopID), got %q", push.savedFirestoreOwnerID)
 	}
-	if repo.upsertOwnerID != "10" {
-		t.Errorf("expected upsert ownerID \"10\" (ShopID), got %q", repo.upsertOwnerID)
+	if repo.upsertOwnerID != "shp_test10" {
+		t.Errorf("expected upsert ownerID \"shp_test10\" (ShopID), got %q", repo.upsertOwnerID)
 	}
 }

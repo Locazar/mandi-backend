@@ -287,11 +287,7 @@ func (p *ProductHandler) SaveSubCategory(ctx *gin.Context) {
 //	@Failure		500	{object}	response.Response{}	"Failed to add variation"
 func (p *ProductHandler) SaveVariation(ctx *gin.Context) {
 
-	categoryID, err := request.GetParamAsUint(ctx, "category_id")
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
-		return
-	}
+	categoryID := ctx.Param("category_id")
 
 	var body request.Variation
 
@@ -300,7 +296,7 @@ func (p *ProductHandler) SaveVariation(ctx *gin.Context) {
 		return
 	}
 
-	err = p.productUseCase.SaveVariation(ctx, categoryID, body.Names)
+	err := p.productUseCase.SaveVariation(ctx, categoryID, body.Names)
 
 	if err != nil {
 		errResponse(ctx, "Failed to add variation", err)
@@ -328,11 +324,7 @@ func (p *ProductHandler) SaveVariation(ctx *gin.Context) {
 //	@Failure		500	{object}	response.Response{}	"Failed to add variation options"
 func (p *ProductHandler) SaveVariationOption(ctx *gin.Context) {
 
-	variationID, err := request.GetParamAsUint(ctx, "variation_id")
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
-		return
-	}
+	variationID := ctx.Param("variation_id")
 
 	var body request.VariationOption
 
@@ -341,7 +333,7 @@ func (p *ProductHandler) SaveVariationOption(ctx *gin.Context) {
 		return
 	}
 
-	err = p.productUseCase.SaveVariationOption(ctx, variationID, body.Values)
+	err := p.productUseCase.SaveVariationOption(ctx, variationID, body.Values)
 	if err != nil {
 		errResponse(ctx, "Failed to add variation options", err)
 		return
@@ -365,11 +357,7 @@ func (p *ProductHandler) SaveVariationOption(ctx *gin.Context) {
 //	@Failure		500	{object}	response.Response{}	"Failed to Get variations and its values"
 func (c *ProductHandler) GetAllVariations(ctx *gin.Context) {
 
-	categoryID, err := request.GetParamAsUint(ctx, "category_id")
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
-		return
-	}
+	categoryID := ctx.Param("category_id")
 
 	variations, err := c.productUseCase.FindAllVariationsAndItsValues(ctx, categoryID)
 	if err != nil {
@@ -423,9 +411,9 @@ func (p *ProductHandler) SaveProduct(ctx *gin.Context) {
 
 	// Handle multipart/form-data request
 	name, err1 := request.GetFormValuesAsString(ctx, "category")
-	departmentID, errDeptID := request.GetFormValuesAsUint(ctx, "department_id")
+	departmentID, errDeptID := request.GetFormValuesAsString(ctx, "department_id")
 	description, err2 := request.GetFormValuesAsString(ctx, "description")
-	categoryID, err3 := request.GetFormValuesAsUint(ctx, "category_id")
+	categoryID, err3 := request.GetFormValuesAsString(ctx, "category_id")
 	fileHeader, err6 := ctx.FormFile("image")
 
 	// Only check required fields
@@ -455,7 +443,7 @@ func (p *ProductHandler) SaveProduct(ctx *gin.Context) {
 		return
 	}
 
-	response.SuccessResponse(ctx, http.StatusCreated, "Successfully added product", map[string]uint{"product_id": productID})
+	response.SuccessResponse(ctx, http.StatusCreated, "Successfully added product", map[string]string{"product_id": productID})
 }
 
 // SaveProductJSON handles JSON requests without image uploa
@@ -489,8 +477,8 @@ func (p *ProductHandler) SaveProductJSON(ctx *gin.Context, adminID string) {
 	var body struct {
 		Name           string      `json:"category" binding:"min=3,max=50"`
 		Description    string      `json:"description"`
-		CategoryID     uint        `json:"category_id"`
-		DepartmentID   uint        `json:"department_id"`
+		CategoryID     string      `json:"category_id"`
+		DepartmentID   string      `json:"department_id"`
 		Condition      string      `json:"condition" binding:"omitempty"`
 		Specifications interface{} `json:"specifications" binding:"omitempty"` // Can be string or object
 		Highlights     interface{} `json:"highlights" binding:"omitempty"`     // Can be string or array
@@ -531,7 +519,7 @@ func (p *ProductHandler) SaveProductJSON(ctx *gin.Context, adminID string) {
 		return
 	}
 
-	response.SuccessResponse(ctx, http.StatusCreated, "Successfully added product", map[string]uint{"product_id": productID})
+	response.SuccessResponse(ctx, http.StatusCreated, "Successfully added product", map[string]string{"product_id": productID})
 }
 
 // GetAllProductsAdmin godoc
@@ -608,11 +596,7 @@ func (p *ProductHandler) getAllProducts() func(ctx *gin.Context) {
 //	@Failure		404	{object}	response.Response{}	"Product not found"
 //	@Failure		500	{object}	response.Response{}	"Failed to get product"
 func (p *ProductHandler) GetProductByID(ctx *gin.Context) {
-	productID, err := request.GetParamAsUint(ctx, "product_id")
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid product ID", err, nil)
-		return
-	}
+	productID := ctx.Param("product_id")
 
 	product, err := p.productUseCase.FindProductByID(ctx, productID)
 	if err != nil {
@@ -684,56 +668,15 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 
 	adminID := p.tokenService.DecodeTokenData(tokenString)
 
-	shopIDStr := ctx.PostForm("shop_id")
-	var shopID uint
-	if shopIDStr != "" {
-		if n, err := strconv.Atoi(shopIDStr); err == nil {
-			shopID = uint(n)
-		} else {
-			response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid shop_id", err, nil)
-			return
-		}
-	} else {
-		if n, err := strconv.Atoi(adminID); err == nil {
-			shopID = uint(n)
-		} else {
-			response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid admin_id", err, nil)
-			return
-		}
+	shopID := ctx.PostForm("shop_id")
+	if shopID == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "shop_id is required", nil, nil)
+		return
 	}
 
-	subCategoryIDStr := ctx.PostForm("sub_category_id")
-	var subCategoryID uint
-	if subCategoryIDStr != "" {
-		if n, err := strconv.Atoi(subCategoryIDStr); err == nil {
-			subCategoryID = uint(n)
-		} else {
-			response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid sub_category_id", err, nil)
-			return
-		}
-	}
-
-	categoryIDStr := ctx.PostForm("category_id")
-	var categoryID uint
-	if categoryIDStr != "" {
-		if n, err := strconv.Atoi(categoryIDStr); err == nil {
-			categoryID = uint(n)
-		} else {
-			response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid category_id", err, nil)
-			return
-		}
-	}
-
-	departmentIDStr := ctx.PostForm("department_id")
-	var departmentID uint
-	if departmentIDStr != "" {
-		if n, err := strconv.Atoi(departmentIDStr); err == nil {
-			departmentID = uint(n)
-		} else {
-			response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid department_id", err, nil)
-			return
-		}
-	}
+	subCategoryID := ctx.PostForm("sub_category_id")
+	categoryID := ctx.PostForm("category_id")
+	departmentID := ctx.PostForm("department_id")
 
 	subCategoryName := ctx.PostForm("sub_category_name")
 	categoryName := ctx.PostForm("category_name")
@@ -783,6 +726,7 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 
 		objectKey, err := uploadProcessedToCloud(ctx, p.cloudService, localPath)
 		if err != nil {
+			log.Printf("SaveProductItem processed image upload failed: localPath=%s originalFilename=%s size=%d category=%s err=%v", localPath, fileHeader.Filename, fileHeader.Size, categoryName, err)
 			response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to upload processed image", err, nil)
 			return
 		}
@@ -2045,7 +1989,7 @@ func (a *ProductHandler) GetAllDepartments(ctx *gin.Context) {
 
 	tokenString := ctx.GetHeader("Authorization")
 	adminId := a.tokenService.DecodeTokenData(tokenString)
-	fmt.Printf("Admin ID from token: %d\n", adminId)
+	fmt.Printf("Admin ID from token: %s\n", adminId)
 	departments, err := a.productUseCase.GetAllDepartments(ctx)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get departments", err, nil)
@@ -2073,11 +2017,7 @@ func (a *ProductHandler) GetAllDepartments(ctx *gin.Context) {
 //	@Failure		500	{object}	response.Response{}	"Failed to get department"
 //	@Router			/departments/{id} [get]
 func (a *ProductHandler) GetDepartmentByID(ctx *gin.Context) {
-	departmentID, err := request.GetParamAsUint(ctx, "department_id")
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
-		return
-	}
+	departmentID := ctx.Param("department_id")
 
 	department, err := a.productUseCase.GetDepartmentByID(ctx, departmentID)
 	if err != nil {
@@ -2102,11 +2042,7 @@ func (a *ProductHandler) GetDepartmentByID(ctx *gin.Context) {
 //	@Failure		500				{object}	response.Response{}	"Failed to get categories"
 //	@Router			/departments/{department_id}/categories [get]
 func (a *ProductHandler) GetAllCategoriesByDepartmentID(ctx *gin.Context) {
-	departmentID, err := request.GetParamAsUint(ctx, "department_id")
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
-		return
-	}
+	departmentID := ctx.Param("department_id")
 
 	categories, err := a.productUseCase.GetAllCategoriesByDepartmentID(ctx, departmentID)
 	if err != nil {
@@ -2135,11 +2071,7 @@ func (a *ProductHandler) GetAllCategoriesByDepartmentID(ctx *gin.Context) {
 //	@Failure		500			{object}	response.Response{}	"Failed to get sub-categories"
 //	@Router			/categories/{category_id}/sub-categories [get]
 func (a *ProductHandler) GetAllSubCategoriesByCategoryID(ctx *gin.Context) {
-	categoryID, err := request.GetParamAsUint(ctx, "category_id")
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
-		return
-	}
+	categoryID := ctx.Param("category_id")
 
 	subCategories, err := a.productUseCase.GetAllSubCategoriesByCategoryID(ctx, categoryID)
 	if err != nil {
@@ -2169,11 +2101,7 @@ func (a *ProductHandler) GetAllSubCategoriesByCategoryID(ctx *gin.Context) {
 //	@Failure		500				{object}	response.Response{}	"Failed to save sub type attribute"
 //	@Router			/admin/sub-categories/{sub_category_id}/attributes [post]
 func (p *ProductHandler) SaveSubTypeAttribute(ctx *gin.Context) {
-	subCategoryID, err := request.GetParamAsUint(ctx, "sub_category_id")
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
-		return
-	}
+	subCategoryID := ctx.Param("sub_category_id")
 
 	var body request.SubTypeAttribute
 	if err := ctx.ShouldBindJSON(&body); err != nil {
@@ -2202,11 +2130,7 @@ func (p *ProductHandler) SaveSubTypeAttribute(ctx *gin.Context) {
 //	@Failure		500				{object}	response.Response{}	"Failed to get sub type attributes"
 //	@Router			/sub-categories/{sub_category_id}/attributes [get]
 func (p *ProductHandler) GetAllSubTypeAttributes(ctx *gin.Context) {
-	subCategoryID, err := request.GetParamAsUint(ctx, "sub_category_id")
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
-		return
-	}
+	subCategoryID := ctx.Param("sub_category_id")
 
 	attributes, err := p.productUseCase.GetAllSubTypeAttributes(ctx, subCategoryID)
 	if err != nil {
@@ -2234,11 +2158,7 @@ func (p *ProductHandler) GetAllSubTypeAttributes(ctx *gin.Context) {
 //	@Failure		500				{object}	response.Response{}	"Failed to get sub type attribute"
 //	@Router			/attributes/{attribute_id} [get]
 func (p *ProductHandler) GetSubTypeAttributeByID(ctx *gin.Context) {
-	attributeID, err := request.GetParamAsUint(ctx, "attribute_id")
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
-		return
-	}
+	attributeID := ctx.Param("attribute_id")
 
 	attribute, err := p.productUseCase.GetSubTypeAttributeByID(ctx, attributeID)
 	if err != nil {
@@ -2267,11 +2187,7 @@ func (p *ProductHandler) GetSubTypeAttributeByID(ctx *gin.Context) {
 //	@Failure		500				{object}	response.Response{}	"Failed to save sub type attribute option"
 //	@Router			/admin/attributes/{attribute_id}/options [post]
 func (p *ProductHandler) SaveSubTypeAttributeOption(ctx *gin.Context) {
-	attributeID, err := request.GetParamAsUint(ctx, "attribute_id")
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
-		return
-	}
+	attributeID := ctx.Param("attribute_id")
 
 	var body request.SubTypeAttributeOption
 	if err := ctx.ShouldBindJSON(&body); err != nil {
@@ -2300,11 +2216,7 @@ func (p *ProductHandler) SaveSubTypeAttributeOption(ctx *gin.Context) {
 //	@Failure		500				{object}	response.Response{}	"Failed to get sub type attribute options"
 //	@Router			/attributes/{attribute_id}/options [get]
 func (p *ProductHandler) GetAllSubTypeAttributeOptions(ctx *gin.Context) {
-	attributeID, err := request.GetParamAsUint(ctx, "attribute_id")
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
-		return
-	}
+	attributeID := ctx.Param("attribute_id")
 
 	options, err := p.productUseCase.GetAllSubTypeAttributeOptions(ctx, attributeID)
 	if err != nil {
@@ -2332,11 +2244,7 @@ func (p *ProductHandler) GetAllSubTypeAttributeOptions(ctx *gin.Context) {
 //	@Failure		500			{object}	response.Response{}	"Failed to get sub type attribute option"
 //	@Router			/options/{option_id} [get]
 func (p *ProductHandler) GetSubTypeAttributeOptionByID(ctx *gin.Context) {
-	optionID, err := request.GetParamAsUint(ctx, "option_id")
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
-		return
-	}
+	optionID := ctx.Param("option_id")
 
 	option, err := p.productUseCase.GetSubTypeAttributeOptionByID(ctx, optionID)
 	if err != nil {
@@ -2365,11 +2273,7 @@ func (p *ProductHandler) GetSubTypeAttributeOptionByID(ctx *gin.Context) {
 //	@Failure		500			{object}	response.Response{}	"Failed to save category image"
 //	@Router			/admin/categories/{category_id}/images [post]
 func (p *ProductHandler) SaveCategoryImage(ctx *gin.Context) {
-	categoryID, err := request.GetParamAsUint(ctx, "category_id")
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
-		return
-	}
+	categoryID := ctx.Param("category_id")
 
 	var image request.CategoryImage
 	if err := ctx.ShouldBindJSON(&image); err != nil {
@@ -2377,7 +2281,7 @@ func (p *ProductHandler) SaveCategoryImage(ctx *gin.Context) {
 		return
 	}
 
-	err = p.productUseCase.SaveCategoryImage(ctx, categoryID, image)
+	err := p.productUseCase.SaveCategoryImage(ctx, categoryID, image)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to save category image", err, nil)
 		return
@@ -2399,11 +2303,7 @@ func (p *ProductHandler) SaveCategoryImage(ctx *gin.Context) {
 //	@Failure		500			{object}	response.Response{}	"Failed to get category images"
 //	@Router			/admin/categories/{category_id}/images [get]
 func (p *ProductHandler) GetAllCategoryImages(ctx *gin.Context) {
-	categoryID, err := request.GetParamAsUint(ctx, "category_id")
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
-		return
-	}
+	categoryID := ctx.Param("category_id")
 
 	images, err := p.productUseCase.GetAllCategoryImages(ctx, categoryID)
 	if err != nil {
@@ -2431,11 +2331,7 @@ func (p *ProductHandler) GetAllCategoryImages(ctx *gin.Context) {
 //	@Failure		500			{object}	response.Response{}	"Failed to get category image"
 //	@Router			/products/category/image/{image_id} [get]
 func (p *ProductHandler) GetCategoryImageByID(ctx *gin.Context) {
-	imageID, err := request.GetParamAsUint(ctx, "image_id")
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
-		return
-	}
+	imageID := ctx.Param("image_id")
 
 	image, err := p.productUseCase.GetCategoryImageByID(ctx, imageID)
 	if err != nil {
@@ -2464,11 +2360,7 @@ func (p *ProductHandler) GetCategoryImageByID(ctx *gin.Context) {
 //	@Failure		500			{object}	response.Response{}	"Failed to update category image"
 //	@Router			/products/category/image/{image_id} [put]
 func (p *ProductHandler) UpdateCategoryImage(ctx *gin.Context) {
-	imageID, err := request.GetParamAsUint(ctx, "image_id")
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
-		return
-	}
+	imageID := ctx.Param("image_id")
 
 	var image request.CategoryImage
 	if err := ctx.ShouldBindJSON(&image); err != nil {
@@ -2476,7 +2368,7 @@ func (p *ProductHandler) UpdateCategoryImage(ctx *gin.Context) {
 		return
 	}
 
-	err = p.productUseCase.UpdateCategoryImage(ctx, imageID, image)
+	err := p.productUseCase.UpdateCategoryImage(ctx, imageID, image)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to update category image", err, nil)
 		return
@@ -2498,13 +2390,9 @@ func (p *ProductHandler) UpdateCategoryImage(ctx *gin.Context) {
 //	@Router			/products/category/image/{image_id} [delete]
 
 func (p *ProductHandler) DeleteCategoryImage(ctx *gin.Context) {
-	imageID, err := request.GetParamAsUint(ctx, "image_id")
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
-		return
-	}
+	imageID := ctx.Param("image_id")
 
-	err = p.productUseCase.DeleteCategoryImage(ctx, imageID)
+	err := p.productUseCase.DeleteCategoryImage(ctx, imageID)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to delete category image", err, nil)
 		return
@@ -2526,15 +2414,7 @@ func (p *ProductHandler) DeleteCategoryImage(ctx *gin.Context) {
 //	@Failure		500				{object}	response.Response{}	"Internal server error"
 //	@Router			/products/item/{product_item_id} [get]
 func (p *ProductHandler) GetProductItemByID(ctx *gin.Context) {
-	productItemIDStr, err := request.GetParamAsUint(ctx, "product_item_id")
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
-		return
-	}
-
-	//convert productItemID to uint
-	productItemID := uint(productItemIDStr)
-	// Fetch product item
+	productItemID := ctx.Param("product_item_id")
 
 	productItem, err := p.productUseCase.GetProductItemByID(ctx, productItemID)
 	fmt.Printf("Fetched product item: %+v\n", productItem)
@@ -2555,16 +2435,12 @@ func (p *ProductHandler) GetProductItemByID(ctx *gin.Context) {
 }
 
 func (p *ProductHandler) IncrementProductItemViewCount(ctx *gin.Context) {
-	productItemID, err := request.GetParamAsUint(ctx, "product_item_id")
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
-		return
-	}
+	productItemID := ctx.Param("product_item_id")
 
 	tokenString := ctx.GetHeader("Authorization")
 	adminId := p.tokenService.DecodeTokenData(tokenString)
 
-	err = p.productUseCase.IncrementProductItemViewCount(ctx, productItemID, adminId)
+	err := p.productUseCase.IncrementProductItemViewCount(ctx, productItemID, adminId)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to increment view count", err, nil)
 		return
@@ -2573,11 +2449,7 @@ func (p *ProductHandler) IncrementProductItemViewCount(ctx *gin.Context) {
 }
 
 func (p *ProductHandler) GetProductItemViewCount(ctx *gin.Context) {
-	productItemID, err := request.GetParamAsUint(ctx, "product_item_id")
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
-		return
-	}
+	productItemID := ctx.Param("product_item_id")
 
 	tokenString := ctx.GetHeader("Authorization")
 	adminId := p.tokenService.DecodeTokenData(tokenString)
@@ -2609,13 +2481,9 @@ func (p *ProductHandler) GetProductItemViewCount(ctx *gin.Context) {
 //	@Failure		500				{object}	response.Response{}	"Internal server error"
 //	@Router			/items/{product_item_id} [delete]
 func (p *ProductHandler) DeleteProductItem(ctx *gin.Context) {
-	productItemID, err := request.GetParamAsUint(ctx, "product_item_id")
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
-		return
-	}
+	productItemID := ctx.Param("product_item_id")
 
-	err = p.productUseCase.DeleteProductItem(ctx, productItemID)
+	err := p.productUseCase.DeleteProductItem(ctx, productItemID)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to delete product item", err, nil)
 		return
@@ -2625,44 +2493,11 @@ func (p *ProductHandler) DeleteProductItem(ctx *gin.Context) {
 }
 
 func (p *ProductHandler) UpdateProductItem(ctx *gin.Context) {
-	productItemID, err := request.GetParamAsUint(ctx, "product_item_id")
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
-		return
-	}
+	productItemID := ctx.Param("product_item_id")
 
-	subCategoryIDStr := ctx.PostForm("sub_category_id")
-	var subCategoryID uint
-	if subCategoryIDStr != "" {
-		if n, err := strconv.Atoi(subCategoryIDStr); err == nil {
-			subCategoryID = uint(n)
-		} else {
-			response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid sub_category_id", err, nil)
-			return
-		}
-	}
-
-	categoryIDStr := ctx.PostForm("category_id")
-	var categoryID uint
-	if categoryIDStr != "" {
-		if n, err := strconv.Atoi(categoryIDStr); err == nil {
-			categoryID = uint(n)
-		} else {
-			response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid category_id", err, nil)
-			return
-		}
-	}
-
-	departmentIDStr := ctx.PostForm("department_id")
-	var departmentID uint
-	if departmentIDStr != "" {
-		if n, err := strconv.Atoi(departmentIDStr); err == nil {
-			departmentID = uint(n)
-		} else {
-			response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid department_id", err, nil)
-			return
-		}
-	}
+	subCategoryID := ctx.PostForm("sub_category_id")
+	categoryID := ctx.PostForm("category_id")
+	departmentID := ctx.PostForm("department_id")
 
 	subCategoryName := ctx.PostForm("sub_category_name")
 	dynamicFieldsStr := ctx.PostForm("dynamic_fields")
@@ -2749,8 +2584,7 @@ func (p *ProductHandler) UpdateProductItem(ctx *gin.Context) {
 		ProductItemImages: imagePaths,
 	}
 
-	err = p.productUseCase.UpdateProductItem(ctx, productItemID, req)
-	if err != nil {
+	if err := p.productUseCase.UpdateProductItem(ctx, productItemID, req); err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to update product item", err, nil)
 		return
 	}
@@ -2768,7 +2602,7 @@ func (p *ProductHandler) UpdateProductItem(ctx *gin.Context) {
 //	@Success		200				{object}	response.Response{}	"Successfully retrieved product item filters"
 
 func (p *ProductHandler) FindProductItemFilters(ctx *gin.Context) {
-	shopID, err := request.GetParamAsUint(ctx, "shop_id")
+	shopID := ctx.Param("shop_id")
 
 	tokenString := ctx.GetHeader("Authorization")
 	adminID := p.tokenService.DecodeTokenData(tokenString)
@@ -2788,7 +2622,9 @@ func (p *ProductHandler) FindProductItemFilters(ctx *gin.Context) {
 
 func (p *ProductHandler) GetProductItemsByOfferID(ctx *gin.Context) {
 	// Get Offer ID, Category ID, Department ID, Sub category ID, Lattitde, Longitude, Radius, Pincode, Limit, Offset from query parameters
-	offerID, err := request.GetParamAsUint(ctx, "offer_id")
+	offerID := ctx.Param("offer_id")
+	var err error
+	_ = err // suppress unused warning below
 	CategoryId, _ := strconv.Atoi(ctx.Query("category_id"))
 	DepartmentId, _ := strconv.Atoi(ctx.Query("department_id"))
 	SubCategoryId, _ := strconv.Atoi(ctx.Query("sub_category_id"))
@@ -2838,6 +2674,7 @@ func (p *ProductHandler) GetProductItemsByOfferID(ctx *gin.Context) {
 func uploadProcessedToCloud(ctx context.Context, cs cloud.CloudService, processedPath string) (string, error) {
 	data, err := os.ReadFile(processedPath)
 	if err != nil {
+		log.Printf("uploadProcessedToCloud read failed: path=%s err=%v", processedPath, err)
 		return "", err
 	}
 	defer func() {
@@ -2845,12 +2682,19 @@ func uploadProcessedToCloud(ctx context.Context, cs cloud.CloudService, processe
 			log.Printf("failed to remove temp file %s: %v", processedPath, rerr)
 		}
 	}()
-	return cs.SaveBytes(ctx, data, cloud.SaveOptions{
+	log.Printf("uploadProcessedToCloud start: path=%s bytes=%d filename=%s", processedPath, len(data), filepath.Base(processedPath))
+	objectKey, err := cs.SaveBytes(ctx, data, cloud.SaveOptions{
 		Namespace:   "products",
 		Visibility:  cloud.VisibilityPublic,
 		ContentType: "image/jpeg",
 		Filename:    filepath.Base(processedPath),
 	})
+	if err != nil {
+		log.Printf("uploadProcessedToCloud save failed: path=%s bytes=%d err=%v", processedPath, len(data), err)
+		return "", err
+	}
+	log.Printf("uploadProcessedToCloud success: path=%s objectKey=%s bytes=%d", processedPath, objectKey, len(data))
+	return objectKey, nil
 }
 
 // handleUpload runs the image-processing pipeline and adult-content moderation.
@@ -2949,4 +2793,3 @@ func handleSecureMagic(fileHeader *multipart.FileHeader) (string, error) {
 	}
 	return savePath, nil
 }
-

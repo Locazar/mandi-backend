@@ -58,7 +58,7 @@ func (b *brandUseCase) FindAll(pagination request.Pagination) ([]domain.Brand, e
 	return brands, nil
 }
 
-func (b *brandUseCase) FindOne(brandID uint) (domain.Brand, error) {
+func (b *brandUseCase) FindOne(brandID string) (domain.Brand, error) {
 
 	brand, err := b.brandRepo.FindOne(brandID)
 	if err != nil {
@@ -68,7 +68,7 @@ func (b *brandUseCase) FindOne(brandID uint) (domain.Brand, error) {
 	return brand, nil
 }
 
-func (b *brandUseCase) Delete(brandID uint) error {
+func (b *brandUseCase) Delete(brandID string) error {
 
 	err := b.brandRepo.Delete(brandID)
 	if err != nil {

@@ -13,10 +13,10 @@ type GlobalSearchResult struct {
 }
 
 type ProductSearchItem struct {
-	ID            uint     `json:"id"`
+	ID         string     `json:"id"`
 	Name          string   `json:"name"`
 	Description   string   `json:"description,omitempty"`
-	CategoryID    uint     `json:"category_id"`
+	CategoryID  string     `json:"category_id"`
 	CategoryName  string   `json:"category_name"`
 	ImageURL      string   `json:"image_url,omitempty"`
 	ShopID        uint     `json:"shop_id"`
@@ -27,15 +27,15 @@ type ProductSearchItem struct {
 }
 
 type CategorySearchItem struct {
-	ID             uint   `json:"id"`
+	ID         string   `json:"id"`
 	Name           string `json:"name"`
-	DepartmentID   uint   `json:"department_id"`
+	DepartmentID string   `json:"department_id"`
 	DepartmentName string `json:"department_name,omitempty"`
 	ImageURL       string `json:"image_url,omitempty"`
 }
 
 type ShopSearchItem struct {
-	ID           uint    `json:"id"`
+	ID         string    `json:"id"`
 	ShopName     string  `json:"shop_name"`
 	City         string  `json:"city,omitempty"`
 	State        string  `json:"state,omitempty"`
@@ -47,18 +47,18 @@ type ShopSearchItem struct {
 }
 
 type BrandSearchItem struct {
-	ID   uint   `json:"id"`
+	ID         string   `json:"id"`
 	Name string `json:"name"`
 }
 
 type DepartmentSearchItem struct {
-	ID       uint   `json:"id"`
+	ID         string   `json:"id"`
 	Name     string `json:"name"`
 	ImageURL string `json:"image_url,omitempty"`
 }
 
 type OfferSearchItem struct {
-	ID           uint      `json:"id"`
+	ID         string      `json:"id"`
 	Name         string    `json:"name"`
 	Description  string    `json:"description,omitempty"`
 	DiscountRate uint      `json:"discount_rate"`

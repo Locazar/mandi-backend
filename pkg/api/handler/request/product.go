@@ -6,29 +6,29 @@ import "mime/multipart"
 type Product struct {
 	Name            string `json:"product_name" binding:"required,min=3,max=50"`
 	Description     string `json:"description" binding:"required,min=10,max=100"`
-	CategoryID      uint   `json:"category_id" binding:"required"`
+	CategoryID      string `json:"category_id" binding:"required"`
 	Department      string `json:"department" binding:"required"`
-	DepartmentID    uint   `json:"department_id" binding:"required"`
+	DepartmentID    string `json:"department_id" binding:"required"`
 	ImageFileHeader *multipart.FileHeader
 }
 type UpdateProduct struct {
-	ID          uint   `json:"product_id" binding:"required"`
+	ID          string `json:"product_id" binding:"required"`
 	Name        string `json:"product_name" binding:"required,min=3,max=50"`
 	Description string `json:"description" binding:"required,min=10,max=100"`
-	CategoryID  uint   `json:"category_id" binding:"required"`
-	BrandID     uint   `json:"brand_id" binding:"required"`
+	CategoryID  string `json:"category_id" binding:"required"`
+	BrandID     string `json:"brand_id" binding:"required"`
 	Price       uint   `json:"price" binding:"required,numeric"`
 	Image       string `json:"image"`
 }
 
 // for a new productItem
 type ProductItem struct {
-	SubCategoryID     uint                   `json:"sub_category_id" binding:"required"`
+	SubCategoryID     string                 `json:"sub_category_id" binding:"required"`
 	SubCategoryName   string                 `json:"sub_category_name" binding:"required"`
 	DynamicFields     map[string]interface{} `json:"dynamic_fields" binding:"required"`
 	ProductItemImages []string               `json:"product_item_images " binding:"omitempty,dive,required"`
-	DepartmentID      uint                   `json:"department_id" binding:"required"`
-	CategoryID        uint                   `json:"category_id" binding:"required"`
+	DepartmentID      string                 `json:"department_id" binding:"required"`
+	CategoryID        string                 `json:"category_id" binding:"required"`
 }
 
 type Variation struct {

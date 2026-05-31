@@ -33,15 +33,10 @@ func NewAlertUseCase(
 
 // GetSellerAlerts fetches alerts for a seller by evaluating all rules
 func (uc *AlertUseCaseImpl) GetSellerAlerts(ctx context.Context, sellerID string) ([]*domain.Alert, error) {
-	// Parse seller ID to uint (assuming it comes as string from auth)
-	var adminID uint
-	if _, err := fmt.Sscanf(sellerID, "%d", &adminID); err != nil {
-		return nil, fmt.Errorf("invalid seller_id format: %w", err)
-	}
-	fmt.Printf("Fetching alerts for seller ID %d\n", adminID)
+	fmt.Printf("Fetching alerts for seller ID %s\n", sellerID)
 
 	// Fetch aggregated data with minimal queries
-	aggregatedData, err := uc.alertRepo.GetAggregatedDataForSeller(ctx, adminID)
+	aggregatedData, err := uc.alertRepo.GetAggregatedDataForSeller(ctx, sellerID)
 	if err != nil {
 		return nil, err
 	}
@@ -59,22 +54,22 @@ func (uc *AlertUseCaseImpl) GetSellerAlerts(ctx context.Context, sellerID string
 	}
 	alerts = append(alerts, dbAlerts...)
 
+	// Collect all alert keys first so we can fetch show-times in one query
+	keys := make([]string, 0, len(alerts))
+	for _, alert := range alerts {
+		keys = append(keys, alert.Key)
+	}
+	lastShownTimes, _ := uc.alertRepo.GetLastAlertActionTimes(ctx, sellerID, keys)
+
 	// Filter alerts by validity and frequency
 	validAlerts := make([]*domain.Alert, 0)
 	for _, alert := range alerts {
-		// Check validity window
 		if !alert_engine.IsAlertValid(alert) {
 			continue
 		}
-
-		// Check frequency - get last shown time
-		lastShownAt, _ := uc.alertRepo.GetLastAlertActionTime(ctx, adminID, alert.Key)
-
-		// Check if we should show this alert
-		if !alert_engine.ShouldShowAlert(alert, lastShownAt) {
+		if !alert_engine.ShouldShowAlert(alert, lastShownTimes[alert.Key]) {
 			continue
 		}
-
 		validAlerts = append(validAlerts, alert)
 	}
 
@@ -103,13 +98,8 @@ func (uc *AlertUseCaseImpl) evaluateDBDrivenRules(ctx context.Context, sellerID 
 
 // DismissAlert logs alert dismissal (prevents repeated display based on frequency)
 func (uc *AlertUseCaseImpl) DismissAlert(ctx context.Context, sellerID string, alertKey string) error {
-	var adminID uint
-	if _, err := fmt.Sscanf(sellerID, "%d", &adminID); err != nil {
-		return fmt.Errorf("invalid seller_id format: %w", err)
-	}
-
 	log := &domain.SellerAlertLog{
-		SellerID: adminID,
+		SellerID: sellerID,
 		AlertKey: alertKey,
 		Action:   "dismissed",
 	}
@@ -119,13 +109,8 @@ func (uc *AlertUseCaseImpl) DismissAlert(ctx context.Context, sellerID string, a
 
 // LogAlertView logs when alert is shown to seller
 func (uc *AlertUseCaseImpl) LogAlertView(ctx context.Context, sellerID string, alertKey string) error {
-	var adminID uint
-	if _, err := fmt.Sscanf(sellerID, "%d", &adminID); err != nil {
-		return fmt.Errorf("invalid seller_id format: %w", err)
-	}
-
 	log := &domain.SellerAlertLog{
-		SellerID: adminID,
+		SellerID: sellerID,
 		AlertKey: alertKey,
 		Action:   "shown",
 	}

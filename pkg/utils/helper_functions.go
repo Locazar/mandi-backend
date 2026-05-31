@@ -13,8 +13,8 @@ import (
 )
 
 // take userId from context
-func GetUserIdFromContext(ctx *gin.Context) uint {
-	userID := ctx.GetUint("userId")
+func GetUserIdFromContext(ctx *gin.Context) string {
+	userID := ctx.GetString("userId")
 	return userID
 }
 

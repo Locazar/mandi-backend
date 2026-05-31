@@ -2,8 +2,8 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
@@ -147,8 +147,8 @@ func (h *NotificationHandler) GetNotificationsBy(ctx *gin.Context) {
 		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid query parameters", err, nil)
 		return
 	}
-	if filter.UserID == 0 {
-		if uid := utils.GetUserIdFromContext(ctx); uid != 0 {
+	if filter.UserID == "" {
+		if uid := utils.GetUserIdFromContext(ctx); uid != "" {
 			filter.UserID = uid
 		}
 	}
@@ -174,12 +174,12 @@ func (h *NotificationHandler) GetNotificationsBy(ctx *gin.Context) {
 //	@Failure		400	{object}	response.Response{}	"Invalid ID"
 //	@Failure		500	{object}	response.Response{}	"Internal server error"
 func (h *NotificationHandler) MarkNotificationAsRead(ctx *gin.Context) {
-	id, err := strconv.ParseUint(ctx.Param("notification_id"), 10, 32)
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid notification ID", err, nil)
+	id := ctx.Param("notification_id")
+	if id == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid notification ID", errors.New("notification_id is required"), nil)
 		return
 	}
-	if err := h.notificationUsecase.MarkNotificationAsRead(ctx.Request.Context(), uint(id)); err != nil {
+	if err := h.notificationUsecase.MarkNotificationAsRead(ctx.Request.Context(), id); err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to mark notification as read", err, nil)
 		return
 	}

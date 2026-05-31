@@ -4,6 +4,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/rohit221990/mandi-backend/pkg/domain"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -42,7 +44,7 @@ func TestDefaultMonitoredFields_NoPaymentFields(t *testing.T) {
 
 func TestNewFieldComparator_DefaultsWhenNoEnv(t *testing.T) {
 	os.Unsetenv("MONITORED_FIELDS")
-	fc := NewFieldComparator()
+	fc := NewFieldComparator(os.Getenv("MONITORED_FIELDS"))
 	if !fc.MonitoredFields["status"] {
 		t.Error("default comparator must monitor 'status'")
 	}
@@ -50,7 +52,7 @@ func TestNewFieldComparator_DefaultsWhenNoEnv(t *testing.T) {
 
 func TestNewFieldComparator_EnvOverride(t *testing.T) {
 	t.Setenv("MONITORED_FIELDS", "myField,otherField")
-	fc := NewFieldComparator()
+	fc := NewFieldComparator(os.Getenv("MONITORED_FIELDS"))
 	if !fc.MonitoredFields["myField"] || !fc.MonitoredFields["otherField"] {
 		t.Error("env override should set exactly the specified fields")
 	}
@@ -66,7 +68,7 @@ func TestNewFieldComparator_EnvOverride(t *testing.T) {
 
 func TestDetectChanges_StatusChange(t *testing.T) {
 	os.Unsetenv("MONITORED_FIELDS")
-	fc := NewFieldComparator()
+	fc := NewFieldComparator(os.Getenv("MONITORED_FIELDS"))
 	changes := fc.DetectChanges(
 		map[string]interface{}{"status": "new"},
 		map[string]interface{}{"status": "pending_seller_price"},
@@ -87,7 +89,7 @@ func TestDetectChanges_StatusChange(t *testing.T) {
 
 func TestDetectChanges_NoChangeForSameValue(t *testing.T) {
 	os.Unsetenv("MONITORED_FIELDS")
-	fc := NewFieldComparator()
+	fc := NewFieldComparator(os.Getenv("MONITORED_FIELDS"))
 	changes := fc.DetectChanges(
 		map[string]interface{}{"status": "in_progress"},
 		map[string]interface{}{"status": "in_progress"},
@@ -99,7 +101,7 @@ func TestDetectChanges_NoChangeForSameValue(t *testing.T) {
 
 func TestDetectChanges_IgnoresNonMonitoredFields(t *testing.T) {
 	os.Unsetenv("MONITORED_FIELDS")
-	fc := NewFieldComparator()
+	fc := NewFieldComparator(os.Getenv("MONITORED_FIELDS"))
 	changes := fc.DetectChanges(
 		map[string]interface{}{"someUnmonitoredField": "old"},
 		map[string]interface{}{"someUnmonitoredField": "new"},
@@ -111,7 +113,7 @@ func TestDetectChanges_IgnoresNonMonitoredFields(t *testing.T) {
 
 func TestDetectChanges_IgnoresIgnoredFields(t *testing.T) {
 	os.Unsetenv("MONITORED_FIELDS")
-	fc := NewFieldComparator()
+	fc := NewFieldComparator(os.Getenv("MONITORED_FIELDS"))
 	// updatedAt is in the ignored set; inject it into monitored too to test ignored wins.
 	fc.MonitoredFields["updatedAt"] = true
 	changes := fc.DetectChanges(
@@ -125,7 +127,7 @@ func TestDetectChanges_IgnoresIgnoredFields(t *testing.T) {
 
 func TestDetectChanges_NewFieldAppearance(t *testing.T) {
 	os.Unsetenv("MONITORED_FIELDS")
-	fc := NewFieldComparator()
+	fc := NewFieldComparator(os.Getenv("MONITORED_FIELDS"))
 	changes := fc.DetectChanges(
 		map[string]interface{}{},
 		map[string]interface{}{"acceptedPrice": "200"},
@@ -146,7 +148,7 @@ func TestDetectChanges_NewFieldAppearance(t *testing.T) {
 
 func TestDetectChanges_FieldRemovedFromDocument(t *testing.T) {
 	os.Unsetenv("MONITORED_FIELDS")
-	fc := NewFieldComparator()
+	fc := NewFieldComparator(os.Getenv("MONITORED_FIELDS"))
 	changes := fc.DetectChanges(
 		map[string]interface{}{"availability": "available"},
 		map[string]interface{}{},
@@ -164,7 +166,7 @@ func TestDetectChanges_FieldRemovedFromDocument(t *testing.T) {
 
 func TestDetectChanges_MultipleFieldsChanged(t *testing.T) {
 	os.Unsetenv("MONITORED_FIELDS")
-	fc := NewFieldComparator()
+	fc := NewFieldComparator(os.Getenv("MONITORED_FIELDS"))
 	changes := fc.DetectChanges(
 		map[string]interface{}{"status": "new", "acceptedPrice": "", "sellerInitialPrice": "100"},
 		map[string]interface{}{"status": "pending_seller_price", "acceptedPrice": "200", "sellerInitialPrice": "100"},
@@ -180,7 +182,7 @@ func TestDetectChanges_MultipleFieldsChanged(t *testing.T) {
 
 func TestDetectChangesByUpdateMask_OnlyMaskedField(t *testing.T) {
 	os.Unsetenv("MONITORED_FIELDS")
-	fc := NewFieldComparator()
+	fc := NewFieldComparator(os.Getenv("MONITORED_FIELDS"))
 	changes := fc.DetectChangesByUpdateMask(
 		map[string]interface{}{"status": "new", "availability": "yes"},
 		map[string]interface{}{"status": "resolved", "availability": "yes"},
@@ -193,7 +195,7 @@ func TestDetectChangesByUpdateMask_OnlyMaskedField(t *testing.T) {
 
 func TestDetectChangesByUpdateMask_MaskedFieldUnmonitored(t *testing.T) {
 	os.Unsetenv("MONITORED_FIELDS")
-	fc := NewFieldComparator()
+	fc := NewFieldComparator(os.Getenv("MONITORED_FIELDS"))
 	// "viewCount" is not in monitored set → should be skipped even if in mask.
 	changes := fc.DetectChangesByUpdateMask(
 		map[string]interface{}{"viewCount": 1},
@@ -207,7 +209,7 @@ func TestDetectChangesByUpdateMask_MaskedFieldUnmonitored(t *testing.T) {
 
 func TestDetectChangesByUpdateMask_EmptyMask_FallsBackToFullComparison(t *testing.T) {
 	os.Unsetenv("MONITORED_FIELDS")
-	fc := NewFieldComparator()
+	fc := NewFieldComparator(os.Getenv("MONITORED_FIELDS"))
 	changes := fc.DetectChangesByUpdateMask(
 		map[string]interface{}{"status": "new"},
 		map[string]interface{}{"status": "resolved"},
@@ -222,7 +224,7 @@ func TestDetectChangesByUpdateMask_DottedPath_UsesRootField(t *testing.T) {
 	// When the mask contains "metadata.status", only the root "metadata" part
 	// should be looked up. If "metadata" is monitored and changed, it's a change.
 	os.Unsetenv("MONITORED_FIELDS")
-	fc := NewFieldComparator()
+	fc := NewFieldComparator(os.Getenv("MONITORED_FIELDS"))
 	fc.MonitoredFields["metadata"] = true
 	changes := fc.DetectChangesByUpdateMask(
 		map[string]interface{}{"metadata": map[string]interface{}{"step": 1}},
@@ -240,8 +242,8 @@ func TestDetectChangesByUpdateMask_DottedPath_UsesRootField(t *testing.T) {
 
 func TestIsSignificantChange_MonitoredField(t *testing.T) {
 	os.Unsetenv("MONITORED_FIELDS")
-	fc := NewFieldComparator()
-	change := FieldChange{FieldName: "status", OldValue: "new", NewValue: "resolved"}
+	fc := NewFieldComparator(os.Getenv("MONITORED_FIELDS"))
+	change := domain.FieldChange{FieldName: "status", OldValue: "new", NewValue: "resolved"}
 	if !fc.IsSignificantChange(change) {
 		t.Error("change to monitored field 'status' should be significant")
 	}
@@ -249,8 +251,8 @@ func TestIsSignificantChange_MonitoredField(t *testing.T) {
 
 func TestIsSignificantChange_IgnoredField(t *testing.T) {
 	os.Unsetenv("MONITORED_FIELDS")
-	fc := NewFieldComparator()
-	change := FieldChange{FieldName: "updatedAt", OldValue: "t1", NewValue: "t2"}
+	fc := NewFieldComparator(os.Getenv("MONITORED_FIELDS"))
+	change := domain.FieldChange{FieldName: "updatedAt", OldValue: "t1", NewValue: "t2"}
 	if fc.IsSignificantChange(change) {
 		t.Error("change to ignored field should NOT be significant")
 	}
@@ -258,8 +260,8 @@ func TestIsSignificantChange_IgnoredField(t *testing.T) {
 
 func TestIsSignificantChange_UnmonitoredField(t *testing.T) {
 	os.Unsetenv("MONITORED_FIELDS")
-	fc := NewFieldComparator()
-	change := FieldChange{FieldName: "unknownField", OldValue: "a", NewValue: "b"}
+	fc := NewFieldComparator(os.Getenv("MONITORED_FIELDS"))
+	change := domain.FieldChange{FieldName: "unknownField", OldValue: "a", NewValue: "b"}
 	if fc.IsSignificantChange(change) {
 		t.Error("change to unmonitored field should NOT be significant")
 	}
@@ -282,7 +284,7 @@ func TestValuesEqual(t *testing.T) {
 		{"same int", int64(42), int64(42), true},
 		{"same bool", true, true, true},
 		{"different bool", true, false, false},
-		{"int64 vs float64 same val", int64(10), float64(10), false}, // JSON: "10" vs "10" → true actually
+		{"int64 vs float64 same val", int64(10), float64(10), true}, // JSON marshaling: "10" == "10"
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -306,7 +308,7 @@ func TestGetChangesSummary_Empty(t *testing.T) {
 }
 
 func TestGetChangesSummary_SingleChange(t *testing.T) {
-	changes := []FieldChange{{FieldName: "status", OldValue: "new", NewValue: "resolved"}}
+	changes := []domain.FieldChange{{FieldName: "status", OldValue: "new", NewValue: "resolved"}}
 	s := GetChangesSummary(changes)
 	if !strings.Contains(s, "status") || !strings.Contains(s, "new") || !strings.Contains(s, "resolved") {
 		t.Errorf("summary should mention field and values; got %q", s)
@@ -314,7 +316,7 @@ func TestGetChangesSummary_SingleChange(t *testing.T) {
 }
 
 func TestGetChangesSummary_NilOldValue(t *testing.T) {
-	changes := []FieldChange{{FieldName: "acceptedPrice", OldValue: nil, NewValue: "200"}}
+	changes := []domain.FieldChange{{FieldName: "acceptedPrice", OldValue: nil, NewValue: "200"}}
 	s := GetChangesSummary(changes)
 	if !strings.Contains(s, "(none)") {
 		t.Errorf("nil oldValue should show '(none)'; got %q", s)
@@ -322,7 +324,7 @@ func TestGetChangesSummary_NilOldValue(t *testing.T) {
 }
 
 func TestGetChangesSummary_NilNewValue(t *testing.T) {
-	changes := []FieldChange{{FieldName: "availability", OldValue: "available", NewValue: nil}}
+	changes := []domain.FieldChange{{FieldName: "availability", OldValue: "available", NewValue: nil}}
 	s := GetChangesSummary(changes)
 	if !strings.Contains(s, "(deleted)") {
 		t.Errorf("nil newValue should show '(deleted)'; got %q", s)

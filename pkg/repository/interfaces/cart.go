@@ -8,16 +8,16 @@ import (
 )
 
 type CartRepository interface {
-	FindCartByUserID(ctx context.Context, userID uint) (cart domain.Cart, err error)
-	SaveCart(ctx context.Context, userID uint) (cartID uint, err error)
-	UpdateCart(ctx context.Context, cartId, discountAmount, couponID uint) error
+	FindCartByUserID(ctx context.Context, userID string) (cart domain.Cart, err error)
+	SaveCart(ctx context.Context, userID string) (cartID string, err error)
+	UpdateCart(ctx context.Context, cartId string, discountAmount string, couponID string) error
 
-	FindCartItemByCartAndProductItemID(ctx context.Context, cartID, productItemID uint) (cartItem domain.CartItem, err error)
-	FindAllCartItemsByCartID(ctx context.Context, cartID uint) (cartItems []response.CartItem, err error)
-	SaveCartItem(ctx context.Context, cartId, productItemId uint) error
-	DeleteCartItem(ctx context.Context, cartItemID uint) error
-	DeleteAllCartItemsByCartID(ctx context.Context, cartID uint) error
-	UpdateCartItemQty(ctx context.Context, cartItemId, qty uint) error
+	FindCartItemByCartAndProductItemID(ctx context.Context, cartID, productItemID string) (cartItem domain.CartItem, err error)
+	FindAllCartItemsByCartID(ctx context.Context, cartID string) (cartItems []response.CartItem, err error)
+	SaveCartItem(ctx context.Context, cartId, productItemId string) error
+	DeleteCartItem(ctx context.Context, cartItemID string) error
+	DeleteAllCartItemsByCartID(ctx context.Context, cartID string) error
+	UpdateCartItemQty(ctx context.Context, cartItemId string, qty uint) error
 
-	IsCartValidForOrder(ctx context.Context, userID uint) (valid bool, err error)
+	IsCartValidForOrder(ctx context.Context, userID string) (valid bool, err error)
 }

@@ -4,55 +4,48 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
+	"gorm.io/gorm"
 )
 
 type JobCategoryService struct {
-	DB *pgxpool.Pool
+	DB *gorm.DB
 }
 
-func NewJobCategoryService(db *pgxpool.Pool) *JobCategoryService {
+func NewJobCategoryService(db *gorm.DB) *JobCategoryService {
 	return &JobCategoryService{DB: db}
 }
 
 func (s *JobCategoryService) GetAllJobCategories(ctx context.Context) ([]domain.JobCategory, error) {
-	query := `SELECT category_id, name, parent_id FROM job_categories ORDER BY name`
-	rows, err := s.DB.Query(ctx, query)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
 	var categories []domain.JobCategory
-	for rows.Next() {
-		var c domain.JobCategory
-		if err := rows.Scan(&c.CategoryID, &c.Name, &c.ParentID); err != nil {
-			return nil, err
-		}
-		categories = append(categories, c)
-	}
-	return categories, nil
+	result := s.DB.WithContext(ctx).Order("name").Find(&categories)
+	return categories, result.Error
 }
 
 func (s *JobCategoryService) GetJobsByCategory(ctx context.Context, categoryID uuid.UUID, limit, offset int) ([]domain.Job, error) {
-	query := `SELECT job_id, title, description, category_id, location_id, company, posted_date, expiry_date 
-              FROM jobs WHERE category_id = $1 ORDER BY posted_date DESC LIMIT $2 OFFSET $3`
-	rows, err := s.DB.Query(ctx, query, categoryID, limit, offset)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
 	var jobs []domain.Job
-	for rows.Next() {
-		var j domain.Job
-		if err := rows.Scan(&j.ID, &j.Title, &j.Description, &j.CategoryID, &j.LocationID, &j.Company, &j.PostedDate, &j.ExpiryDate); err != nil {
-			return nil, err
-		}
-		jobs = append(jobs, j)
-	}
-	return jobs, nil
+	result := s.DB.WithContext(ctx).
+		Where("category_id = ?", categoryID.String()).
+		Order("posted_date DESC").
+		Limit(limit).Offset(offset).
+		Find(&jobs)
+	return jobs, result.Error
 }
 
-// Similarly implement GetJobSubCategories, GetJobsBySubCategory, GetJobCategoryFilters, GetJobCategoryLocations, SearchJobsInCategory
+func (s *JobCategoryService) GetJobSubCategories(ctx context.Context, categoryID uuid.UUID) ([]domain.JobSubCategory, error) {
+	var subs []domain.JobSubCategory
+	result := s.DB.WithContext(ctx).Where("category_id = ?", categoryID.String()).Find(&subs)
+	return subs, result.Error
+}
+
+func (s *JobCategoryService) GetJobsBySubCategory(ctx context.Context, subCategoryID uuid.UUID, limit, offset int) ([]domain.Job, error) {
+	// Jobs don't have a direct sub_category_id column in the domain model;
+	// return empty slice until the schema is extended.
+	return []domain.Job{}, nil
+}
+
+func (s *JobCategoryService) GetJobCategoryFilters(ctx context.Context) ([]domain.JobFilter, error) {
+	var filters []domain.JobFilter
+	result := s.DB.WithContext(ctx).Find(&filters)
+	return filters, result.Error
+}

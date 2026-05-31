@@ -107,7 +107,7 @@ func TestFindUserByEmail(t *testing.T) {
 				mock.ExpectQuery(`SELECT  \* FROM users WHERE email \= \$1`).
 					WithArgs("nonExistingUser@gmail.com").
 					WillReturnRows(sqlmock.NewRows([]string{"id", "email"}).
-						AddRow(0, ""))
+						AddRow("", ""))
 			},
 			expectedError: nil,
 		},
@@ -115,7 +115,7 @@ func TestFindUserByEmail(t *testing.T) {
 			testName:   "exsitingEmailReturnUser",
 			inputEmail: "existingUser@gmail.com",
 			expectedOutput: domain.User{
-				ID:        1,
+				ID: "usr_test1",
 				Email:     "existingUser@gmail.com",
 				FirstName: "existingUserUserName",
 				Password:  "existingUserHashedPassword",
@@ -124,7 +124,7 @@ func TestFindUserByEmail(t *testing.T) {
 				mock.ExpectQuery(`SELECT  \* FROM users WHERE email \= \$1`).
 					WithArgs("existingUser@gmail.com").
 					WillReturnRows(sqlmock.NewRows([]string{"id", "email", "first_name", "password"}).
-						AddRow(1, "existingUser@gmail.com", "existingUserUserName", "existingUserHashedPassword"))
+						AddRow("usr_test1", "existingUser@gmail.com", "existingUserUserName", "existingUserHashedPassword"))
 			},
 			expectedError: nil,
 		},
@@ -164,7 +164,7 @@ func TestSearchShopList_WithGeoDistance(t *testing.T) {
 	gormDB, err := gorm.Open(postgres.New(postgres.Config{Conn: db}), &gorm.Config{})
 	assert.NoError(t, err)
 
-	queryMatcher := `(?s)SELECT\s+.*distance_km.*FROM shop_details sd\s+LEFT JOIN shop_times st ON st\.shop_id = sd\.id\s+.*sd\.latitude IS NOT NULL AND sd\.longitude IS NOT NULL.*ORDER BY distance_km ASC NULLS LAST, sd\.created_at DESC\s+LIMIT \$5 OFFSET \$6`
+	queryMatcher := `(?s)SELECT\s+.*distance_km.*FROM shop_details sd\s+.*sd\.latitude IS NOT NULL AND sd\.longitude IS NOT NULL.*ORDER BY sd\.id, distance_km ASC NULLS LAST, sd\.created_at DESC\s+LIMIT \$5 OFFSET \$6`
 
 	rows := sqlmock.NewRows([]string{
 		"id", "shop_name", "email", "phone", "latitude", "longitude",
@@ -207,7 +207,7 @@ func TestSearchShopList_WithPincode(t *testing.T) {
 	gormDB, err := gorm.Open(postgres.New(postgres.Config{Conn: db}), &gorm.Config{})
 	assert.NoError(t, err)
 
-	queryMatcher := `(?s)SELECT\s+.*NULL::double precision AS distance_km.*FROM shop_details sd\s+LEFT JOIN shop_times st ON st\.shop_id = sd\.id\s+.*sd\.pincode = \$1\s+.*ORDER BY sd\.created_at DESC\s+LIMIT \$2 OFFSET \$3`
+	queryMatcher := `(?s)SELECT\s+.*NULL::double precision AS distance_km.*FROM shop_details sd\s+.*sd\.pincode = \$1\s+.*ORDER BY sd\.id, sd\.created_at DESC\s+LIMIT \$2 OFFSET \$3`
 
 	rows := sqlmock.NewRows([]string{
 		"id", "shop_name", "email", "phone", "latitude", "longitude",
@@ -246,7 +246,7 @@ func TestSearchShopList_WithTextOnly(t *testing.T) {
 	gormDB, err := gorm.Open(postgres.New(postgres.Config{Conn: db}), &gorm.Config{})
 	assert.NoError(t, err)
 
-	queryMatcher := `(?s)SELECT\s+.*NULL::double precision AS distance_km.*FROM shop_details sd\s+LEFT JOIN shop_times st ON st\.shop_id = sd\.id\s+.*\(sd\.shop_name ILIKE \$1 OR sd\.owner_name ILIKE \$1\).*ORDER BY sd\.created_at DESC\s+LIMIT \$2 OFFSET \$3`
+	queryMatcher := `(?s)SELECT\s+.*NULL::double precision AS distance_km.*FROM shop_details sd\s+.*\(sd\.shop_name ILIKE \$1 OR sd\.owner_name ILIKE \$1\).*ORDER BY sd\.id, sd\.created_at DESC\s+LIMIT \$2 OFFSET \$3`
 
 	rows := sqlmock.NewRows([]string{
 		"id", "shop_name", "email", "phone", "latitude", "longitude",

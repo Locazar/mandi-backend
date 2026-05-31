@@ -3,7 +3,6 @@ package token
 import (
 	"errors"
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
@@ -42,7 +41,7 @@ type jwtClaims struct {
 
 // Generate a new JWT token string from token request
 func (c *jwtAuth) GenerateToken(req GenerateTokenRequest) (GenerateTokenResponse, error) {
-	fmt.Printf("Generating token for userID: %d, userType: %s\n", req.UserID, req.UsedFor)
+	fmt.Printf("Generating token for userID: %s, userType: %s\n", req.UserID, req.UsedFor)
 	if req.UsedFor != Admin && req.UsedFor != User {
 
 		return GenerateTokenResponse{}, ErrInvalidUserType
@@ -51,7 +50,7 @@ func (c *jwtAuth) GenerateToken(req GenerateTokenRequest) (GenerateTokenResponse
 	tokenID := utils.GenerateUniqueString()
 	claims := &jwtClaims{
 		TokenID: tokenID,
-		UserID:  fmt.Sprintf("%d", req.UserID),
+		UserID:  req.UserID,
 		// RegisteredClaims: jwt.RegisteredClaims{
 		// 	ExpiresAt: jwt.NewNumericDate(req.ExpirationDate),
 		// },
@@ -119,14 +118,9 @@ func (c *jwtAuth) VerifyToken(req VerifyTokenRequest) (VerifyTokenResponse, erro
 		return VerifyTokenResponse{}, ErrFailedToParseToken
 	}
 
-	userID, err := strconv.ParseUint(claims.UserID, 10, 64)
-	if err != nil {
-		return VerifyTokenResponse{}, fmt.Errorf("failed to parse user ID: %w", err)
-	}
-
 	response := VerifyTokenResponse{
 		TokenID: claims.TokenID,
-		UserID:  uint(userID),
+		UserID:  claims.UserID,
 	}
 	return response, nil
 }

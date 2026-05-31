@@ -12,7 +12,7 @@ type NotificationUseCase interface {
 	// Persistence
 	SaveNotification(ctx context.Context, notification request.Notification) error
 	GetNotificationsBy(ctx context.Context, filter request.GetNotification, pagination request.Pagination) ([]domain.Notification, error)
-	MarkNotificationAsRead(ctx context.Context, notificationID uint) error
+	MarkNotificationAsRead(ctx context.Context, notificationID string) error
 
 	// Device token lifecycle
 	RegisterDeviceToken(ctx context.Context, req request.NotificationDeviceToken) error

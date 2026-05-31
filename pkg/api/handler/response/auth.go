@@ -3,7 +3,7 @@ package response
 type TokenResponse struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
-	UserID       uint   `json:"user_id"`
+	UserID       string `json:"user_id"`
 }
 type OTPResponse struct {
 	OtpID string `json:"otp_id"`
@@ -19,7 +19,7 @@ type SendOTPResponse struct {
 
 // VerifyOTPUserDetails represents user info returned after OTP verify
 type VerifyOTPUserDetails struct {
-	ID    uint   `json:"id"`
+	ID    string `json:"id"`
 	Phone string `json:"phone"`
 	Email string `json:"email,omitempty"`
 	Name  string `json:"name,omitempty"`

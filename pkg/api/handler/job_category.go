@@ -1,22 +1,22 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/rohit221990/mandi-backend/pkg/domain"
 )
 
-// Local interface describing the methods the handler expects.
-// This allows the handler to work with any implementation provided
-// by the usecase layer without depending on a concrete type name.
+// JobCategoryService describes the methods the handler expects from the usecase layer.
 type JobCategoryService interface {
-	GetAllJobCategories(*gin.Context) (interface{}, error)
-	GetJobsByCategory(*gin.Context, uuid.UUID, int, int) (interface{}, error)
-	GetJobSubCategories(*gin.Context, uuid.UUID) (interface{}, error)
-	GetJobsBySubCategory(*gin.Context, uuid.UUID, int, int) (interface{}, error)
-	GetJobCategoryFilters(*gin.Context) (interface{}, error)
+	GetAllJobCategories(context.Context) ([]domain.JobCategory, error)
+	GetJobsByCategory(context.Context, uuid.UUID, int, int) ([]domain.Job, error)
+	GetJobSubCategories(context.Context, uuid.UUID) ([]domain.JobSubCategory, error)
+	GetJobsBySubCategory(context.Context, uuid.UUID, int, int) ([]domain.Job, error)
+	GetJobCategoryFilters(context.Context) ([]domain.JobFilter, error)
 }
 
 type JobCategoryHandler struct {
@@ -29,7 +29,7 @@ func NewJobCategoryHandler(svc JobCategoryService) *JobCategoryHandler {
 
 func (h *JobCategoryHandler) GetAllJobCategories() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		categories, err := h.Service.GetAllJobCategories(c)
+		categories, err := h.Service.GetAllJobCategories(c.Request.Context())
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -50,7 +50,7 @@ func (h *JobCategoryHandler) GetJobsByCategory() gin.HandlerFunc {
 		limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 		offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 
-		jobs, err := h.Service.GetJobsByCategory(c, categoryID, limit, offset)
+		jobs, err := h.Service.GetJobsByCategory(c.Request.Context(), categoryID, limit, offset)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -68,7 +68,7 @@ func (h *JobCategoryHandler) GetJobSubCategories() gin.HandlerFunc {
 			return
 		}
 
-		subcategories, err := h.Service.GetJobSubCategories(c, categoryID)
+		subcategories, err := h.Service.GetJobSubCategories(c.Request.Context(), categoryID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -89,7 +89,7 @@ func (h *JobCategoryHandler) GetJobsBySubCategory() gin.HandlerFunc {
 		limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 		offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 
-		jobs, err := h.Service.GetJobsBySubCategory(c, subcategoryID, limit, offset)
+		jobs, err := h.Service.GetJobsBySubCategory(c.Request.Context(), subcategoryID, limit, offset)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -100,7 +100,7 @@ func (h *JobCategoryHandler) GetJobsBySubCategory() gin.HandlerFunc {
 
 func (h *JobCategoryHandler) GetJobCategoryFilters() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		filters, err := h.Service.GetJobCategoryFilters(c)
+		filters, err := h.Service.GetJobCategoryFilters(c.Request.Context())
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return

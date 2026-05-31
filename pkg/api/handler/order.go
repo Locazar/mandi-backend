@@ -68,7 +68,7 @@ func (c *OrderHandler) GetAllOrderStatuses(ctx *gin.Context) {
 //	@Failure		500	{object}	response.Response{}	"Failed to save order"
 func (c *OrderHandler) SaveOrder(ctx *gin.Context) {
 
-	addressID, err := request.GetFormValuesAsUint(ctx, "address_id")
+	addressID, err := request.GetFormValuesAsString(ctx, "address_id")
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, BindFormValueMessage, err, nil)
 		return
@@ -191,10 +191,7 @@ func (c *OrderHandler) GetAllOrderItemsAdmin() func(ctx *gin.Context) {
 func (c *OrderHandler) findAllOrderItems() func(ctx *gin.Context) {
 
 	return func(ctx *gin.Context) {
-		shopOrderID, err := request.GetParamAsUint(ctx, "shop_order_id")
-		if err != nil {
-			response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
-		}
+		shopOrderID := ctx.Param("shop_order_id")
 		pagination := request.GetPagination(ctx)
 
 		orderItems, err := c.orderUseCase.FindOrderItems(ctx, shopOrderID, pagination)
@@ -228,12 +225,9 @@ func (c *OrderHandler) findAllOrderItems() func(ctx *gin.Context) {
 //	@Failure		500	{object}	response.Response{}	"Failed to cancel order"
 func (c *OrderHandler) CancelOrder(ctx *gin.Context) {
 
-	shopOrderID, err := request.GetParamAsUint(ctx, "shop_order_id")
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
-	}
+	shopOrderID := ctx.Param("shop_order_id")
 
-	err = c.orderUseCase.CancelOrder(ctx, shopOrderID)
+	err := c.orderUseCase.CancelOrder(ctx, shopOrderID)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to cancel order", err, nil)
 		return
@@ -262,7 +256,7 @@ func (c *OrderHandler) UpdateOrderStatus(ctx *gin.Context) {
 		return
 	}
 
-	err := c.orderUseCase.UpdateOrderStatus(ctx, body.ShopOrderID, body.OrderStatusID)
+	err := c.orderUseCase.UpdateOrderStatus(ctx, body.ShopOrderID, body.OrderStatus)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to update order status", err, nil)
 		return

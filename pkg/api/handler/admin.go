@@ -15,6 +15,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/interfaces"
+	"gorm.io/gorm"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
@@ -149,24 +150,24 @@ func (a *adminHandler) AdminSignUpVerify(ctx *gin.Context) {
 		errResponse(ctx, "Failed to verify otp", err)
 		return
 	}
-	log.Printf("userID: %d", userID)
+	log.Printf("userID: %s", userID)
 	a.setupTokenAndResponse(ctx, token.Admin, userID, shop)
 }
 
 // access and refresh token generating for user and admin is same so created
 // a common function for it.(differentiate user by user type )
 // customResponse is optional - if provided, it will be used instead of default success response
-func (c *adminHandler) setupTokenAndResponse(ctx *gin.Context, tokenUser token.UserType, userID uint, customResponse ...interface{}) {
+func (c *adminHandler) setupTokenAndResponse(ctx *gin.Context, tokenUser token.UserType, userID string, customResponse ...interface{}) {
 
 	tokenParams := usecaseInterface.GenerateTokenParams{
 		UserID:   userID,
 		UserType: tokenUser,
 	}
-	log.Printf("Generating tokens for userID: %d, userType: %s", userID, tokenUser)
+	log.Printf("Generating tokens for userID: %s, userType: %s", userID, tokenUser)
 	accessToken, err := c.adminUseCase.GenerateAccessToken(ctx, tokenParams)
-	log.Printf("Access token generation result for userID: %d, userType: %s, accessToken: %s, error: %v", userID, tokenUser, accessToken, err)
+	log.Printf("Access token generation result for userID: %s, userType: %s, accessToken: %s, error: %v", userID, tokenUser, accessToken, err)
 	if err != nil {
-		log.Printf("Error generating access token for userID: %d, userType: %s, error: %v", userID, tokenUser, err)
+		log.Printf("Error generating access token for userID: %s, userType: %s, error: %v", userID, tokenUser, err)
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to generate access token", err, nil)
 		return
 	}
@@ -177,7 +178,7 @@ func (c *adminHandler) setupTokenAndResponse(ctx *gin.Context, tokenUser token.U
 	})
 
 	if err != nil {
-		log.Printf("Error generating refresh token for userID: %d, userType: %s, error: %v", userID, tokenUser, err)
+		log.Printf("Error generating refresh token for userID: %s, userType: %s, error: %v", userID, tokenUser, err)
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to generate refresh token", err, nil)
 		return
 	}
@@ -187,7 +188,7 @@ func (c *adminHandler) setupTokenAndResponse(ctx *gin.Context, tokenUser token.U
 
 	ctx.Header("access_token", accessToken)
 	ctx.Header("refresh_token", refreshToken)
-	log.Printf("Set access and refresh tokens in headers for userID: %d, userType: %s", userID, tokenUser)
+	log.Printf("Set access and refresh tokens in headers for userID: %s, userType: %s", userID, tokenUser)
 
 	tokenRes := response.TokenResponse{
 		AccessToken:  accessToken,
@@ -217,14 +218,14 @@ func (c *adminHandler) setupTokenAndResponse(ctx *gin.Context, tokenUser token.U
 		responseData = mergedData
 	}
 
-	log.Printf("Custom response for userID: %d, userType: %s, customResponse: %+v", userID, tokenUser, customResponse)
+	log.Printf("Custom response for userID: %s, userType: %s, customResponse: %+v", userID, tokenUser, customResponse)
 
 	if len(customResponse) > 1 {
 		if msg, ok := customResponse[1].(string); ok {
 			message = msg
 		}
 	}
-	log.Printf("Final response data for userID: %d, userType: %s, responseData: %+v", userID, tokenUser, responseData)
+	log.Printf("Final response data for userID: %s, userType: %s, responseData: %+v", userID, tokenUser, responseData)
 	response.SuccessResponse(ctx, http.StatusOK, message, responseData)
 }
 
@@ -531,16 +532,12 @@ func (h *adminHandler) CreateShop(ctx *gin.Context) {
 	// get the adminId from authorization and add it in body
 	tokenString := ctx.GetHeader("Authorization")
 	adminId := h.adminUseCase.DecodeTokenData(tokenString)
-	adminIdUint, err := strconv.ParseUint(adminId, 10, 64)
-	if err != nil {
-		log.Printf("Error parsing admin ID from token: %v", err)
-	}
-	body.AdminID = uint(adminIdUint)
+	body.AdminID = adminId
 	body.Country = "India"
-	fmt.Printf("Decoded admin ID from token: %s (parsed to uint: %d)\n", adminId, adminIdUint)
+	fmt.Printf("Decoded admin ID from token: %s\n", adminId)
 
 	// Fetch admin mobile and assign to shop phone
-	admin, err := h.adminUseCase.GetAdminByID(ctx, uint(adminIdUint))
+	admin, err := h.adminUseCase.GetAdminByID(ctx, adminId)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to fetch admin details", err, nil)
 		return
@@ -555,7 +552,7 @@ func (h *adminHandler) CreateShop(ctx *gin.Context) {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to create shop", err, nil)
 		return
 	}
-	log.Printf("Shop created successfully with ID: %d", res.ID)
+	log.Printf("Shop created successfully with ID: %s", res.ID)
 
 	res.Shop_Image_URL = cloud.ResolveURL(h.cloudService, res.Shop_Image_URL)
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully created shop", res)
@@ -603,13 +600,12 @@ func (h *adminHandler) GetAllShops(ctx *gin.Context) {
 //	@Failure		500	{object}	response.Response{}	"Failed to get shop by ID"
 func (h *adminHandler) GetShopByID(ctx *gin.Context) {
 	shopIDStr := ctx.Param("shop_id")
-	shopID, err := strconv.ParseUint(shopIDStr, 10, 64)
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid shop ID", err, nil)
+	if shopIDStr == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid shop ID", nil, nil)
 		return
 	}
 
-	shop, err := h.adminUseCase.GetShopByID(ctx, uint(shopID))
+	shop, err := h.adminUseCase.GetShopByID(ctx, shopIDStr)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get shop by ID", err, nil)
 		return
@@ -709,13 +705,12 @@ func (h *adminHandler) UploadShopById(ctx *gin.Context) {
 func (h *adminHandler) GetShopByOwnerID(ctx *gin.Context) {
 	tokenString := ctx.GetHeader("Authorization")
 	adminId := h.adminUseCase.DecodeTokenData(tokenString)
-	ownerID, err := strconv.ParseUint(adminId, 10, 64)
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid owner ID", err, nil)
+	if adminId == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Invalid owner ID", nil, nil)
 		return
 	}
 
-	shop, err := h.adminUseCase.GetShopByOwnerID(ctx, uint(ownerID))
+	shop, err := h.adminUseCase.GetShopByOwnerID(ctx, adminId)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get shop by owner ID", err, nil)
 		return
@@ -765,7 +760,7 @@ func (c *adminHandler) SendNotificationToUsersInRadius(ctx *gin.Context) {
 //	@Router		/admin/notifications/user/{user_id} [get]
 //	@Success	200	{object}	response.Response{}	"Successfully sent notification to user"
 //	@Failure	400	{object}	response.Response{}	"invalid input"
-func (c *adminHandler) SendNotificationToUser(ctx context.Context, userID uint, message string) error {
+func (c *adminHandler) SendNotificationToUser(ctx context.Context, userID string, message string) error {
 	err := c.adminUseCase.SendNotificationToUser(ctx, userID, message)
 	if err != nil {
 		return fmt.Errorf("failed to send notification to user \nerror:%v", err.Error())
@@ -911,6 +906,72 @@ func (a *adminHandler) UploadAdminProfileImage(ctx *gin.Context) {
 
 }
 
+// UploadBusinessDocument godoc
+// @summary api for admin to upload a business document
+// @id UploadBusinessDocument
+// @tags Admin Shop
+// @Param document formData file true "Business Document"
+// @Router /admin/shops/business-document/upload [post]
+// @Success 200 {object} response.Response{} "Successfully uploaded business document"
+// @Failure 400 {object} response.Response{} "invalid input"
+// @Failure 401 {object} response.Response{} "unauthorized"
+// @Failure 500 {object} response.Response{} "failed to upload business document"
+func (a *adminHandler) UploadBusinessDocument(ctx *gin.Context) {
+	// Parse the multipart form (10 MB limit)
+	if err := ctx.Request.ParseMultipartForm(10 << 20); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to parse multipart form", err, nil)
+		return
+	}
+
+	fileHeader, err := ctx.FormFile("document")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Document file is required", err, nil)
+		return
+	}
+
+	// Validate file size (max 10 MB)
+	if fileHeader.Size > 10<<20 {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "File size exceeds 10MB limit", fmt.Errorf("file size %d exceeds limit", fileHeader.Size), nil)
+		return
+	}
+
+	// Extract owner ID from token
+	tokenString := ctx.GetHeader("Authorization")
+	ownerID := a.adminUseCase.DecodeTokenData(tokenString)
+	if ownerID == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Invalid token data", fmt.Errorf("failed to decode owner ID from token"), nil)
+		return
+	}
+
+	// Build unique filename and namespace for S3
+	timestamp := time.Now().Unix()
+	uniqueFilename := fmt.Sprintf("%d-%s", timestamp, fileHeader.Filename)
+	namespace := fmt.Sprintf("business-docs/%s", ownerID)
+	// Final key will be: business-docs/{ownerID}/{timestamp}-{filename}
+
+	// Determine content type
+	contentType := fileHeader.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+
+	savedKey, err := a.cloudService.SaveFile(ctx, fileHeader, cloud.SaveOptions{
+		Namespace:   namespace,
+		Visibility:  cloud.VisibilityPublic,
+		ContentType: contentType,
+		Filename:    uniqueFilename,
+	})
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to upload business document", err, nil)
+		return
+	}
+
+	fileURL := a.cloudService.PublicURL(savedKey)
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully uploaded business document", map[string]interface{}{
+		"document_url": fileURL,
+	})
+}
+
 // AddAdminProfile godoc
 // @summary api for admin to add profile
 // @id AddAdminProfile
@@ -991,16 +1052,8 @@ func (a *adminHandler) UploadShopDocument(ctx *gin.Context) {
 		return
 	}
 
-	// Convert shopOwnerIdStr to uint
-	shopOwnerId, err := strconv.ParseUint(shopOwnerIdStr, 10, 32)
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusUnauthorized, "Invalid shop owner ID format", err, nil)
-		return
-	}
-
 	// Call use case to upload shop document
-	err = a.adminUseCase.UploadShopDocument(ctx.Request.Context(), uint(shopOwnerId), req.DocumentType, req.DocumentValue)
-	if err != nil {
+	if err := a.adminUseCase.UploadShopDocument(ctx.Request.Context(), shopOwnerIdStr, req.DocumentType, req.DocumentValue); err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to upload shop document", err, nil)
 		return
 	}
@@ -1272,13 +1325,12 @@ func (a *adminHandler) GetShopProfileImageById(ctx *gin.Context) {
 // @Failure 400 {object} response.Response{} "Invalid input"
 func (a *adminHandler) SetShopTime(ctx *gin.Context) {
 	shopIDStr := ctx.Param("shop_id")
-	shopID, err := strconv.ParseUint(shopIDStr, 10, 32)
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid shop_id", err, nil)
+	if shopIDStr == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid shop_id", nil, nil)
 		return
 	}
 
-	log.Printf("Received request to set shop time for shop_id: %d", shopID)
+	log.Printf("Received request to set shop time for shop_id: %s", shopIDStr)
 
 	var req request.SetShopTimeRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -1289,9 +1341,9 @@ func (a *adminHandler) SetShopTime(ctx *gin.Context) {
 
 	log.Printf("Parsed request body: %+v", req)
 
-	status := "close"
+	status := domain.ShopTimeClose
 	if req.Status {
-		status = "open"
+		status = domain.ShopTimeOpen
 	}
 
 	shopTime := domain.ShopTime{
@@ -1300,7 +1352,7 @@ func (a *adminHandler) SetShopTime(ctx *gin.Context) {
 		CloseTime: req.CloseTime,
 	}
 
-	err = a.shopTimeUseCase.SetShopTime(ctx, uint(shopID), shopTime)
+	err := a.shopTimeUseCase.SetShopTime(ctx, shopIDStr, shopTime)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to set shop time", err, nil)
 		return
@@ -1319,14 +1371,17 @@ func (a *adminHandler) SetShopTime(ctx *gin.Context) {
 // @Failure 400 {object} response.Response{} "Invalid shop_id"
 func (a *adminHandler) GetShopTime(ctx *gin.Context) {
 	shopIDStr := ctx.Param("shop_id")
-	shopID, err := strconv.ParseUint(shopIDStr, 10, 32)
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid shop_id", err, nil)
+	if shopIDStr == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid shop_id", nil, nil)
 		return
 	}
 
-	shopTime, err := a.shopTimeUseCase.GetShopTime(ctx, uint(shopID))
+	shopTime, err := a.shopTimeUseCase.GetShopTime(ctx, shopIDStr)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			response.ErrorResponse(ctx, http.StatusNotFound, "Shop time not configured", domain.NotFoundError("shop time not found for this shop"), nil)
+			return
+		}
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get shop time", err, nil)
 		return
 	}
@@ -1348,15 +1403,23 @@ func (h *adminHandler) GetShopSocialDetails(ctx *gin.Context) {
 	//	@Failure		400	{object}	response.Response{}	"Invalid shop_id"
 	//	@Failure		500	{object}	response.Response{}	"Failed to fetch shop social details"
 	shopIDStr := ctx.Param("shop_id")
-	shopID, err := strconv.ParseUint(shopIDStr, 10, 64)
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid shop_id", err, nil)
+	if shopIDStr == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid shop_id", nil, nil)
 		return
 	}
-	details, err := h.adminUseCase.GetShopSocialDetails(ctx, uint(shopID))
+	details, err := h.adminUseCase.GetShopSocialDetails(ctx, shopIDStr)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to fetch shop social details", err, nil)
 		return
 	}
 	response.SuccessResponse(ctx, http.StatusOK, "Shop social details fetched", details)
+}
+
+func (a *adminHandler) GetDashboardStats(ctx *gin.Context) {
+	stats, err := a.adminUseCase.GetDashboardStats(ctx)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to fetch dashboard stats", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "dashboard stats fetched", stats)
 }

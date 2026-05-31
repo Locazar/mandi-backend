@@ -30,7 +30,7 @@ func NewSubscriptionUseCase(
 	}
 }
 
-func (uc *subscriptionUseCase) GetSubscriptionStatus(ctx context.Context, userID uint) (response.SubscriptionStatusResponse, error) {
+func (uc *subscriptionUseCase) GetSubscriptionStatus(ctx context.Context, userID string) (response.SubscriptionStatusResponse, error) {
 	// Check for active subscription
 	sub, err := uc.subRepo.FindActiveSubscriptionByUserID(ctx, userID)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -78,7 +78,7 @@ func (uc *subscriptionUseCase) GetSubscriptionStatus(ctx context.Context, userID
 	}, nil
 }
 
-func (uc *subscriptionUseCase) StartTrial(ctx context.Context, userID uint) (response.SubscriptionStatusResponse, error) {
+func (uc *subscriptionUseCase) StartTrial(ctx context.Context, userID string) (response.SubscriptionStatusResponse, error) {
 	// 1. Check trial already used
 	trialUsed, err := uc.userRepo.IsTrialUsed(ctx, userID)
 	if err != nil {
@@ -147,7 +147,7 @@ func (uc *subscriptionUseCase) GetPaidPlans(ctx context.Context) ([]response.Sub
 		result[i] = response.SubscriptionPlanResponse{
 			ID:           p.ID,
 			Name:         p.Name,
-			PriceMonthly: p.PriceMonthly,
+			PriceMonthly: uint(p.PriceMonthly.AmountMinor),
 			DurationDays: p.DurationDays,
 		}
 	}

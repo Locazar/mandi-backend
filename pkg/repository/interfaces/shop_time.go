@@ -8,6 +8,6 @@ import (
 
 type ShopTimeRepository interface {
 	CreateShopTime(ctx context.Context, shopTime domain.ShopTime) error
-	GetShopTimeByShopID(ctx context.Context, shopID uint) (domain.ShopTime, error)
+	GetShopTimeByShopID(ctx context.Context, shopID string) (domain.ShopTime, error)
 	UpdateShopTime(ctx context.Context, shopTime domain.ShopTime) error
 }

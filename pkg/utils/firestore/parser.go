@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"reflect"
 	"strings"
 )
 
@@ -133,8 +134,8 @@ func ValuesEqual(a, b interface{}) bool {
 		return false
 	}
 
-	// Try direct comparison first
-	if a == b {
+	// Use reflect to check comparability before == to avoid panic on maps/slices.
+	if reflect.TypeOf(a).Comparable() && reflect.TypeOf(b).Comparable() && a == b {
 		return true
 	}
 

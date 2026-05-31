@@ -10,7 +10,7 @@ type SubscriptionOrderResponse struct {
 	KeyID       string              `json:"key_id"`
 	Amount      uint                `json:"amount"`
 	Currency    string              `json:"currency"`
-	ShopOrderID uint                `json:"shop_order_id"`
+	ShopOrderID string              `json:"shop_order_id"`
 	Prefill     SubscriptionPrefill `json:"prefill"`
 }
 
@@ -30,7 +30,7 @@ type SubscriptionStatusResponse struct {
 }
 
 type SubscriptionPlanResponse struct {
-	ID           uint   `json:"id"`
+	ID           string `json:"id"`
 	Name         string `json:"name"`
 	PriceMonthly uint   `json:"price_monthly"`
 	DurationDays uint   `json:"duration_days"`

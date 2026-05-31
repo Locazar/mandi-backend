@@ -132,8 +132,8 @@ func resolveUintField(docData map[string]interface{}, fields ...string) uint {
 func (uc *notificationUseCase) SaveNotification(ctx context.Context, n request.Notification) error {
 	now := time.Now().UTC().Format(time.RFC3339)
 	record := domain.Notification{
-		SenderType:           n.SenderType,
-		ReceiverType:         n.ReceiverType,
+		SenderType:           domain.UserType(n.SenderType),
+		ReceiverType:         domain.UserType(n.ReceiverType),
 		SenderID:             n.SenderID,
 		Title:                n.Title,
 		Message:              n.Message,
@@ -146,7 +146,7 @@ func (uc *notificationUseCase) SaveNotification(ctx context.Context, n request.N
 		OfferID:              n.OfferID,
 		CategoryID:           n.CategoryID,
 		NotificationMetaData: n.NotificationMetaData,
-		Status:               n.Status,
+		Status:               domain.NotificationStatus(n.Status),
 		CreatedAt:            now,
 		UpdatedAt:            now,
 	}
@@ -166,7 +166,7 @@ func (uc *notificationUseCase) GetNotificationsBy(ctx context.Context, filter re
 }
 
 // MarkNotificationAsRead marks a single notification as read.
-func (uc *notificationUseCase) MarkNotificationAsRead(ctx context.Context, notificationID uint) error {
+func (uc *notificationUseCase) MarkNotificationAsRead(ctx context.Context, notificationID string) error {
 	if err := uc.notificationRepo.MarkNotificationAsRead(ctx, notificationID); err != nil {
 		return fmt.Errorf("mark notification as read: %w", err)
 	}
@@ -234,15 +234,15 @@ func (uc *notificationUseCase) SendPushNotification(ctx context.Context, req req
 
 // SendPushToUserOnOrderUpdate is a convenience helper called by the order usecase
 // after an order status change.  It builds the payload and delegates to SendPushNotification.
-func SendPushToUserOnOrderUpdate(ctx context.Context, uc service.NotificationUseCase, userID uint, orderID uint, newStatus string) {
+func SendPushToUserOnOrderUpdate(ctx context.Context, uc service.NotificationUseCase, userID string, orderID string, newStatus string) {
 	req := request.SendPushRequest{
-		OwnerID:   strconv.FormatUint(uint64(userID), 10),
+		OwnerID:   userID,
 		OwnerType: "user",
 		Title:     orderStatusTitle(newStatus),
 		Body:      orderStatusBody(newStatus, orderID),
 		EventType: "order_status_changed",
 		Data: map[string]string{
-			"order_id": strconv.FormatUint(uint64(orderID), 10),
+			"order_id": orderID,
 			"status":   newStatus,
 		},
 	}
@@ -253,15 +253,15 @@ func SendPushToUserOnOrderUpdate(ctx context.Context, uc service.NotificationUse
 }
 
 // SendPushToSellerOnNewOrder notifies a seller when a new order is placed for their shop.
-func SendPushToSellerOnNewOrder(ctx context.Context, uc service.NotificationUseCase, shopOwnerID uint, orderID uint) {
+func SendPushToSellerOnNewOrder(ctx context.Context, uc service.NotificationUseCase, shopOwnerID string, orderID string) {
 	req := request.SendPushRequest{
-		OwnerID:   strconv.FormatUint(uint64(shopOwnerID), 10),
+		OwnerID:   shopOwnerID,
 		OwnerType: "seller",
 		Title:     "New Order Received!",
-		Body:      fmt.Sprintf("Order #%d has been placed. Prepare for dispatch.", orderID),
+		Body:      fmt.Sprintf("Order %s has been placed. Prepare for dispatch.", orderID),
 		EventType: "new_order",
 		Data: map[string]string{
-			"order_id": strconv.FormatUint(uint64(orderID), 10),
+			"order_id": orderID,
 		},
 	}
 	go func() {
@@ -340,19 +340,19 @@ func orderStatusTitle(status string) string {
 	return "Order Update"
 }
 
-func orderStatusBody(status string, orderID uint) string {
+func orderStatusBody(status string, orderID string) string {
 	bodies := map[string]string{
-		"order placed":     fmt.Sprintf("Your order #%d has been confirmed and is being processed.", orderID),
-		"payment pending":  fmt.Sprintf("Complete payment for order #%d to confirm your order.", orderID),
-		"order cancelled":  fmt.Sprintf("Your order #%d has been cancelled.", orderID),
-		"order delivered":  fmt.Sprintf("Your order #%d has been delivered. Enjoy!", orderID),
-		"return requested": fmt.Sprintf("Return request for order #%d is being reviewed.", orderID),
-		"return approved":  fmt.Sprintf("Your return for order #%d has been approved.", orderID),
-		"return cancelled": fmt.Sprintf("Return for order #%d was declined. Contact support for help.", orderID),
-		"order returned":   fmt.Sprintf("Your order #%d has been returned and refund initiated.", orderID),
+		"order placed":     fmt.Sprintf("Your order %s has been confirmed and is being processed.", orderID),
+		"payment pending":  fmt.Sprintf("Complete payment for order %s to confirm your order.", orderID),
+		"order cancelled":  fmt.Sprintf("Your order %s has been cancelled.", orderID),
+		"order delivered":  fmt.Sprintf("Your order %s has been delivered. Enjoy!", orderID),
+		"return requested": fmt.Sprintf("Return request for order %s is being reviewed.", orderID),
+		"return approved":  fmt.Sprintf("Your return for order %s has been approved.", orderID),
+		"return cancelled": fmt.Sprintf("Return for order %s was declined. Contact support for help.", orderID),
+		"order returned":   fmt.Sprintf("Your order %s has been returned and refund initiated.", orderID),
 	}
 	if b, ok := bodies[status]; ok {
 		return b
 	}
-	return fmt.Sprintf("Your order #%d status has changed to: %s", orderID, status)
+	return fmt.Sprintf("Your order #%s status has changed to: %s", orderID, status)
 }

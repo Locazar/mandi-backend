@@ -10,7 +10,7 @@ import (
 type NotificationRepository interface {
 	SaveNotification(ctx context.Context, notification domain.Notification) error
 	GetNotifications(ctx context.Context, filter request.GetNotification, pagination request.Pagination) ([]domain.Notification, error)
-	MarkNotificationAsRead(ctx context.Context, notificationID uint) error
+	MarkNotificationAsRead(ctx context.Context, notificationID string) error
 
 	// FCM token management in Postgres
 	SaveDeviceToken(ctx context.Context, token domain.NotificationDeviceToken) error

@@ -71,13 +71,13 @@ func (r *bannerRepository) GetBannersForUser(ctx context.Context, req request.Ba
 
 		// ── 3. Department filter ───────────────────────────────────────────────
 		// nil department_id on banner = applies to all departments
-		if req.DepartmentID > 0 && b.DepartmentID != nil && *b.DepartmentID != req.DepartmentID {
+		if req.DepartmentID != "" && b.DepartmentID != nil && *b.DepartmentID != req.DepartmentID {
 			continue
 		}
 
 		// ── 4. Category filter ─────────────────────────────────────────────────
 		// nil category_id on banner = applies to all categories
-		if req.CategoryID > 0 && b.CategoryID != nil && *b.CategoryID != req.CategoryID {
+		if req.CategoryID != "" && b.CategoryID != nil && *b.CategoryID != req.CategoryID {
 			continue
 		}
 
@@ -87,7 +87,7 @@ func (r *bannerRepository) GetBannersForUser(ctx context.Context, req request.Ba
 		//   - banners with app_type = "all"
 		//   - banners whose app_type exactly matches the request
 		if req.AppType != "" {
-			if b.AppType != "" && b.AppType != "all" && b.AppType != req.AppType {
+			if b.AppType != "" && b.AppType != "all" && b.AppType != domain.BannerAppType(req.AppType) {
 				continue
 			}
 		}

@@ -16,6 +16,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/service/ai"
 	"github.com/rohit221990/mandi-backend/pkg/service/alert_engine"
 	"github.com/rohit221990/mandi-backend/pkg/service/cloud"
+	"github.com/rohit221990/mandi-backend/pkg/service/crypto"
 	"github.com/rohit221990/mandi-backend/pkg/service/elasticsearch"
 	"github.com/rohit221990/mandi-backend/pkg/service/graphics"
 	"github.com/rohit221990/mandi-backend/pkg/service/otp"
@@ -33,18 +34,22 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	authRepository := repository.NewAuthRepository(gormDB)
 	tokenService := token.NewTokenService(cfg)
 	userRepository := repository.NewUserRepository(gormDB)
-	adminRepository := repository.NewAdminRepository(gormDB)
+	service, err := provideCryptoService(cfg)
+	if err != nil {
+		return nil, err
+	}
+	adminRepository := repository.NewAdminRepository(gormDB, service)
 	otpAuth := otp.NewOtpAuth(cfg)
 	authUseCase := usecase.NewAuthUseCase(authRepository, tokenService, userRepository, adminRepository, otpAuth)
 	authHandler := handler.NewAuthHandler(authUseCase, cfg, tokenService)
 	middlewareMiddleware := middleware.NewMiddleware(tokenService)
+	adminUseCase := usecase.NewAdminUseCase(adminRepository, userRepository, authRepository, otpAuth, tokenService)
+	shopTimeRepository := repository.NewShopTimeRepository(gormDB)
+	shopTimeUseCase := usecase.NewShopTimeUseCase(shopTimeRepository)
 	cloudService, err := cloud.NewObjectStorageService(cfg)
 	if err != nil {
 		return nil, err
 	}
-	adminUseCase := usecase.NewAdminUseCase(adminRepository, userRepository, authRepository, otpAuth, tokenService)
-	shopTimeRepository := repository.NewShopTimeRepository(gormDB)
-	shopTimeUseCase := usecase.NewShopTimeUseCase(shopTimeRepository)
 	adminHandler := handler.NewAdminHandler(adminUseCase, shopTimeUseCase, cloudService)
 	cartRepository := repository.NewCartRepository(gormDB)
 	string2 := provideElasticURL(cfg)
@@ -106,7 +111,15 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	subscriptionPaymentHandler := handler.NewSubscriptionPaymentHandler(subscriptionPaymentUseCase)
 	subscriptionUseCase := usecase.NewSubscriptionUseCase(subscriptionRepository, userRepository)
 	subscriptionHandler := handler.NewSubscriptionHandler(subscriptionUseCase)
-	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler)
+	sellerGuideHandler := handler.NewSellerGuideHandler()
+	jobService := usecase.NewJobService(gormDB)
+	jobHandler := handler.NewJobHandler(jobService)
+	jobCategoryService := usecase.NewJobCategoryService(gormDB)
+	jobCategoryHandler := handler.NewJobCategoryHandler(jobCategoryService)
+	platformUserRepository := repository.NewPlatformUserRepository(gormDB)
+	platformUserUseCase := usecase.NewPlatformUserUseCase(platformUserRepository, adminUseCase)
+	platformUserHandler := handler.NewPlatformUserHandler(platformUserUseCase, adminUseCase)
+	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler, jobHandler, jobCategoryHandler, platformUserHandler)
 	return serverHTTP, nil
 }
 
@@ -118,6 +131,14 @@ func provideElasticURL(cfg config.Config) string {
 
 func provideAIServiceClient(cfg config.Config) *ai.Client {
 	return ai.NewClient(cfg.AIServiceURL)
+}
+
+func provideCryptoService(cfg config.Config) (*crypto.Service, error) {
+	keys, err := crypto.ParseKeyring(cfg.PIIEncryptionKeys)
+	if err != nil {
+		return nil, err
+	}
+	return crypto.NewService(keys, cfg.PIIEncryptionActiveKey)
 }
 
 func provideAlertRuleRegistry() *alert_engine.RuleRegistry {

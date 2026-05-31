@@ -14,23 +14,23 @@ type ProductUseCase interface {
 	SaveSubCategory(ctx context.Context, body request.SubCategory, departmentId string, category_id string) error
 
 	// variations
-	SaveVariation(ctx context.Context, categoryID uint, variationNames []string) error
-	SaveVariationOption(ctx context.Context, variationID uint, variationOptionValues []string) error
+	SaveVariation(ctx context.Context, categoryID string, variationNames []string) error
+	SaveVariationOption(ctx context.Context, variationID string, variationOptionValues []string) error
 
-	FindAllVariationsAndItsValues(ctx context.Context, categoryID uint) ([]response.Variation, error)
+	FindAllVariationsAndItsValues(ctx context.Context, categoryID string) ([]response.Variation, error)
 
 	// products
 	FindAllProducts(ctx context.Context, pagination request.Pagination, search string) (products []response.Product, err error)
-	FindProductByID(ctx context.Context, productID uint) (product domain.Product, err error)
-	SaveProduct(ctx context.Context, product request.Product, adminID string) (productID uint, err error)
+	FindProductByID(ctx context.Context, productID string) (product domain.Product, err error)
+	SaveProduct(ctx context.Context, product request.Product, adminID string) (productID string, err error)
 	UpdateProduct(ctx context.Context, product domain.Product) error
 
-	SaveProductItem(ctx context.Context, productItem request.ProductItem, adminID string, shopID uint) error
+	SaveProductItem(ctx context.Context, productItem request.ProductItem, adminID string, shopID string) error
 	FindAllProductItems(ctx context.Context, shopID string, keyword string, categoryID, brandID, locationID *string, offer string, sortby string, pagination *request.Pagination, filterByShopID string) ([]response.ProductItems, error)
 	FindLowViewProductItems(ctx context.Context, shopID string, keyword string, categoryID, brandID, locationID *string, sortby string, pagination *request.Pagination, filterByShopID *string) ([]response.ProductItems, error)
-	UpdateProductItem(ctx context.Context, productItemID uint, productItem request.ProductItem) error
-	DeleteProductItem(ctx context.Context, productItemID uint) error
-	FindProductItemFilters(ctx context.Context, adminID string, shopID uint) ([]domain.ProductItemFilterType, error)
+	UpdateProductItem(ctx context.Context, productItemID string, productItem request.ProductItem) error
+	DeleteProductItem(ctx context.Context, productItemID string) error
+	FindProductItemFilters(ctx context.Context, adminID string, shopID string) ([]domain.ProductItemFilterType, error)
 	SearchProducts(ctx context.Context, keyword string, categoryID, departmentID, brandID, locationID *string, shopID *string, latitude, longitude, radius float64, pincode *uint, limit, offset int) (products []response.ProductItems, err error)
 	GetProductNameSuggestions(ctx context.Context, prefix string) (suggestions []string, err error)
 	GetProductFilters(ctx context.Context) (filters response.ProductFilters, err error)
@@ -57,32 +57,32 @@ type ProductUseCase interface {
 	// department
 	SaveDepartment(ctx context.Context, departmentName string) error
 	GetAllDepartments(ctx context.Context) ([]response.Department, error)
-	GetDepartmentByID(ctx context.Context, departmentID uint) (response.Department, error)
+	GetDepartmentByID(ctx context.Context, departmentID string) (response.Department, error)
 
 	GetAllSubCategories(ctx context.Context) ([]response.SubCategory, error)
-	GetAllCategoriesByDepartmentID(ctx context.Context, departmentID uint) ([]response.Category, error)
-	GetAllSubCategoriesByCategoryID(ctx context.Context, categoryID uint) ([]response.SubCategory, error)
+	GetAllCategoriesByDepartmentID(ctx context.Context, departmentID string) ([]response.Category, error)
+	GetAllSubCategoriesByCategoryID(ctx context.Context, categoryID string) ([]response.SubCategory, error)
 
 	// sub type attributes
-	SaveSubTypeAttribute(ctx context.Context, subCategoryID uint, attribute request.SubTypeAttribute) error
-	GetAllSubTypeAttributes(ctx context.Context, subCategoryID uint) ([]response.SubTypeAttribute, error)
-	GetSubTypeAttributeByID(ctx context.Context, attributeID uint) (response.SubTypeAttribute, error)
+	SaveSubTypeAttribute(ctx context.Context, subCategoryID string, attribute request.SubTypeAttribute) error
+	GetAllSubTypeAttributes(ctx context.Context, subCategoryID string) ([]response.SubTypeAttribute, error)
+	GetSubTypeAttributeByID(ctx context.Context, attributeID string) (response.SubTypeAttribute, error)
 
 	// sub type attribute options
-	SaveSubTypeAttributeOption(ctx context.Context, attributeID uint, option request.SubTypeAttributeOption) error
-	GetAllSubTypeAttributeOptions(ctx context.Context, attributeID uint) ([]response.SubTypeAttributeOption, error)
-	GetSubTypeAttributeOptionByID(ctx context.Context, optionID uint) (response.SubTypeAttributeOption, error)
+	SaveSubTypeAttributeOption(ctx context.Context, attributeID string, option request.SubTypeAttributeOption) error
+	GetAllSubTypeAttributeOptions(ctx context.Context, attributeID string) ([]response.SubTypeAttributeOption, error)
+	GetSubTypeAttributeOptionByID(ctx context.Context, optionID string) (response.SubTypeAttributeOption, error)
 
 	// category images
-	SaveCategoryImage(ctx context.Context, categoryID uint, image request.CategoryImage) error
-	GetAllCategoryImages(ctx context.Context, categoryID uint) ([]response.CategoryImage, error)
-	GetCategoryImageByID(ctx context.Context, imageID uint) (response.CategoryImage, error)
-	UpdateCategoryImage(ctx context.Context, imageID uint, image request.CategoryImage) error
-	DeleteCategoryImage(ctx context.Context, imageID uint) error
-	GetProductItemByID(ctx context.Context, productItemID uint) (response.ProductItems, error)
-	IncrementProductItemViewCount(ctx context.Context, productItemID uint, adminID string) error
-	GetProductItemViewCount(ctx context.Context, productItemID uint, adminID string) (uint, error)
+	SaveCategoryImage(ctx context.Context, categoryID string, image request.CategoryImage) error
+	GetAllCategoryImages(ctx context.Context, categoryID string) ([]response.CategoryImage, error)
+	GetCategoryImageByID(ctx context.Context, imageID string) (response.CategoryImage, error)
+	UpdateCategoryImage(ctx context.Context, imageID string, image request.CategoryImage) error
+	DeleteCategoryImage(ctx context.Context, imageID string) error
+	GetProductItemByID(ctx context.Context, productItemID string) (response.ProductItems, error)
+	IncrementProductItemViewCount(ctx context.Context, productItemID string, adminID string) error
+	GetProductItemViewCount(ctx context.Context, productItemID string, adminID string) (uint, error)
 
 	// Offer
-	GetProductItemsByOfferID(ctx context.Context, offerID uint, categoryID int, departmentID int, subCategoryID int, latStr string, lngStr string, pincode string, radiusKm float64, limit int, offset int) ([]response.ProductItems, error)
+	GetProductItemsByOfferID(ctx context.Context, offerID string, categoryID int, departmentID int, subCategoryID int, latStr string, lngStr string, pincode string, radiusKm float64, limit int, offset int) ([]response.ProductItems, error)
 }

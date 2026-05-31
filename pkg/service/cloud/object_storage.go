@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log"
 	"mime/multipart"
 	"path/filepath"
 	"strings"
@@ -27,6 +28,8 @@ type objectStorage struct {
 	publicBaseURL string
 }
 
+type noopObjectStorage struct{}
+
 func NewObjectStorageService(cfg config.Config) (CloudService, error) {
 	endpoint := firstNonEmpty(cfg.S3Endpoint)
 	region := firstNonEmpty(cfg.S3Region, cfg.AwsRegion)
@@ -34,8 +37,8 @@ func NewObjectStorageService(cfg config.Config) (CloudService, error) {
 	secretKey := firstNonEmpty(cfg.S3SecretKey, cfg.AwsSecretKey)
 	bucket := firstNonEmpty(cfg.S3Bucket, cfg.AwsBucketName)
 
-	if endpoint == "" || bucket == "" || accessKey == "" || secretKey == "" {
-		return nil, fmt.Errorf("object storage misconfigured: S3_ENDPOINT/S3_BUCKET/S3_ACCESS_KEY/S3_SECRET_KEY required")
+	if bucket == "" || accessKey == "" || secretKey == "" {
+		return noopObjectStorage{}, nil
 	}
 
 	awsCfg, err := awsconfig.LoadDefaultConfig(context.Background(),
@@ -47,13 +50,19 @@ func NewObjectStorageService(cfg config.Config) (CloudService, error) {
 	}
 
 	client := s3.NewFromConfig(awsCfg, func(o *s3.Options) {
-		o.BaseEndpoint = aws.String(endpoint)
-		o.UsePathStyle = true
+		if endpoint != "" {
+			o.BaseEndpoint = aws.String(endpoint)
+			o.UsePathStyle = true
+		}
 	})
 
 	publicBase := strings.TrimRight(cfg.S3PublicBaseURL, "/")
 	if publicBase == "" {
-		publicBase = strings.TrimRight(endpoint, "/") + "/" + bucket
+		if endpoint != "" {
+			publicBase = strings.TrimRight(endpoint, "/") + "/" + bucket
+		} else {
+			publicBase = fmt.Sprintf("https://%s.s3.%s.amazonaws.com", bucket, region)
+		}
 	}
 
 	return &objectStorage{
@@ -62,6 +71,26 @@ func NewObjectStorageService(cfg config.Config) (CloudService, error) {
 		bucket:        bucket,
 		publicBaseURL: publicBase,
 	}, nil
+}
+
+func (noopObjectStorage) SaveFile(ctx context.Context, fh *multipart.FileHeader, opts SaveOptions) (string, error) {
+	return "", fmt.Errorf("object storage unavailable: S3 configuration is missing")
+}
+
+func (noopObjectStorage) SaveBytes(ctx context.Context, data []byte, opts SaveOptions) (string, error) {
+	return "", fmt.Errorf("object storage unavailable: S3 configuration is missing")
+}
+
+func (noopObjectStorage) PublicURL(objectKey string) string {
+	return objectKey
+}
+
+func (noopObjectStorage) PresignedURL(ctx context.Context, objectKey string, ttl time.Duration) (string, error) {
+	return "", fmt.Errorf("object storage unavailable: S3 configuration is missing")
+}
+
+func (noopObjectStorage) DeleteObject(ctx context.Context, objectKey string) error {
+	return nil
 }
 
 func (s *objectStorage) SaveFile(ctx context.Context, fh *multipart.FileHeader, opts SaveOptions) (string, error) {
@@ -88,6 +117,7 @@ func (s *objectStorage) SaveFile(ctx context.Context, fh *multipart.FileHeader, 
 	}
 
 	if _, err := s.client.PutObject(ctx, input); err != nil {
+		log.Printf("cloud SaveFile PutObject failed: bucket=%s key=%s contentType=%s visibility=%d filename=%s err=%v", s.bucket, key, contentType, opts.Visibility, fh.Filename, err)
 		return "", utils.PrependMessageToError(err, "failed to upload file")
 	}
 	return key, nil
@@ -111,6 +141,7 @@ func (s *objectStorage) SaveBytes(ctx context.Context, data []byte, opts SaveOpt
 	}
 
 	if _, err := s.client.PutObject(ctx, input); err != nil {
+		log.Printf("cloud SaveBytes PutObject failed: bucket=%s key=%s contentType=%s visibility=%d bytes=%d err=%v", s.bucket, key, contentType, opts.Visibility, len(data), err)
 		return "", utils.PrependMessageToError(err, "failed to upload bytes")
 	}
 	return key, nil

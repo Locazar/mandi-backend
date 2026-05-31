@@ -26,12 +26,12 @@ type productDatabase struct {
 }
 
 // GetProductItemsByOfferID implements [interfaces.ProductRepository].
-func (c *productDatabase) GetProductItemsByOfferID(ctx context.Context, offerID uint, categoryID int, departmentID int, subCategoryID int, latStr string, lngStr string, pincode string, radiusKm float64, limit int, offset int) ([]response.ProductItems, error) {
+func (c *productDatabase) GetProductItemsByOfferID(ctx context.Context, offerID string, categoryID int, departmentID int, subCategoryID int, latStr string, lngStr string, pincode string, radiusKm float64, limit int, offset int) ([]response.ProductItems, error) {
 	return GetProductItemsByOfferID(ctx, c.DB, offerID, categoryID, departmentID, subCategoryID, latStr, lngStr, pincode, radiusKm, limit, offset)
 }
 
 // DeleteProductItem deletes a product item and all its related data.
-func (c *productDatabase) DeleteProductItem(ctx context.Context, productItemID uint) error {
+func (c *productDatabase) DeleteProductItem(ctx context.Context, productItemID string) error {
 	// Delete all related records in cascade order to avoid foreign key constraints
 
 	// 1. Delete from offer_products (offers/promotions linked to this product)
@@ -88,7 +88,7 @@ func (c *productDatabase) Transactions(ctx context.Context, trxFn func(repo inte
 }
 
 // To check the category name exist
-func (c *productDatabase) IsCategoryNameExist(ctx context.Context, name string, departmentId uint) (exist bool, err error) {
+func (c *productDatabase) IsCategoryNameExist(ctx context.Context, name string, departmentId string) (exist bool, err error) {
 
 	query := `SELECT EXISTS(SELECT 1 FROM categories WHERE name = $1 AND department_id = $2)`
 	err = c.DB.Raw(query, name, departmentId).Scan(&exist).Error
@@ -106,7 +106,7 @@ func (c *productDatabase) SaveCategory(ctx context.Context, category request.Cat
 }
 
 // To check the sub category name already exist for the category
-func (c *productDatabase) IsSubCategoryNameExist(ctx context.Context, name string, departmentId uint) (exist bool, err error) {
+func (c *productDatabase) IsSubCategoryNameExist(ctx context.Context, name string, departmentId string) (exist bool, err error) {
 
 	query := `SELECT EXISTS(SELECT 1 FROM categories WHERE name = $1 AND department_id = $2)`
 	err = c.DB.Raw(query, name, departmentId).Scan(&exist).Error
@@ -140,7 +140,7 @@ func (c *productDatabase) FindAllMainCategories(ctx context.Context,
 
 // Find all sub categories of a category
 func (c *productDatabase) FindAllSubCategories(ctx context.Context,
-	categoryID uint) (subCategories []response.SubCategory, err error) {
+	categoryID string) (subCategories []response.SubCategory, err error) {
 
 	query := `SELECT id, name FROM sub_categories WHERE category_id = $1`
 	err = c.DB.Raw(query, categoryID).Scan(&subCategories).Error
@@ -150,7 +150,7 @@ func (c *productDatabase) FindAllSubCategories(ctx context.Context,
 
 // Find all variations which related to given category id
 func (c *productDatabase) FindAllVariationsByCategoryID(ctx context.Context,
-	categoryID uint) (variations []response.Variation, err error) {
+	categoryID string) (variations []response.Variation, err error) {
 
 	query := `SELECT id, name FROM variations WHERE category_id = $1`
 	err = c.DB.Raw(query, categoryID).Scan(&variations).Error
@@ -160,7 +160,7 @@ func (c *productDatabase) FindAllVariationsByCategoryID(ctx context.Context,
 
 // Find all variation options which related to given variation id
 func (c productDatabase) FindAllVariationOptionsByVariationID(ctx context.Context,
-	variationID uint) (variationOptions []response.VariationOption, err error) {
+	variationID string) (variationOptions []response.VariationOption, err error) {
 
 	query := `SELECT id, value FROM variation_options WHERE variation_id = $1`
 	err = c.DB.Raw(query, variationID).Scan(&variationOptions).Error
@@ -170,7 +170,7 @@ func (c productDatabase) FindAllVariationOptionsByVariationID(ctx context.Contex
 
 // To check a variation exist for the given category
 func (c *productDatabase) IsVariationNameExistForCategory(ctx context.Context,
-	name string, categoryID uint) (exist bool, err error) {
+	name string, categoryID string) (exist bool, err error) {
 
 	query := `SELECT EXISTS(SELECT 1 FROM variations WHERE name = $1 AND category_id = $2)`
 	err = c.DB.Raw(query, name, categoryID).Scan(&exist).Error
@@ -180,7 +180,7 @@ func (c *productDatabase) IsVariationNameExistForCategory(ctx context.Context,
 
 // To check a variation value exist for the given variation
 func (c *productDatabase) IsVariationValueExistForVariation(ctx context.Context,
-	value string, variationID uint) (exist bool, err error) {
+	value string, variationID string) (exist bool, err error) {
 
 	query := `SELECT EXISTS(SELECT 1 FROM variation_options WHERE value = $1 AND variation_id = $2)`
 	err = c.DB.Raw(query, value, variationID).Scan(&exist).Error
@@ -189,7 +189,7 @@ func (c *productDatabase) IsVariationValueExistForVariation(ctx context.Context,
 }
 
 // Save Variation for category
-func (c *productDatabase) SaveVariation(ctx context.Context, categoryID uint, variationName string) error {
+func (c *productDatabase) SaveVariation(ctx context.Context, categoryID string, variationName string) error {
 
 	query := `INSERT INTO variations (category_id, name) VALUES($1, $2)`
 	err := c.DB.Exec(query, categoryID, variationName).Error
@@ -198,7 +198,7 @@ func (c *productDatabase) SaveVariation(ctx context.Context, categoryID uint, va
 }
 
 // add variation option
-func (c *productDatabase) SaveVariationOption(ctx context.Context, variationID uint, variationValue string) error {
+func (c *productDatabase) SaveVariationOption(ctx context.Context, variationID string, variationValue string) error {
 
 	query := `INSERT INTO variation_options (variation_id, value) VALUES($1, $2)`
 	err := c.DB.Exec(query, variationID, variationValue).Error
@@ -207,7 +207,7 @@ func (c *productDatabase) SaveVariationOption(ctx context.Context, variationID u
 }
 
 // find product by id
-func (c *productDatabase) FindProductByID(ctx context.Context, productID uint) (product domain.Product, err error) {
+func (c *productDatabase) FindProductByID(ctx context.Context, productID string) (product domain.Product, err error) {
 
 	query := `SELECT * FROM products WHERE id = $1`
 	err = c.DB.Raw(query, productID).Scan(&product).Error
@@ -216,7 +216,7 @@ func (c *productDatabase) FindProductByID(ctx context.Context, productID uint) (
 }
 
 func (c *productDatabase) IsProductNameExistForOtherProduct(ctx context.Context,
-	name string, productID uint) (exist bool, err error) {
+	name string, productID string) (exist bool, err error) {
 
 	query := `SELECT EXISTS(SELECT id FROM products WHERE name = $1 AND id != $2)`
 	err = c.DB.Raw(query, name, productID).Scan(&exist).Error
@@ -242,7 +242,7 @@ func (c *productDatabase) IsProductNameExistForShop(ctx context.Context, product
 }
 
 // to add a new product in database
-func (c *productDatabase) SaveProduct(ctx context.Context, product domain.Product, adminID string) (productID uint, err error) {
+func (c *productDatabase) SaveProduct(ctx context.Context, product domain.Product, adminID string) (productID string, err error) {
 	// Get the shop Id and Shop name using adminID
 
 	var shopDetails struct {
@@ -253,30 +253,30 @@ func (c *productDatabase) SaveProduct(ctx context.Context, product domain.Produc
 	query := `SELECT id, shop_name FROM shop_details WHERE admin_id = $1`
 	err = c.DB.Raw(query, adminID).Scan(&shopDetails).Error
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		return 0, fmt.Errorf("failed to fetch shop details for admin %s: %v", adminID, err)
+		return "", fmt.Errorf("failed to fetch shop details for admin %s: %v", adminID, err)
 	}
 
 	// Check if product with shop_id and category_id already exists
 	checkQuery := `SELECT id FROM products WHERE shop_id = $1 AND category_id = $2 LIMIT 1`
 	err = c.DB.Raw(checkQuery, shopDetails.ShopID, product.CategoryID).Scan(&productID).Error
 
-	if err == nil && productID != 0 {
+	if err == nil && productID != "" {
 		return productID, nil
 	}
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		return 0, fmt.Errorf("failed to check if product exists: %v", err)
+		return "", fmt.Errorf("failed to check if product exists: %v", err)
 	}
 
 	// Validate department_id exists
-	if product.DepartmentID != 0 {
+	if product.DepartmentID != "" {
 		var deptExists bool
 		deptQuery := `SELECT EXISTS(SELECT 1 FROM departments WHERE id = $1)`
 		err = c.DB.Raw(deptQuery, product.DepartmentID).Scan(&deptExists).Error
 		if err != nil {
-			return 0, fmt.Errorf("failed to check if department exists: %v", err)
+			return "", fmt.Errorf("failed to check if department exists: %v", err)
 		}
 		if !deptExists {
-			return 0, fmt.Errorf("department with id %d does not exist", product.DepartmentID)
+			return "", fmt.Errorf("department with id %s does not exist", product.DepartmentID)
 		}
 	}
 
@@ -287,7 +287,7 @@ func (c *productDatabase) SaveProduct(ctx context.Context, product domain.Produc
 	createdAt := time.Now()
 	err = c.DB.Raw(query, product.Name, product.Description, product.CategoryID, product.Image, product.DepartmentID, shopDetails.ShopID, createdAt).Scan(&productID).Error
 	if err != nil {
-		return 0, fmt.Errorf("failed to insert product: %v", err)
+		return "", fmt.Errorf("failed to insert product: %v", err)
 	}
 
 	return productID, nil
@@ -320,8 +320,8 @@ func (c *productDatabase) FindAllProducts(ctx context.Context, pagination reques
 
 	// Temporary struct for scanning (without ProductItems slice)
 	type productDB struct {
-		ID               uint       `gorm:"column:id"`
-		CategoryID       uint       `gorm:"column:category_id"`
+		ID               string     `gorm:"column:id"`
+		CategoryID       string     `gorm:"column:category_id"`
 		Price            uint       `gorm:"column:price"`
 		DiscountPrice    uint       `gorm:"column:discount_price"`
 		Name             string     `gorm:"column:name"`
@@ -329,7 +329,7 @@ func (c *productDatabase) FindAllProducts(ctx context.Context, pagination reques
 		CategoryName     string     `gorm:"column:category_name"`
 		CategoryImageURL string     `gorm:"column:category_image_url"`
 		MainCategoryName string     `gorm:"column:main_category_name"`
-		BrandID          uint       `gorm:"column:brand_id"`
+		BrandID          string     `gorm:"column:brand_id"`
 		BrandName        string     `gorm:"column:brand_name"`
 		Image            string     `gorm:"column:image"`
 		CreatedAt        time.Time  `gorm:"column:created_at"`
@@ -382,7 +382,7 @@ func (c *productDatabase) FindAllProducts(ctx context.Context, pagination reques
 }
 
 // helper method to get product items by product ID (internal use)
-func (c *productDatabase) findProductItemsByProductID(ctx context.Context, productID uint) (productItems []response.ProductItems, err error) {
+func (c *productDatabase) findProductItemsByProductID(ctx context.Context, productID string) (productItems []response.ProductItems, err error) {
 	query := `SELECT pi.sub_category_name, pi.id, pi.category_id, 
 		   sc.name AS category_name, mc.name AS main_category_name
 	       FROM product_items pi 
@@ -392,8 +392,8 @@ func (c *productDatabase) findProductItemsByProductID(ctx context.Context, produ
 
 	type productItemDB struct {
 		Name             string `gorm:"column:sub_category_name"`
-		ID               uint   `gorm:"column:id"`
-		CategoryID       uint   `gorm:"column:category_id"`
+		ID               string `gorm:"column:id"`
+		CategoryID       string `gorm:"column:category_id"`
 		CategoryName     string `gorm:"column:category_name"`
 		MainCategoryName string `gorm:"column:main_category_name"`
 	}
@@ -422,18 +422,18 @@ func (c *productDatabase) findProductItemsByProductID(ctx context.Context, produ
 }
 
 // to get productItem id
-func (c *productDatabase) FindProductItemByID(ctx context.Context, productItemID uint) (productItem domain.ProductItem, err error) {
+func (c *productDatabase) FindProductItemByID(ctx context.Context, productItemID string) (productItem domain.ProductItem, err error) {
 	// Use a temporary struct to scan the array as string
 	type tempProductItem struct {
-		ID                uint      `gorm:"column:id"`
+		ID                string    `gorm:"column:id"`
 		SubCategoryName   string    `gorm:"column:sub_category_name"`
-		SubCategoryID     uint      `gorm:"column:sub_category_id"`
-		CategoryID        uint      `gorm:"column:category_id"`
-		DepartmentID      uint      `gorm:"column:department_id"`
+		SubCategoryID     string    `gorm:"column:sub_category_id"`
+		CategoryID        string    `gorm:"column:category_id"`
+		DepartmentID      string    `gorm:"column:department_id"`
 		DynamicFields     string    `gorm:"column:dynamic_fields"`
 		AdminID           string    `gorm:"column:admin_id"`
 		ProductItemImages string    `gorm:"column:product_item_images"` // Scan as string
-		ShopID            uint      `gorm:"column:shop_id"`
+		ShopID            string    `gorm:"column:shop_id"`
 		CreatedAt         time.Time `gorm:"column:created_at"`
 		UpdatedAt         time.Time `gorm:"column:updated_at"`
 	}
@@ -472,7 +472,7 @@ func (c *productDatabase) FindProductItemByID(ctx context.Context, productItemID
 }
 
 // to get how many variations are available for a product
-func (c *productDatabase) FindVariationCountForProduct(ctx context.Context, productID uint) (variationCount uint, err error) {
+func (c *productDatabase) FindVariationCountForProduct(ctx context.Context, productID string) (variationCount uint, err error) {
 
 	query := `SELECT COUNT(v.id) FROM variations v
 	INNER JOIN categories c ON c.id = v.category_id 
@@ -486,7 +486,7 @@ func (c *productDatabase) FindVariationCountForProduct(ctx context.Context, prod
 
 // To find all product item ids which related to the given product id and variation option id
 func (c *productDatabase) FindAllProductItemIDsByProductIDAndVariationOptionID(ctx context.Context, productID,
-	variationOptionID uint) (productItemIDs []uint, err error) {
+	variationOptionID string) (productItemIDs []string, err error) {
 
 	query := `SELECT id FROM product_items pi 
 		INNER JOIN product_configurations pc ON pi.id = pc.product_item_id 
@@ -496,7 +496,7 @@ func (c *productDatabase) FindAllProductItemIDsByProductIDAndVariationOptionID(c
 	return
 }
 
-func (c *productDatabase) SaveProductConfiguration(ctx context.Context, productItemID, variationOptionID uint) error {
+func (c *productDatabase) SaveProductConfiguration(ctx context.Context, productItemID, variationOptionID string) error {
 
 	query := `INSERT INTO product_configurations (product_item_id, variation_option_id) VALUES ($1, $2)`
 	err := c.DB.Exec(query, productItemID, variationOptionID).Error
@@ -507,38 +507,33 @@ func (c *productDatabase) SaveProductConfiguration(ctx context.Context, productI
 // UpdateShopDepartments adds a department to the shop_departments table if not already present
 // Uses atomic PostgreSQL INSERT with ON CONFLICT to avoid race conditions and duplicates
 // Creates an entry in shop_departments table for tracking shop-department relationships
-func (c *productDatabase) UpdateShopDepartments(ctx context.Context, shopID uint, departmentID uint, adminID string, categoryID uint, subCategoryId uint) error {
-	if shopID == 0 || departmentID == 0 || categoryID == 0 || subCategoryId == 0 {
-		return fmt.Errorf("shopID, departmentID, categoryID, and subCategoryId must not be zero")
+func (c *productDatabase) UpdateShopDepartments(ctx context.Context, shopID string, departmentID string, adminID string, categoryID string, subCategoryId string) error {
+	if shopID == "" || departmentID == "" || categoryID == "" || subCategoryId == "" {
+		return fmt.Errorf("shopID, departmentID, categoryID, and subCategoryId must not be empty")
 	}
 
-	// Convert adminID string to uint if possible
-	var adminIDUint uint
-	if _, err := fmt.Sscanf(adminID, "%d", &adminIDUint); err != nil {
-		// If conversion fails, use shop_id as fallback (admin_id should be from shop_details)
-		adminIDUint = shopID
-	}
+	// adminID and shopID are already string IDs
 
 	// Insert into shop_departments with ON CONFLICT DO NOTHING to handle duplicates
 	query := `INSERT INTO shop_departments (admin_id, shop_id, department_id, category_id, sub_category_id, created_at, updated_at)
 	VALUES ($1, $2, $3, $4, $5, NOW(), NOW()) ON CONFLICT (shop_id, department_id) DO NOTHING`
 
-	result := c.DB.WithContext(ctx).Exec(query, adminIDUint, shopID, departmentID, categoryID, subCategoryId)
+	result := c.DB.WithContext(ctx).Exec(query, adminID, shopID, departmentID, categoryID, subCategoryId)
 	if result.Error != nil {
-		log.Printf("Failed to update shop departments: shopID=%d, departmentID=%d, adminID=%s, categoryID=%d, error=%v", shopID, departmentID, adminID, categoryID, result.Error)
+		log.Printf("Failed to update shop departments: shopID=%s, departmentID=%s, adminID=%s, categoryID=%s, error=%v", shopID, departmentID, adminID, categoryID, result.Error)
 		return fmt.Errorf("failed to update shop departments: %w", result.Error)
 	}
 
 	if result.RowsAffected == 0 {
-		log.Printf("Department already exists for shop: shopID=%d, departmentID=%d, categoryID=%d", shopID, departmentID, categoryID)
+		log.Printf("Department already exists for shop: shopID=%s, departmentID=%s, categoryID=%s", shopID, departmentID, categoryID)
 	} else {
-		log.Printf("Shop department record created: shopID=%d, departmentID=%d, adminID=%s, categoryID=%d", shopID, departmentID, adminID, categoryID)
+		log.Printf("Shop department record created: shopID=%s, departmentID=%s, adminID=%s, categoryID=%s", shopID, departmentID, adminID, categoryID)
 	}
 
 	return nil
 }
 
-func (c *productDatabase) SaveProductItem(ctx context.Context, productItem request.ProductItem, adminID string, shopID uint) (productItemID uint, err error) {
+func (c *productDatabase) SaveProductItem(ctx context.Context, productItem request.ProductItem, adminID string, shopID string) (productItemID string, err error) {
 
 	query := `INSERT INTO product_items (admin_id, sub_category_name, dynamic_fields, product_item_images, category_id, department_id, sub_category_id, shop_id, created_at, updated_at) 
 VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`
@@ -548,10 +543,17 @@ VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`
 	// Marshal DynamicFields to JSON for JSONB column
 	dynamicFieldsJSON, err := json.Marshal(productItem.DynamicFields)
 	if err != nil {
-		return 0, err
+		return "", err
 	}
 
-	err = c.DB.Raw(query, adminID, productItem.SubCategoryName, dynamicFieldsJSON, productItem.ProductItemImages, productItem.CategoryID, productItem.DepartmentID, productItem.SubCategoryID, shopID, createdAt, createdAt).Scan(&productItemID).Error
+	var productItemImagesStr string
+	if len(productItem.ProductItemImages) > 0 {
+		productItemImagesStr = "{" + strings.Join(productItem.ProductItemImages, ",") + "}"
+	} else {
+		productItemImagesStr = "{}"
+	}
+
+	err = c.DB.Raw(query, adminID, productItem.SubCategoryName, dynamicFieldsJSON, productItemImagesStr, productItem.CategoryID, productItem.DepartmentID, productItem.SubCategoryID, shopID, createdAt, createdAt).Scan(&productItemID).Error
 
 	if err == nil && c.ElasticClient != nil {
 		domainItem := domain.ProductItem{
@@ -573,7 +575,7 @@ VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`
 	}
 
 	// Update shop's departments array after successful product item save
-	if err == nil && productItem.DepartmentID > 0 {
+	if err == nil && productItem.DepartmentID != "" {
 		if updateDeptErr := c.UpdateShopDepartments(ctx, shopID, productItem.DepartmentID, adminID, productItem.CategoryID, productItem.SubCategoryID); updateDeptErr != nil {
 			log.Printf("Warning: Failed to update shop departments during SaveProductItem: %v", updateDeptErr)
 			// Don't return error here - product was saved successfully, department update is a side effect
@@ -583,7 +585,7 @@ VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`
 	return productItemID, err
 }
 
-func (c *productDatabase) UpdateProductItem(ctx context.Context, productItemID uint, productItem request.ProductItem) error {
+func (c *productDatabase) UpdateProductItem(ctx context.Context, productItemID string, productItem request.ProductItem) error {
 	// First, fetch the existing product item to merge dynamic_fields
 	existing, err := c.FindProductItemByID(ctx, productItemID)
 	if err != nil {
@@ -639,17 +641,17 @@ func (c *productDatabase) UpdateProductItem(ctx context.Context, productItemID u
 	}
 
 	categoryID := productItem.CategoryID
-	if categoryID == 0 {
+	if categoryID == "" {
 		categoryID = existing.CategoryID
 	}
 
 	departmentID := productItem.DepartmentID
-	if departmentID == 0 {
+	if departmentID == "" {
 		departmentID = existing.DepartmentID
 	}
 
 	subCategoryID := productItem.SubCategoryID
-	if subCategoryID == 0 {
+	if subCategoryID == "" {
 		subCategoryID = existing.SubCategoryID
 	}
 
@@ -695,7 +697,7 @@ func (c *productDatabase) UpdateProductItem(ctx context.Context, productItemID u
 // for get all products items for a product filtered by admin_id and additional filters
 func (c *productDatabase) FindAllProductItems(ctx context.Context, adminID string, keyword string, categoryID *string, brandID *string, locationID *string, offer string, sortby string, pagination *request.Pagination, filterByShopID string) (productItems []response.ProductItems, err error) {
 
-	var ids []uint
+	var ids []string
 	if keyword != "" && c.ElasticClient != nil {
 		limit := 100
 		offset := 0
@@ -785,7 +787,7 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context, adminID strin
 	}
 
 	// Add offer filter - this ensures different data sets based on offer parameter
-	log.Printf("DEBUG: offer parameter value = '%s' (type: %T, length: %d)", offer, offer, len(offer))
+	log.Printf("DEBUG: offer=%s, len=%d", offer, len(offer))
 	log.Printf("DEBUG: offer == 'true': %v, offer == 'false': %v", offer == "true", offer == "false")
 
 	if offer == "true" {
@@ -858,10 +860,10 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context, adminID strin
 	// Internal struct for scanning DB result
 	type productItemDB struct {
 		Name                string        `gorm:"column:sub_category_name"`
-		ID                  uint          `gorm:"column:id"`
-		CategoryID          uint          `gorm:"column:category_id"`
-		DepartmentID        uint          `gorm:"column:department_id"`
-		SubCategoryID       uint          `gorm:"column:sub_category_id"`
+		ID                  string        `gorm:"column:id"`
+		CategoryID          string        `gorm:"column:category_id"`
+		DepartmentID        string        `gorm:"column:department_id"`
+		SubCategoryID       string        `gorm:"column:sub_category_id"`
 		CategoryName        string        `gorm:"column:category_name"`
 		DepartmentName      string        `gorm:"column:department_name"`
 		SubCategoryNameRef  string        `gorm:"column:sub_category_name_ref"`
@@ -882,7 +884,7 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context, adminID strin
 		return
 	}
 
-	log.Printf("Number of dbItems scanned: %d", len(dbItems))
+	log.Printf("DEBUG: dbItems count=%d", len(dbItems))
 	if len(dbItems) > 0 {
 		log.Printf("First dbItem: %+v", dbItems[0])
 	}
@@ -932,10 +934,10 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context, adminID strin
 				log.Printf("Failed to unmarshal offer_products: %v", err)
 			} else {
 				item.OfferProducts = offerProducts
-				log.Printf("Successfully unmarshaled %d offer products for product %d", len(offerProducts), dbItem.ID)
+				log.Printf("Loaded %d offer_products for dbItem.ID=%s", len(offerProducts), dbItem.ID)
 			}
 		} else {
-			log.Printf("No offer_products data for product %d", dbItem.ID)
+			log.Printf("No offer_products data for product %s", dbItem.ID)
 		}
 
 		// Unmarshal DynamicFields if present
@@ -986,7 +988,7 @@ func (c *productDatabase) FindLowViewProductItems(ctx context.Context,
 
 	log.Printf("FindLowViewProductItems called with shopID: %v", filterByShopID)
 
-	var ids []uint
+	var ids []string
 	if keyword != "" && c.ElasticClient != nil {
 		limit := 100
 		offset := 0
@@ -1120,10 +1122,10 @@ func (c *productDatabase) FindLowViewProductItems(ctx context.Context,
 	// Internal struct for scanning DB result
 	type productItemDB struct {
 		Name                string        `gorm:"column:sub_category_name"`
-		ID                  uint          `gorm:"column:id"`
-		CategoryID          uint          `gorm:"column:category_id"`
-		DepartmentID        uint          `gorm:"column:department_id"`
-		SubCategoryID       uint          `gorm:"column:sub_category_id"`
+		ID                  string        `gorm:"column:id"`
+		CategoryID          string        `gorm:"column:category_id"`
+		DepartmentID        string        `gorm:"column:department_id"`
+		SubCategoryID       string        `gorm:"column:sub_category_id"`
 		CategoryName        string        `gorm:"column:category_name"`
 		DepartmentName      string        `gorm:"column:department_name"`
 		SubCategoryNameRef  string        `gorm:"column:sub_category_name_ref"`
@@ -1144,7 +1146,7 @@ func (c *productDatabase) FindLowViewProductItems(ctx context.Context,
 		return
 	}
 
-	log.Printf("Number of low-view dbItems scanned: %d", len(dbItems))
+	log.Printf("DEBUG: dbItems count=%d", len(dbItems))
 
 	// Map to response.ProductItems
 	for _, dbItem := range dbItems {
@@ -1189,7 +1191,7 @@ func (c *productDatabase) FindLowViewProductItems(ctx context.Context,
 				log.Printf("Failed to unmarshal offer_products: %v", err)
 			} else {
 				item.OfferProducts = offerProducts
-				log.Printf("Successfully unmarshaled %d offer products for low-view product %d", len(offerProducts), dbItem.ID)
+				log.Printf("Loaded %d offer_products for dbItem.ID=%s", len(offerProducts), dbItem.ID)
 			}
 		}
 
@@ -1204,13 +1206,13 @@ func (c *productDatabase) FindLowViewProductItems(ctx context.Context,
 		productItems = append(productItems, item)
 	}
 
-	log.Printf("Retrieved %d low-view product items\n", len(productItems))
+	log.Printf("DEBUG: productItems count=%d", len(productItems))
 	return
 }
 
 // Find all variation and value of a product item
 func (c *productDatabase) FindAllVariationValuesOfProductItem(ctx context.Context,
-	productItemID uint) (productVariationsValues []response.ProductVariationValue, err error) {
+	productItemID string) (productVariationsValues []response.ProductVariationValue, err error) {
 
 	query := `SELECT v.id AS variation_id, v.name, vo.id AS variation_option_id, vo.value 
 	FROM  product_configurations pc 
@@ -1223,7 +1225,7 @@ func (c *productDatabase) FindAllVariationValuesOfProductItem(ctx context.Contex
 }
 
 // To save image for product item
-func (c *productDatabase) SaveProductItemImage(ctx context.Context, productItemID uint, image domain.ProductItemImage) error {
+func (c *productDatabase) SaveProductItemImage(ctx context.Context, productItemID string, image domain.ProductItemImage) error {
 
 	query := `INSERT INTO product_images (product_item_id, image) VALUES ($1, $2)`
 	err := c.DB.Exec(query, productItemID, image).Error
@@ -1232,11 +1234,35 @@ func (c *productDatabase) SaveProductItemImage(ctx context.Context, productItemI
 }
 
 // To find all images of a product item
-func (c *productDatabase) FindAllProductItemImages(ctx context.Context, productItemID uint) (images []string, err error) {
+func (c *productDatabase) FindAllProductItemImages(ctx context.Context, productItemID string) (images []string, err error) {
+	query := `SELECT COALESCE(product_item_images, ARRAY[]::text[])::text AS product_item_images FROM product_items WHERE id = $1`
 
-	query := `SELECT product_item_images FROM product_items WHERE id = $1`
+	var rawImages string
+	err = c.DB.Raw(query, productItemID).Scan(&rawImages).Error
+	if err != nil {
+		return nil, err
+	}
 
-	err = c.DB.Raw(query, productItemID).Scan(&images).Error
+	if rawImages == "" || rawImages == "{}" {
+		return []string{}, nil
+	}
+
+	if strings.HasPrefix(rawImages, "{") && strings.HasSuffix(rawImages, "}") {
+		rawImages = rawImages[1 : len(rawImages)-1]
+	}
+
+	if strings.TrimSpace(rawImages) == "" {
+		return []string{}, nil
+	}
+
+	parts := strings.Split(rawImages, ",")
+	images = make([]string, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.Trim(strings.TrimSpace(part), `"`)
+		if trimmed != "" {
+			images = append(images, trimmed)
+		}
+	}
 
 	return
 }
@@ -1273,11 +1299,11 @@ func buildGeoDistanceQuery(lat, lng, radius float64, startParam int, locationCol
 			whereFilterTemplate := `AND %s IS NOT NULL AND %s IS NOT NULL AND
 			  (6371 * acos(
 				LEAST(1, GREATEST(-1,
-					cos(radians($%d)) * cos(radians(%s::double precision)) *
-					cos(radians(%s::double precision) - radians($%d)) +
-					sin(radians($%d)) * sin(radians(%s::double precision))
+					cos(radians($%s)) * cos(radians(%s::double precision)) *
+					cos(radians(%s::double precision) - radians($%s)) +
+					sin(radians($%s)) * sin(radians(%s::double precision))
 				))
-			  )) <= $%d`
+			  )) <= $%s`
 
 			if radius > 0 {
 				geoFilter = fmt.Sprintf(whereFilterTemplate,
@@ -1345,7 +1371,7 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 	// Initialize products as empty slice to avoid nil in JSON response
 	products = []response.ProductItems{}
 
-	var ids []uint
+	var ids []string
 	var useElasticsearchResults bool
 	if keyword != "" && c.ElasticClient != nil {
 		// Use Elasticsearch for search with all filters applied with AND logic
@@ -1475,15 +1501,15 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 	// Scan into internal DB struct to correctly parse JSONB and array columns
 	type productItemDB struct {
 		Name                string    `gorm:"column:sub_category_name"`
-		ID                  uint      `gorm:"column:id"`
-		CategoryID          uint      `gorm:"column:category_id"`
-		DepartmentID        uint      `gorm:"column:department_id"`
-		SubCategoryID       uint      `gorm:"column:sub_category_id"`
+		ID                  string    `gorm:"column:id"`
+		CategoryID          string    `gorm:"column:category_id"`
+		DepartmentID        string    `gorm:"column:department_id"`
+		SubCategoryID       string    `gorm:"column:sub_category_id"`
 		CategoryName        string    `gorm:"column:category_name"`
 		DepartmentName      string    `gorm:"column:department_name"`
 		SubCategoryNameRef  string    `gorm:"column:sub_category_name_ref"`
 		SubCategoryImageURL string    `gorm:"column:sub_category_image_url"`
-		ShopID              uint      `gorm:"column:shop_id"`
+		ShopID              string    `gorm:"column:shop_id"`
 		ShopName            string    `gorm:"column:shop_name"`
 		ProductItemImages   string    `gorm:"column:product_item_images"`
 		DynamicFields       []byte    `gorm:"column:dynamic_fields"`
@@ -1586,7 +1612,7 @@ func (c *productDatabase) GetAllDepartments(ctx context.Context) (departments []
 	return
 }
 
-func (c *productDatabase) GetDepartmentByID(ctx context.Context, brandID uint) (department response.Department, err error) {
+func (c *productDatabase) GetDepartmentByID(ctx context.Context, brandID string) (department response.Department, err error) {
 
 	query := `SELECT id, name, image_url, icon FROM departments WHERE id = $1`
 	err = c.DB.Raw(query, brandID).Scan(&department).Error
@@ -1602,7 +1628,7 @@ func (c *productDatabase) GetAllSubCategories(ctx context.Context) (subCategorie
 	return
 }
 
-func (c *productDatabase) GetAllCategoriesByDepartmentID(ctx context.Context, brandID uint) (categories []response.Category, err error) {
+func (c *productDatabase) GetAllCategoriesByDepartmentID(ctx context.Context, brandID string) (categories []response.Category, err error) {
 
 	query := `SELECT id, name, image_url, icon FROM categories WHERE department_id = $1 ORDER BY sort_order ASC`
 	err = c.DB.Raw(query, brandID).Scan(&categories).Error
@@ -1610,21 +1636,22 @@ func (c *productDatabase) GetAllCategoriesByDepartmentID(ctx context.Context, br
 	return
 }
 
-func (c *productDatabase) GetAllSubCategoriesByCategoryID(ctx context.Context, categoryID uint) (subCategories []response.SubCategory, err error) {
+func (c *productDatabase) GetAllSubCategoriesByCategoryID(ctx context.Context, categoryID string) (subCategories []response.SubCategory, err error) {
 
 	query := `SELECT id, name, image_url FROM sub_categories WHERE category_id = $1 ORDER BY sort_order ASC`
 	err = c.DB.Raw(query, categoryID).Scan(&subCategories).Error
 
 	return
 }
+
 // SaveSubTypeAttribute saves a new sub type attribute for a subcategory
-func (c *productDatabase) SaveSubTypeAttribute(ctx context.Context, locationID uint, attribute domain.SubTypeAttributes) error {
+func (c *productDatabase) SaveSubTypeAttribute(ctx context.Context, locationID string, attribute domain.SubTypeAttributes) error {
 	attribute.SubCategoryID = locationID
 	return c.DB.Create(&attribute).Error
 }
 
 // GetAllSubTypeAttributes retrieves all sub type attributes for a subcategory
-func (c *productDatabase) GetAllSubTypeAttributes(ctx context.Context, locationID uint) (attributes []response.SubTypeAttribute, err error) {
+func (c *productDatabase) GetAllSubTypeAttributes(ctx context.Context, locationID string) (attributes []response.SubTypeAttribute, err error) {
 	query := `SELECT id, sub_category_id, field_name, field_type, is_required, sort_order 
 	          FROM sub_type_attributes 
 	          WHERE sub_category_id = $1 
@@ -1634,7 +1661,7 @@ func (c *productDatabase) GetAllSubTypeAttributes(ctx context.Context, locationI
 }
 
 // GetSubTypeAttributeByID retrieves a single sub type attribute by ID
-func (c *productDatabase) GetSubTypeAttributeByID(ctx context.Context, attributeID uint) (attribute response.SubTypeAttribute, err error) {
+func (c *productDatabase) GetSubTypeAttributeByID(ctx context.Context, attributeID string) (attribute response.SubTypeAttribute, err error) {
 	query := `SELECT id, sub_category_id, field_name, field_type, is_required, sort_order 
 	          FROM sub_type_attributes 
 	          WHERE id = $1`
@@ -1643,13 +1670,13 @@ func (c *productDatabase) GetSubTypeAttributeByID(ctx context.Context, attribute
 }
 
 // SaveSubTypeAttributeOption saves a new option for a sub type attribute
-func (c *productDatabase) SaveSubTypeAttributeOption(ctx context.Context, attributeID uint, option domain.SubTypeAttributeOptions) error {
+func (c *productDatabase) SaveSubTypeAttributeOption(ctx context.Context, attributeID string, option domain.SubTypeAttributeOptions) error {
 	option.SubTypeAttributeID = attributeID
 	return c.DB.Create(&option).Error
 }
 
 // GetAllSubTypeAttributeOptions retrieves all options for a sub type attribute
-func (c *productDatabase) GetAllSubTypeAttributeOptions(ctx context.Context, attributeID uint) (options []response.SubTypeAttributeOption, err error) {
+func (c *productDatabase) GetAllSubTypeAttributeOptions(ctx context.Context, attributeID string) (options []response.SubTypeAttributeOption, err error) {
 	query := `SELECT id, sub_type_attribute_id, option_value, sort_order 
 	          FROM sub_type_attribute_options 
 	          WHERE sub_type_attribute_id = $1 
@@ -1659,7 +1686,7 @@ func (c *productDatabase) GetAllSubTypeAttributeOptions(ctx context.Context, att
 }
 
 // GetSubTypeAttributeOptionByID retrieves a single option by ID
-func (c *productDatabase) GetSubTypeAttributeOptionByID(ctx context.Context, optionID uint) (option response.SubTypeAttributeOption, err error) {
+func (c *productDatabase) GetSubTypeAttributeOptionByID(ctx context.Context, optionID string) (option response.SubTypeAttributeOption, err error) {
 	query := `SELECT id, sub_type_attribute_id, option_value, sort_order 
 	          FROM sub_type_attribute_options 
 	          WHERE id = $1`
@@ -1668,7 +1695,7 @@ func (c *productDatabase) GetSubTypeAttributeOptionByID(ctx context.Context, opt
 }
 
 // SaveCategoryImage saves a new category image
-func (c *productDatabase) SaveCategoryImage(ctx context.Context, categoryID uint, image domain.CategoryImage) error {
+func (c *productDatabase) SaveCategoryImage(ctx context.Context, categoryID string, image domain.CategoryImage) error {
 	image.CategoryID = categoryID
 	query := `INSERT INTO category_images (category_id, image_url, alt_text, sort_order, is_active) 
 	          VALUES ($1, $2, $3, $4, $5)`
@@ -1676,7 +1703,7 @@ func (c *productDatabase) SaveCategoryImage(ctx context.Context, categoryID uint
 }
 
 // GetAllCategoryImages retrieves all images for a category
-func (c *productDatabase) GetAllCategoryImages(ctx context.Context, categoryID uint) (images []response.CategoryImage, err error) {
+func (c *productDatabase) GetAllCategoryImages(ctx context.Context, categoryID string) (images []response.CategoryImage, err error) {
 	query := `SELECT id, category_id, image_url, alt_text, sort_order, is_active 
 	          FROM category_images 
 	          WHERE category_id = $1 AND is_active = true 
@@ -1686,7 +1713,7 @@ func (c *productDatabase) GetAllCategoryImages(ctx context.Context, categoryID u
 }
 
 // GetCategoryImageByID retrieves a single category image by ID
-func (c *productDatabase) GetCategoryImageByID(ctx context.Context, imageID uint) (image response.CategoryImage, err error) {
+func (c *productDatabase) GetCategoryImageByID(ctx context.Context, imageID string) (image response.CategoryImage, err error) {
 	query := `SELECT id, category_id, image_url, alt_text, sort_order, is_active 
 	          FROM category_images 
 	          WHERE id = $1`
@@ -1703,12 +1730,12 @@ func (c *productDatabase) UpdateCategoryImage(ctx context.Context, image domain.
 }
 
 // DeleteCategoryImage soft deletes a category image
-func (c *productDatabase) DeleteCategoryImage(ctx context.Context, imageID uint) error {
+func (c *productDatabase) DeleteCategoryImage(ctx context.Context, imageID string) error {
 	query := `UPDATE category_images SET is_active = false, updated_at = CURRENT_TIMESTAMP WHERE id = $1`
 	return c.DB.Exec(query, imageID).Error
 }
 
-func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID uint) (productItem response.ProductItems, err error) {
+func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID string) (productItem response.ProductItems, err error) {
 	// First, get product item details (excluding images)
 	query := `SELECT pi.id, pi.sub_category_name, pi.category_id, pi.stock,
 	           sc.name AS category_name, mc.name AS main_category_name, 
@@ -1720,10 +1747,10 @@ func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID 
 	       WHERE pi.id = $1;`
 
 	var dbItem struct {
-		ID               uint
+		ID               string
 		SubCategoryName  string
-		ProductID        uint
-		CategoryID       uint
+		ProductID        string
+		CategoryID       string
 		CategoryName     string
 		MainCategoryName string
 		Stock            bool
@@ -1731,7 +1758,7 @@ func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID 
 		CreatedAt        time.Time
 		UpdatedAt        time.Time
 		ViewCount        uint
-		ShopId           uint
+		ShopId           string
 	}
 
 	err = c.DB.Raw(query, productItemID).Scan(&dbItem).Error
@@ -1783,26 +1810,26 @@ func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID 
 	               WHERE op.product_item_id = $1 AND p.is_active = true`
 
 	var offerRows []struct {
-		OfferProductID                   uint      `gorm:"column:offer_product_id"`
+		OfferProductID                   string    `gorm:"column:offer_product_id"`
 		ProductName                      string    `gorm:"column:product_name"`
-		OfferID                          uint      `gorm:"column:offer_id"`
+		OfferID                          string    `gorm:"column:offer_id"`
 		OfferName                        string    `gorm:"column:offer_name"`
 		DiscountRate                     uint      `gorm:"column:discount_rate"`
 		Description                      string    `gorm:"column:description"`
 		StartDate                        string    `gorm:"column:start_date"`
 		EndDate                          string    `gorm:"column:end_date"`
-		PromotionCategoryID              uint      `gorm:"column:promotion_category_id"`
+		PromotionCategoryID              string    `gorm:"column:promotion_category_id"`
 		PromotionCategoryName            string    `gorm:"column:promotion_category_name"`
-		PromotionCategoryShopID          uint      `gorm:"column:promotion_category_shop_id"`
+		PromotionCategoryShopID          string    `gorm:"column:promotion_category_shop_id"`
 		PromotionCategoryIsActive        bool      `gorm:"column:promotion_category_is_active"`
 		PromotionCategoryIconPath        string    `gorm:"column:promotion_category_icon_path"`
 		PromotionCategoryCreatedAt       time.Time `gorm:"column:promotion_category_created_at"`
 		PromotionCategoryUpdatedAt       time.Time `gorm:"column:promotion_category_updated_at"`
-		PromotionTypeID                  uint      `gorm:"column:promotion_type_id"`
+		PromotionTypeID                  string    `gorm:"column:promotion_type_id"`
 		PromotionTypeName                string    `gorm:"column:promotion_type_name"`
 		PromotionTypeIsActive            bool      `gorm:"column:promotion_type_is_active"`
 		PromotionTypeShopID              string    `gorm:"column:promotion_type_shop_id"`
-		PromotionTypePromotionCategoryID uint      `gorm:"column:promotion_type_promotion_category_id"`
+		PromotionTypePromotionCategoryID string    `gorm:"column:promotion_type_promotion_category_id"`
 		PromotionTypeType                string    `gorm:"column:promotion_type_type"`
 		PromotionTypeIconPath            string    `gorm:"column:promotion_type_icon_path"`
 		PromotionTypeCreatedAt           time.Time `gorm:"column:promotion_type_created_at"`
@@ -1854,17 +1881,17 @@ func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID 
 	return
 }
 
-func (c *productDatabase) IncrementProductItemViewCount(ctx context.Context, productItemID uint, adminID string) error {
+func (c *productDatabase) IncrementProductItemViewCount(ctx context.Context, productItemID string, adminID string) error {
 	// Resolve the owning shop from the product item itself.
 	// This keeps view rows tied to the product owner while deduping by viewer.
-	var shopID uint
+	var shopID string
 	shopQuery := `SELECT shop_id FROM product_items WHERE id = $1`
 	err := c.DB.Raw(shopQuery, productItemID).Scan(&shopID).Error
 	if err != nil {
 		return err
 	}
-	if shopID == 0 {
-		return fmt.Errorf("product item %d has no shop_id", productItemID)
+	if shopID == "" {
+		return fmt.Errorf("product item %s has no shop_id", productItemID)
 	}
 
 	// Per-user, per-product dedupe: if a row already exists for this viewer,
@@ -1890,7 +1917,7 @@ func (c *productDatabase) IncrementProductItemViewCount(ctx context.Context, pro
 		VALUES ($1, $2, to_jsonb($3::text), 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
 	return c.DB.Exec(insertQuery, productItemID, shopID, adminID).Error
 }
-func (c *productDatabase) GetProductItemViewCount(ctx context.Context, productItemID uint, adminID string) (viewCount uint, err error) {
+func (c *productDatabase) GetProductItemViewCount(ctx context.Context, productItemID string, adminID string) (viewCount uint, err error) {
 	// Get shop ID using admin ID
 	var shopID string
 	shopQuery := `SELECT id FROM shop_details WHERE admin_id = $1`
@@ -1920,8 +1947,8 @@ func (c *productDatabase) FindProductItemsByDocument(ctx context.Context, docume
 
 	type productItemDB struct {
 		Name              string    `gorm:"column:sub_category_name"`
-		ID                uint      `gorm:"column:id"`
-		CategoryID        uint      `gorm:"column:category_id"`
+		ID                string    `gorm:"column:id"`
+		CategoryID        string    `gorm:"column:category_id"`
 		CategoryName      string    `gorm:"column:category_name"`
 		MainCategoryName  string    `gorm:"column:main_category_name"`
 		ProductItemImages string    `gorm:"column:product_item_images"`
@@ -1986,7 +2013,7 @@ func (c *productDatabase) FindProductItemsByDocument(ctx context.Context, docume
 
 // GetProductItemsByDepartment returns product items for the department id provided.
 // It joins shop_details to map the document/shop id to the admin_id stored on product_items.
-func (c *productDatabase) GetProductItemsByDepartment(ctx context.Context, brandID uint) (productItems []response.ProductItems, err error) {
+func (c *productDatabase) GetProductItemsByDepartment(ctx context.Context, brandID string) (productItems []response.ProductItems, err error) {
 	query := `SELECT pi.sub_category_name, pi.id, pi.category_id, pi.department_id, pi.sub_category_id,
 				pi.product_item_images, pi.dynamic_fields, pi.created_at, pi.updated_at,
 				c.name AS category_name, d.name AS department_name, sc.name AS sub_category_name_ref,
@@ -2021,10 +2048,10 @@ func (c *productDatabase) GetProductItemsByDepartment(ctx context.Context, brand
 	// Internal struct mirrors FindAllProductItems scanning for reuse
 	type productItemDB struct {
 		Name                string        `gorm:"column:sub_category_name"`
-		ID                  uint          `gorm:"column:id"`
-		CategoryID          uint          `gorm:"column:category_id"`
-		DepartmentID        uint          `gorm:"column:department_id"`
-		SubCategoryID       uint          `gorm:"column:sub_category_id"`
+		ID                  string        `gorm:"column:id"`
+		CategoryID          string        `gorm:"column:category_id"`
+		DepartmentID        string        `gorm:"column:department_id"`
+		SubCategoryID       string        `gorm:"column:sub_category_id"`
 		CategoryName        string        `gorm:"column:category_name"`
 		DepartmentName      string        `gorm:"column:department_name"`
 		SubCategoryNameRef  string        `gorm:"column:sub_category_name_ref"`
@@ -2113,7 +2140,7 @@ func (c *productDatabase) GetProductItemsByDepartment(ctx context.Context, brand
 }
 
 // GetProductItemsByCategory returns product items for the category id provided.
-func (c *productDatabase) GetProductItemsByCategory(ctx context.Context, categoryID uint) (productItems []response.ProductItems, err error) {
+func (c *productDatabase) GetProductItemsByCategory(ctx context.Context, categoryID string) (productItems []response.ProductItems, err error) {
 	query := `SELECT pi.sub_category_name, pi.id, pi.category_id, pi.department_id, pi.sub_category_id,
 				pi.product_item_images, pi.dynamic_fields, pi.created_at, pi.updated_at,
 				c.name AS category_name, d.name AS department_name, sc.name AS sub_category_name_ref,
@@ -2147,10 +2174,10 @@ func (c *productDatabase) GetProductItemsByCategory(ctx context.Context, categor
 
 	type productItemDB struct {
 		Name                string    `gorm:"column:sub_category_name"`
-		ID                  uint      `gorm:"column:id"`
-		CategoryID          uint      `gorm:"column:category_id"`
-		DepartmentID        uint      `gorm:"column:department_id"`
-		SubCategoryID       uint      `gorm:"column:sub_category_id"`
+		ID                  string    `gorm:"column:id"`
+		CategoryID          string    `gorm:"column:category_id"`
+		DepartmentID        string    `gorm:"column:department_id"`
+		SubCategoryID       string    `gorm:"column:sub_category_id"`
 		CategoryName        string    `gorm:"column:category_name"`
 		DepartmentName      string    `gorm:"column:department_name"`
 		SubCategoryNameRef  string    `gorm:"column:sub_category_name_ref"`
@@ -2231,7 +2258,7 @@ func (c *productDatabase) GetProductItemsByCategory(ctx context.Context, categor
 }
 
 // GetProductItemsBySubCategory returns product items for the sub-category id provided.
-func (c *productDatabase) GetProductItemsBySubCategory(ctx context.Context, locationID uint) (productItems []response.ProductItems, err error) {
+func (c *productDatabase) GetProductItemsBySubCategory(ctx context.Context, locationID string) (productItems []response.ProductItems, err error) {
 	query := `SELECT pi.sub_category_name, pi.id, pi.category_id, pi.department_id, pi.sub_category_id,
 				pi.product_item_images, pi.dynamic_fields, pi.created_at, pi.updated_at,
 				c.name AS category_name, d.name AS department_name, sc.name AS sub_category_name_ref,
@@ -2265,10 +2292,10 @@ func (c *productDatabase) GetProductItemsBySubCategory(ctx context.Context, loca
 
 	type productItemDB struct {
 		Name                string    `gorm:"column:sub_category_name"`
-		ID                  uint      `gorm:"column:id"`
-		CategoryID          uint      `gorm:"column:category_id"`
-		DepartmentID        uint      `gorm:"column:department_id"`
-		SubCategoryID       uint      `gorm:"column:sub_category_id"`
+		ID                  string    `gorm:"column:id"`
+		CategoryID          string    `gorm:"column:category_id"`
+		DepartmentID        string    `gorm:"column:department_id"`
+		SubCategoryID       string    `gorm:"column:sub_category_id"`
 		CategoryName        string    `gorm:"column:category_name"`
 		DepartmentName      string    `gorm:"column:department_name"`
 		SubCategoryNameRef  string    `gorm:"column:sub_category_name_ref"`
@@ -2350,7 +2377,7 @@ func (c *productDatabase) GetProductItemsBySubCategory(ctx context.Context, loca
 
 // GetProductItemsByShop returns product items for the shop owned by the provided admin id.
 // It joins shop_details to find the shop id for the admin and matches product_items.admin_id to shop id.
-func (c *productDatabase) GetProductItemsByShop(ctx context.Context, adminID uint) (productItems []response.ProductItems, err error) {
+func (c *productDatabase) GetProductItemsByShop(ctx context.Context, adminID string) (productItems []response.ProductItems, err error) {
 	query := `SELECT pi.sub_category_name, pi.id, pi.category_id, pi.department_id, pi.sub_category_id,
 				pi.product_item_images, pi.dynamic_fields, pi.created_at, pi.updated_at,
 				c.name AS category_name, d.name AS department_name, sc.name AS sub_category_name_ref,
@@ -2395,10 +2422,10 @@ func (c *productDatabase) GetProductItemsByShop(ctx context.Context, adminID uin
 
 	type productItemDB struct {
 		Name                string    `gorm:"column:sub_category_name"`
-		ID                  uint      `gorm:"column:id"`
-		CategoryID          uint      `gorm:"column:category_id"`
-		DepartmentID        uint      `gorm:"column:department_id"`
-		SubCategoryID       uint      `gorm:"column:sub_category_id"`
+		ID                  string    `gorm:"column:id"`
+		CategoryID          string    `gorm:"column:category_id"`
+		DepartmentID        string    `gorm:"column:department_id"`
+		SubCategoryID       string    `gorm:"column:sub_category_id"`
 		CategoryName        string    `gorm:"column:category_name"`
 		DepartmentName      string    `gorm:"column:department_name"`
 		SubCategoryNameRef  string    `gorm:"column:sub_category_name_ref"`
@@ -2413,7 +2440,7 @@ func (c *productDatabase) GetProductItemsByShop(ctx context.Context, adminID uin
 
 	// Log SQL and parameter to aid debugging when API returns no rows
 	log.Printf("GetProductItemsByShop SQL: %s", query)
-	log.Printf("GetProductItemsByShop adminID param: %d", adminID)
+	log.Printf("GetProductItemsByShop adminID param: %s", adminID)
 
 	var dbItems []productItemDB
 	err = c.DB.Raw(query, adminID).Scan(&dbItems).Error
@@ -2421,7 +2448,7 @@ func (c *productDatabase) GetProductItemsByShop(ctx context.Context, adminID uin
 		return
 	}
 
-	log.Printf("GetProductItemsByShop rows returned: %d", len(dbItems))
+	log.Printf("DEBUG: dbItems count=%d", len(dbItems))
 
 	for _, dbItem := range dbItems {
 		var images []string
@@ -2485,7 +2512,7 @@ func (c *productDatabase) GetProductItemsByShop(ctx context.Context, adminID uin
 	return
 }
 
-func (c *productDatabase) FindProductItemFilters(ctx context.Context, adminID string, shopID uint) ([]domain.ProductItemFilterType, error) {
+func (c *productDatabase) FindProductItemFilters(ctx context.Context, adminID string, shopID string) ([]domain.ProductItemFilterType, error) {
 	shopQuery := `SELECT id FROM shop_details WHERE id = $1`
 	err := c.DB.Raw(shopQuery, shopID).Scan(&shopID).Error
 	if err != nil {
@@ -2501,7 +2528,7 @@ func (c *productDatabase) FindProductItemFilters(ctx context.Context, adminID st
 
 	// Get products for the admin
 	var products []struct {
-		CategoryID uint `json:"category_id"`
+		CategoryID string `json:"category_id"`
 	}
 	productQuery := `SELECT category_id FROM product_items WHERE shop_id = $1`
 	err = c.DB.Raw(productQuery, shopID).Scan(&products).Error
@@ -2510,18 +2537,18 @@ func (c *productDatabase) FindProductItemFilters(ctx context.Context, adminID st
 	}
 
 	// Get unique category IDs
-	categoryIDMap := make(map[uint]bool)
+	categoryIDMap := make(map[string]bool)
 	for _, p := range products {
 		categoryIDMap[p.CategoryID] = true
 	}
 
 	// Get category names and ids
 	var categories []struct {
-		ID   uint
+		ID   string
 		Name string
 	}
 	if len(categoryIDMap) > 0 {
-		categoryIDs := make([]uint, 0, len(categoryIDMap))
+		categoryIDs := make([]string, 0, len(categoryIDMap))
 		for id := range categoryIDMap {
 			categoryIDs = append(categoryIDs, id)
 		}
@@ -2544,7 +2571,7 @@ func (c *productDatabase) FindProductItemFilters(ctx context.Context, adminID st
 	return filters, nil
 }
 
-func GetProductItemsByOfferID(ctx context.Context, db *gorm.DB, offerID uint, categoryID int, departmentID int, subCategoryID int, latStr string, lngStr string, pincode string, radiusKm float64, limit int, offset int) (productItems []response.ProductItems, err error) {
+func GetProductItemsByOfferID(ctx context.Context, db *gorm.DB, offerID string, categoryID int, departmentID int, subCategoryID int, latStr string, lngStr string, pincode string, radiusKm float64, limit int, offset int) (productItems []response.ProductItems, err error) {
 	offerQuery := `SELECT pi.sub_category_name, pi.id, pi.category_id, pi.department_id, pi.sub_category_id,
 				pi.product_item_images, pi.dynamic_fields, pi.created_at, pi.updated_at,
 				c.name AS category_name, d.name AS department_name, sc.name AS sub_category_name_ref,
@@ -2647,10 +2674,10 @@ func GetProductItemsByOfferID(ctx context.Context, db *gorm.DB, offerID uint, ca
 
 	type offerProductDB struct {
 		Name                string    `gorm:"column:sub_category_name"`
-		ID                  uint      `gorm:"column:id"`
-		CategoryID          uint      `gorm:"column:category_id"`
-		DepartmentID        uint      `gorm:"column:department_id"`
-		SubCategoryID       uint      `gorm:"column:sub_category_id"`
+		ID                  string    `gorm:"column:id"`
+		CategoryID          string    `gorm:"column:category_id"`
+		DepartmentID        string    `gorm:"column:department_id"`
+		SubCategoryID       string    `gorm:"column:sub_category_id"`
 		CategoryName        string    `gorm:"column:category_name"`
 		DepartmentName      string    `gorm:"column:department_name"`
 		SubCategoryNameRef  string    `gorm:"column:sub_category_name_ref"`
@@ -2663,7 +2690,7 @@ func GetProductItemsByOfferID(ctx context.Context, db *gorm.DB, offerID uint, ca
 		ViewCount           uint      `gorm:"column:view_count"`
 
 		// Offer details
-		OfferID      uint      `gorm:"column:offer_id"`
+		OfferID      string    `gorm:"column:offer_id"`
 		OfferName    string    `gorm:"column:offer_name"`
 		DiscountRate uint      `gorm:"column:discount_rate"`
 		Description  string    `gorm:"column:description"`
@@ -2671,20 +2698,20 @@ func GetProductItemsByOfferID(ctx context.Context, db *gorm.DB, offerID uint, ca
 		EndDate      time.Time `gorm:"column:end_date"`
 
 		// Promotion category details
-		PromotionCategoryID        uint      `gorm:"column:promotion_category_id"`
+		PromotionCategoryID        string    `gorm:"column:promotion_category_id"`
 		PromotionCategoryName      string    `gorm:"column:promotion_category_name"`
-		PromotionCategoryShopID    uint      `gorm:"column:promotion_category_shop_id"`
+		PromotionCategoryShopID    string    `gorm:"column:promotion_category_shop_id"`
 		PromotionCategoryIsActive  bool      `gorm:"column:promotion_category_is_active"`
 		PromotionCategoryIconPath  string    `gorm:"column:promotion_category_icon_path"`
 		PromotionCategoryCreatedAt time.Time `gorm:"column:promotion_category_created_at"`
 		PromotionCategoryUpdatedAt time.Time `gorm:"column:promotion_category_updated_at"`
 
 		// Promotion type details
-		PromotionTypeID                  uint      `gorm:"column:promotion_type_id"`
+		PromotionTypeID                  string    `gorm:"column:promotion_type_id"`
 		PromotionTypeName                string    `gorm:"column:promotion_type_name"`
 		PromotionTypeIsActive            bool      `gorm:"column:promotion_type_is_active"`
 		PromotionTypeShopID              uint      `gorm:"column:promotion_type_shop_id"`
-		PromotionTypePromotionCategoryID uint      `gorm:"column:promotion_type_promotion_category_id"`
+		PromotionTypePromotionCategoryID string    `gorm:"column:promotion_type_promotion_category_id"`
 		PromotionTypeType                string    `gorm:"column:promotion_type_type"`
 		PromotionTypeIconPath            string    `gorm:"column:promotion_type_icon_path"`
 		PromotionTypeCreatedAt           time.Time `gorm:"column:promotion_type_created_at"`

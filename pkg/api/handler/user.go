@@ -165,7 +165,7 @@ func (u *UserHandler) SaveAddress(ctx *gin.Context) {
 	address.Latitude = body.Latitude
 	address.Longitude = body.Longitude
 	address.PhoneNumber = body.PhoneNumber
-	address.AddressType = body.AddressType
+	address.AddressType = domain.AddressType(body.AddressType)
 	address.AddressLine1 = body.AddressLine1
 	address.AddressLine2 = body.AddressLine2
 	address.IsDefault = body.IsDefault
@@ -259,10 +259,10 @@ func (u *UserHandler) UpdateAddress(ctx *gin.Context) {
 //	@Failure		500	{object}	response.Response{}	"Failed to add product item to wishlist"
 func (u *UserHandler) SaveToWishList(ctx *gin.Context) {
 
-	productItemID, err := request.GetParamAsUint(ctx, "product_item_id")
+		productItemID := ctx.Param("product_item_id")
 
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+	if productItemID == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, nil, nil)
 		return
 	}
 
@@ -273,8 +273,7 @@ func (u *UserHandler) SaveToWishList(ctx *gin.Context) {
 		UserID:        userID,
 	}
 
-	err = u.userUseCase.SaveToWishList(ctx, wishList)
-	if err != nil {
+	if err := u.userUseCase.SaveToWishList(ctx, wishList); err != nil {
 		errResponse(ctx, "Failed to add product item to wishlist", err)
 		return
 	}
@@ -294,10 +293,10 @@ func (u *UserHandler) SaveToWishList(ctx *gin.Context) {
 //	@Failure		400	{object}	response.Response{}	"invalid input"
 func (u *UserHandler) RemoveFromWishList(ctx *gin.Context) {
 
-	productItemID, err := request.GetParamAsUint(ctx, "product_item_id")
+		productItemID := ctx.Param("product_item_id")
 
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
+	if productItemID == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, nil, nil)
 		return
 	}
 
@@ -675,13 +674,9 @@ func (c *UserHandler) GetProductItemsByDepartment(ctx *gin.Context) {
 		return
 	}
 
-	documentID, err := strconv.ParseUint(idStr, 10, 64)
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid document ID", err, nil)
-		return
-	}
+	documentID := idStr
 
-	products, err := c.userUseCase.GetProductItemsByDepartment(ctx, uint(documentID))
+	products, err := c.userUseCase.GetProductItemsByDepartment(ctx, documentID)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get product items by document", err, nil)
 		return
@@ -714,13 +709,9 @@ func (c *UserHandler) GetProductItemsByCategory(ctx *gin.Context) {
 		return
 	}
 
-	categoryID, err := strconv.ParseUint(idStr, 10, 64)
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid category ID", err, nil)
-		return
-	}
+	categoryID := idStr
 
-	products, err := c.userUseCase.GetProductItemsByCategory(ctx, uint(categoryID))
+	products, err := c.userUseCase.GetProductItemsByCategory(ctx, categoryID)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get product items by category", err, nil)
 		return
@@ -752,13 +743,9 @@ func (c *UserHandler) GetProductItemsBySubCategory(ctx *gin.Context) {
 		return
 	}
 
-	subCategoryID, err := strconv.ParseUint(idStr, 10, 64)
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid sub-category ID", err, nil)
-		return
-	}
+	subCategoryID := idStr
 
-	products, err := c.userUseCase.GetProductItemsBySubCategory(ctx, uint(subCategoryID))
+	products, err := c.userUseCase.GetProductItemsBySubCategory(ctx, subCategoryID)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get product items by sub-category", err, nil)
 		return
@@ -790,13 +777,9 @@ func (c *UserHandler) GetProductItemsByShop(ctx *gin.Context) {
 		return
 	}
 
-	adminID, err := strconv.ParseUint(idStr, 10, 64)
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid admin ID", err, nil)
-		return
-	}
+	adminID := idStr
 
-	products, err := c.userUseCase.GetProductItemsByShop(ctx, uint(adminID))
+	products, err := c.userUseCase.GetProductItemsByShop(ctx, adminID)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get product items by shop", err, nil)
 		return
@@ -823,20 +806,16 @@ func (c *UserHandler) GetShopByID(ctx *gin.Context) {
 	//	@Failure		400	{object}	response.Response{}	"Invalid shop ID"
 	//	@Failure		500	{object}	response.Response{}	"Failed to get shop by ID"
 	shopIDStr := ctx.Param("shop_id")
-	shopID, err := strconv.ParseUint(shopIDStr, 10, 64)
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid shop ID", err, nil)
-		return
-	}
+	shopID := shopIDStr
 	userID := utils.GetUserIdFromContext(ctx)
 
-	shop, err := c.userUseCase.GetShopByID(ctx, uint(shopID))
+	shop, err := c.userUseCase.GetShopByID(ctx, shopID)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get shop by ID", err, nil)
 		return
 	}
 
-	socialSummary, err := c.userUseCase.GetShopSocialDetails(ctx, uint(shopID), userID)
+	socialSummary, err := c.userUseCase.GetShopSocialDetails(ctx, shopID, userID)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get shop social summary", err, nil)
 		return
@@ -871,14 +850,10 @@ func (c *UserHandler) GetShopSocialDetails(ctx *gin.Context) {
 	//	@Failure		400	{object}	response.Response{}	"Invalid shop ID"
 	//	@Failure		500	{object}	response.Response{}	"Failed to get shop social details"
 	shopIDStr := ctx.Param("shop_id")
-	shopID, err := strconv.ParseUint(shopIDStr, 10, 64)
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid shop ID", err, nil)
-		return
-	}
+	shopID := shopIDStr
 	userID := utils.GetUserIdFromContext(ctx)
 
-	socialDetails, err := c.userUseCase.GetShopSocialDetails(ctx, uint(shopID), userID)
+	socialDetails, err := c.userUseCase.GetShopSocialDetails(ctx, shopID, userID)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get shop social details", err, nil)
 		return

@@ -2,7 +2,6 @@ package repository
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -22,18 +21,18 @@ func NewFcmTokenRepository(db *gorm.DB) interfaces.FcmTokenRepository {
 
 func (r *fcmTokenRepository) SaveFcmToken(fcmToken domain.FcmToken) (domain.FcmToken, error) {
 	if fcmToken.OwnerID == "" {
-		if fcmToken.ShopID != 0 {
-			fcmToken.OwnerID = strconv.FormatUint(uint64(fcmToken.ShopID), 10)
-		} else if fcmToken.AdminID != 0 {
-			fcmToken.OwnerID = strconv.FormatUint(uint64(fcmToken.AdminID), 10)
+		if fcmToken.ShopID != "" {
+			fcmToken.OwnerID = fcmToken.ShopID
+		} else if fcmToken.AdminID != "" {
+			fcmToken.OwnerID = fcmToken.AdminID
 		}
 	}
-	if fcmToken.ShopID == 0 && fcmToken.OwnerType == "seller" {
-		fcmToken.ShopID = coerceUintString(fcmToken.OwnerID)
+	if fcmToken.ShopID == "" && fcmToken.OwnerType == "seller" {
+		fcmToken.ShopID = fcmToken.OwnerID
 	}
-	if fcmToken.AdminID == 0 {
+	if fcmToken.AdminID == "" {
 		if fcmToken.OwnerType == "seller" {
-			fcmToken.AdminID = coerceUintString(fcmToken.OwnerID)
+			fcmToken.AdminID = fcmToken.OwnerID
 		} else {
 			fcmToken.AdminID = fcmToken.ShopID
 		}
@@ -70,10 +69,8 @@ func (r *fcmTokenRepository) UnregisterFcmToken(fcmToken domain.FcmToken) error 
 		return err
 	}
 
-	shopID := ""
-	if fcmToken.ShopID != 0 {
-		shopID = strconv.FormatUint(uint64(fcmToken.ShopID), 10)
-	} else if fcmToken.OwnerID != "" && (fcmToken.OwnerType == "" || fcmToken.OwnerType == "seller") {
+	shopID := fcmToken.ShopID
+	if shopID == "" && fcmToken.OwnerID != "" && (fcmToken.OwnerType == "" || fcmToken.OwnerType == "seller") {
 		shopID = fcmToken.OwnerID
 	}
 
@@ -176,10 +173,3 @@ func isUndefinedTableError(err error) bool {
 	return strings.Contains(errMsg, "does not exist") || strings.Contains(errMsg, "sqlstate 42p01")
 }
 
-func coerceUintString(value string) uint {
-	parsed, err := strconv.ParseUint(value, 10, 64)
-	if err != nil {
-		return 0
-	}
-	return uint(parsed)
-}

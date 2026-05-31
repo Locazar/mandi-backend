@@ -10,7 +10,7 @@ var ResoposeMap map[string]string
 
 // admin
 type AdminLogin struct {
-	ID    uint   `json:"id" `
+	ID    string `json:"id"`
 	Email string `json:"email"`
 }
 
@@ -30,10 +30,10 @@ func ConvertAdminToResponse(admin domain.Admin, shopVerification domain.ShopVeri
 // reponse for get all variations with its respective category
 
 type SalesReport struct {
-	UserID          uint      `json:"user_id"`
+	UserID          string    `json:"user_id"`
 	FirstName       string    `json:"first_name"`
 	Email           string    `json:"email"`
-	ShopOrderID     uint      `json:"order_id"`
+	ShopOrderID     string    `json:"order_id"`
 	OrderDate       time.Time `json:"order_date"`
 	OrderTotalPrice uint      `json:"order_total_price"`
 	Discount        uint      `json:"discount_price"`
@@ -42,7 +42,7 @@ type SalesReport struct {
 }
 
 type Stock struct {
-	ProductItemID    uint              `json:"product_item_id"`
+	ProductItemID    string            `json:"product_item_id"`
 	ProductName      string            `json:"product_name"`
 	VariationOptions []VariationOption `gorm:"-"`
 }

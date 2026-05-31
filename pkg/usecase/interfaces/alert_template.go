@@ -12,7 +12,7 @@ type AlertTemplateUseCase interface {
 	SeedDefaults(ctx context.Context) error
 
 	// Seller-facing
-	GetTemplateForSeller(ctx context.Context, sellerID uint, key string) (map[string]interface{}, error)
-	GetFlow(ctx context.Context, sellerID uint, flowKey string) (map[string]interface{}, error)
-	CompleteStep(ctx context.Context, sellerID uint, flowKey string, stepNumber int) error
+	GetTemplateForSeller(ctx context.Context, sellerID string, key string) (map[string]interface{}, error)
+	GetFlow(ctx context.Context, sellerID string, flowKey string) (map[string]interface{}, error)
+	CompleteStep(ctx context.Context, sellerID string, flowKey string, stepNumber int) error
 }

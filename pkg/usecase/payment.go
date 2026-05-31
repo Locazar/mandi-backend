@@ -47,7 +47,7 @@ func (c *paymentUseCase) FindAllPaymentMethods(ctx context.Context) ([]domain.Pa
 	return c.paymentRepo.FindAllPaymentMethods(ctx)
 }
 
-func (c *paymentUseCase) FindPaymentMethodByID(ctx context.Context, paymentMethodID uint) (domain.PaymentMethod, error) {
+func (c *paymentUseCase) FindPaymentMethodByID(ctx context.Context, paymentMethodID string) (domain.PaymentMethod, error) {
 	return c.paymentRepo.FindPaymentMethodByID(ctx, paymentMethodID)
 }
 
@@ -62,7 +62,7 @@ func (c *paymentUseCase) UpdatePaymentMethod(ctx context.Context, paymentMethod 
 }
 
 // To create a razor pay order
-func (c *paymentUseCase) MakeRazorpayOrder(ctx context.Context, userID, shopOrderID uint) (response.RazorpayOrder, error) {
+func (c *paymentUseCase) MakeRazorpayOrder(ctx context.Context, userID, shopOrderID string) (response.RazorpayOrder, error) {
 
 	shopOrder, err := c.orderRepo.FindShopOrderByShopOrderID(ctx, shopOrderID)
 	if err != nil {
@@ -80,7 +80,7 @@ func (c *paymentUseCase) MakeRazorpayOrder(ctx context.Context, userID, shopOrde
 	}
 
 	// check order total reached the payment method max amount
-	if shopOrder.OrderTotalPrice > payment.MaximumAmount {
+	if shopOrder.OrderTotal.AmountMinor > payment.MaximumAmount.AmountMinor {
 		return response.RazorpayOrder{}, ErrPaymentAmountReachedMax
 	}
 
@@ -91,7 +91,7 @@ func (c *paymentUseCase) MakeRazorpayOrder(ctx context.Context, userID, shopOrde
 	}
 
 	//razorpay amount is calculate on pisa for india so make the actual price into paisa
-	razorPayAmount := shopOrder.OrderTotalPrice * 100
+	razorPayAmount := uint(shopOrder.OrderTotal.AmountMinor) * 100
 
 	razorpayKey := c.config.RazorPayKey
 	razorpaySecret := c.config.RazorPaySecret
@@ -113,7 +113,7 @@ func (c *paymentUseCase) MakeRazorpayOrder(ctx context.Context, userID, shopOrde
 
 	razorPayOrder := response.RazorpayOrder{
 		ShopOrderID:     shopOrderID,
-		AmountToPay:     shopOrder.OrderTotalPrice,
+		AmountToPay:     uint(shopOrder.OrderTotal.AmountMinor),
 		RazorpayAmount:  razorPayAmount,
 		RazorpayKey:     razorpayKey,
 		RazorpayOrderID: razorpayOrderID,
@@ -161,7 +161,7 @@ func (c *paymentUseCase) VerifyRazorPay(ctx context.Context, verifyReq request.R
 }
 
 // To mak a stripe order
-func (c *paymentUseCase) MakeStripeOrder(ctx context.Context, userID, shopOrderID uint) (response.StripeOrder, error) {
+func (c *paymentUseCase) MakeStripeOrder(ctx context.Context, userID, shopOrderID string) (response.StripeOrder, error) {
 
 	shopOrder, err := c.orderRepo.FindShopOrderByShopOrderID(ctx, shopOrderID)
 	if err != nil {
@@ -180,7 +180,7 @@ func (c *paymentUseCase) MakeStripeOrder(ctx context.Context, userID, shopOrderI
 	}
 
 	// check order total reached the payment method max amount
-	if shopOrder.OrderTotalPrice > payment.MaximumAmount {
+	if shopOrder.OrderTotal.AmountMinor > payment.MaximumAmount.AmountMinor {
 		return response.StripeOrder{}, ErrPaymentAmountReachedMax
 	}
 
@@ -194,7 +194,7 @@ func (c *paymentUseCase) MakeStripeOrder(ctx context.Context, userID, shopOrderI
 	// create a payment param
 	params := &stripe.PaymentIntentParams{
 
-		Amount:       stripe.Int64(int64(shopOrder.OrderTotalPrice)),
+		Amount:       stripe.Int64(shopOrder.OrderTotal.AmountMinor),
 		ReceiptEmail: stripe.String(userDetails.Email),
 
 		Currency: stripe.String(string(stripe.CurrencyINR)),
@@ -215,7 +215,7 @@ func (c *paymentUseCase) MakeStripeOrder(ctx context.Context, userID, shopOrderI
 
 	stripeOrder := response.StripeOrder{
 		ShopOrderID:    shopOrderID,
-		AmountToPay:    shopOrder.OrderTotalPrice,
+		AmountToPay:    uint(shopOrder.OrderTotal.AmountMinor),
 		ClientSecret:   clientSecret,
 		PublishableKey: stripePublishKey,
 	}
@@ -243,14 +243,9 @@ func (c *paymentUseCase) VerifyStripOrder(ctx context.Context, stripePaymentID s
 }
 
 // Approve the order and clear the cart (if coupon applied then change it used for this user)
-func (c *paymentUseCase) ApproveShopOrderAndClearCart(ctx context.Context, userID uint,
+func (c *paymentUseCase) ApproveShopOrderAndClearCart(ctx context.Context, userID string,
 	approveDetails request.ApproveOrder) error {
 
-	// find the order status of order placed
-	orderPlacedStatus, err := c.orderRepo.FindOrderStatusByStatus(ctx, domain.StatusOrderPlaced)
-	if err != nil {
-		return utils.PrependMessageToError(err, "failed to find order place status for shop order")
-	}
 	// find the payment method of given payment type
 	paymentMethod, err := c.paymentRepo.FindPaymentMethodByType(ctx, approveDetails.PaymentType)
 	if err != nil {
@@ -259,9 +254,9 @@ func (c *paymentUseCase) ApproveShopOrderAndClearCart(ctx context.Context, userI
 
 	err = c.orderRepo.Transaction(func(trxRepo interfaces.OrderRepository) error {
 
-		// change order status and save the payment method for the order
+		// change order status to placed and save the payment method for the order
 		err = trxRepo.UpdateShopOrderStatusAndSavePaymentMethod(ctx, approveDetails.ShopOrderID,
-			orderPlacedStatus.ID, paymentMethod.ID)
+			domain.StatusOrderPlaced, paymentMethod.ID)
 		if err != nil {
 			return utils.PrependMessageToError(err, "failed to update shop order status and payment method")
 		}
@@ -272,7 +267,7 @@ func (c *paymentUseCase) ApproveShopOrderAndClearCart(ctx context.Context, userI
 		}
 
 		// if user applied a coupon on cart then save coupon uses for user
-		if cart.AppliedCouponID != 0 {
+		if cart.AppliedCouponID != "" {
 			err = c.couponRepo.SaveCouponUses(ctx, domain.CouponUses{
 				UserID:   userID,
 				CouponID: cart.AppliedCouponID,

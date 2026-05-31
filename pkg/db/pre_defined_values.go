@@ -7,66 +7,26 @@ import (
 	"gorm.io/gorm"
 )
 
-// To save predefined order statuses on database if its not exist
-func saveOrderStatuses(db *gorm.DB) error {
-
-	statuses := []domain.OrderStatusType{
-		domain.StatusPaymentPending,
-		domain.StatusOrderPlaced,
-		domain.StatusOrderCancelled,
-		domain.StatusOrderDelivered,
-		domain.StatusReturnRequested,
-		domain.StatusReturnApproved,
-		domain.StatusReturnCancelled,
-		domain.StatusOrderReturned,
-	}
-
-	var (
-		searchQuery = `SELECT CASE WHEN id != 0 THEN 'T' ELSE 'F' END as exist 
-		FROM order_statuses WHERE status = $1`
-		insertQuery = `INSERT INTO order_statuses (status) VALUES ($1)`
-		exist       bool
-		err         error
-	)
-
-	for _, status := range statuses {
-
-		err = db.Raw(searchQuery, status).Scan(&exist).Error
-		if err != nil {
-			return fmt.Errorf("failed to check order status already exist err: %w", err)
-		}
-
-		if !exist {
-			err = db.Exec(insertQuery, status).Error
-			if err != nil {
-				return fmt.Errorf("failed to save status %w", err)
-			}
-		}
-		exist = false
-	}
-	return nil
-}
-
 // To save predefined payment methods on database if its not exist
 func savePaymentMethods(db *gorm.DB) error {
 	paymentMethods := []domain.PaymentMethod{
 		{
 			Name:          domain.CodPayment,
-			MaximumAmount: domain.CodMaximumAmount,
+			MaximumAmount: domain.INR(domain.CodMaximumAmount),
 		},
 		{
 			Name:          domain.RazopayPayment,
-			MaximumAmount: domain.RazorPayMaximumAmount,
+			MaximumAmount: domain.INR(domain.RazorPayMaximumAmount),
 		},
 		{
 			Name:          domain.StripePayment,
-			MaximumAmount: domain.StripeMaximumAmount,
+			MaximumAmount: domain.INR(domain.StripeMaximumAmount),
 		},
 	}
 
 	var (
-		searchQuery = `SELECT CASE WHEN id != 0 THEN 'T' ELSE 'F' END as exist FROM payment_methods WHERE name = $1`
-		insertQuery = `INSERT INTO payment_methods (name, maximum_amount) VALUES ($1, $2)`
+		searchQuery = `SELECT EXISTS(SELECT 1 FROM payment_methods WHERE name = $1) AS exist`
+		insertQuery = `INSERT INTO payment_methods (name, maximum_amount_amount_minor, maximum_amount_currency) VALUES ($1, $2, $3)`
 		exist       bool
 		err         error
 	)
@@ -78,7 +38,8 @@ func savePaymentMethods(db *gorm.DB) error {
 			return fmt.Errorf("failed to check payment methods already exist %w", err)
 		}
 		if !exist {
-			err = db.Exec(insertQuery, paymentMethod.Name, paymentMethod.MaximumAmount).Error
+			err = db.Exec(insertQuery, paymentMethod.Name,
+				paymentMethod.MaximumAmount.AmountMinor, paymentMethod.MaximumAmount.Currency).Error
 			if err != nil {
 				return fmt.Errorf("failed to save payment method %w", err)
 			}
@@ -143,20 +104,20 @@ func saveAdmin(db *gorm.DB, email, password string) error {
 
 func SeedCountries(db *gorm.DB) error {
 	countries := []domain.Country{
-		{ID: 1, CountryName: "India", ISOCode: "IN"},
-		{ID: 2, CountryName: "United States", ISOCode: "US"},
-		{ID: 3, CountryName: "United Kingdom", ISOCode: "GB"},
-		{ID: 4, CountryName: "Canada", ISOCode: "CA"},
-		{ID: 5, CountryName: "Australia", ISOCode: "AU"},
-		{ID: 6, CountryName: "Germany", ISOCode: "DE"},
-		{ID: 7, CountryName: "France", ISOCode: "FR"},
-		{ID: 8, CountryName: "Japan", ISOCode: "JP"},
-		{ID: 9, CountryName: "China", ISOCode: "CN"},
-		{ID: 10, CountryName: "Brazil", ISOCode: "BR"},
+		{CountryName: "India", ISOCode: "IN"},
+		{CountryName: "United States", ISOCode: "US"},
+		{CountryName: "United Kingdom", ISOCode: "GB"},
+		{CountryName: "Canada", ISOCode: "CA"},
+		{CountryName: "Australia", ISOCode: "AU"},
+		{CountryName: "Germany", ISOCode: "DE"},
+		{CountryName: "France", ISOCode: "FR"},
+		{CountryName: "Japan", ISOCode: "JP"},
+		{CountryName: "China", ISOCode: "CN"},
+		{CountryName: "Brazil", ISOCode: "BR"},
 	}
 
 	for _, country := range countries {
-		if err := db.FirstOrCreate(&country, domain.Country{ID: country.ID}).Error; err != nil {
+		if err := db.FirstOrCreate(&country, domain.Country{ISOCode: country.ISOCode}).Error; err != nil {
 			return err
 		}
 	}

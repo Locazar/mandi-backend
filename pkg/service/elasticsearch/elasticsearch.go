@@ -37,7 +37,7 @@ func (es *ElasticService) UpdateProductItem(ctx context.Context, domainItem doma
 	res, err := es.Client.Index(
 		"product_items",
 		bytes.NewReader(data),
-		es.Client.Index.WithDocumentID(fmt.Sprintf("%d", domainItem.ID)),
+		es.Client.Index.WithDocumentID(fmt.Sprintf("%s", domainItem.ID)),
 		es.Client.Index.WithContext(ctx),
 	)
 	if err != nil {
@@ -51,7 +51,7 @@ func (es *ElasticService) UpdateProductItem(ctx context.Context, domainItem doma
 		return fmt.Errorf("error updating product item: %s", res.String())
 	}
 
-	log.Printf("Product item %d updated successfully in Elasticsearch", domainItem.ID)
+	log.Printf("Product item %s updated successfully in Elasticsearch", domainItem.ID)
 	return nil
 }
 
@@ -82,7 +82,7 @@ func (es *ElasticService) IndexProduct(ctx context.Context, product domain.Produ
 	res, err := es.Client.Index(
 		"products",
 		bytes.NewReader(data),
-		es.Client.Index.WithDocumentID(fmt.Sprintf("%d", product.ID)),
+		es.Client.Index.WithDocumentID(fmt.Sprintf("%s", product.ID)),
 		es.Client.Index.WithContext(ctx),
 	)
 	if err != nil {
@@ -94,7 +94,7 @@ func (es *ElasticService) IndexProduct(ctx context.Context, product domain.Produ
 		return fmt.Errorf("error indexing product: %s", res.String())
 	}
 
-	log.Printf("Product %d indexed successfully", product.ID)
+	log.Printf("Product %s indexed successfully", product.ID)
 	return nil
 }
 
@@ -118,7 +118,7 @@ func (es *ElasticService) IndexProductItem(ctx context.Context, productItem doma
 	res, err := es.Client.Index(
 		"product_items",
 		bytes.NewReader(data),
-		es.Client.Index.WithDocumentID(fmt.Sprintf("%d", productItem.ID)),
+		es.Client.Index.WithDocumentID(fmt.Sprintf("%s", productItem.ID)),
 		es.Client.Index.WithContext(ctx),
 	)
 	if err != nil {
@@ -130,7 +130,7 @@ func (es *ElasticService) IndexProductItem(ctx context.Context, productItem doma
 		return fmt.Errorf("error indexing product item: %s", res.String())
 	}
 
-	log.Printf("Product item %d indexed successfully", productItem.ID)
+	log.Printf("Product item %s indexed successfully", productItem.ID)
 	return nil
 }
 
@@ -218,10 +218,10 @@ func (es *ElasticService) SearchProducts(ctx context.Context, keyword string, ca
 	for _, hit := range hits {
 		source := hit.(map[string]interface{})["_source"].(map[string]interface{})
 		product := domain.Product{
-			ID:          uint(source["id"].(float64)),
+			ID:          source["id"].(string),
 			Name:        source["name"].(string),
 			Description: source["description"].(string),
-			CategoryID:  uint(source["category_id"].(float64))}
+			CategoryID:  source["category_id"].(string)}
 		products = append(products, product)
 	}
 
@@ -230,7 +230,7 @@ func (es *ElasticService) SearchProducts(ctx context.Context, keyword string, ca
 
 // SearchProductItems searches for product items in Elasticsearch and returns IDs
 // All provided parameters are combined with AND logic to narrow down results
-func (es *ElasticService) SearchProductItems(ctx context.Context, keyword string, categoryID *string, departmentID *string, brandID *string, shopID *string, limit, offset int) ([]uint, error) {
+func (es *ElasticService) SearchProductItems(ctx context.Context, keyword string, categoryID *string, departmentID *string, brandID *string, shopID *string, limit, offset int) ([]string, error) {
 	query := map[string]interface{}{
 		"query": map[string]interface{}{
 			"bool": map[string]interface{}{
@@ -320,10 +320,10 @@ func (es *ElasticService) SearchProductItems(ctx context.Context, keyword string
 	}
 
 	hits := result["hits"].(map[string]interface{})["hits"].([]interface{})
-	ids := make([]uint, 0, len(hits))
+	ids := make([]string, 0, len(hits))
 	for _, hit := range hits {
 		source := hit.(map[string]interface{})["_source"].(map[string]interface{})
-		id := uint(source["id"].(float64))
+		id := source["id"].(string)
 		ids = append(ids, id)
 	}
 
@@ -344,7 +344,7 @@ func (es *ElasticService) IndexDepartment(ctx context.Context, dept domain.Depar
 	res, err := es.Client.Index(
 		"departments",
 		bytes.NewReader(data),
-		es.Client.Index.WithDocumentID(fmt.Sprintf("%d", dept.ID)),
+		es.Client.Index.WithDocumentID(fmt.Sprintf("%s", dept.ID)),
 		es.Client.Index.WithContext(ctx),
 	)
 	if err != nil {
@@ -400,7 +400,7 @@ func (es *ElasticService) SearchDepartments(ctx context.Context, query string, l
 	for _, hit := range hits {
 		source := hit.(map[string]interface{})["_source"].(map[string]interface{})
 		dept := domain.Department{
-			ID:   uint(source["id"].(float64)),
+			ID:   source["id"].(string),
 			Name: source["name"].(string),
 		}
 		departments = append(departments, dept)
@@ -424,7 +424,7 @@ func (es *ElasticService) IndexCategory(ctx context.Context, cat domain.Category
 	res, err := es.Client.Index(
 		"categories",
 		bytes.NewReader(data),
-		es.Client.Index.WithDocumentID(fmt.Sprintf("%d", cat.ID)),
+		es.Client.Index.WithDocumentID(fmt.Sprintf("%s", cat.ID)),
 		es.Client.Index.WithContext(ctx),
 	)
 	if err != nil {
@@ -495,9 +495,9 @@ func (es *ElasticService) SearchCategories(ctx context.Context, query string, de
 	for _, hit := range hits {
 		source := hit.(map[string]interface{})["_source"].(map[string]interface{})
 		cat := domain.Category{
-			ID:           uint(source["id"].(float64)),
+			ID:           source["id"].(string),
 			Name:         source["name"].(string),
-			DepartmentID: uint(source["department_id"].(float64)),
+			DepartmentID: source["department_id"].(string),
 		}
 		categories = append(categories, cat)
 	}
@@ -519,7 +519,7 @@ func (es *ElasticService) IndexBrand(ctx context.Context, brand domain.Brand) er
 	res, err := es.Client.Index(
 		"brands",
 		bytes.NewReader(data),
-		es.Client.Index.WithDocumentID(fmt.Sprintf("%d", brand.ID)),
+		es.Client.Index.WithDocumentID(fmt.Sprintf("%s", brand.ID)),
 		es.Client.Index.WithContext(ctx),
 	)
 	if err != nil {
@@ -575,7 +575,7 @@ func (es *ElasticService) SearchBrands(ctx context.Context, query string, limit,
 	for _, hit := range hits {
 		source := hit.(map[string]interface{})["_source"].(map[string]interface{})
 		brand := domain.Brand{
-			ID:   uint(source["id"].(float64)),
+			ID:   source["id"].(string),
 			Name: source["name"].(string),
 		}
 		brands = append(brands, brand)
@@ -600,7 +600,7 @@ func (es *ElasticService) IndexOffer(ctx context.Context, offer domain.Offer) er
 	res, err := es.Client.Index(
 		"offers",
 		bytes.NewReader(data),
-		es.Client.Index.WithDocumentID(fmt.Sprintf("%d", offer.ID)),
+		es.Client.Index.WithDocumentID(fmt.Sprintf("%s", offer.ID)),
 		es.Client.Index.WithContext(ctx),
 	)
 	if err != nil {
@@ -656,7 +656,7 @@ func (es *ElasticService) SearchOffers(ctx context.Context, query string, limit,
 	for _, hit := range hits {
 		source := hit.(map[string]interface{})["_source"].(map[string]interface{})
 		offer := domain.Offer{
-			ID:          uint(source["id"].(float64)),
+			ID:          source["id"].(string),
 			Name:        source["name"].(string),
 			Description: source["description"].(string),
 		}
@@ -683,7 +683,7 @@ func (es *ElasticService) IndexUser(ctx context.Context, user domain.User) error
 	res, err := es.Client.Index(
 		"users",
 		bytes.NewReader(data),
-		es.Client.Index.WithDocumentID(fmt.Sprintf("%d", user.ID)),
+		es.Client.Index.WithDocumentID(fmt.Sprintf("%s", user.ID)),
 		es.Client.Index.WithContext(ctx),
 	)
 	if err != nil {
@@ -739,7 +739,7 @@ func (es *ElasticService) SearchUsers(ctx context.Context, query string, limit, 
 	for _, hit := range hits {
 		source := hit.(map[string]interface{})["_source"].(map[string]interface{})
 		user := domain.User{
-			ID:        uint(source["id"].(float64)),
+			ID:        source["id"].(string),
 			FirstName: source["first_name"].(string),
 			LastName:  source["last_name"].(string),
 			Email:     source["email"].(string),
@@ -767,7 +767,7 @@ func (es *ElasticService) IndexAdmin(ctx context.Context, admin domain.Admin) er
 	res, err := es.Client.Index(
 		"admins",
 		bytes.NewReader(data),
-		es.Client.Index.WithDocumentID(fmt.Sprintf("%d", admin.ID)),
+		es.Client.Index.WithDocumentID(fmt.Sprintf("%s", admin.ID)),
 		es.Client.Index.WithContext(ctx),
 	)
 	if err != nil {
@@ -823,7 +823,7 @@ func (es *ElasticService) SearchAdmins(ctx context.Context, query string, limit,
 	for _, hit := range hits {
 		source := hit.(map[string]interface{})["_source"].(map[string]interface{})
 		admin := domain.Admin{
-			ID:       uint(source["id"].(float64)),
+			ID:       source["id"].(string),
 			FullName: source["full_name"].(string),
 			Email:    source["email"].(string),
 			Mobile:   source["mobile"].(string),
@@ -841,7 +841,7 @@ func (es *ElasticService) BulkIndexProducts(ctx context.Context, products []doma
 		meta := map[string]interface{}{
 			"index": map[string]interface{}{
 				"_index": "products",
-				"_id":    fmt.Sprintf("%d", product.ID),
+				"_id":    fmt.Sprintf("%s", product.ID),
 			},
 		}
 		metaData, _ := json.Marshal(meta)

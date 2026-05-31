@@ -9,7 +9,7 @@ type PaymentMethod struct {
 }
 
 type PaymentMethodUpdate struct {
-	ID            uint `json:"id" binding:"required"`
+	ID            string `json:"id" binding:"required"`
 	BlockStatus   bool `json:"block_status" binding:"omitempty"`
 	MaximumAmount uint `json:"maximum_amount" binding:"required,min=1,max=500000"`
 }
@@ -21,6 +21,6 @@ type RazorpayVerify struct {
 }
 
 type ApproveOrder struct {
-	ShopOrderID uint
+	ShopOrderID string
 	PaymentType domain.PaymentType
 }

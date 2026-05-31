@@ -64,6 +64,12 @@ type Config struct {
 	FirebaseConfig             string `mapstructure:"FIREBASE_CONFIG"`
 	EnquiryNotificationHandler string `mapstructure:"ENQUIRY_NOTIFICATION_HANDLER"`
 
+	// PII encryption keyring. PIIEncryptionKeys is a comma-separated list of
+	// "<id>:<base64-32-byte-key>" entries; PIIEncryptionActiveKey names the key
+	// used for new writes. Older keys remain present to decrypt existing data.
+	PIIEncryptionKeys      string `mapstructure:"PII_ENCRYPTION_KEYS"`
+	PIIEncryptionActiveKey string `mapstructure:"PII_ENCRYPTION_ACTIVE_KEY"`
+
 	Security SecurityConfig `mapstructure:"security"`
 }
 
@@ -148,6 +154,8 @@ var envsNames = []string{
 	"SECURITY_BRUTE_FORCE_MAX_ATTEMPTS",
 	"SECURITY_BRUTE_FORCE_WINDOW_SECONDS",
 	"SECURITY_BRUTE_FORCE_BLOCK_DURATION_SECONDS",
+	"PII_ENCRYPTION_KEYS",
+	"PII_ENCRYPTION_ACTIVE_KEY",
 }
 
 func LoadConfig() (config Config, err error) {

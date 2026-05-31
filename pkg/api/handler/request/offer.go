@@ -30,27 +30,27 @@ type Offer struct {
 	Type         string    `json:"offer_type" binding:"required"`
 }
 type OfferCategory struct {
-	OfferID    uint `json:"offer_id" binding:"required"`
-	CategoryID uint `json:"category_id" binding:"required"`
+	OfferID    string `json:"offer_id" binding:"required"`
+	CategoryID string `json:"category_id" binding:"required"`
 }
 
 type OfferProduct struct {
-	OfferID       uint `json:"offer_id" binding:"required"`
-	ProductItemID uint `json:"product_item_id" binding:"required"`
+	OfferID       string `json:"offer_id" binding:"required"`
+	ProductItemID string `json:"product_item_id" binding:"required"`
 }
 
 type UpdateCategoryOffer struct {
-	CategoryOfferID uint `json:"category_offer_id" binding:"required"`
-	OfferID         uint `json:"offer_id" binding:"required"`
+	CategoryOfferID string `json:"category_offer_id" binding:"required"`
+	OfferID         string `json:"offer_id" binding:"required"`
 }
 
 type UpdateProductOffer struct {
-	ProductOfferID uint `json:"product_offer_id" binding:"required"`
-	OfferID        uint `json:"offer_id" binding:"required"`
+	ProductOfferID string `json:"product_offer_id" binding:"required"`
+	OfferID        string `json:"offer_id" binding:"required"`
 }
 
 type ApplyOfferToShop struct {
 	StartDate   CustomTime `json:"start_date"`
 	EndDate     CustomTime `json:"end_date"`
-	PromotionID uint       `json:"promotion_id"`
+	PromotionID string     `json:"promotion_id"`
 }

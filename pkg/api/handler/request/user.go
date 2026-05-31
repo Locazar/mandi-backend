@@ -14,8 +14,8 @@ type Address struct {
 	LandMark     string   `json:"land_mark" binding:"required"`
 	Area         *string  `json:"area" binding:"omitempty"`
 	City         string   `json:"city" binding:"required"`
-	Pincode      int64    `json:"pincode" binding:"required"`
-	CountryID    uint     `json:"country_id" binding:"required"`
+	Pincode      string   `json:"pincode" binding:"required"`
+	CountryID    string   `json:"country_id" binding:"required"`
 	Latitude     *float64 `json:"latitude" binding:"omitempty"`
 	Longitude    *float64 `json:"longitude" binding:"omitempty"`
 	PhoneNumber  string   `json:"phone_number" binding:"required,min=10,max=10"`
@@ -26,12 +26,12 @@ type Address struct {
 }
 
 type EditAddress struct {
-	ID           uint     `json:"address_id" binding:"required"`
+	ID           string   `json:"address_id" binding:"required"`
 	LandMark     string   `json:"land_mark" binding:"required"`
 	Area         *string  `json:"area" binding:"omitempty"`
 	City         string   `json:"city" binding:"required"`
-	Pincode      int64    `json:"pincode" binding:"required"`
-	CountryID    uint     `json:"country_id" binding:"required"`
+	Pincode      string   `json:"pincode" binding:"required"`
+	CountryID    string   `json:"country_id" binding:"required"`
 	Latitude     *float64 `json:"latitude" binding:"omitempty"`
 	Longitude    *float64 `json:"longitude" binding:"omitempty"`
 	PhoneNumber  string   `json:"phone_number" binding:"required,min=10,max=10"`
@@ -43,14 +43,14 @@ type EditAddress struct {
 
 // user side
 type Cart struct {
-	UserID        uint `json:"-"`
-	ProductItemID uint `json:"product_item_id" binding:"required"`
+	UserID        string `json:"-"`
+	ProductItemID string `json:"product_item_id" binding:"required"`
 }
 
 type UpdateCartItem struct {
-	UserID        uint `json:"-"`
-	ProductItemID uint `json:"product_item_id" binding:"required"`
-	Count         uint `json:"count" binding:"omitempty,gte=1"`
+	UserID        string `json:"-"`
+	ProductItemID string `json:"product_item_id" binding:"required"`
+	Count         uint   `json:"count" binding:"omitempty,gte=1"`
 }
 
 type EditUser struct {

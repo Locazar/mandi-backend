@@ -44,6 +44,9 @@ func (c *CouponHandler) SaveCoupon(ctx *gin.Context) {
 	var coupon domain.Coupon
 
 	copier.Copy(&coupon, &body)
+	// copier cannot map the numeric request field onto the embedded Money value;
+	// convert the minimum cart price (in paise) explicitly.
+	coupon.MinimumCartPrice = domain.INR(int64(body.MinimumCartPrice))
 
 	err := c.couponUseCase.AddCoupon(ctx, coupon)
 	if err != nil {
@@ -139,6 +142,9 @@ func (c *CouponHandler) UpdateCoupon(ctx *gin.Context) {
 	var coupon domain.Coupon
 
 	copier.Copy(&coupon, &body)
+	// copier cannot map the numeric request field onto the embedded Money value;
+	// convert the minimum cart price (in paise) explicitly.
+	coupon.MinimumCartPrice = domain.INR(int64(body.MinimumCartPrice))
 
 	err := c.couponUseCase.UpdateCoupon(ctx, coupon)
 	if err != nil {

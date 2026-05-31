@@ -133,7 +133,7 @@ func (c *paymentHandler) findAllPaymentMethods() func(ctx *gin.Context) {
 //	@Failure		500	{object}	response.Response{}	"Failed place order for COD"
 func (c *paymentHandler) PaymentCOD(ctx *gin.Context) {
 
-	shopOrderID, err := request.GetFormValuesAsUint(ctx, "shop_order_id")
+	shopOrderID, err := request.GetFormValuesAsString(ctx, "shop_order_id")
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, BindFormValueMessage, err, nil)
 		return

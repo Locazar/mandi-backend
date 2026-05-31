@@ -1,8 +1,10 @@
 SHELL := /bin/bash
 
-.PHONY: all build test deps deps-cleancache
+.PHONY: all build test deps deps-cleancache migrate-up migrate-down migrate-create migrate-version migrate-force
 
 GOCMD=go
+DATABASE_URL ?= postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable
+MIGRATE_CMD=migrate -path pkg/db/migrations -database "$(DATABASE_URL)"
 BUILD_DIR=build
 BINARY_DIR=$(BUILD_DIR)/bin
 CODE_COVERAGE=code-coverage
@@ -22,6 +24,9 @@ build-run: build ## run project build file if not exist build it
 
 run: ## Start application
 	$(GOCMD) run ./cmd/api/main.go
+
+seed: ## Seed platform admin accounts (idempotent — skips existing emails)
+	$(GOCMD) run ./cmd/seed/main.go
 
 run-no-lint: ## Start application without lint checks
 	$(GOCMD) run ./cmd/api/main.go
@@ -60,8 +65,10 @@ check: ## To check the code standard violations and errors
 mockgen: # Generate mock files for the test
 	mockgen -source=pkg/repository/interfaces/auth.go -destination=pkg/mock/mockrepo/auth_mock.go -package=mockrepo
 	mockgen -source=pkg/repository/interfaces/user.go -destination=pkg/mock/mockrepo/user_mock.go -package=mockrepo
+	mockgen -source=pkg/repository/interfaces/platform_user.go -destination=pkg/mock/mockrepo/platform_user_mock.go -package=mockrepo
 	mockgen -source=pkg/service/token/token.go -destination=pkg/mock/mockservice/token_mock.go -package=mockservice
 	mockgen -source=pkg/usecase/interfaces/auth.go -destination=pkg/mock/mockusecase/auth_mock.go -package=mockusecase
+	mockgen -source=pkg/usecase/interfaces/platform_user.go -destination=pkg/mock/mockusecase/platform_user_mock.go -package=mockusecase
 
 docker-up: ## To up the docker compose file
 	docker-compose up 
@@ -71,6 +78,21 @@ docker-down: ## To down the docker compose file
 
 docker-build: ## To build newdocker file for this project
 	docker build -t rohit221990/mandi . 
+
+migrate-up: ## Apply all up migrations
+	$(MIGRATE_CMD) up
+
+migrate-down: ## Roll back one migration
+	$(MIGRATE_CMD) down 1
+
+migrate-create: ## Create a new migration: make migrate-create name=foo
+	migrate create -ext sql -dir pkg/db/migrations -seq $(name)
+
+migrate-version: ## Print current migration version
+	$(MIGRATE_CMD) version
+
+migrate-force: ## Force a version: make migrate-force version=N
+	$(MIGRATE_CMD) force $(version)
 
 help: ## Display this help screen
 	@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'

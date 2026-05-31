@@ -3,7 +3,7 @@ package response
 import "time"
 
 type ShopReview struct {
-	UserID    uint      `json:"user_id"`
+	UserID    string    `json:"user_id"`
 	Rating    uint      `json:"rating"`
 	Review    string    `json:"review"`
 	CreatedAt time.Time `json:"created_at"`
@@ -11,7 +11,7 @@ type ShopReview struct {
 }
 
 type Shop struct {
-	ID                     uint      `json:"shop_id" gorm:"column:id"`
+	ID                     string    `json:"shop_id" gorm:"column:id"`
 	ShopName               string    `json:"shop_name" gorm:"column:shop_name"`
 	Email                  string    `json:"email" gorm:"column:email"`
 	Phone                  string    `json:"phone" gorm:"column:phone"`

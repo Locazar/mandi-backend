@@ -76,11 +76,7 @@ func (b *brandHandler) Save(ctx *gin.Context) {
 // @Failure		500	{object}	response.Response{}	"failed to find brand"
 func (b *brandHandler) FindOne(ctx *gin.Context) {
 
-	brandID, err := request.GetParamAsUint(ctx, "brand_id")
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
-		return
-	}
+	brandID := ctx.Param("brand_id")
 
 	brand, err := b.brandUseCase.FindOne(brandID)
 
@@ -134,11 +130,7 @@ func (b *brandHandler) FindAll(ctx *gin.Context) {
 // @Failure		500	{object}	response.Response{}	"failed to update brand"
 func (b *brandHandler) Update(ctx *gin.Context) {
 
-	brandID, err := request.GetParamAsUint(ctx, "brand_id")
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
-		return
-	}
+	brandID := ctx.Param("brand_id")
 
 	var body request.Brand
 
@@ -152,9 +144,7 @@ func (b *brandHandler) Update(ctx *gin.Context) {
 		Name: body.Name,
 	}
 
-	err = b.brandUseCase.Update(brand)
-
-	if err != nil {
+	if err := b.brandUseCase.Update(brand); err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "failed to update brand", err, nil)
 		return
 	}
@@ -174,15 +164,9 @@ func (b *brandHandler) Update(ctx *gin.Context) {
 // @Failure		500	{object}	response.Response{}	"failed to delete brand"
 func (b *brandHandler) Delete(ctx *gin.Context) {
 
-	brandID, err := request.GetParamAsUint(ctx, "brand_id")
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
-		return
-	}
+	brandID := ctx.Param("brand_id")
 
-	err = b.brandUseCase.Delete(brandID)
-
-	if err != nil {
+	if err := b.brandUseCase.Delete(brandID); err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "failed to deleted brand", err, nil)
 		return
 	}

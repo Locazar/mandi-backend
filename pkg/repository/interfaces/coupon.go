@@ -9,8 +9,8 @@ import (
 )
 
 type CouponRepository interface {
-	CheckCouponDetailsAlreadyExist(ctx context.Context, coupon domain.Coupon) (couponID uint, err error)
-	FindCouponByID(ctx context.Context, couponID uint) (coupon domain.Coupon, err error)
+	CheckCouponDetailsAlreadyExist(ctx context.Context, coupon domain.Coupon) (couponID string, err error)
+	FindCouponByID(ctx context.Context, couponID string) (coupon domain.Coupon, err error)
 
 	FindCouponByCouponCode(ctx context.Context, couponCode string) (coupon domain.Coupon, err error)
 	FindCouponByName(ctx context.Context, couponName string) (coupon domain.Coupon, err error)
@@ -20,9 +20,9 @@ type CouponRepository interface {
 	UpdateCoupon(ctx context.Context, coupon domain.Coupon) error
 
 	// uses coupon
-	FindCouponUsesByCouponAndUserID(ctx context.Context, userID, couopnID uint) (couponUses domain.CouponUses, err error)
+	FindCouponUsesByCouponAndUserID(ctx context.Context, userID, couopnID string) (couponUses domain.CouponUses, err error)
 	SaveCouponUses(ctx context.Context, couponUses domain.CouponUses) error
 
 	// find all coupon for user
-	FindAllCouponForUser(ctx context.Context, userID uint, pagination request.Pagination) (coupons []response.UserCoupon, err error)
+	FindAllCouponForUser(ctx context.Context, userID string, pagination request.Pagination) (coupons []response.UserCoupon, err error)
 }

@@ -237,7 +237,7 @@ func (s *Service) SendNotification(ctx context.Context, event *domain.ParsedFire
 					log.Printf("WARN: FCM token %s failed for recipient %s: %v", batch[i], recipient.UserID, r.Error)
 					// Deactivate unregistered / invalid tokens to keep the token store clean.
 					if isUnregisteredTokenError(r.Error) {
-						s.deactivateOwnerToken(ctx, recipient.Type+"s", recipient.UserID, batch[i])
+						s.deactivateOwnerToken(ctx, string(recipient.Type)+"s", recipient.UserID, batch[i])
 					}
 				}
 			}
@@ -781,7 +781,7 @@ func buildRecipientDedupeKey(payload *domain.NotificationPayload, recipient *dom
 	seed := strings.Join([]string{
 		payload.DocumentID,
 		payload.Timestamp,
-		recipient.Type,
+		string(recipient.Type),
 		recipient.UserID,
 		strings.Join(fields, ","),
 	}, "|")

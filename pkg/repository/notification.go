@@ -29,22 +29,22 @@ func (r *notificationRepository) GetNotifications(ctx context.Context, filter re
 	var notifications []domain.Notification
 	query := r.db.WithContext(ctx).Model(&domain.Notification{})
 
-	if filter.UserID != 0 {
+	if filter.UserID != "" {
 		query = query.Where("receiver_id = ? AND receiver_type = 'user'", filter.UserID)
 	}
-	if filter.AdminID != 0 {
+	if filter.AdminID != "" {
 		query = query.Where("receiver_id = ? AND receiver_type = 'admin'", filter.AdminID)
 	}
-	if filter.ShopID != 0 {
+	if filter.ShopID != "" {
 		query = query.Where("shop_id = ?", filter.ShopID)
 	}
 	if filter.Status != "" {
 		query = query.Where("status = ?", filter.Status)
 	}
-	if filter.ProductID != 0 {
+	if filter.ProductID != "" {
 		query = query.Where("product_id = ?", filter.ProductID)
 	}
-	if filter.OrderID != 0 {
+	if filter.OrderID != "" {
 		query = query.Where("order_id = ?", filter.OrderID)
 	}
 	if filter.IsRead != nil {
@@ -59,13 +59,13 @@ func (r *notificationRepository) GetNotifications(ctx context.Context, filter re
 	return notifications, nil
 }
 
-func (r *notificationRepository) MarkNotificationAsRead(ctx context.Context, notificationID uint) error {
+func (r *notificationRepository) MarkNotificationAsRead(ctx context.Context, notificationID string) error {
 	result := r.db.WithContext(ctx).
 		Model(&domain.Notification{}).
 		Where("id = ?", notificationID).
 		Update("is_read", true)
 	if result.RowsAffected == 0 {
-		return fmt.Errorf("notification %d not found", notificationID)
+		return fmt.Errorf("notification %s not found", notificationID)
 	}
 	return result.Error
 }

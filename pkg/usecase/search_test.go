@@ -18,7 +18,7 @@ func TestGlobalSearch_ValidQuery(t *testing.T) {
 	mockRepo := mockrepo.NewMockSearchRepository(ctrl)
 	expectedResult := response.GlobalSearchResult{
 		Products: []response.ProductSearchItem{
-			{ID: 1, Name: "iPhone", CategoryID: 5, CategoryName: "Electronics"},
+			{ID: "prd_test1", Name: "iPhone", CategoryID: "cat_test5", CategoryName: "Electronics"},
 		},
 		Categories:  []response.CategorySearchItem{},
 		Shops:       []response.ShopSearchItem{},

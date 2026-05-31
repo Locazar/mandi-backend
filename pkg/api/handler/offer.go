@@ -2,7 +2,6 @@ package handler
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"strconv"
 
@@ -102,13 +101,9 @@ func (c *offerHandler) GetAllOffers(ctx *gin.Context) {
 //	@Failure		400	{object}	response.Response{}	"invalid input"
 func (c *offerHandler) RemoveOffer(ctx *gin.Context) {
 
-	offerID, err := request.GetParamAsUint(ctx, "product_item_id")
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
-		return
-	}
+	offerID := ctx.Param("product_item_id")
 
-	err = c.offerUseCase.RemoveOffer(ctx, offerID)
+	err := c.offerUseCase.RemoveOffer(ctx, offerID)
 
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to remove offer", err, nil)
@@ -190,13 +185,9 @@ func (c *offerHandler) GetAllCategoryOffers(ctx *gin.Context) {
 //	@Failure		400	{object}	response.Response{}	"invalid input"
 func (c *offerHandler) RemoveCategoryOffer(ctx *gin.Context) {
 
-	offerCategoryID, err := request.GetParamAsUint(ctx, "offer_category_id")
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
-		return
-	}
+	offerCategoryID := ctx.Param("offer_category_id")
 
-	err = c.offerUseCase.RemoveCategoryOffer(ctx, offerCategoryID)
+	err := c.offerUseCase.RemoveCategoryOffer(ctx, offerCategoryID)
 
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to remove offer form category", err, nil)
@@ -309,13 +300,9 @@ func (c *offerHandler) GetAllProductsOffers(ctx *gin.Context) {
 //	@Failure		400	{object}	response.Response{}	"invalid input on params"
 func (c *offerHandler) RemoveProductOffer(ctx *gin.Context) {
 
-	offerProductID, err := request.GetParamAsUint(ctx, "offer_product_id")
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindParamFailMessage, err, nil)
-		return
-	}
+	offerProductID := ctx.Param("offer_product_id")
 
-	err = c.offerUseCase.RemoveProductOffer(ctx, offerProductID)
+	err := c.offerUseCase.RemoveProductOffer(ctx, offerProductID)
 
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to remove offer form product", err, nil)
@@ -446,13 +433,7 @@ func (c *offerHandler) GetShopOffers(ctx *gin.Context) {
 		return
 	}
 
-	var shopID uint
-	if _, err := fmt.Sscanf(shopIDStr, "%d", &shopID); err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid shop_id", err, nil)
-		return
-	}
-
-	shopOffers, err := c.offerUseCase.GetShopOffersByShopIDAndDateRange(ctx, shopID, startDate, endDate)
+	shopOffers, err := c.offerUseCase.GetShopOffersByShopIDAndDateRange(ctx, shopIDStr, startDate, endDate)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get shop offers", err, nil)
 		return
@@ -479,13 +460,12 @@ func (c *offerHandler) PostLoginOffer(ctx *gin.Context) {
 		return
 	}
 	adminIdStr := c.tokenService.DecodeTokenData(tokenStr)
-	adminId, err := strconv.ParseUint(adminIdStr, 10, 64)
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusUnauthorized, "Invalid token", err, nil)
+	if adminIdStr == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Invalid token", errors.New("could not decode token"), nil)
 		return
 	}
 
-	offer, err := c.offerUseCase.GetPostLoginOffer(ctx, uint(adminId))
+	offer, err := c.offerUseCase.GetPostLoginOffer(ctx, adminIdStr)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get post-login offer", err, nil)
 		return
@@ -550,9 +530,8 @@ func (c *offerHandler) GetShopOffersByShopID(ctx *gin.Context) {
 		return
 	}
 	adminIdStr := c.tokenService.DecodeTokenData(tokenStr)
-	adminId, err := strconv.ParseUint(adminIdStr, 10, 64)
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusUnauthorized, "Invalid token", err, nil)
+	if adminIdStr == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Invalid token", errors.New("could not decode token"), nil)
 		return
 	}
 	shopIDStr := ctx.Param("shop_id")
@@ -560,13 +539,8 @@ func (c *offerHandler) GetShopOffersByShopID(ctx *gin.Context) {
 		response.ErrorResponse(ctx, http.StatusBadRequest, "shop_id parameter missing", errors.New("shop_id parameter missing"), nil)
 		return
 	}
-	var shopID uint
-	if _, err := fmt.Sscanf(shopIDStr, "%d", &shopID); err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid shop_id", err, nil)
-		return
-	}
 
-	shopOffers, err := c.offerUseCase.GetShopOffersByShopID(ctx, shopID, adminId)
+	shopOffers, err := c.offerUseCase.GetShopOffersByShopID(ctx, shopIDStr, adminIdStr)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get shop offers", err, nil)
 		return

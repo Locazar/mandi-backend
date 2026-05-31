@@ -2,6 +2,7 @@ package routes
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/rohit221990/mandi-backend/pkg/api/handler"
 	handlerInterface "github.com/rohit221990/mandi-backend/pkg/api/handler/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/api/middleware"
 )
@@ -15,6 +16,8 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 	notificationHandler handlerInterface.NotificationHandler,
 	alertHandler handlerInterface.AlertHandler, uiHandler handlerInterface.UIHandler,
 	alertTemplateHandler handlerInterface.AlertTemplateHandler,
+	jobHandler *handler.JobHandler, jobCategoryHandler *handler.JobCategoryHandler,
+	platformUserHandler handlerInterface.PlatformUserHandler,
 ) {
 
 	auth := api.Group("/auth")
@@ -78,11 +81,21 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 	{
 		// Common routes
 		api.GET("/banner", offerHandler.GetBanners)
+		// Dashboard stats
+		api.GET("/dashboard/stats", adminHandler.GetDashboardStats)
 		// user side
 		user := api.Group("/users")
 		{
 			user.GET("/", adminHandler.GetAllUsers)
 			user.PATCH("/block", adminHandler.BlockUser)
+		}
+
+		platformUsers := api.Group("/platform-users")
+		{
+			platformUsers.GET("/", platformUserHandler.ListAdmins)
+			platformUsers.POST("/", platformUserHandler.CreateAdmin)
+			platformUsers.PATCH("/:admin_id/role", platformUserHandler.UpdateAdminRole)
+			platformUsers.PATCH("/:admin_id/deactivate", platformUserHandler.DeactivateAdmin)
 		}
 
 		//department
@@ -279,6 +292,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			{
 				document.POST("/send-otp", adminHandler.UploadShopDocument)
 				document.POST("/verify-otp", adminHandler.VerifyShopDocument)
+				document.POST("/upload", middleware.AuthenticateAdmin(), adminHandler.UploadBusinessDocument)
 			}
 
 			address := shop.Group("/address-details")
@@ -369,6 +383,16 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			alertTemplates.DELETE("/:key", alertTemplateHandler.DeleteTemplate)
 			alertTemplates.PATCH("/:key/toggle", alertTemplateHandler.ToggleTemplate)
 			alertTemplates.POST("/seed", alertTemplateHandler.SeedDefaults)
+		}
+
+		// Job admin (read-only)
+		jobs := api.Group("/jobs")
+		{
+			jobs.GET("/", jobHandler.GetAllJobs())
+		}
+		jobCategories := api.Group("/job-categories")
+		{
+			jobCategories.GET("/", jobCategoryHandler.GetAllJobCategories())
 		}
 	}
 }

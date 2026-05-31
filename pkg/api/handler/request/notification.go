@@ -8,15 +8,15 @@ type Notification struct {
 	Title                string    `json:"title" binding:"required,min=2,max=100"`
 	Message              string    `json:"message" binding:"required,min=5,max=500"`
 	Body                 string    `json:"body" binding:"required,min=5,max=500"`
-	SenderID             uint      `json:"sender_id" binding:"required"`
-	ReceiverID           uint      `json:"receiver_id" binding:"required"`
-	CategoryID           uint      `json:"category_id" binding:"omitempty"`
-	ProductID            uint      `json:"product_id" binding:"omitempty"`
-	VariationID          uint      `json:"variation_id" binding:"omitempty"`
-	ShopID               uint      `json:"shop_id" binding:"omitempty"`
-	OrderID              uint      `json:"order_id" binding:"omitempty"`
+	SenderID             string    `json:"sender_id" binding:"required"`
+	ReceiverID           string    `json:"receiver_id" binding:"required"`
+	CategoryID           string    `json:"category_id" binding:"omitempty"`
+	ProductID            string    `json:"product_id" binding:"omitempty"`
+	VariationID          string    `json:"variation_id" binding:"omitempty"`
+	ShopID               string    `json:"shop_id" binding:"omitempty"`
+	OrderID              string    `json:"order_id" binding:"omitempty"`
 	IsRead               bool      `json:"is_read" binding:"omitempty"`
-	OfferID              uint      `json:"offer_id" binding:"omitempty"`
+	OfferID              string    `json:"offer_id" binding:"omitempty"`
 	NotificationMetaData string    `json:"notification_meta_data" binding:"omitempty"`
 	Status               string    `json:"status" binding:"omitempty,min=2,max=50"`
 	CreatedAt            time.Time `json:"created_at" binding:"omitempty"`
@@ -24,17 +24,17 @@ type Notification struct {
 }
 
 type GetNotification struct {
-	UserID    uint   `form:"user_id" binding:"omitempty"`
-	AdminID   uint   `form:"admin_id" binding:"omitempty"`
-	ShopID    uint   `form:"shop_id" binding:"omitempty"`
+	UserID    string `form:"user_id" binding:"omitempty"`
+	AdminID   string `form:"admin_id" binding:"omitempty"`
+	ShopID    string `form:"shop_id" binding:"omitempty"`
 	Status    string `form:"status" binding:"omitempty"`
-	ProductID uint   `form:"product_id" binding:"omitempty"`
-	OrderID   uint   `form:"order_id" binding:"omitempty"`
+	ProductID string `form:"product_id" binding:"omitempty"`
+	OrderID   string `form:"order_id" binding:"omitempty"`
 	IsRead    *bool  `form:"is_read" binding:"omitempty"`
 }
 
 type DeviceToken struct {
-	ID        uint       `gorm:"primaryKey;autoIncrement"`
+	ID        string     `gorm:"primaryKey;type:varchar(32)"`
 	OwnerID   string     `gorm:"type:varchar(100);not null"`
 	OwnerType string     `gorm:"type:varchar(10);not null;check:owner_type IN ('user','seller')"`
 	Token     string     `gorm:"type:varchar(255);unique;not null"`

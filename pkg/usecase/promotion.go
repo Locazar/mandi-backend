@@ -26,7 +26,7 @@ func (u *promotionUseCase) FindAllPromotionCategories(ctx context.Context, pagin
 	return u.promotionRepo.FindAllPromotionCategories(ctx, pagination)
 }
 
-func (u *promotionUseCase) FindPromotionCategoryByID(ctx context.Context, categoryID uint) (response.PromotionCategory, error) {
+func (u *promotionUseCase) FindPromotionCategoryByID(ctx context.Context, categoryID string) (response.PromotionCategory, error) {
 	return u.promotionRepo.FindPromotionCategoryByID(ctx, categoryID)
 }
 
@@ -34,15 +34,15 @@ func (u *promotionUseCase) FindAllPromotionTypes(ctx context.Context, pagination
 	return u.promotionRepo.FindAllPromotionTypes(ctx, pagination)
 }
 
-func (u *promotionUseCase) FindPromotionTypesByCategoryID(ctx context.Context, categoryID uint, pagination request.Pagination) ([]response.PromotionsType, error) {
+func (u *promotionUseCase) FindPromotionTypesByCategoryID(ctx context.Context, categoryID string, pagination request.Pagination) ([]response.PromotionsType, error) {
 	return u.promotionRepo.FindPromotionTypesByCategoryID(ctx, categoryID, pagination)
 }
 
-func (u *promotionUseCase) FindPromotionTypeByID(ctx context.Context, typeID uint) (response.PromotionsType, error) {
+func (u *promotionUseCase) FindPromotionTypeByID(ctx context.Context, typeID string) (response.PromotionsType, error) {
 	return u.promotionRepo.FindPromotionTypeByID(ctx, typeID)
 }
 
-func (u *promotionUseCase) CreatePromotion(ctx context.Context, promotionCategoryID, promotionTypeID uint, offerDetails domain.PromotionOfferDetails, shopID uint, isActive bool) (response.Promotion, error) {
+func (u *promotionUseCase) CreatePromotion(ctx context.Context, promotionCategoryID, promotionTypeID string, offerDetails domain.PromotionOfferDetails, shopID string, isActive bool) (response.Promotion, error) {
 
 	promotion := domain.Promotion{
 		PromotionCategoryID:    promotionCategoryID,
@@ -71,10 +71,10 @@ func (u *promotionUseCase) GetAllPromotions(ctx context.Context, pagination requ
 	return u.promotionRepo.GetAllPromotions(ctx, pagination)
 }
 
-func (u *promotionUseCase) GetPromotionByID(ctx context.Context, promotionID uint) (response.Promotion, error) {
+func (u *promotionUseCase) GetPromotionByID(ctx context.Context, promotionID string) (response.Promotion, error) {
 	return u.promotionRepo.GetPromotionByID(ctx, promotionID)
 }
 
-func (u *promotionUseCase) DeletePromotion(ctx context.Context, promotionID uint) error {
+func (u *promotionUseCase) DeletePromotion(ctx context.Context, promotionID string) error {
 	return u.promotionRepo.DeletePromotion(ctx, promotionID)
 }

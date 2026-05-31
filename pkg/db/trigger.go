@@ -45,10 +45,6 @@ func SetUpDBTriggers(db *gorm.DB) error {
 		return errors.New("failed to create orderReturnProductUpdate() trigger function")
 	}
 
-	if db.Exec(orderStatusFindFunc).Error != nil {
-		return errors.New("failed to create orderStatusFindFunc function for return order_status")
-	}
-
 	if db.Exec(orderReturnProductUpdateExec).Error != nil {
 		return errors.New("failed to create orderReturnProductUpdateExec trigger")
 	}
@@ -116,22 +112,22 @@ var (
 	cartTotalPriceUpdateSqlFunc = `CREATE OR REPLACE FUNCTION update_cart_total_price() 
 	RETURNS TRIGGER AS $$ 
 	BEGIN 
-	IF (TG_OP = 'DELETE') THEN 
-		UPDATE carts c 
-			SET total_price = ( 
-				SELECT COALESCE ( SUM ( CASE WHEN pi.discount_price > 0 THEN pi.discount_price * ci.qty ELSE pi.price * ci.qty END), 0)::bigint 
-				FROM cart_items ci INNER JOIN product_items pi ON ci.product_item_id = pi.id 
-				WHERE ci.cart_id = OLD.cart_id  
-			), applied_coupon_id = 0, discount_amount = 0   
-		WHERE c.id = OLD.cart_id; 
-		RETURN NEW; 
-	ELSE 
-		UPDATE carts c 
-			SET total_price = (
-				SELECT SUM (CASE WHEN pi.discount_price > 0 THEN pi.discount_price * ci.qty ELSE pi.price * ci.qty END) 
-				FROM cart_items ci INNER JOIN product_items pi ON ci.product_item_id = pi.id 
-				WHERE ci.cart_id = NEW.cart_id 
-			), applied_coupon_id = 0, discount_amount = 0 
+	IF (TG_OP = 'DELETE') THEN
+		UPDATE carts c
+			SET total_price_amount_minor = (
+				SELECT COALESCE ( SUM ( CASE WHEN pi.discount_price > 0 THEN pi.discount_price * ci.qty ELSE pi.price * ci.qty END), 0)::bigint
+				FROM cart_items ci INNER JOIN product_items pi ON ci.product_item_id = pi.id
+				WHERE ci.cart_id = OLD.cart_id
+			), applied_coupon_id = 0, discount_amount_amount_minor = 0
+		WHERE c.id = OLD.cart_id;
+		RETURN NEW;
+	ELSE
+		UPDATE carts c
+			SET total_price_amount_minor = (
+				SELECT SUM (CASE WHEN pi.discount_price > 0 THEN pi.discount_price * ci.qty ELSE pi.price * ci.qty END)
+				FROM cart_items ci INNER JOIN product_items pi ON ci.product_item_id = pi.id
+				WHERE ci.cart_id = NEW.cart_id
+			), applied_coupon_id = 0, discount_amount_amount_minor = 0
 			WHERE c.id = NEW.cart_id;
 	
 	END IF; 
@@ -166,31 +162,22 @@ var (
 	orderReturnProductUpdate = `CREATE OR REPLACE FUNCTION update_product_quantity_on_return()
 	RETURNS TRIGGER AS $$
 	BEGIN
-	  IF (TG_OP = 'UPDATE') THEN 
-		EXECUTE format('UPDATE product_items pi
-						SET qty_in_stock = qty_in_stock + ol.qty
-						FROM %I ol
-						WHERE pi.id = ol.product_item_id
-						AND ol.shop_order_id = $1.id',
-						'order_lines')
-		USING NEW;
-	  
+	  IF (TG_OP = 'UPDATE' AND NEW.status = 'order returned') THEN 
+		UPDATE product_items pi
+		SET qty_in_stock = qty_in_stock + ol.qty
+		FROM order_lines ol
+		WHERE pi.id = ol.product_item_id
+		AND ol.shop_order_id = NEW.id;
+
 		RETURN NEW;
-	  ELSE
-		RETURN NULL;
 	  END IF;
+
+	  RETURN NEW;
 	END;
 	$$ LANGUAGE plpgsql;`
 
-	orderStatusFindFunc = `CREATE OR REPLACE FUNCTION get_order_status_id(status_name text)
-	RETURNS integer
-	AS $$
-	SELECT id FROM order_statuses WHERE status = status_name;
-	$$ LANGUAGE SQL;`
-
-	orderReturnProductUpdateExec = `CREATE OR REPLACE TRIGGER update_product_qty_on_order_return 
-	AFTER UPDATE OF order_status_id ON shop_orders
-	FOR EACH ROW 
-	WHEN (NEW.order_status_id =  get_order_status_id('order returned'))
+	orderReturnProductUpdateExec = `CREATE OR REPLACE TRIGGER update_product_qty_on_order_return
+	AFTER UPDATE ON shop_orders
+	FOR EACH ROW
 	EXECUTE FUNCTION update_product_quantity_on_return();`
 )

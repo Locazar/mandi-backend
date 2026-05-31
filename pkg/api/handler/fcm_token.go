@@ -27,28 +27,28 @@ type fcmTokenPayload struct {
 	OwnerType string `json:"owner_type" form:"owner_type"`
 }
 
-func (h *FcmTokenHandler) resolveAdminID(c *gin.Context, payload fcmTokenPayload) uint {
+func (h *FcmTokenHandler) resolveAdminID(c *gin.Context, payload fcmTokenPayload) string {
 	tokenString := strings.TrimSpace(c.GetHeader("Authorization"))
 	if tokenString != "" {
-		if adminID := coerceUint(h.usecase.DecodeTokenData(tokenString)); adminID != 0 {
+		if adminID := coerceString(h.usecase.DecodeTokenData(tokenString)); adminID != "" {
 			return adminID
 		}
 	}
 
 	if payload.AdminID != 0 {
-		return payload.AdminID
+		return strconv.FormatUint(uint64(payload.AdminID), 10)
 	}
 
 	ctxUserID := utils.GetUserIdFromContext(c)
-	if ctxUserID != 0 {
+	if ctxUserID != "" {
 		return ctxUserID
 	}
 
 	if strings.TrimSpace(payload.OwnerType) == "seller" {
-		return coerceUint(payload.OwnerID)
+		return strings.TrimSpace(payload.OwnerID)
 	}
 
-	return 0
+	return ""
 }
 
 func coerceString(value interface{}) string {
@@ -183,7 +183,7 @@ func (h *FcmTokenHandler) SaveFcmToken(c *gin.Context) {
 	if payload.AdminID == 0 {
 		payload.AdminID = coerceUint(c.PostForm("admin_id"))
 	}
-	payload.AdminID = h.resolveAdminID(c, payload)
+	resolvedAdminID := h.resolveAdminID(c, payload)
 
 	token := strings.TrimSpace(payload.Token)
 	if token == "" {
@@ -226,30 +226,35 @@ func (h *FcmTokenHandler) SaveFcmToken(c *gin.Context) {
 		device = strings.TrimSpace(payload.DeviceTyp)
 	}
 
+	shopIDStr := strconv.FormatUint(uint64(payload.ShopID), 10)
+	if payload.ShopID == 0 {
+		shopIDStr = ""
+	}
+
 	fcmToken := domain.FcmToken{
 		Token:     token,
 		Device:    device,
 		Platform:  strings.TrimSpace(payload.Platform),
-		ShopID:    payload.ShopID,
-		AdminID:   payload.AdminID,
+		ShopID:    shopIDStr,
+		AdminID:   resolvedAdminID,
 		OwnerID:   strings.TrimSpace(payload.OwnerID),
 		OwnerType: strings.TrimSpace(payload.OwnerType),
 	}
 
-	if fcmToken.AdminID == 0 && strings.EqualFold(fcmToken.OwnerType, "seller") {
-		fcmToken.AdminID = coerceUint(fcmToken.OwnerID)
+	if fcmToken.AdminID == "" && strings.EqualFold(fcmToken.OwnerType, "seller") {
+		fcmToken.AdminID = strings.TrimSpace(fcmToken.OwnerID)
 	}
 
 	if fcmToken.OwnerID == "" {
-		if fcmToken.ShopID != 0 {
-			fcmToken.OwnerID = strconv.FormatUint(uint64(fcmToken.ShopID), 10)
-		} else if fcmToken.AdminID != 0 {
-			fcmToken.OwnerID = strconv.FormatUint(uint64(fcmToken.AdminID), 10)
+		if fcmToken.ShopID != "" {
+			fcmToken.OwnerID = fcmToken.ShopID
+		} else if fcmToken.AdminID != "" {
+			fcmToken.OwnerID = fcmToken.AdminID
 		} else {
 			ctxUserID := utils.GetUserIdFromContext(c)
-			if ctxUserID != 0 {
+			if ctxUserID != "" {
 				fcmToken.AdminID = ctxUserID
-				fcmToken.OwnerID = strconv.FormatUint(uint64(ctxUserID), 10)
+				fcmToken.OwnerID = ctxUserID
 			}
 		}
 	}
@@ -338,7 +343,7 @@ func (h *FcmTokenHandler) UnregisterFcmToken(c *gin.Context) {
 	if payload.AdminID == 0 {
 		payload.AdminID = coerceUint(c.PostForm("admin_id"))
 	}
-	payload.AdminID = h.resolveAdminID(c, payload)
+	resolvedAdminID2 := h.resolveAdminID(c, payload)
 
 	token := strings.TrimSpace(payload.Token)
 	if token == "" {
@@ -368,28 +373,33 @@ func (h *FcmTokenHandler) UnregisterFcmToken(c *gin.Context) {
 		return
 	}
 
+	shopIDStr2 := strconv.FormatUint(uint64(payload.ShopID), 10)
+	if payload.ShopID == 0 {
+		shopIDStr2 = ""
+	}
+
 	fcmToken := domain.FcmToken{
 		Token:     token,
-		ShopID:    payload.ShopID,
-		AdminID:   payload.AdminID,
+		ShopID:    shopIDStr2,
+		AdminID:   resolvedAdminID2,
 		OwnerID:   strings.TrimSpace(payload.OwnerID),
 		OwnerType: strings.TrimSpace(payload.OwnerType),
 	}
 
-	if fcmToken.AdminID == 0 && strings.EqualFold(fcmToken.OwnerType, "seller") {
-		fcmToken.AdminID = coerceUint(fcmToken.OwnerID)
+	if fcmToken.AdminID == "" && strings.EqualFold(fcmToken.OwnerType, "seller") {
+		fcmToken.AdminID = strings.TrimSpace(fcmToken.OwnerID)
 	}
 
 	if fcmToken.OwnerID == "" {
-		if fcmToken.ShopID != 0 {
-			fcmToken.OwnerID = strconv.FormatUint(uint64(fcmToken.ShopID), 10)
-		} else if fcmToken.AdminID != 0 {
-			fcmToken.OwnerID = strconv.FormatUint(uint64(fcmToken.AdminID), 10)
+		if fcmToken.ShopID != "" {
+			fcmToken.OwnerID = fcmToken.ShopID
+		} else if fcmToken.AdminID != "" {
+			fcmToken.OwnerID = fcmToken.AdminID
 		} else {
 			ctxUserID := utils.GetUserIdFromContext(c)
-			if ctxUserID != 0 {
+			if ctxUserID != "" {
 				fcmToken.AdminID = ctxUserID
-				fcmToken.OwnerID = strconv.FormatUint(uint64(ctxUserID), 10)
+				fcmToken.OwnerID = ctxUserID
 			}
 		}
 	}
