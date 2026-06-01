@@ -1,14 +1,13 @@
 package config
 
 import (
-	"bytes"
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"strings"
 
-	"github.com/go-playground/validator/v10"
-	"github.com/spf13/viper"
+	"github.com/joho/godotenv"
 )
 
 // to store env variables
@@ -120,7 +119,7 @@ var envsNames = []string{
 	"AUTH_TOKEN", "ACCOUNT_SID", "SERVICE_SID", // twilio
 	"RAZOR_PAY_KEY", "RAZOR_PAY_SECRET", "RAZORPAY_WEBHOOK_SECRET", // razor pay
 	"STRIPE_SECRET", "STRIPE_PUBLISH_KEY", "STRIPE_WEBHOOK", // stripe
-	"GOAUTH_CLIENT_ID", "GOAUTH_CLIENT_SECRET", "GOAUTH_CALL_BACK_URL", //goath
+	"GOAUTH_CLIENT_ID", "GOAUTH_CLIENT_SECRET", "GOAUTH_CALL_BACK_URL", // goath
 	"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_REGION", "AWS_BUCKET_NAME", // legacy aws fallback
 	"S3_ENDPOINT", "S3_REGION", "S3_BUCKET", "S3_ACCESS_KEY", "S3_SECRET_KEY", "S3_PUBLIC_BASE_URL", // object storage
 	"SHARED_UPLOADS_PATH", // shared uploads directory (deprecated)
@@ -159,114 +158,91 @@ var envsNames = []string{
 }
 
 func LoadConfig() (config Config, err error) {
+	// Load .env file into OS environment (auto-load, silently skips if missing)
+	_ = godotenv.Load(".env")
 
-	// read from .env file
-	viper.AddConfigPath("./")
-	viper.SetConfigFile(".env")
-	viper.SetConfigType("env")
+	// Directly read from OS environment variables since godotenv loads them there
+	config.AdminEmail = os.Getenv("ADMIN_EMAIL")
+	config.AdminPassword = os.Getenv("ADMIN_PASSWORD")
+	config.DBHost = os.Getenv("DB_HOST")
+	config.DBName = os.Getenv("DB_NAME")
+	config.DBUser = os.Getenv("DB_USER")
+	config.DBPassword = os.Getenv("DB_PASSWORD")
+	config.DBPort = os.Getenv("DB_PORT")
+	config.AdminAuthKey = os.Getenv("ADMIN_AUTH_KEY")
+	config.UserAuthKey = os.Getenv("USER_AUTH_KEY")
+	config.TwilioAuthToken = os.Getenv("AUTH_TOKEN")
+	config.TwilioAccountSID = os.Getenv("ACCOUNT_SID")
+	config.TwilioServiceID = os.Getenv("SERVICE_SID")
+	config.RazorPayKey = os.Getenv("RAZOR_PAY_KEY")
+	config.RazorPaySecret = os.Getenv("RAZOR_PAY_SECRET")
+	config.RazorPayWebhookSecret = os.Getenv("RAZORPAY_WEBHOOK_SECRET")
+	config.StripSecretKey = os.Getenv("STRIPE_SECRET")
+	config.StripPublishKey = os.Getenv("STRIPE_PUBLISH_KEY")
+	config.StripeWebhookSecret = os.Getenv("STRIPE_WEBHOOK")
+	config.GoathClientID = os.Getenv("GOAUTH_CLIENT_ID")
+	config.GoauthClientSecret = os.Getenv("GOAUTH_CLIENT_SECRET")
+	config.GoauthCallbackUrl = os.Getenv("GOAUTH_CALL_BACK_URL")
+	config.AwsAccessKeyID = os.Getenv("AWS_ACCESS_KEY_ID")
+	config.AwsSecretKey = os.Getenv("AWS_SECRET_ACCESS_KEY")
+	config.AwsRegion = os.Getenv("AWS_REGION")
+	config.AwsBucketName = os.Getenv("AWS_BUCKET_NAME")
+	config.S3Endpoint = os.Getenv("S3_ENDPOINT")
+	config.S3Region = os.Getenv("S3_REGION")
+	config.S3Bucket = os.Getenv("S3_BUCKET")
+	config.S3AccessKey = os.Getenv("S3_ACCESS_KEY")
+	config.S3SecretKey = os.Getenv("S3_SECRET_KEY")
+	config.S3PublicBaseURL = os.Getenv("S3_PUBLIC_BASE_URL")
+	config.SharedUploadsPath = os.Getenv("SHARED_UPLOADS_PATH")
+	config.ElasticsearchURL = os.Getenv("ELASTICSEARCH_URL")
+	config.AIServiceURL = os.Getenv("AI_SERVICE_URL")
+	config.FirebaseProjectID = os.Getenv("FIREBASE_PROJECT_ID")
+	config.FirebaseConfig = os.Getenv("FIREBASE_CONFIG")
+	config.EnquiryNotificationHandler = os.Getenv("ENQUIRY_NOTIFICATION_HANDLER")
+	config.PIIEncryptionKeys = os.Getenv("PII_ENCRYPTION_KEYS")
+	config.PIIEncryptionActiveKey = os.Getenv("PII_ENCRYPTION_ACTIVE_KEY")
 
-	viper.SetDefault("security.http_port", ":3000")
-	viper.SetDefault("security.https_port", ":3443")
-	viper.SetDefault("security.tls_min_version", "1.2")
-	viper.SetDefault("security.tls_max_version", "1.3")
-	viper.SetDefault("security.cipher_suites", []string{"TLS_AES_128_GCM_SHA256", "TLS_AES_256_GCM_SHA384", "TLS_CHACHA20_POLY1305_SHA256"})
-	viper.SetDefault("security.hsts_max_age", 63072000)
-	viper.SetDefault("security.cookie_http_only", true)
-	viper.SetDefault("security.cookie_same_site", "Lax")
-	viper.SetDefault("security.secure_cookies", true)
-	viper.SetDefault("security.rate_limit_window_seconds", 60)
-	viper.SetDefault("security.rate_limit_requests", 200)
-	viper.SetDefault("security.brute_force_max_attempts", 10)
-	viper.SetDefault("security.brute_force_window_seconds", 300)
-	viper.SetDefault("security.brute_force_block_duration_seconds", 900)
-	_ = viper.ReadInConfig()
-	// bind from system envs so values can override config file settings
-	for _, env := range envsNames {
-		if err := viper.BindEnv(env); err != nil {
-			return config, err
-		}
-	}
+	// Set security defaults and read from environment
+	config.Security.HTTPPort = getEnvOrDefault("SECURITY_HTTP_PORT", ":3000")
+	config.Security.HTTPSPort = getEnvOrDefault("SECURITY_HTTPS_PORT", ":3443")
+	config.Security.TLSMinVersion = getEnvOrDefault("SECURITY_TLS_MIN_VERSION", "1.2")
+	config.Security.TLSMaxVersion = getEnvOrDefault("SECURITY_TLS_MAX_VERSION", "1.3")
+	config.Security.CipherSuites = []string{"TLS_AES_128_GCM_SHA256", "TLS_AES_256_GCM_SHA384", "TLS_CHACHA20_POLY1305_SHA256"}
+	config.Security.HSTSMaxAge = 63072000
+	config.Security.CookieHTTPOnly = true
+	config.Security.CookieSameSite = "Lax"
+	config.Security.SecureCookies = true
+	config.Security.RateLimitWindowSeconds = 60
+	config.Security.RateLimitRequests = 200
+	config.Security.BruteForceMaxAttempts = 10
+	config.Security.BruteForceWindowSeconds = 300
+	config.Security.BruteForceBlockDurationSeconds = 900
 
-	_ = viper.BindEnv("security.enable_tls", "SECURITY_ENABLE_TLS")
-	_ = viper.BindEnv("security.https_redirect", "SECURITY_HTTPS_REDIRECT")
-	_ = viper.BindEnv("security.http_port", "SECURITY_HTTP_PORT")
-	_ = viper.BindEnv("security.https_port", "SECURITY_HTTPS_PORT")
-	_ = viper.BindEnv("security.tls_cert_file", "SECURITY_TLS_CERT_FILE")
-	_ = viper.BindEnv("security.tls_key_file", "SECURITY_TLS_KEY_FILE")
-	_ = viper.BindEnv("security.tls_min_version", "SECURITY_TLS_MIN_VERSION")
-	_ = viper.BindEnv("security.tls_max_version", "SECURITY_TLS_MAX_VERSION")
-	_ = viper.BindEnv("security.cipher_suites", "SECURITY_CIPHER_SUITES")
-	_ = viper.BindEnv("security.hsts_max_age", "SECURITY_HSTS_MAX_AGE")
-	_ = viper.BindEnv("security.hsts_include_subdomains", "SECURITY_HSTS_INCLUDE_SUBDOMAINS")
-	_ = viper.BindEnv("security.hsts_preload", "SECURITY_HSTS_PRELOAD")
-	_ = viper.BindEnv("security.secure_cookies", "SECURITY_SECURE_COOKIES")
-	_ = viper.BindEnv("security.cookie_http_only", "SECURITY_COOKIE_HTTP_ONLY")
-	_ = viper.BindEnv("security.cookie_same_site", "SECURITY_COOKIE_SAME_SITE")
-	_ = viper.BindEnv("security.rate_limit_requests", "SECURITY_RATE_LIMIT_REQUESTS")
-	_ = viper.BindEnv("security.rate_limit_window_seconds", "SECURITY_RATE_LIMIT_WINDOW_SECONDS")
-	_ = viper.BindEnv("security.rate_limiting_enabled", "SECURITY_RATE_LIMITING_ENABLED")
-	_ = viper.BindEnv("security.brute_force_protection_enabled", "SECURITY_BRUTE_FORCE_PROTECTION_ENABLED")
-	_ = viper.BindEnv("security.brute_force_max_attempts", "SECURITY_BRUTE_FORCE_MAX_ATTEMPTS")
-	_ = viper.BindEnv("security.brute_force_window_seconds", "SECURITY_BRUTE_FORCE_WINDOW_SECONDS")
-	_ = viper.BindEnv("security.brute_force_block_duration_seconds", "SECURITY_BRUTE_FORCE_BLOCK_DURATION_SECONDS")
-	_ = viper.BindEnv("security.config_file", "SECURITY_CONFIG_FILE")
+	config.Security.EnableTLS = parseEnvBool("SECURITY_ENABLE_TLS", false)
+	config.Security.HTTPSRedirect = parseEnvBool("SECURITY_HTTPS_REDIRECT", false)
+	config.Security.TLSCertFile = os.Getenv("SECURITY_TLS_CERT_FILE")
+	config.Security.TLSKeyFile = os.Getenv("SECURITY_TLS_KEY_FILE")
+	config.Security.HSTSIncludeSubDomains = parseEnvBool("SECURITY_HSTS_INCLUDE_SUBDOMAINS", false)
+	config.Security.HSTSPreload = parseEnvBool("SECURITY_HSTS_PRELOAD", false)
+	config.Security.RateLimitingEnabled = parseEnvBool("SECURITY_RATE_LIMITING_ENABLED", false)
+	config.Security.BruteForceProtectionEnabled = parseEnvBool("SECURITY_BRUTE_FORCE_PROTECTION_ENABLED", false)
+	config.Security.SecurityConfigFile = os.Getenv("SECURITY_CONFIG_FILE")
 
-	if jsonPath := viper.GetString("SECURITY_CONFIG_FILE"); jsonPath != "" {
-		if fileBytes, fileErr := os.ReadFile(jsonPath); fileErr == nil {
-			jsonViper := viper.New()
-			jsonViper.SetConfigType("json")
-			if err := jsonViper.ReadConfig(bytes.NewBuffer(fileBytes)); err == nil {
-				_ = viper.MergeConfigMap(jsonViper.AllSettings())
-			}
-		}
-	} else if _, statErr := os.Stat("config.json"); statErr == nil {
-		jsonViper := viper.New()
-		jsonViper.SetConfigFile("config.json")
-		if err := jsonViper.ReadInConfig(); err == nil {
-			_ = viper.MergeConfigMap(jsonViper.AllSettings())
-		}
-	}
-
-	// support comma-separated cipher suite configuration via env var
-	if cipherCSV := viper.GetString("SECURITY_CIPHER_SUITES"); cipherCSV != "" {
-		if !strings.Contains(cipherCSV, "[") {
-			viper.Set("SECURITY_CIPHER_SUITES", strings.Split(cipherCSV, ","))
-		}
-	}
-
-	if err := viper.Unmarshal(&config); err != nil {
-		return config, err
-	}
-
-	if err := validator.New().Struct(config); err != nil {
-		return config, err
-	}
-
-	// Ensure Firebase JSON and project id are available in struct config for services
-	if config.FirebaseConfig == "" {
-		if firebaseCfg := viper.GetString("FIREBASE_CONFIG"); firebaseCfg != "" {
-			config.FirebaseConfig = firebaseCfg
-		} else if b, marshalErr := json.Marshal(firbaseConfig); marshalErr == nil {
-			config.FirebaseConfig = string(b)
-		}
-	}
-
-	if config.FirebaseProjectID == "" {
-		config.FirebaseProjectID = viper.GetString("FIREBASE_PROJECT_ID")
-	}
-
-	// Propagate Firebase credentials file path into the OS environment so the
-	// Firebase Admin Go SDK can find them via os.Getenv (Viper doesn't do this
-	// automatically).
-	if credPath := viper.GetString("GOOGLE_APPLICATION_CREDENTIALS"); credPath != "" {
+	// Set Firebase environment variable for the SDK
+	if credPath := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"); credPath != "" {
 		_ = os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", credPath)
 	}
 
-	// The Firestore watcher mode is read via os.Getenv at startup time.
-	// Mirror the .env / Viper value into the process environment so the server
-	// can correctly disable its enquiry watcher when Cloud Functions own that flow.
-	if mode := strings.Trim(strings.TrimSpace(viper.GetString("ENQUIRY_NOTIFICATION_HANDLER")), `"'`); mode != "" {
-		_ = os.Setenv("ENQUIRY_NOTIFICATION_HANDLER", mode)
+	// Mirror the Enquiry Notification Handler into the process environment
+	if mode := os.Getenv("ENQUIRY_NOTIFICATION_HANDLER"); mode != "" {
+		_ = os.Setenv("ENQUIRY_NOTIFICATION_HANDLER", strings.Trim(strings.TrimSpace(mode), `"'`))
+	}
+
+	// Ensure Firebase JSON and project id are available
+	if config.FirebaseConfig == "" {
+		if b, marshalErr := json.Marshal(firbaseConfig); marshalErr == nil {
+			config.FirebaseConfig = string(b)
+		}
 	}
 
 	if (config.S3Endpoint == "" || config.S3Bucket == "" || config.S3AccessKey == "" || config.S3SecretKey == "") &&
@@ -274,5 +250,55 @@ func LoadConfig() (config Config, err error) {
 		log.Println("[deprecation] AWS_* env vars are being used as fallback for object storage; set S3_* vars before Phase G")
 	}
 
+	// ===== PRODUCTION VALIDATION =====
+	// Validate all required variables are set (fail fast at startup)
+	if err := validateRequiredConfig(config); err != nil {
+		return config, err
+	}
+
 	return config, nil
+}
+
+// validateRequiredConfig checks that critical environment variables are set
+// This prevents silent failures at runtime due to missing configuration
+func validateRequiredConfig(config Config) error {
+	requiredVars := map[string]string{
+		"DB_HOST":                   config.DBHost,
+		"DB_NAME":                   config.DBName,
+		"DB_USER":                   config.DBUser,
+		"DB_PASSWORD":               config.DBPassword,
+		"DB_PORT":                   config.DBPort,
+		"ADMIN_AUTH_KEY":            config.AdminAuthKey,
+		"USER_AUTH_KEY":             config.UserAuthKey,
+		"PII_ENCRYPTION_KEYS":       config.PIIEncryptionKeys,
+		"PII_ENCRYPTION_ACTIVE_KEY": config.PIIEncryptionActiveKey,
+	}
+
+	var missingVars []string
+	for varName, varValue := range requiredVars {
+		if strings.TrimSpace(varValue) == "" {
+			missingVars = append(missingVars, varName)
+		}
+	}
+
+	if len(missingVars) > 0 {
+		return fmt.Errorf("missing required environment variables: %v", missingVars)
+	}
+
+	return nil
+}
+
+func getEnvOrDefault(key, defaultVal string) string {
+	if val := os.Getenv(key); val != "" {
+		return val
+	}
+	return defaultVal
+}
+
+func parseEnvBool(key string, defaultVal bool) bool {
+	val := os.Getenv(key)
+	if val == "" {
+		return defaultVal
+	}
+	return val == "true" || val == "1" || val == "yes"
 }
