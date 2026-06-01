@@ -6,15 +6,15 @@ import (
 	"log"
 	"time"
 
-	"github.com/rohit221990/mandi-backend/pkg/config"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	gormlogger "gorm.io/gorm/logger"
+
+	"github.com/rohit221990/mandi-backend/pkg/config"
 )
 
 // func to connect data base using config(database config) and return address of a new instnce of gorm DB
 func ConnectDatabase(cfg config.Config) (*gorm.DB, error) {
-
 	dsn := fmt.Sprintf("host=%s user=%s dbname=%s port=%s password=%s sslmode=disable", cfg.DBHost, cfg.DBUser, cfg.DBName, cfg.DBPort, cfg.DBPassword)
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
@@ -24,7 +24,6 @@ func ConnectDatabase(cfg config.Config) (*gorm.DB, error) {
 		// versions.  Warnings and errors from our own code still use log.Printf.
 		Logger: gormlogger.Default.LogMode(gormlogger.Error),
 	})
-
 	if err != nil {
 		return nil, err
 	}
