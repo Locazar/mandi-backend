@@ -781,10 +781,7 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context, adminID strin
 			LEFT JOIN sub_categories sc ON pi.sub_category_id = sc.id
 			WHERE 1=1`
 
-	// If sorting by views, only include products with view_count > 30
-	if sortby == "views" {
-		query += " AND (SELECT COALESCE(SUM(view_count), 0) FROM product_item_views WHERE product_item_id = pi.id) > 30"
-	}
+
 
 	// Add offer filter - this ensures different data sets based on offer parameter
 	log.Printf("DEBUG: offer=%s, len=%d", offer, len(offer))
@@ -808,12 +805,8 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context, adminID strin
 		params["adminID"] = adminID
 	}
 	if filterByShopID != "" {
-		shopIDUint, err := strconv.ParseUint(filterByShopID, 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("invalid shop_id: %w", err)
-		}
 		query += " AND pi.shop_id = @shopID"
-		params["shopID"] = uint(shopIDUint)
+		params["shopID"] = filterByShopID
 	}
 	// Removed shop_id filter as it may not be set correctly in DB
 	if len(ids) > 0 {
