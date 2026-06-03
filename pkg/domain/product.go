@@ -197,6 +197,7 @@ type PromotionsType struct {
 	ShopID                string    `json:"shop_id" gorm:"type:varchar(32)"`
 	PromotionCategoryID   string    `json:"promotion_category_id" gorm:"type:varchar(32)"`
 	PromotionOfferDetails string    `json:"offer_details" gorm:"type:jsonb;not null"`
+	Type                  string    `json:"type" gorm:"size:100"`
 	IconPath             string    `json:"icon_path"`
 	CreatedAt             time.Time `json:"created_at" gorm:"not null;autoCreateTime"`
 	UpdatedAt             time.Time `json:"updated_at" gorm:"autoUpdateTime"`

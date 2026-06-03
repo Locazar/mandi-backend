@@ -808,12 +808,8 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context, adminID strin
 		params["adminID"] = adminID
 	}
 	if filterByShopID != "" {
-		shopIDUint, err := strconv.ParseUint(filterByShopID, 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("invalid shop_id: %w", err)
-		}
 		query += " AND pi.shop_id = @shopID"
-		params["shopID"] = uint(shopIDUint)
+		params["shopID"] = filterByShopID
 	}
 	// Removed shop_id filter as it may not be set correctly in DB
 	if len(ids) > 0 {

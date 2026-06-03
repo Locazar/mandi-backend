@@ -165,6 +165,71 @@ SELECT _legacy_convert_to_varchar('shop_verifications', 'admin_id');
 SELECT _legacy_convert_to_varchar('shop_verification_histories', 'id');
 SELECT _legacy_convert_to_varchar('shop_verification_histories', 'shop_id');
 SELECT _legacy_convert_to_varchar('shop_verification_histories', 'admin_id');
+SELECT _legacy_convert_to_varchar('shop_departments', 'id');
+SELECT _legacy_convert_to_varchar('shop_departments', 'admin_id');
+SELECT _legacy_convert_to_varchar('shop_departments', 'shop_id');
+SELECT _legacy_convert_to_varchar('shop_departments', 'department_id');
+SELECT _legacy_convert_to_varchar('shop_socials', 'id');
+SELECT _legacy_convert_to_varchar('shop_socials', 'shop_id');
+SELECT _legacy_convert_to_varchar('shop_socials', 'admin_id');
+SELECT _legacy_convert_to_varchar('shop_socials', 'user_id');
+SELECT _legacy_convert_to_varchar('shop_times', 'id');
+SELECT _legacy_convert_to_varchar('shop_times', 'shop_id');
+SELECT _legacy_convert_to_varchar('shop_offers', 'id');
+SELECT _legacy_convert_to_varchar('shop_offers', 'shop_id');
+SELECT _legacy_convert_to_varchar('shop_offers', 'offer_id');
+SELECT _legacy_convert_to_varchar('alerts', 'id');
+SELECT _legacy_convert_to_varchar('alerts', 'seller_id');
+SELECT _legacy_convert_to_varchar('alert_actions', 'id');
+SELECT _legacy_convert_to_varchar('alert_actions', 'alert_id');
+SELECT _legacy_convert_to_varchar('seller_alert_logs', 'id');
+SELECT _legacy_convert_to_varchar('seller_alert_logs', 'seller_id');
+SELECT _legacy_convert_to_varchar('subscription_orders', 'id');
+SELECT _legacy_convert_to_varchar('subscription_orders', 'user_id');
+SELECT _legacy_convert_to_varchar('subscription_orders', 'plan_id');
+SELECT _legacy_convert_to_varchar('user_subscriptions', 'id');
+SELECT _legacy_convert_to_varchar('user_subscriptions', 'user_id');
+SELECT _legacy_convert_to_varchar('user_subscriptions', 'plan_id');
+SELECT _legacy_convert_to_varchar('user_subscriptions', 'subscription_order_id');
+SELECT _legacy_convert_to_varchar('admin_refresh_sessions', 'user_id');
+SELECT _legacy_convert_to_varchar('admin_refresh_sessions', 'admin_id');
+SELECT _legacy_convert_to_varchar('user_refresh_sessions', 'user_id');
+SELECT _legacy_convert_to_varchar('user_refresh_sessions', 'admin_id');
+SELECT _legacy_convert_to_varchar('product_items', 'shop_id');
+SELECT _legacy_convert_to_varchar('product_item_views', 'product_item_id');
+SELECT _legacy_convert_to_varchar('product_item_views', 'shop_id');
+SELECT _legacy_convert_to_varchar('product_item_filter_types', 'shop_id');
+SELECT _legacy_convert_to_varchar('fcm_tokens', 'admin_id');
+SELECT _legacy_convert_to_varchar('fcm_tokens', 'shop_id');
+SELECT _legacy_convert_to_varchar('promotions', 'id');
+SELECT _legacy_convert_to_varchar('promotions', 'shop_id');
+SELECT _legacy_convert_to_varchar('promotions', 'promotion_category_id');
+SELECT _legacy_convert_to_varchar('promotions', 'promotion_type_id');
+SELECT _legacy_convert_to_varchar('promotion_categories', 'id');
+SELECT _legacy_convert_to_varchar('promotion_categories', 'shop_id');
+SELECT _legacy_convert_to_varchar('promotions_types', 'id');
+SELECT _legacy_convert_to_varchar('promotions_types', 'promotion_category_id');
+SELECT _legacy_convert_to_varchar('banners', 'id');
+SELECT _legacy_convert_to_varchar('banners', 'category_id');
+SELECT _legacy_convert_to_varchar('banners', 'department_id');
+SELECT _legacy_convert_to_varchar('banners', 'shop_id');
+SELECT _legacy_convert_to_varchar('notifications', 'category_id');
+SELECT _legacy_convert_to_varchar('notifications', 'variation_id');
+SELECT _legacy_convert_to_varchar('categories', 'category_id');
+SELECT _legacy_convert_to_varchar('sub_category_details', 'sub_category_id');
+SELECT _legacy_convert_to_varchar('sub_category_details', 'id');
+SELECT _legacy_convert_to_varchar('alert_templates', 'id');
+SELECT _legacy_convert_to_varchar('fcm_tokens', 'id');
+SELECT _legacy_convert_to_varchar('notification_device_tokens', 'id');
+SELECT _legacy_convert_to_varchar('notifications', 'order_id');
+SELECT _legacy_convert_to_varchar('notifications', 'receiver_id');
+SELECT _legacy_convert_to_varchar('notifications', 'sender_id');
+SELECT _legacy_convert_to_varchar('product_item_filter_types', 'id');
+SELECT _legacy_convert_to_varchar('product_item_views', 'id');
+SELECT _legacy_convert_to_varchar('products', 'brand_id');
+SELECT _legacy_convert_to_varchar('shop_orders', 'order_status_id');
+SELECT _legacy_convert_to_varchar('shop_verifications', 'agent_id');
+SELECT _legacy_convert_to_varchar('subscription_plans', 'id');
 
 DROP FUNCTION IF EXISTS _legacy_convert_to_varchar(TEXT, TEXT, INTEGER);
 
@@ -315,6 +380,9 @@ CREATE TABLE IF NOT EXISTS shop_departments (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE shop_departments ADD COLUMN IF NOT EXISTS category_id     VARCHAR(32) NOT NULL DEFAULT '';
+ALTER TABLE shop_departments ADD COLUMN IF NOT EXISTS sub_category_id VARCHAR(32) NOT NULL DEFAULT '';
 
 CREATE UNIQUE INDEX IF NOT EXISTS uidx_shop_departments_shop_dept_cat_sub
     ON shop_departments (shop_id, department_id, category_id, sub_category_id);
@@ -606,23 +674,40 @@ CREATE INDEX IF NOT EXISTS idx_user_refresh_sessions_user_id ON user_refresh_ses
 CREATE INDEX IF NOT EXISTS idx_user_refresh_sessions_admin_id ON user_refresh_sessions (admin_id);
 
 DO $$
+DECLARE
+    has_admin_id BOOLEAN;
 BEGIN
     IF EXISTS (
         SELECT 1
         FROM information_schema.tables
         WHERE table_schema = 'public' AND table_name = 'refresh_sessions'
     ) THEN
-        INSERT INTO admin_refresh_sessions (token_id, user_id, admin_id, user_type, refresh_token, expire_at, is_blocked)
-        SELECT rs.token_id, rs.user_id, rs.admin_id, COALESCE(NULLIF(rs.user_type, ''), 'admin'), rs.refresh_token, rs.expire_at, COALESCE(rs.is_blocked, FALSE)
-        FROM refresh_sessions rs
-        WHERE COALESCE(NULLIF(rs.user_type, ''), 'user') = 'admin'
-        ON CONFLICT (token_id) DO NOTHING;
+        SELECT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = 'refresh_sessions' AND column_name = 'admin_id'
+        ) INTO has_admin_id;
 
-        INSERT INTO user_refresh_sessions (token_id, user_id, admin_id, user_type, refresh_token, expire_at, is_blocked)
-        SELECT rs.token_id, rs.user_id, rs.admin_id, COALESCE(NULLIF(rs.user_type, ''), 'user'), rs.refresh_token, rs.expire_at, COALESCE(rs.is_blocked, FALSE)
-        FROM refresh_sessions rs
-        WHERE COALESCE(NULLIF(rs.user_type, ''), 'user') <> 'admin'
-        ON CONFLICT (token_id) DO NOTHING;
+        IF has_admin_id THEN
+            EXECUTE $q$
+                INSERT INTO admin_refresh_sessions (token_id, user_id, admin_id, user_type, refresh_token, expire_at, is_blocked)
+                SELECT rs.token_id, rs.user_id, rs.admin_id, COALESCE(NULLIF(rs.user_type, ''), 'admin'), rs.refresh_token, rs.expire_at, COALESCE(rs.is_blocked, FALSE)
+                FROM refresh_sessions rs
+                WHERE COALESCE(NULLIF(rs.user_type, ''), 'user') = 'admin'
+                ON CONFLICT (token_id) DO NOTHING
+            $q$;
+            EXECUTE $q$
+                INSERT INTO user_refresh_sessions (token_id, user_id, admin_id, user_type, refresh_token, expire_at, is_blocked)
+                SELECT rs.token_id, rs.user_id, rs.admin_id, COALESCE(NULLIF(rs.user_type, ''), 'user'), rs.refresh_token, rs.expire_at, COALESCE(rs.is_blocked, FALSE)
+                FROM refresh_sessions rs
+                WHERE COALESCE(NULLIF(rs.user_type, ''), 'user') <> 'admin'
+                ON CONFLICT (token_id) DO NOTHING
+            $q$;
+        ELSE
+            INSERT INTO user_refresh_sessions (token_id, user_id, admin_id, user_type, refresh_token, expire_at, is_blocked)
+            SELECT rs.token_id, rs.user_id, NULL, 'user', rs.refresh_token, rs.expire_at, COALESCE(rs.is_blocked, FALSE)
+            FROM refresh_sessions rs
+            ON CONFLICT (token_id) DO NOTHING;
+        END IF;
     END IF;
 END $$;
 
