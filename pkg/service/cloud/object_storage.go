@@ -14,8 +14,7 @@ import (
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/aws/aws-sdk-go-v2/service/s3/types"
-	"github.com/google/uuid"
+"github.com/google/uuid"
 
 	"github.com/rohit221990/mandi-backend/pkg/config"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
@@ -112,10 +111,6 @@ func (s *objectStorage) SaveFile(ctx context.Context, fh *multipart.FileHeader, 
 		Body:        file,
 		ContentType: aws.String(contentType),
 	}
-	if opts.Visibility == VisibilityPublic {
-		input.ACL = types.ObjectCannedACLPublicRead
-	}
-
 	if _, err := s.client.PutObject(ctx, input); err != nil {
 		log.Printf("cloud SaveFile PutObject failed: bucket=%s key=%s contentType=%s visibility=%d filename=%s err=%v", s.bucket, key, contentType, opts.Visibility, fh.Filename, err)
 		return "", utils.PrependMessageToError(err, "failed to upload file")
@@ -136,10 +131,6 @@ func (s *objectStorage) SaveBytes(ctx context.Context, data []byte, opts SaveOpt
 		Body:        bytes.NewReader(data),
 		ContentType: aws.String(contentType),
 	}
-	if opts.Visibility == VisibilityPublic {
-		input.ACL = types.ObjectCannedACLPublicRead
-	}
-
 	if _, err := s.client.PutObject(ctx, input); err != nil {
 		log.Printf("cloud SaveBytes PutObject failed: bucket=%s key=%s contentType=%s visibility=%d bytes=%d err=%v", s.bucket, key, contentType, opts.Visibility, len(data), err)
 		return "", utils.PrependMessageToError(err, "failed to upload bytes")
