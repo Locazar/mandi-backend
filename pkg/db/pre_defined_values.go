@@ -26,21 +26,19 @@ func savePaymentMethods(db *gorm.DB) error {
 
 	var (
 		searchQuery = `SELECT EXISTS(SELECT 1 FROM payment_methods WHERE name = $1) AS exist`
-		insertQuery = `INSERT INTO payment_methods (name, maximum_amount_amount_minor, maximum_amount_currency) VALUES ($1, $2, $3)`
 		exist       bool
 		err         error
 	)
 
-	for _, paymentMethod := range paymentMethods {
+	for _, pm := range paymentMethods {
 
-		err = db.Raw(searchQuery, paymentMethod.Name).Scan(&exist).Error
+		err = db.Raw(searchQuery, pm.Name).Scan(&exist).Error
 		if err != nil {
 			return fmt.Errorf("failed to check payment methods already exist %w", err)
 		}
 		if !exist {
-			err = db.Exec(insertQuery, paymentMethod.Name,
-				paymentMethod.MaximumAmount.AmountMinor, paymentMethod.MaximumAmount.Currency).Error
-			if err != nil {
+			// Use GORM Create so the BeforeCreate hook fires and generates the ID.
+			if err = db.Create(&pm).Error; err != nil {
 				return fmt.Errorf("failed to save payment method %w", err)
 			}
 		}
