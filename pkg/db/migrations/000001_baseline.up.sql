@@ -199,7 +199,7 @@ CREATE TABLE IF NOT EXISTS departments (
 CREATE TABLE IF NOT EXISTS categories (
     id            VARCHAR(32) PRIMARY KEY,
     department_id VARCHAR(32) NOT NULL REFERENCES departments (id) ON DELETE RESTRICT,
-    name          VARCHAR(30) NOT NULL,
+    name          VARCHAR(50) NOT NULL,
     sort_order    INT         NOT NULL DEFAULT 0,
     is_active     BOOLEAN     NOT NULL DEFAULT TRUE,
     image_url     TEXT,
@@ -212,7 +212,7 @@ CREATE TABLE IF NOT EXISTS sub_categories (
     id            VARCHAR(32) PRIMARY KEY,
     department_id VARCHAR(32) NOT NULL REFERENCES departments  (id) ON DELETE RESTRICT,
     category_id   VARCHAR(32) NOT NULL REFERENCES categories  (id) ON DELETE RESTRICT,
-    name          VARCHAR(30) NOT NULL,
+    name          VARCHAR(50) NOT NULL,
     sort_order    INT         NOT NULL DEFAULT 0,
     is_active     BOOLEAN     NOT NULL DEFAULT TRUE,
     image_url     TEXT,
@@ -263,7 +263,7 @@ CREATE TABLE IF NOT EXISTS sub_type_attributes (
     sub_category_id VARCHAR(32) NOT NULL REFERENCES sub_categories (id) ON DELETE CASCADE,
     field_name      VARCHAR(50) NOT NULL,
     field_type      VARCHAR(20) NOT NULL
-        CHECK (field_type IN ('dropdown','number','text')),
+        CHECK (field_type IN ('dropdown','number','text','select','boolean')),
     is_required     BOOLEAN     NOT NULL DEFAULT TRUE,
     sort_order      INT         NOT NULL DEFAULT 0
 );
