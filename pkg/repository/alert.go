@@ -3,11 +3,11 @@ package repository
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"time"
 
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	repointerfacespkg "github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
+	"github.com/rohit221990/mandi-backend/pkg/usecase"
 	"gorm.io/gorm"
 )
 
@@ -232,7 +232,7 @@ func (r *AlertRepositoryImpl) GetAggregatedDataForSeller(ctx context.Context, ad
 		First(&shop).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return nil, fmt.Errorf("shop not found for admin_id %s", adminID)
+			return nil, usecase.ErrShopNotFound
 		}
 		return nil, err
 	}

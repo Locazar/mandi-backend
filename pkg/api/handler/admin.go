@@ -643,6 +643,13 @@ func (h *adminHandler) UpdateShop(ctx *gin.Context) {
 		}
 	}
 
+	if raw, ok := updateFields["shop_type"]; ok {
+		if st, ok := raw.(string); !ok || !domain.ShopType(st).IsValid() {
+			response.ErrorResponse(ctx, http.StatusBadRequest, "invalid shop_type: must be retail, wholesale, or service", nil, nil)
+			return
+		}
+	}
+
 	// Call use case to update only changed fields
 	updatedData, err := h.adminUseCase.UpdateShop(ctx, updateFields, shopId)
 	if err != nil {
@@ -678,6 +685,13 @@ func (h *adminHandler) UploadShopById(ctx *gin.Context) {
 	for k, v := range shopDetails {
 		if v == nil || v == "" {
 			delete(shopDetails, k)
+		}
+	}
+
+	if raw, ok := shopDetails["shop_type"]; ok {
+		if st, ok := raw.(string); !ok || !domain.ShopType(st).IsValid() {
+			response.ErrorResponse(ctx, http.StatusBadRequest, "invalid shop_type: must be retail, wholesale, or service", nil, nil)
+			return
 		}
 	}
 

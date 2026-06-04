@@ -905,7 +905,7 @@ CREATE INDEX IF NOT EXISTS idx_subscription_orders_plan_id  ON subscription_orde
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS user_subscriptions (
     id                    VARCHAR(32) PRIMARY KEY,
-    user_id               VARCHAR(32) NOT NULL REFERENCES users               (id) ON DELETE RESTRICT,
+    user_id               VARCHAR(32) NOT NULL,
     plan_id               VARCHAR(32) NOT NULL REFERENCES subscription_plans  (id) ON DELETE RESTRICT,
     subscription_order_id VARCHAR(32)          REFERENCES subscription_orders (id) ON DELETE SET NULL,
     is_trial              BOOLEAN      NOT NULL DEFAULT FALSE,
