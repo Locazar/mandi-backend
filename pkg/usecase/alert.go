@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/rohit221990/mandi-backend/pkg/domain"
@@ -38,6 +39,10 @@ func (uc *AlertUseCaseImpl) GetSellerAlerts(ctx context.Context, sellerID string
 	// Fetch aggregated data with minimal queries
 	aggregatedData, err := uc.alertRepo.GetAggregatedDataForSeller(ctx, sellerID)
 	if err != nil {
+		// Seller has no shop yet — return empty alerts rather than 500
+		if errors.Is(err, ErrShopNotFound) {
+			return []*domain.Alert{}, nil
+		}
 		return nil, err
 	}
 

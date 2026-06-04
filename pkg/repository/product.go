@@ -535,10 +535,11 @@ func (c *productDatabase) UpdateShopDepartments(ctx context.Context, shopID stri
 
 func (c *productDatabase) SaveProductItem(ctx context.Context, productItem request.ProductItem, adminID string, shopID string) (productItemID string, err error) {
 
-	query := `INSERT INTO product_items (admin_id, sub_category_name, dynamic_fields, product_item_images, category_id, department_id, sub_category_id, shop_id, created_at, updated_at) 
-VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`
+	query := `INSERT INTO product_items (id, admin_id, sub_category_name, dynamic_fields, product_item_images, category_id, department_id, sub_category_id, shop_id, created_at, updated_at)
+VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`
 
 	createdAt := time.Now()
+	newID := domain.NewID(domain.PrefixProductItem)
 
 	// Marshal DynamicFields to JSON for JSONB column
 	dynamicFieldsJSON, err := json.Marshal(productItem.DynamicFields)
@@ -553,7 +554,7 @@ VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`
 		productItemImagesStr = "{}"
 	}
 
-	err = c.DB.Raw(query, adminID, productItem.SubCategoryName, dynamicFieldsJSON, productItemImagesStr, productItem.CategoryID, productItem.DepartmentID, productItem.SubCategoryID, shopID, createdAt, createdAt).Scan(&productItemID).Error
+	err = c.DB.Raw(query, newID, adminID, productItem.SubCategoryName, dynamicFieldsJSON, productItemImagesStr, productItem.CategoryID, productItem.DepartmentID, productItem.SubCategoryID, shopID, createdAt, createdAt).Scan(&productItemID).Error
 
 	if err == nil && c.ElasticClient != nil {
 		domainItem := domain.ProductItem{
@@ -751,7 +752,6 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context, adminID strin
 				'is_active', pt2.is_active,
 				'shop_id', pt2.shop_id,
 				'promotion_category_id', pt2.promotion_category_id,
-				'type', pt2.type,
 				'icon_path', pt2.icon_path,
 				'created_at', pt2.created_at,
 				'updated_at', pt2.updated_at
@@ -1023,7 +1023,6 @@ func (c *productDatabase) FindLowViewProductItems(ctx context.Context,
 			'is_active', pt2.is_active,
 			'shop_id', pt2.shop_id,
 			'promotion_category_id', pt2.promotion_category_id,
-			'type', pt2.type,
 			'icon_path', pt2.icon_path,
 			'created_at', pt2.created_at,
 			'updated_at', pt2.updated_at
@@ -1794,7 +1793,7 @@ func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID 
 	                  p.id as offer_id, p.offer_name, p.discount_rate, p.description,
 	                  p.start_date, p.end_date,
 	                  pc.id as promotion_category_id, pc.name as promotion_category_name, pc.shop_id as promotion_category_shop_id, pc.is_active as promotion_category_is_active, pc.icon_path as promotion_category_icon_path, pc.created_at as promotion_category_created_at, pc.updated_at as promotion_category_updated_at,
-	                  pt.id as promotion_type_id, pt.name as promotion_type_name, pt.is_active as promotion_type_is_active, pt.shop_id as promotion_type_shop_id, pt.promotion_category_id as promotion_type_promotion_category_id, pt.type as promotion_type_type, pt.icon_path as promotion_type_icon_path, pt.created_at as promotion_type_created_at, pt.updated_at as promotion_type_updated_at
+	                  pt.id as promotion_type_id, pt.name as promotion_type_name, pt.is_active as promotion_type_is_active, pt.shop_id as promotion_type_shop_id, pt.promotion_category_id as promotion_type_promotion_category_id, pt.icon_path as promotion_type_icon_path, pt.created_at as promotion_type_created_at, pt.updated_at as promotion_type_updated_at
 	               FROM offer_products op
 	               INNER JOIN promotions p ON p.id = op.offer_id
 	               LEFT JOIN product_items pi ON pi.id = op.product_item_id
@@ -2595,7 +2594,6 @@ func GetProductItemsByOfferID(ctx context.Context, db *gorm.DB, offerID string, 
 							'is_active', pt2.is_active,
 							'shop_id', pt2.shop_id,
 							'promotion_category_id', pt2.promotion_category_id,
-							'type', pt2.type,
 							'icon_path', pt2.icon_path,
 							'created_at', pt2.created_at,
 							'updated_at', pt2.updated_at

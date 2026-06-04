@@ -361,9 +361,11 @@ func (c *adminDatabase) CreateShop(ctx context.Context, shop domain.ShopDetails)
 		return shop, tx.Error
 	}
 
-	query := `INSERT INTO shop_details (admin_id, shop_name,owner_name, address_line1, address_line2, email, phone,
+	shopID := domain.NewID(domain.PrefixShop)
+
+	query := `INSERT INTO shop_details (id, admin_id, shop_name,owner_name, address_line1, address_line2, email, phone,
 	city, state, country, pincode, latitude, longitude, bank_account_number, shop_type, shop_status, bank_ifsc, pan_number, itr_documents, document_type, document_value,  created_at, updated_at)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
 	ON CONFLICT (admin_id) DO UPDATE SET
 		shop_name = EXCLUDED.shop_name,
 		owner_name = EXCLUDED.owner_name,
@@ -388,7 +390,7 @@ func (c *adminDatabase) CreateShop(ctx context.Context, shop domain.ShopDetails)
 		updated_at = EXCLUDED.updated_at
 	RETURNING id`
 
-	err = tx.Raw(query, shop.AdminID, shop.ShopName, shop.OwnerName, shop.AddressLine1,
+	err = tx.Raw(query, shopID, shop.AdminID, shop.ShopName, shop.OwnerName, shop.AddressLine1,
 		shop.AddressLine2, shop.Email, shop.Phone, shop.City, shop.State, shop.Country, shop.Pincode, shop.Latitude, shop.Longitude,
 		encBankAccount, shop.ShopType, shop.ShopStatus, encBankIFSC, encPAN, encITR, shop.Document_Type, encDocValue,
 		time.Now(), time.Now()).Scan(&shop.ID).Error
@@ -525,8 +527,9 @@ func (c *adminDatabase) UpdateShop(ctx context.Context, shop map[string]interfac
 	values = append(values, time.Now())
 	paramCount++
 
-	query := fmt.Sprintf("UPDATE shop_details SET %s WHERE id = %s",
-		strings.Join(setClauses, ", "), shopId)
+	query := fmt.Sprintf("UPDATE shop_details SET %s WHERE id = $%d",
+		strings.Join(setClauses, ", "), paramCount)
+	values = append(values, shopId)
 
 	result := c.DB.Exec(query, values...)
 	if result.Error != nil {

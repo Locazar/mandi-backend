@@ -104,4 +104,7 @@ var (
 
 	// brand
 	ErrBrandAlreadyExist = errors.New("brand name already exist")
+
+	// alert
+	ErrShopNotFound = errors.New("seller has no shop registered")
 )
