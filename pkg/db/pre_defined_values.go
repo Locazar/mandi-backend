@@ -3,8 +3,9 @@ package db
 import (
 	"fmt"
 
-	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"gorm.io/gorm"
+
+	"github.com/rohit221990/mandi-backend/pkg/domain"
 )
 
 // To save predefined payment methods on database if its not exist
@@ -26,7 +27,7 @@ func savePaymentMethods(db *gorm.DB) error {
 
 	var (
 		searchQuery = `SELECT EXISTS(SELECT 1 FROM payment_methods WHERE name = $1) AS exist`
-		insertQuery = `INSERT INTO payment_methods (name, maximum_amount_amount_minor, maximum_amount_currency) VALUES ($1, $2, $3)`
+		insertQuery = `INSERT INTO payment_methods (id, name, maximum_amount_amount_minor, maximum_amount_currency) VALUES ($1, $2, $3, $4)`
 		exist       bool
 		err         error
 	)
@@ -38,7 +39,8 @@ func savePaymentMethods(db *gorm.DB) error {
 			return fmt.Errorf("failed to check payment methods already exist %w", err)
 		}
 		if !exist {
-			err = db.Exec(insertQuery, paymentMethod.Name,
+			paymentMethod.ID = domain.NewID(domain.PrefixPaymentMethod)
+			err = db.Exec(insertQuery, paymentMethod.ID, paymentMethod.Name,
 				paymentMethod.MaximumAmount.AmountMinor, paymentMethod.MaximumAmount.Currency).Error
 			if err != nil {
 				return fmt.Errorf("failed to save payment method %w", err)
@@ -50,7 +52,6 @@ func savePaymentMethods(db *gorm.DB) error {
 }
 
 func saveAdmin(db *gorm.DB, email, password string) error {
-
 	var (
 		searchQuery = `SELECT COUNT(*) > 0 as exist FROM admins WHERE email = $1`
 		exist       bool

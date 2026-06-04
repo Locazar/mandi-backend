@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"time"
 
+	"gorm.io/gorm"
+
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
-	"gorm.io/gorm"
 )
 
 type couponDatabase struct {
@@ -22,7 +23,6 @@ func NewCouponRepository(db *gorm.DB) interfaces.CouponRepository {
 }
 
 func (c *couponDatabase) CheckCouponDetailsAlreadyExist(ctx context.Context, coupon domain.Coupon) (couponID string, err error) {
-
 	query := `SELECT coupon_id FROM coupons WHERE coupon_name = $1 AND coupon_id != $2`
 
 	err = c.DB.Raw(query, coupon.CouponName, coupon.CouponID).Scan(&couponID).Error
@@ -34,7 +34,6 @@ func (c *couponDatabase) CheckCouponDetailsAlreadyExist(ctx context.Context, cou
 func (c *couponDatabase) FindCouponByID(ctx context.Context, couponID string) (coupon domain.Coupon, err error) {
 	query := `SELECT * FROM coupons WHERE coupon_id = $1`
 	err = c.DB.Raw(query, couponID).Scan(&coupon).Error
-
 	if err != nil {
 		return coupon, err
 	}
@@ -44,7 +43,6 @@ func (c *couponDatabase) FindCouponByID(ctx context.Context, couponID string) (c
 
 // find coupon by code
 func (c *couponDatabase) FindCouponByCouponCode(ctx context.Context, couponCode string) (coupon domain.Coupon, err error) {
-
 	query := `SELECT * FROM coupons WHERE coupon_code = $1`
 
 	err = c.DB.Raw(query, couponCode).Scan(&coupon).Error
@@ -59,7 +57,6 @@ func (c *couponDatabase) FindCouponByCouponCode(ctx context.Context, couponCode 
 func (c *couponDatabase) FindCouponByName(ctx context.Context, couponName string) (coupon domain.Coupon, err error) {
 	query := `SELECT * FROM coupons WHERE coupon_name = $1`
 	err = c.DB.Raw(query, couponName).Scan(&coupon).Error
-
 	if err != nil {
 		return coupon, fmt.Errorf("failed to find coupon with coupon_name %v", couponName)
 	}
@@ -68,7 +65,6 @@ func (c *couponDatabase) FindCouponByName(ctx context.Context, couponName string
 }
 
 func (c *couponDatabase) FindAllCoupons(ctx context.Context, pagination request.Pagination) (coupons []domain.Coupon, err error) {
-
 	limit := pagination.Limit
 	offset := pagination.Offset
 
@@ -92,7 +88,6 @@ func (c *couponDatabase) SaveCoupon(ctx context.Context, coupon domain.Coupon) e
 		coupon.DiscountRate, coupon.MinimumCartPrice.AmountMinor, coupon.MinimumCartPrice.Currency,
 		coupon.Image, coupon.BlockStatus, cratedAt,
 	).Error
-
 	if err != nil {
 		return fmt.Errorf("faild to save coupon for coupon_name %v", coupon.CouponName)
 	}
@@ -101,7 +96,6 @@ func (c *couponDatabase) SaveCoupon(ctx context.Context, coupon domain.Coupon) e
 
 // update coupon
 func (c *couponDatabase) UpdateCoupon(ctx context.Context, coupon domain.Coupon) error {
-
 	query := `UPDATE coupons SET coupon_name = $1, description = $2, discount_rate = $3,
 	minimum_cart_price_amount_minor = $4, minimum_cart_price_currency = $5, image = $6, block_status = $7, updated_at = $8
 	WHERE coupon_id = $9`
@@ -131,10 +125,10 @@ func (c *couponDatabase) FindCouponUsesByCouponAndUserID(ctx context.Context, us
 
 // save a couponUses
 func (c *couponDatabase) SaveCouponUses(ctx context.Context, couponUses domain.CouponUses) error {
-
 	usedAt := time.Now()
-	query := `INSERT INTO coupon_uses ( user_id, coupon_id, used_at) VALUES ($1, $2, $3)`
-	err := c.DB.Exec(query, couponUses.UserID, couponUses.CouponID, usedAt).Error
+	couponUses.CouponUsesID = domain.NewID(domain.PrefixCouponUses)
+	query := `INSERT INTO coupon_uses (coupon_uses_id, user_id, coupon_id, used_at) VALUES ($1, $2, $3, $4)`
+	err := c.DB.Exec(query, couponUses.CouponUsesID, couponUses.UserID, couponUses.CouponID, usedAt).Error
 
 	return err
 }
@@ -142,7 +136,6 @@ func (c *couponDatabase) SaveCouponUses(ctx context.Context, couponUses domain.C
 // find all coupons for user
 
 func (c *couponDatabase) FindAllCouponForUser(ctx context.Context, userID string, pagination request.Pagination) (coupons []response.UserCoupon, err error) {
-
 	limit := pagination.Limit
 	offset := pagination.Offset
 
@@ -154,7 +147,6 @@ func (c *couponDatabase) FindAllCouponForUser(ctx context.Context, userID string
 	ORDER BY used DESC LIMIT $2 OFFSET $3`
 
 	err = c.DB.Raw(query, userID, limit, offset).Scan(&coupons).Error
-
 	if err != nil {
 		return coupons, fmt.Errorf("faild to find coupons for user \n %v", err.Error())
 	}

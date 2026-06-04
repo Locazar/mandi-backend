@@ -8,11 +8,12 @@ import (
 	"strings"
 	"time"
 
+	"gorm.io/gorm"
+
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
-	"gorm.io/gorm"
 )
 
 type userDatabase struct {
@@ -24,7 +25,6 @@ func NewUserRepository(DB *gorm.DB) interfaces.UserRepository {
 }
 
 func (c *userDatabase) FindUserByUserID(ctx context.Context, userID string) (user domain.User, err error) {
-
 	query := `SELECT * FROM users WHERE id = $1`
 	err = c.DB.Raw(query, userID).Scan(&user).Error
 
@@ -32,7 +32,6 @@ func (c *userDatabase) FindUserByUserID(ctx context.Context, userID string) (use
 }
 
 func (c *userDatabase) FindUserByEmail(ctx context.Context, email string) (user domain.User, err error) {
-
 	query := `SELECT * FROM users WHERE email = $1`
 
 	err = c.DB.Raw(query, email).Scan(&user).Error
@@ -41,14 +40,13 @@ func (c *userDatabase) FindUserByEmail(ctx context.Context, email string) (user 
 }
 
 func (c *userDatabase) FindUserByPhoneNumber(ctx context.Context, phoneNumber string) (user domain.User, err error) {
-
 	query := `SELECT * FROM users WHERE phone = $1`
 	err = c.DB.Raw(query, phoneNumber).Scan(&user).Error
 
 	return user, err
 }
-func (c *userDatabase) FindUserByUserName(ctx context.Context, userName string) (user domain.User, err error) {
 
+func (c *userDatabase) FindUserByUserName(ctx context.Context, userName string) (user domain.User, err error) {
 	query := `SELECT * FROM users WHERE user_name = $1`
 	err = c.DB.Raw(query, userName).Scan(&user).Error
 
@@ -56,7 +54,8 @@ func (c *userDatabase) FindUserByUserName(ctx context.Context, userName string) 
 }
 
 func (c *userDatabase) FindUserByUserNameEmailOrPhoneNotID(ctx context.Context,
-	userDetails domain.User) (user domain.User, err error) {
+	userDetails domain.User,
+) (user domain.User, err error) {
 	// Debugging line
 
 	query := `SELECT * FROM users WHERE (email = $1 OR phone = $2) AND id != $3`
@@ -100,7 +99,6 @@ func (c *userDatabase) SaveUser(ctx context.Context, user domain.User) (userID s
 }
 
 func (c *userDatabase) UpdateVerified(ctx context.Context, userID string) error {
-
 	query := `UPDATE users SET phone_verified = true WHERE id = $1`
 	err := c.DB.Exec(query, userID).Error
 
@@ -108,7 +106,6 @@ func (c *userDatabase) UpdateVerified(ctx context.Context, userID string) error 
 }
 
 func (c *userDatabase) UpdateAdminVerified(ctx context.Context, adminID string) error {
-
 	query := `UPDATE admins SET verified_seller = 'T' WHERE id = $1`
 	err := c.DB.Exec(query, adminID).Error
 
@@ -116,7 +113,6 @@ func (c *userDatabase) UpdateAdminVerified(ctx context.Context, adminID string) 
 }
 
 func (c *userDatabase) UpdateUser(ctx context.Context, user domain.User) (err error) {
-
 	updatedAt := time.Now()
 	// check password need to update or not
 	if user.Password != "" {
@@ -138,7 +134,6 @@ func (c *userDatabase) UpdateUser(ctx context.Context, user domain.User) (err er
 }
 
 func (c *userDatabase) UpdateBlockStatus(ctx context.Context, userID string, blockStatus bool) error {
-
 	query := `UPDATE users SET block_status = $1 WHERE id = $2`
 	err := c.DB.Exec(query, blockStatus, userID).Error
 
@@ -151,8 +146,8 @@ func (c *userDatabase) IsAddressIDExist(ctx context.Context, addressID string) (
 
 	return
 }
-func (c *userDatabase) FindAddressByID(ctx context.Context, addressID string) (address response.Address, err error) {
 
+func (c *userDatabase) FindAddressByID(ctx context.Context, addressID string) (address response.Address, err error) {
 	query := `SELECT adrs.id, adrs.land_mark, adrs.area, adrs.city, adrs.pincode, adrs.country_id, c.country_name, adrs.latitude, adrs.longitude, adrs.phone_number, adrs.address_type, adrs.address_line1, adrs.address_line2, adrs.is_default
 	FROM addresses adrs 
 	INNER JOIN countries c ON c.id = adrs.country_id  
@@ -163,7 +158,6 @@ func (c *userDatabase) FindAddressByID(ctx context.Context, addressID string) (a
 }
 
 func (c *userDatabase) IsAddressAlreadyExistForUser(ctx context.Context, address domain.Address, userID string) (exist bool, err error) {
-
 	query := `SELECT DISTINCT CASE  WHEN adrs.id != 0 THEN 'T' ELSE 'F' END AS exist 
 	FROM addresses adrs 
 	INNER JOIN user_addresses urs ON adrs.id = urs.address_id 
@@ -176,7 +170,6 @@ func (c *userDatabase) IsAddressAlreadyExistForUser(ctx context.Context, address
 }
 
 func (c *userDatabase) FindAllAddressByUserID(ctx context.Context, userID string) (addresses []response.Address, err error) {
-
 	query := `SELECT a.id, a.land_mark, a.area, a.city, a.pincode, a.country_id, c.country_name, a.latitude, a.longitude, a.phone_number, a.address_type, a.address_line1, a.address_line2, a.is_default, ua.is_default
 	FROM user_addresses ua JOIN addresses a ON ua.address_id=a.id 
 	INNER JOIN countries c ON a.country_id=c.id WHERE ua.user_id = $1`
@@ -187,7 +180,6 @@ func (c *userDatabase) FindAllAddressByUserID(ctx context.Context, userID string
 }
 
 func (c *userDatabase) FindCountryByID(ctx context.Context, countryID string) (domain.Country, error) {
-
 	var country domain.Country
 
 	if c.DB.Raw("SELECT * FROM countries WHERE id = ?", countryID).Scan(&country).Error != nil {
@@ -225,7 +217,6 @@ func (c *userDatabase) UpdateAddress(ctx context.Context, address domain.Address
 }
 
 func (c *userDatabase) SaveUserAddress(ctx context.Context, userAddress domain.UserAddress) error {
-
 	// first check user's first address is this or not
 	var userID uint
 	query := `SELECT address_id FROM user_addresses WHERE user_id = $1`
@@ -244,8 +235,9 @@ func (c *userDatabase) SaveUserAddress(ctx context.Context, userAddress domain.U
 		}
 	}
 
-	query = `INSERT INTO user_addresses (user_id,address_id,is_default) VALUES ($1, $2, $3)`
-	err = c.DB.Exec(query, userAddress.UserID, userAddress.AddressID, userAddress.IsDefault).Error
+	query = `INSERT INTO user_addresses (id, user_id, address_id, is_default) VALUES ($1, $2, $3, $4)`
+	userAddress.ID = domain.NewID(domain.PrefixUserAddress)
+	err = c.DB.Exec(query, userAddress.ID, userAddress.UserID, userAddress.AddressID, userAddress.IsDefault).Error
 	if err != nil {
 		return errors.New("filed to insert userAddress on database")
 	}
@@ -273,7 +265,6 @@ func (c *userDatabase) UpdateUserAddress(ctx context.Context, userAddress domain
 // wish list
 
 func (c *userDatabase) FindWishListItem(ctx context.Context, productID, userID string) (domain.WishList, error) {
-
 	var wishList domain.WishList
 	query := `SELECT * FROM wish_lists WHERE user_id=? AND product_item_id=?`
 	if c.DB.Raw(query, userID, productID).Scan(&wishList).Error != nil {
@@ -283,7 +274,6 @@ func (c *userDatabase) FindWishListItem(ctx context.Context, productID, userID s
 }
 
 func (c *userDatabase) FindAllWishListItemsByUserID(ctx context.Context, userID string) (productItems []response.WishListItem, err error) {
-
 	query := `SELECT p.name, wl.id, pi.id AS product_item_id, pi.product_id, FROM wish_lists wl 
 	INNER JOIN product_items pi ON wl.product_item_id = pi.id 
 	INNER JOIN products p ON pi.product_id = p.id 
@@ -294,17 +284,16 @@ func (c *userDatabase) FindAllWishListItemsByUserID(ctx context.Context, userID 
 }
 
 func (c *userDatabase) SaveWishListItem(ctx context.Context, wishList domain.WishList) error {
+	wishList.ID = domain.NewID(domain.PrefixWishList)
+	query := `INSERT INTO wish_lists (id, user_id, product_item_id, shop_id, admin_id) VALUES ($1, $2, $3, $4, $5) RETURNING *`
 
-	query := `INSERT INTO wish_lists (user_id,product_item_id,shop_id,admin_id) VALUES ($1,$2,$3,$4) RETURNING *`
-
-	if c.DB.Raw(query, wishList.UserID, wishList.ProductItemID, wishList.ShopID, wishList.AdminID).Scan(&wishList).Error != nil {
+	if c.DB.Raw(query, wishList.ID, wishList.UserID, wishList.ProductItemID, wishList.ShopID, wishList.AdminID).Scan(&wishList).Error != nil {
 		return errors.New("filed to insert new wishlist on database")
 	}
 	return nil
 }
 
 func (c *userDatabase) RemoveWishListItem(ctx context.Context, userID, productItemID string) error {
-
 	query := `DELETE FROM wish_lists WHERE product_item_id = $1 AND user_id = $2`
 	err := c.DB.Exec(query, productItemID, userID).Error
 
@@ -530,7 +519,7 @@ func (c *userDatabase) SearchShopList(ctx context.Context, reqData request.Searc
 
 		// --- is_open: computed in Go using IST ---
 		type shopTimeRow struct {
-			ShopID    string   `gorm:"column:shop_id"`
+			ShopID    string `gorm:"column:shop_id"`
 			Status    string `gorm:"column:status"`
 			OpenTime  string `gorm:"column:open_time"`
 			CloseTime string `gorm:"column:close_time"`
@@ -583,8 +572,8 @@ func (c *userDatabase) DeleteRefreshSessionByUserID(ctx context.Context, userId 
 		return err
 	}
 }
-func (c *userDatabase) FindShopByID(ctx context.Context, shopID string) (response.Shop, error) {
 
+func (c *userDatabase) FindShopByID(ctx context.Context, shopID string) (response.Shop, error) {
 	var shop response.Shop
 	query := `
 		SELECT

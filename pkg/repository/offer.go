@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"time"
 
+	"gorm.io/gorm"
+
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
-	"gorm.io/gorm"
 )
 
 type offerDatabase struct {
@@ -23,7 +24,6 @@ func NewOfferRepository(db *gorm.DB) interfaces.OfferRepository {
 }
 
 func (c *offerDatabase) Transactions(ctx context.Context, trxFn func(repo interfaces.OfferRepository) error) error {
-
 	trx := c.DB.Begin()
 
 	repo := NewOfferRepository(trx)
@@ -42,7 +42,6 @@ func (c *offerDatabase) Transactions(ctx context.Context, trxFn func(repo interf
 
 // Find offer by id
 func (c *offerDatabase) FindOfferByID(ctx context.Context, offerID string) (offer domain.Offer, err error) {
-
 	query := `SELECT * FROM offers WHERE id = $1`
 	err = c.DB.Raw(query, offerID).Scan(&offer).Error
 
@@ -51,7 +50,6 @@ func (c *offerDatabase) FindOfferByID(ctx context.Context, offerID string) (offe
 
 // Find offer by name
 func (c *offerDatabase) FindOfferByName(ctx context.Context, offerName string) (offer domain.Offer, err error) {
-
 	query := `SELECT * FROM offers WHERE name = $1`
 	err = c.DB.Raw(query, offer.Name).Scan(&offer).Error
 
@@ -60,8 +58,8 @@ func (c *offerDatabase) FindOfferByName(ctx context.Context, offerName string) (
 
 // findAll offers
 func (c *offerDatabase) FindAllOffers(ctx context.Context,
-	pagination request.Pagination) (response.OffersAndPromotions, error) {
-
+	pagination request.Pagination,
+) (response.OffersAndPromotions, error) {
 	limit := pagination.Limit
 	offset := pagination.Offset
 
@@ -86,7 +84,6 @@ func (c *offerDatabase) FindAllOffers(ctx context.Context,
 
 // save a new offer
 func (c *offerDatabase) SaveOffer(ctx context.Context, offer request.Offer) error {
-
 	query := `INSERT INTO offers (name, description, discount_rate, start_date, end_date, offer_type, created_at, updated_at) 
 	VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())`
 	err := c.DB.Exec(query, offer.Name, offer.Description, offer.DiscountRate, offer.StartDate, offer.EndDate, offer.Type).Error
@@ -96,7 +93,6 @@ func (c *offerDatabase) SaveOffer(ctx context.Context, offer request.Offer) erro
 
 // save a new offer with image URLs
 func (c *offerDatabase) SaveOfferWithImages(ctx context.Context, offer request.Offer, imageURL, thumbnailURL string) error {
-
 	query := `INSERT INTO offers (name, description, discount_rate, start_date, end_date, offer_type, image, thumbnail, created_at, updated_at) 
 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())`
 	err := c.DB.Exec(query, offer.Name, offer.Description, offer.DiscountRate, offer.StartDate, offer.EndDate, offer.Type, imageURL, thumbnailURL).Error
@@ -106,7 +102,6 @@ func (c *offerDatabase) SaveOfferWithImages(ctx context.Context, offer request.O
 
 // update an existing offer
 func (c *offerDatabase) UpdateOffer(ctx context.Context, offer domain.Offer) error {
-
 	query := `UPDATE offers SET offer_name = $1, description = $2, 
 	discount_rate = $3, start_date = $4, end_date = $5 
 	WHERE id = $6`
@@ -118,7 +113,6 @@ func (c *offerDatabase) UpdateOffer(ctx context.Context, offer domain.Offer) err
 
 // Delete all product offers related to given offer id
 func (c *offerDatabase) DeleteAllProductOffersByOfferID(ctx context.Context, offerID string) error {
-
 	query := `DELETE FROM offer_products WHERE product_item_id = $1`
 	err := c.DB.Exec(query, offerID).Error
 
@@ -127,7 +121,6 @@ func (c *offerDatabase) DeleteAllProductOffersByOfferID(ctx context.Context, off
 
 // Delete all category offers related to given offer id
 func (c *offerDatabase) DeleteAllCategoryOffersByOfferID(ctx context.Context, offerID string) error {
-
 	query := `DELETE FROM offer_categories WHERE offer_id = $1`
 	err := c.DB.Exec(query, offerID).Error
 
@@ -136,7 +129,6 @@ func (c *offerDatabase) DeleteAllCategoryOffersByOfferID(ctx context.Context, of
 
 // delete an offer
 func (c *offerDatabase) DeleteOffer(ctx context.Context, offerID string) error {
-
 	query := `DELETE FROM offers WHERE id = $1`
 	err := c.DB.Exec(query, offerID).Error
 
@@ -145,8 +137,8 @@ func (c *offerDatabase) DeleteOffer(ctx context.Context, offerID string) error {
 
 // find offer_category by category_id (for mainly checking this category have an offer existing or not)
 func (c *offerDatabase) FindOfferCategoryCategoryID(ctx context.Context,
-	categoryID string) (offerCategory domain.OfferCategory, err error) {
-
+	categoryID string,
+) (offerCategory domain.OfferCategory, err error) {
 	query := `SELECT * FROM offer_categories WHERE  category_id = ?`
 	err = c.DB.Raw(query, categoryID).Scan(&offerCategory).Error
 
@@ -155,8 +147,8 @@ func (c *offerDatabase) FindOfferCategoryCategoryID(ctx context.Context,
 
 // find all offer_category
 func (c *offerDatabase) FindAllOfferCategories(ctx context.Context,
-	pagination request.Pagination) (offerCategories []response.OfferCategory, err error) {
-
+	pagination request.Pagination,
+) (offerCategories []response.OfferCategory, err error) {
 	query := `SELECT oc.id AS offer_category_id, oc.category_id,c.name AS category_name, 
 	oc.offer_id, o.name AS offer_name, o.discount_rate 
 	FROM offer_categories oc INNER JOIN categories c ON c.id = oc.category_id 
@@ -169,17 +161,17 @@ func (c *offerDatabase) FindAllOfferCategories(ctx context.Context,
 
 // save a new offer for category
 func (c *offerDatabase) SaveCategoryOffer(ctx context.Context,
-	categoryOffer request.OfferCategory) (categoryOfferID string, err error) {
-
-	query := `INSERT INTO offer_categories (offer_id,category_id) VALUES ($1, $2) RETURNING id`
-	err = c.DB.Raw(query, categoryOffer.OfferID, categoryOffer.CategoryID).Scan(&categoryOfferID).Error
+	categoryOffer request.OfferCategory,
+) (categoryOfferID string, err error) {
+	categoryOfferID = domain.NewID(domain.PrefixOfferCategory)
+	query := `INSERT INTO offer_categories (id, offer_id, category_id) VALUES ($1, $2, $3) RETURNING id`
+	err = c.DB.Raw(query, categoryOfferID, categoryOffer.OfferID, categoryOffer.CategoryID).Scan(&categoryOfferID).Error
 
 	return
 }
 
 // remove offer_category
 func (c *offerDatabase) DeleteCategoryOffer(ctx context.Context, categoryOfferID string) error {
-
 	query := `DELETE FROM offer_categories WHERE id = $1 `
 	err := c.DB.Exec(query, categoryOfferID).Error
 
@@ -188,7 +180,6 @@ func (c *offerDatabase) DeleteCategoryOffer(ctx context.Context, categoryOfferID
 
 // update offer_category
 func (c *offerDatabase) UpdateCategoryOffer(ctx context.Context, categoryOfferID, offerID string) error {
-
 	query := `UPDATE offer_categories SET offer_id = $1 WHERE id = $2`
 	err := c.DB.Exec(query, offerID, categoryOfferID).Error
 
@@ -197,8 +188,8 @@ func (c *offerDatabase) UpdateCategoryOffer(ctx context.Context, categoryOfferID
 
 // find product_offer with product_id
 func (c *offerDatabase) FindOfferProductByProductID(ctx context.Context,
-	productItemID string) (offerProduct domain.OfferProduct, err error) {
-
+	productItemID string,
+) (offerProduct domain.OfferProduct, err error) {
 	query := `SELECT op.* FROM offer_products op 
 	INNER JOIN promotions p ON op.offer_id = p.id 
 	WHERE op.product_item_id = ? AND op.is_active = true 
@@ -211,8 +202,8 @@ func (c *offerDatabase) FindOfferProductByProductID(ctx context.Context,
 
 // find all offer_products
 func (c *offerDatabase) FindAllOfferProducts(ctx context.Context,
-	pagination request.Pagination) (offerProducts []response.OfferProduct, err error) {
-
+	pagination request.Pagination,
+) (offerProducts []response.OfferProduct, err error) {
 	query := `SELECT op.id AS offer_product_id, op.product_id,p.name,op.offer_id,o.name, o.discount_rate  
 	FROM offer_products op INNER JOIN products p ON p.id = op.product_id 
 	INNER JOIN offers o ON o.id = op.offer_id`
@@ -223,8 +214,8 @@ func (c *offerDatabase) FindAllOfferProducts(ctx context.Context,
 
 // save a offer for product
 func (c *offerDatabase) SaveOfferProduct(ctx context.Context,
-	offerProduct domain.OfferProduct) (productOfferId string, err error) {
-
+	offerProduct domain.OfferProduct,
+) (productOfferId string, err error) {
 	// Check if the promotion exists
 	var promotionExists int64
 	checkOfferQuery := `SELECT COUNT(id) FROM promotions WHERE id = $1`
@@ -247,15 +238,14 @@ func (c *offerDatabase) SaveOfferProduct(ctx context.Context,
 		return "", err
 	}
 
-	query := `INSERT INTO offer_products (offer_id, product_item_id) VALUES ($1,$2)  RETURNING id`
-	err = c.DB.Raw(query, offerProduct.OfferID, offerProduct.ProductItemID).Scan(&productOfferId).Error
+	query := `INSERT INTO offer_products (id, offer_id, product_item_id) VALUES ($1, $2, $3)  RETURNING id`
+	err = c.DB.Raw(query, domain.NewID(domain.PrefixOfferProduct), offerProduct.OfferID, offerProduct.ProductItemID).Scan(&productOfferId).Error
 
 	return
 }
 
 // delete offer_products
 func (c *offerDatabase) DeleteOfferProduct(ctx context.Context, productOfferID string) error {
-
 	query := `DELETE FROM offer_products WHERE id = $1`
 	err := c.DB.Exec(query, productOfferID).Error
 
@@ -264,7 +254,6 @@ func (c *offerDatabase) DeleteOfferProduct(ctx context.Context, productOfferID s
 
 // update offer_products
 func (c *offerDatabase) UpdateOfferProduct(ctx context.Context, productOfferID, offerID string) error {
-
 	query := `UPDATE offer_products SET offer_id = $1 WHERE id = $1`
 	err := c.DB.Exec(query, offerID, productOfferID).Error
 
@@ -273,7 +262,6 @@ func (c *offerDatabase) UpdateOfferProduct(ctx context.Context, productOfferID, 
 
 // Update product discount price by check given category offer id
 func (c *offerDatabase) UpdateProductsDiscountByCategoryOfferID(ctx context.Context, categoryOfferID string) error {
-
 	query := `UPDATE products p SET discount_price = (price * (100 - o.discount_rate))/100 
 	FROM offer_categories oc 
 	INNER JOIN offers o ON o.id = oc.offer_id 
@@ -285,7 +273,6 @@ func (c *offerDatabase) UpdateProductsDiscountByCategoryOfferID(ctx context.Cont
 
 // Remove product discount price by check given category offer id
 func (c *offerDatabase) RemoveProductsDiscountByCategoryOfferID(ctx context.Context, categoryOfferID string) error {
-
 	query := `UPDATE products p SET discount_price = 0 
 	FROM offer_categories oc 
 	INNER JOIN offers o ON o.id = oc.offer_id 
@@ -297,8 +284,8 @@ func (c *offerDatabase) RemoveProductsDiscountByCategoryOfferID(ctx context.Cont
 
 // Update product items discount price by check given category offer id
 func (c *offerDatabase) UpdateProductItemsDiscountByCategoryOfferID(ctx context.Context,
-	categoryOfferID string) error {
-
+	categoryOfferID string,
+) error {
 	query := `UPDATE product_items AS pi SET discount_price = (pi.price * (100 - o.discount_rate))/100 
 	FROM offer_categories oc 
 	INNER JOIN products p ON p.category_id = oc.category_id
@@ -311,8 +298,8 @@ func (c *offerDatabase) UpdateProductItemsDiscountByCategoryOfferID(ctx context.
 
 // Remove product items discount price by check given category offer id
 func (c *offerDatabase) RemoveProductItemsDiscountByCategoryOfferID(ctx context.Context,
-	categoryOfferID string) error {
-
+	categoryOfferID string,
+) error {
 	query := `UPDATE product_items AS pi SET discount_price = 0 
 	FROM offer_categories oc 
 	INNER JOIN products p ON p.category_id = oc.category_id
@@ -325,7 +312,6 @@ func (c *offerDatabase) RemoveProductItemsDiscountByCategoryOfferID(ctx context.
 
 // Recalculate all product discount price by check given product offer id
 func (c *offerDatabase) ApplyOfferToProductItem(ctx context.Context, productOfferID string) error {
-
 	query := `insert into offer_products (offer_id, product_id)`
 	err := c.DB.Exec(query, productOfferID).Error
 	return err
@@ -333,7 +319,6 @@ func (c *offerDatabase) ApplyOfferToProductItem(ctx context.Context, productOffe
 
 // Recalculate all product discount price by check given product offer id
 func (c *offerDatabase) RemoveProductsDiscountByProductOfferID(ctx context.Context, productOfferID string) error {
-
 	query := `UPDATE products p SET discount_price = (p.price * (100 - o.discount_rate))/100 
 	FROM offer_products op
 	INNER JOIN  offers o ON op.offer_id = o.id 
@@ -345,7 +330,6 @@ func (c *offerDatabase) RemoveProductsDiscountByProductOfferID(ctx context.Conte
 
 // Remove  product items discount price by given product offer id
 func (c *offerDatabase) UpdateProductItemsDiscountByProductOfferID(ctx context.Context, productOfferID string) error {
-
 	query := `UPDATE product_items pi SET discount_price = 0 
 	FROM offer_products op
 	INNER JOIN offers o ON o.id = op.offer_id  
@@ -357,7 +341,6 @@ func (c *offerDatabase) UpdateProductItemsDiscountByProductOfferID(ctx context.C
 
 // Recalculate all product items discount price by given product offer id
 func (c *offerDatabase) RemoveProductItemsDiscountByProductOfferID(ctx context.Context, productOfferID string) error {
-
 	query := `UPDATE product_items pi SET discount_price = 0 
 	FROM offer_products op
 	INNER JOIN offers o ON o.id = op.offer_id  
@@ -368,7 +351,6 @@ func (c *offerDatabase) RemoveProductItemsDiscountByProductOfferID(ctx context.C
 }
 
 func (c *offerDatabase) ApplyOfferToShop(ctx context.Context, adminID string, shopID string, body request.ApplyOfferToShop) error {
-
 	// Insert into shop_offers with shop_id
 	query := `INSERT INTO shop_offers (id, offer_id, shop_id, admin_id, start_date, end_date, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())`
 	err := c.DB.Exec(query, domain.NewID(domain.PrefixShopOffer), body.PromotionID, shopID, adminID, body.StartDate.Time, body.EndDate.Time).Error

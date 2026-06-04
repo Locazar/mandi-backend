@@ -2,6 +2,7 @@
 -- the current backend. Existing data is preserved by converting identifiers to
 -- strings in place and by adding the missing tables/columns used by current code.
 
+-- Drop all foreign key constraints safely
 DO $$
 DECLARE
     rec RECORD;
@@ -12,7 +13,12 @@ BEGIN
         WHERE contype = 'f'
           AND connamespace = 'public'::regnamespace
     LOOP
-        EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS %I', rec.table_name, rec.conname);
+        BEGIN
+            EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS %I', rec.table_name, rec.conname);
+        EXCEPTION WHEN OTHERS THEN
+            -- Silently skip constraints that can't be dropped
+            RAISE DEBUG 'Failed to drop constraint % on table %: %', rec.conname, rec.table_name, SQLERRM;
+        END;
     END LOOP;
 END $$;
 
@@ -64,109 +70,134 @@ BEGIN
     END IF;
 END $$;
 
-SELECT _legacy_convert_to_varchar('users', 'id');
-SELECT _legacy_convert_to_varchar('admins', 'id');
-SELECT _legacy_convert_to_varchar('countries', 'id');
-SELECT _legacy_convert_to_varchar('addresses', 'id');
-SELECT _legacy_convert_to_varchar('addresses', 'user_id');
-SELECT _legacy_convert_to_varchar('addresses', 'country_id');
-SELECT _legacy_convert_to_varchar('user_addresses', 'id');
-SELECT _legacy_convert_to_varchar('user_addresses', 'user_id');
-SELECT _legacy_convert_to_varchar('user_addresses', 'address_id');
-SELECT _legacy_convert_to_varchar('payment_methods', 'id');
-SELECT _legacy_convert_to_varchar('shop_details', 'id');
-SELECT _legacy_convert_to_varchar('shop_details', 'admin_id');
-SELECT _legacy_convert_to_varchar('departments', 'id');
-SELECT _legacy_convert_to_varchar('categories', 'id');
-SELECT _legacy_convert_to_varchar('categories', 'department_id');
-SELECT _legacy_convert_to_varchar('sub_categories', 'id');
-SELECT _legacy_convert_to_varchar('sub_categories', 'department_id');
-SELECT _legacy_convert_to_varchar('sub_categories', 'category_id');
-SELECT _legacy_convert_to_varchar('brands', 'id');
-SELECT _legacy_convert_to_varchar('variations', 'id');
-SELECT _legacy_convert_to_varchar('variations', 'sub_category_id');
-SELECT _legacy_convert_to_varchar('variation_options', 'id');
-SELECT _legacy_convert_to_varchar('variation_options', 'variation_id');
-SELECT _legacy_convert_to_varchar('sub_type_attributes', 'id');
-SELECT _legacy_convert_to_varchar('sub_type_attributes', 'sub_category_id');
-SELECT _legacy_convert_to_varchar('sub_type_attribute_options', 'id');
-SELECT _legacy_convert_to_varchar('sub_type_attribute_options', 'sub_type_attribute_id');
-SELECT _legacy_convert_to_varchar('products', 'id');
-SELECT _legacy_convert_to_varchar('products', 'category_id');
-SELECT _legacy_convert_to_varchar('products', 'department_id');
-SELECT _legacy_convert_to_varchar('products', 'shop_id');
-SELECT _legacy_convert_to_varchar('product_items', 'id');
-SELECT _legacy_convert_to_varchar('product_items', 'sub_category_id');
-SELECT _legacy_convert_to_varchar('product_items', 'category_id');
-SELECT _legacy_convert_to_varchar('product_items', 'department_id');
-SELECT _legacy_convert_to_varchar('product_images', 'id');
-SELECT _legacy_convert_to_varchar('product_images', 'product_item_id');
-SELECT _legacy_convert_to_varchar('product_images', 'shop_id');
-SELECT _legacy_convert_to_varchar('product_images', 'product_id');
-SELECT _legacy_convert_to_varchar('product_configurations', 'product_item_id');
-SELECT _legacy_convert_to_varchar('product_configurations', 'variation_option_id');
-SELECT _legacy_convert_to_varchar('category_images', 'id');
-SELECT _legacy_convert_to_varchar('category_images', 'category_id');
-SELECT _legacy_convert_to_varchar('offers', 'id');
-SELECT _legacy_convert_to_varchar('offer_categories', 'id');
-SELECT _legacy_convert_to_varchar('offer_categories', 'offer_id');
-SELECT _legacy_convert_to_varchar('offer_categories', 'category_id');
-SELECT _legacy_convert_to_varchar('offer_products', 'id');
-SELECT _legacy_convert_to_varchar('offer_products', 'offer_id');
-SELECT _legacy_convert_to_varchar('offer_products', 'product_id');
-SELECT _legacy_convert_to_varchar('offer_products', 'product_item_id');
-SELECT _legacy_convert_to_varchar('coupons', 'coupon_id');
-SELECT _legacy_convert_to_varchar('coupon_uses', 'coupon_uses_id');
-SELECT _legacy_convert_to_varchar('coupon_uses', 'coupon_id');
-SELECT _legacy_convert_to_varchar('coupon_uses', 'user_id');
-SELECT _legacy_convert_to_varchar('wallets', 'id');
-SELECT _legacy_convert_to_varchar('wallets', 'user_id');
-SELECT _legacy_convert_to_varchar('transactions', 'transaction_id');
-SELECT _legacy_convert_to_varchar('transactions', 'wallet_id');
-SELECT _legacy_convert_to_varchar('carts', 'id');
-SELECT _legacy_convert_to_varchar('carts', 'user_id');
-SELECT _legacy_convert_to_varchar('carts', 'applied_coupon_id');
-SELECT _legacy_convert_to_varchar('cart_items', 'id');
-SELECT _legacy_convert_to_varchar('cart_items', 'cart_id');
-SELECT _legacy_convert_to_varchar('cart_items', 'product_item_id');
-SELECT _legacy_convert_to_varchar('wish_lists', 'id');
-SELECT _legacy_convert_to_varchar('wish_lists', 'user_id');
-SELECT _legacy_convert_to_varchar('wish_lists', 'shop_id');
-SELECT _legacy_convert_to_varchar('wish_lists', 'admin_id');
-SELECT _legacy_convert_to_varchar('wish_lists', 'product_item_id');
-SELECT _legacy_convert_to_varchar('shop_orders', 'id');
-SELECT _legacy_convert_to_varchar('shop_orders', 'user_id');
-SELECT _legacy_convert_to_varchar('shop_orders', 'address_id');
-SELECT _legacy_convert_to_varchar('shop_orders', 'payment_method_id');
-SELECT _legacy_convert_to_varchar('shop_orders', 'shop_id');
-SELECT _legacy_convert_to_varchar('order_lines', 'id');
-SELECT _legacy_convert_to_varchar('order_lines', 'product_item_id');
-SELECT _legacy_convert_to_varchar('order_lines', 'shop_order_id');
-SELECT _legacy_convert_to_varchar('order_returns', 'id');
-SELECT _legacy_convert_to_varchar('order_returns', 'shop_order_id');
-SELECT _legacy_convert_to_varchar('order_statuses', 'id');
-SELECT _legacy_convert_to_varchar('order_statuses', 'shop_order_id');
-SELECT _legacy_convert_to_varchar('otp_sessions', 'id');
-SELECT _legacy_convert_to_varchar('otp_sessions', 'user_id');
-SELECT _legacy_convert_to_varchar('otp_sessions', 'admin_id');
-SELECT _legacy_convert_to_varchar('refresh_sessions', 'user_id');
-SELECT _legacy_convert_to_varchar('refresh_sessions', 'admin_id');
-SELECT _legacy_convert_to_varchar('advertisements', 'id');
-SELECT _legacy_convert_to_varchar('advertisements', 'admin_id');
-SELECT _legacy_convert_to_varchar('notifications', 'id');
-SELECT _legacy_convert_to_varchar('notifications', 'user_id');
-SELECT _legacy_convert_to_varchar('notifications', 'admin_id');
-SELECT _legacy_convert_to_varchar('notifications', 'shop_id');
-SELECT _legacy_convert_to_varchar('notifications', 'product_id');
-SELECT _legacy_convert_to_varchar('notifications', 'offer_id');
-SELECT _legacy_convert_to_varchar('shop_verifications', 'id');
-SELECT _legacy_convert_to_varchar('shop_verifications', 'shop_id');
-SELECT _legacy_convert_to_varchar('shop_verifications', 'admin_id');
-SELECT _legacy_convert_to_varchar('shop_verification_histories', 'id');
-SELECT _legacy_convert_to_varchar('shop_verification_histories', 'shop_id');
-SELECT _legacy_convert_to_varchar('shop_verification_histories', 'admin_id');
+CREATE OR REPLACE FUNCTION _legacy_safe_convert(p_table TEXT, p_column TEXT, p_length INTEGER DEFAULT 32)
+RETURNS VOID
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    -- First check if table exists
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.tables 
+        WHERE table_schema = 'public' AND table_name = p_table
+    ) THEN
+        RETURN;
+    END IF;
+    
+    -- Then check if column exists
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' AND table_name = p_table AND column_name = p_column
+    ) THEN
+        RETURN;
+    END IF;
+    
+    -- Now do the conversion
+    PERFORM _legacy_convert_to_varchar(p_table, p_column, p_length);
+END $$;
 
-DROP FUNCTION IF EXISTS _legacy_convert_to_varchar(TEXT, TEXT, INTEGER);
+SELECT _legacy_safe_convert('users', 'id');
+SELECT _legacy_safe_convert('admins', 'id');
+SELECT _legacy_safe_convert('countries', 'id');
+SELECT _legacy_safe_convert('addresses', 'id');
+SELECT _legacy_safe_convert('addresses', 'user_id');
+SELECT _legacy_safe_convert('addresses', 'country_id');
+SELECT _legacy_safe_convert('user_addresses', 'id');
+SELECT _legacy_safe_convert('user_addresses', 'user_id');
+SELECT _legacy_safe_convert('user_addresses', 'address_id');
+SELECT _legacy_safe_convert('payment_methods', 'id');
+SELECT _legacy_safe_convert('shop_details', 'id');
+SELECT _legacy_safe_convert('shop_details', 'admin_id');
+SELECT _legacy_safe_convert('departments', 'id');
+SELECT _legacy_safe_convert('categories', 'id');
+SELECT _legacy_safe_convert('categories', 'department_id');
+SELECT _legacy_safe_convert('sub_categories', 'id');
+SELECT _legacy_safe_convert('sub_categories', 'department_id');
+SELECT _legacy_safe_convert('sub_categories', 'category_id');
+SELECT _legacy_safe_convert('brands', 'id');
+SELECT _legacy_safe_convert('variations', 'id');
+SELECT _legacy_safe_convert('variations', 'sub_category_id');
+SELECT _legacy_safe_convert('variation_options', 'id');
+SELECT _legacy_safe_convert('variation_options', 'variation_id');
+SELECT _legacy_safe_convert('sub_type_attributes', 'id');
+SELECT _legacy_safe_convert('sub_type_attributes', 'sub_category_id');
+SELECT _legacy_safe_convert('sub_type_attribute_options', 'id');
+SELECT _legacy_safe_convert('sub_type_attribute_options', 'sub_type_attribute_id');
+SELECT _legacy_safe_convert('products', 'id');
+SELECT _legacy_safe_convert('products', 'category_id');
+SELECT _legacy_safe_convert('products', 'department_id');
+SELECT _legacy_safe_convert('products', 'shop_id');
+SELECT _legacy_safe_convert('product_items', 'id');
+SELECT _legacy_safe_convert('product_items', 'sub_category_id');
+SELECT _legacy_safe_convert('product_items', 'category_id');
+SELECT _legacy_safe_convert('product_items', 'department_id');
+SELECT _legacy_safe_convert('product_images', 'id');
+SELECT _legacy_safe_convert('product_images', 'product_item_id');
+SELECT _legacy_safe_convert('product_images', 'shop_id');
+SELECT _legacy_safe_convert('product_images', 'product_id');
+SELECT _legacy_safe_convert('product_configurations', 'product_item_id');
+SELECT _legacy_safe_convert('product_configurations', 'variation_option_id');
+SELECT _legacy_safe_convert('category_images', 'id');
+SELECT _legacy_safe_convert('category_images', 'category_id');
+SELECT _legacy_safe_convert('offers', 'id');
+SELECT _legacy_safe_convert('offer_categories', 'id');
+SELECT _legacy_safe_convert('offer_categories', 'offer_id');
+SELECT _legacy_safe_convert('offer_categories', 'category_id');
+SELECT _legacy_safe_convert('offer_products', 'id');
+SELECT _legacy_safe_convert('offer_products', 'offer_id');
+SELECT _legacy_safe_convert('offer_products', 'product_id');
+SELECT _legacy_safe_convert('offer_products', 'product_item_id');
+SELECT _legacy_safe_convert('coupons', 'coupon_id');
+SELECT _legacy_safe_convert('coupon_uses', 'coupon_uses_id');
+SELECT _legacy_safe_convert('coupon_uses', 'coupon_id');
+SELECT _legacy_safe_convert('coupon_uses', 'user_id');
+SELECT _legacy_safe_convert('wallets', 'id');
+SELECT _legacy_safe_convert('wallets', 'user_id');
+SELECT _legacy_safe_convert('transactions', 'transaction_id');
+SELECT _legacy_safe_convert('transactions', 'wallet_id');
+SELECT _legacy_safe_convert('carts', 'id');
+SELECT _legacy_safe_convert('carts', 'user_id');
+SELECT _legacy_safe_convert('carts', 'applied_coupon_id');
+SELECT _legacy_safe_convert('cart_items', 'id');
+SELECT _legacy_safe_convert('cart_items', 'cart_id');
+SELECT _legacy_safe_convert('cart_items', 'product_item_id');
+SELECT _legacy_safe_convert('wish_lists', 'id');
+SELECT _legacy_safe_convert('wish_lists', 'user_id');
+SELECT _legacy_safe_convert('wish_lists', 'shop_id');
+SELECT _legacy_safe_convert('wish_lists', 'admin_id');
+SELECT _legacy_safe_convert('wish_lists', 'product_item_id');
+SELECT _legacy_safe_convert('shop_orders', 'id');
+SELECT _legacy_safe_convert('shop_orders', 'user_id');
+SELECT _legacy_safe_convert('shop_orders', 'address_id');
+SELECT _legacy_safe_convert('shop_orders', 'payment_method_id');
+SELECT _legacy_safe_convert('shop_orders', 'shop_id');
+SELECT _legacy_safe_convert('order_lines', 'id');
+SELECT _legacy_safe_convert('order_lines', 'product_item_id');
+SELECT _legacy_safe_convert('order_lines', 'shop_order_id');
+SELECT _legacy_safe_convert('order_returns', 'id');
+SELECT _legacy_safe_convert('order_returns', 'shop_order_id');
+SELECT _legacy_safe_convert('order_statuses', 'id');
+SELECT _legacy_safe_convert('order_statuses', 'shop_order_id');
+SELECT _legacy_safe_convert('otp_sessions', 'id');
+SELECT _legacy_safe_convert('otp_sessions', 'user_id');
+SELECT _legacy_safe_convert('otp_sessions', 'admin_id');
+SELECT _legacy_safe_convert('refresh_sessions', 'user_id');
+SELECT _legacy_safe_convert('refresh_sessions', 'admin_id');
+SELECT _legacy_safe_convert('advertisements', 'id');
+SELECT _legacy_safe_convert('advertisements', 'admin_id');
+SELECT _legacy_safe_convert('notifications', 'id');
+SELECT _legacy_safe_convert('notifications', 'user_id');
+SELECT _legacy_safe_convert('notifications', 'admin_id');
+SELECT _legacy_safe_convert('notifications', 'shop_id');
+SELECT _legacy_safe_convert('notifications', 'product_id');
+SELECT _legacy_safe_convert('notifications', 'offer_id');
+SELECT _legacy_safe_convert('shop_verifications', 'id');
+SELECT _legacy_safe_convert('shop_verifications', 'shop_id');
+SELECT _legacy_safe_convert('shop_verifications', 'admin_id');
+SELECT _legacy_safe_convert('shop_verification_histories', 'id');
+SELECT _legacy_safe_convert('shop_verification_histories', 'shop_id');
+SELECT _legacy_safe_convert('shop_verification_histories', 'admin_id');
+
+DROP FUNCTION IF EXISTS _legacy_safe_convert(TEXT, TEXT, INTEGER);
 
 CREATE OR REPLACE FUNCTION _legacy_ensure_text_id_default(p_table TEXT, p_column TEXT DEFAULT 'id')
 RETURNS VOID
@@ -176,6 +207,14 @@ DECLARE
     default_expr TEXT;
     seq_name TEXT;
 BEGIN
+    -- Check if table exists first
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.tables 
+        WHERE table_schema = 'public' AND table_name = p_table
+    ) THEN
+        RETURN;
+    END IF;
+    
     SELECT column_default
       INTO default_expr
       FROM information_schema.columns
@@ -197,75 +236,66 @@ BEGIN
     );
 END $$;
 
-ALTER TABLE users ADD COLUMN IF NOT EXISTS user_name VARCHAR(255);
-ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified BOOLEAN NOT NULL DEFAULT FALSE;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS date_of_birth DATE;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_used BOOLEAN NOT NULL DEFAULT FALSE;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
-
-UPDATE users
-SET is_active = CASE
-    WHEN block_status IS TRUE THEN FALSE
-    ELSE TRUE
-END
-WHERE is_active IS DISTINCT FROM CASE WHEN block_status IS TRUE THEN FALSE ELSE TRUE END;
-
-ALTER TABLE admins ADD COLUMN IF NOT EXISTS user_name VARCHAR(255);
-ALTER TABLE admins ADD COLUMN IF NOT EXISTS aadhaar_last4 VARCHAR(4);
-ALTER TABLE admins ADD COLUMN IF NOT EXISTS aadhaar_verified BOOLEAN NOT NULL DEFAULT FALSE;
-ALTER TABLE admins ADD COLUMN IF NOT EXISTS role VARCHAR(50) NOT NULL DEFAULT 'seller';
-ALTER TABLE admins ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
-
-UPDATE admins
-SET aadhaar_last4 = RIGHT(aadhar, 4)
-WHERE aadhaar_last4 IS NULL
-  AND aadhar IS NOT NULL
-  AND LENGTH(aadhar) >= 4;
-
-UPDATE admins a
-SET role = 'seller'
-WHERE a.role = 'super_admin'
-  AND (
-      COALESCE(a.verified_seller, FALSE) = TRUE
-      OR EXISTS (SELECT 1 FROM shop_details sd WHERE sd.admin_id = a.id)
-  );
-
-UPDATE shop_details sd
-SET admin_id = NULL
-WHERE sd.admin_id IS NOT NULL
-    AND NOT EXISTS (
-            SELECT 1
-            FROM admins a
-            WHERE a.id = sd.admin_id
-    );
-
+-- Safely add columns to users if the table exists
 DO $$
 BEGIN
-    IF EXISTS (
-        SELECT 1
-        FROM information_schema.tables
-        WHERE table_schema = 'public' AND table_name = 'shop_verifications'
-    ) THEN
-        EXECUTE '
-            DELETE FROM shop_verifications sv
-            USING (
-                SELECT ctid, ROW_NUMBER() OVER (PARTITION BY admin_id ORDER BY updated_at DESC, ctid DESC) AS rn
-                FROM shop_verifications
-            ) dup
-            WHERE sv.ctid = dup.ctid AND dup.rn > 1
-        ';
-        EXECUTE 'CREATE UNIQUE INDEX IF NOT EXISTS uidx_shop_verifications_admin_id ON shop_verifications (admin_id)';
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'users') THEN
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS user_name VARCHAR(255);
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified BOOLEAN NOT NULL DEFAULT FALSE;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS date_of_birth DATE;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_used BOOLEAN NOT NULL DEFAULT FALSE;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+
+        UPDATE users
+        SET is_active = CASE
+            WHEN block_status IS TRUE THEN FALSE
+            ELSE TRUE
+        END
+        WHERE is_active IS DISTINCT FROM CASE WHEN block_status IS TRUE THEN FALSE ELSE TRUE END;
     END IF;
 END $$;
 
-ALTER TABLE shop_details ADD COLUMN IF NOT EXISTS has_offers BOOLEAN NOT NULL DEFAULT FALSE;
-ALTER TABLE shop_details ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+-- Safely add columns to admins if the table exists
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'admins') THEN
+        ALTER TABLE admins ADD COLUMN IF NOT EXISTS user_name VARCHAR(255);
+        ALTER TABLE admins ADD COLUMN IF NOT EXISTS aadhaar_last4 VARCHAR(4);
+        ALTER TABLE admins ADD COLUMN IF NOT EXISTS aadhaar_verified BOOLEAN NOT NULL DEFAULT FALSE;
+        ALTER TABLE admins ADD COLUMN IF NOT EXISTS role VARCHAR(50) NOT NULL DEFAULT 'seller';
+        ALTER TABLE admins ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
 
-CREATE INDEX IF NOT EXISTS idx_users_deleted_at ON users (deleted_at);
-CREATE INDEX IF NOT EXISTS idx_admins_deleted_at ON admins (deleted_at);
-CREATE INDEX IF NOT EXISTS idx_shop_details_deleted_at ON shop_details (deleted_at);
+        UPDATE admins
+        SET aadhaar_last4 = RIGHT(aadhar, 4)
+        WHERE aadhaar_last4 IS NULL
+          AND aadhar IS NOT NULL
+          AND LENGTH(aadhar) >= 4;
+
+        UPDATE admins a
+        SET role = 'seller'
+        WHERE a.role = 'super_admin'
+          AND (
+              COALESCE(a.verified_seller, FALSE) = TRUE
+              OR EXISTS (SELECT 1 FROM shop_details sd WHERE sd.admin_id = a.id)
+          );
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'shop_details') THEN
+        UPDATE shop_details sd
+        SET admin_id = NULL
+        WHERE sd.admin_id IS NOT NULL
+            AND NOT EXISTS (
+                    SELECT 1
+                    FROM admins a
+                    WHERE a.id = sd.admin_id
+            );
+    END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS product_item_views (
     id              VARCHAR(32) PRIMARY KEY,
@@ -475,10 +505,16 @@ CREATE TABLE IF NOT EXISTS alert_templates (
     updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-ALTER TABLE alert_templates ADD COLUMN IF NOT EXISTS flow_key VARCHAR(100);
-
 CREATE INDEX IF NOT EXISTS idx_alert_templates_is_active ON alert_templates (is_active);
 CREATE INDEX IF NOT EXISTS idx_alert_templates_flow_key ON alert_templates (flow_key);
+
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'alert_templates') THEN
+        ALTER TABLE alert_templates ADD COLUMN IF NOT EXISTS flow_key VARCHAR(100);
+        CREATE INDEX IF NOT EXISTS idx_alert_templates_flow_key ON alert_templates (flow_key);
+    END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS seller_alert_logs (
     id         VARCHAR(32) PRIMARY KEY,

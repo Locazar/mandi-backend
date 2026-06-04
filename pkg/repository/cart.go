@@ -3,10 +3,11 @@ package repository
 import (
 	"context"
 
+	"gorm.io/gorm"
+
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
-	"gorm.io/gorm"
 )
 
 type cartDatabase struct {
@@ -21,7 +22,6 @@ func NewCartRepository(db *gorm.DB) interfaces.CartRepository {
 
 // find a cartItem
 func (c *cartDatabase) FindCartByUserID(ctx context.Context, userID string) (cart domain.Cart, err error) {
-
 	query := `SELECT * FROM carts WHERE user_id = ?`
 	err = c.DB.Raw(query, userID).Scan(&cart).Error
 
@@ -30,15 +30,14 @@ func (c *cartDatabase) FindCartByUserID(ctx context.Context, userID string) (car
 
 // save cart for user
 func (c *cartDatabase) SaveCart(ctx context.Context, userID string) (cartID string, err error) {
-
-	query := `INSERT INTO carts (user_id,total_price_amount_minor,total_price_currency) VALUES($1, $2, $3) RETURNING id`
-	err = c.DB.Raw(query, userID, 0, domain.CurrencyINR).Scan(&cartID).Error
+	cartID = domain.NewID(domain.PrefixCart)
+	query := `INSERT INTO carts (id, user_id, total_price_amount_minor, total_price_currency) VALUES($1, $2, $3, $4) RETURNING id`
+	err = c.DB.Raw(query, cartID, userID, 0, domain.CurrencyINR).Scan(&cartID).Error
 
 	return cartID, err
 }
 
 func (c *cartDatabase) UpdateCart(ctx context.Context, cartId string, discountAmount string, couponID string) error {
-
 	query := `UPDATE carts SET discount_amount_amount_minor = $1, discount_amount_currency = $2, applied_coupon_id = $3 WHERE id = $4`
 	err := c.DB.Exec(query, discountAmount, domain.CurrencyINR, couponID, cartId).Error
 
@@ -61,15 +60,14 @@ func (c *cartDatabase) FindCartItemByCartAndProductItemID(ctx context.Context, c
 }
 
 func (c *cartDatabase) SaveCartItem(ctx context.Context, cartId, productItemId string) error {
-
-	query := `INSERT INTO cart_items (cart_id, product_item_id, qty) VALUES ($1, $2, $3)`
-	err := c.DB.Exec(query, cartId, productItemId, 1).Error
+	cartItemID := domain.NewID(domain.PrefixCartItem)
+	query := `INSERT INTO cart_items (id, cart_id, product_item_id, qty) VALUES ($1, $2, $3, $4)`
+	err := c.DB.Exec(query, cartItemID, cartId, productItemId, 1).Error
 
 	return err
 }
 
 func (c *cartDatabase) DeleteCartItem(ctx context.Context, cartItemID string) error {
-
 	query := `DELETE FROM cart_items WHERE id = $1`
 	err := c.DB.Exec(query, cartItemID).Error
 
@@ -77,14 +75,12 @@ func (c *cartDatabase) DeleteCartItem(ctx context.Context, cartItemID string) er
 }
 
 func (c *cartDatabase) DeleteAllCartItemsByCartID(ctx context.Context, cartID string) error {
-
 	query := ` DELETE FROM cart_items WHERE cart_id = $1`
 	err := c.DB.Exec(query, cartID).Error
 	return err
 }
 
 func (c *cartDatabase) UpdateCartItemQty(ctx context.Context, cartItemId string, qty uint) error {
-
 	query := `UPDATE cart_items SET qty = $1 WHERE id = $2`
 	err := c.DB.Exec(query, qty, cartItemId).Error
 
@@ -92,7 +88,6 @@ func (c *cartDatabase) UpdateCartItemQty(ctx context.Context, cartItemId string,
 }
 
 func (c *cartDatabase) FindAllCartItemsByCartID(ctx context.Context, cartID string) (cartItems []response.CartItem, err error) {
-
 	// get the cartItem of all user with subtotal
 	query := `SELECT ci.product_item_id, p.name AS product_name, ci.qty,pi.price ,
 	 pi.discount_price,
@@ -106,7 +101,6 @@ func (c *cartDatabase) FindAllCartItemsByCartID(ctx context.Context, cartID stri
 }
 
 func (c *cartDatabase) IsCartValidForOrder(ctx context.Context, userID string) (valid bool, err error) {
-
 	var outOfStockExist bool
 	query := `SELECT 
 		EXISTS( SELECT DISTINCT pi.id FROM product_items pi 

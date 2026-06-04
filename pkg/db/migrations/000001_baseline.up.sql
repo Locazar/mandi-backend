@@ -1,3 +1,11 @@
+-- Drop existing triggers to allow schema changes
+DROP TRIGGER IF EXISTS update_cart_total_price ON cart_items CASCADE;
+DROP TRIGGER IF EXISTS update_product_quantity ON order_lines CASCADE;
+DROP TRIGGER IF EXISTS update_product_qty_on_order_return ON shop_orders CASCADE;
+DROP FUNCTION IF EXISTS update_cart_total_price() CASCADE;
+DROP FUNCTION IF EXISTS update_product_quantity() CASCADE;
+DROP FUNCTION IF EXISTS update_product_quantity_on_return() CASCADE;
+
 -- 000001_baseline.up.sql
 -- Full corrected end-state schema for mandi-backend.
 -- String PKs (typed-prefix VARCHAR(32)), Money columns, CHECK enums,
@@ -1289,3 +1297,74 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_action      ON audit_logs (action);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_entity_type ON audit_logs (entity_type);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_entity_id   ON audit_logs (entity_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at  ON audit_logs (created_at DESC);
+
+-- Recreate trigger functions
+CREATE OR REPLACE FUNCTION update_cart_total_price() 
+RETURNS TRIGGER AS $$ 
+BEGIN 
+IF (TG_OP = 'DELETE') THEN
+	UPDATE carts c
+		SET total_price_amount_minor = (
+			SELECT COALESCE ( SUM ( CASE WHEN pi.discount_price > 0 THEN pi.discount_price * ci.qty ELSE pi.price * ci.qty END), 0)::bigint
+			FROM cart_items ci INNER JOIN product_items pi ON ci.product_item_id = pi.id
+			WHERE ci.cart_id = OLD.cart_id
+		), applied_coupon_id = 0, discount_amount_amount_minor = 0
+	WHERE c.id = OLD.cart_id;
+	RETURN NEW;
+ELSE
+	UPDATE carts c
+		SET total_price_amount_minor = (
+			SELECT SUM (CASE WHEN pi.discount_price > 0 THEN pi.discount_price * ci.qty ELSE pi.price * ci.qty END)
+			FROM cart_items ci INNER JOIN product_items pi ON ci.product_item_id = pi.id
+			WHERE ci.cart_id = NEW.cart_id
+		), applied_coupon_id = 0, discount_amount_amount_minor = 0
+		WHERE c.id = NEW.cart_id;
+
+END IF; 
+RETURN NEW; 
+END; 
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION update_product_quantity() 
+RETURNS TRIGGER AS $$ 
+BEGIN 
+	IF (TG_OP = 'INSERT') THEN 
+		UPDATE product_items pi 
+		SET qty_in_stock = pi.qty_in_stock - NEW.qty 
+		WHERE pi.id = NEW.product_item_id; 
+
+	END IF; 
+	RETURN NEW; 
+END; 
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION update_product_quantity_on_return()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF (TG_OP = 'UPDATE' AND NEW.status = 'order returned') THEN 
+	UPDATE product_items pi
+	SET qty_in_stock = pi.qty_in_stock + ol.qty
+	FROM order_lines ol
+	WHERE pi.id = ol.product_item_id
+	AND ol.shop_order_id = NEW.id;
+
+	RETURN NEW;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Recreate triggers
+CREATE OR REPLACE TRIGGER update_cart_total_price
+AFTER INSERT OR UPDATE OR DELETE ON cart_items
+FOR EACH ROW EXECUTE FUNCTION update_cart_total_price();
+
+CREATE OR REPLACE TRIGGER update_product_quantity 
+AFTER INSERT ON order_lines 
+FOR EACH ROW EXECUTE FUNCTION update_product_quantity();
+
+CREATE OR REPLACE TRIGGER update_product_qty_on_order_return
+AFTER UPDATE ON shop_orders
+FOR EACH ROW
+EXECUTE FUNCTION update_product_quantity_on_return();
