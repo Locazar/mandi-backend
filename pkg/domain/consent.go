@@ -21,8 +21,6 @@ type UserConsent struct {
 }
 
 func (m *UserConsent) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixUserConsent)
-	}
+	m.ID = NewID(PrefixUserConsent)
 	return nil
 }
