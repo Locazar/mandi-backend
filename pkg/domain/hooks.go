@@ -1,488 +1,349 @@
 package domain
 
 import (
-	"fmt"
-	"time"
-
 	"gorm.io/gorm"
 )
 
 // BeforeCreate hooks assign IDs to persisted models before the first INSERT.
-// Most entities use typed-prefix IDs, while legacy-compatible tables can use
-// a different format when their database schema requires it.
+// Every hook assigns unconditionally — the backend always owns ID generation.
+// Client-supplied IDs are silently overwritten; this is the security backstop.
 
 func (m *User) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixUser)
-	}
+	m.ID = NewID(PrefixUser)
 	return nil
 }
 
 func (m *Admin) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixAdmin)
-	}
+	m.ID = NewID(PrefixAdmin)
 	return nil
 }
 
 func (m *UserAddress) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixUserAddress)
-	}
+	m.ID = NewID(PrefixUserAddress)
 	return nil
 }
 
 func (m *Address) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixAddress)
-	}
+	m.ID = NewID(PrefixAddress)
 	return nil
 }
 
 func (m *Country) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixCountry)
-	}
+	m.ID = NewID(PrefixCountry)
 	return nil
 }
 
 func (m *WishList) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixWishList)
-	}
+	m.ID = NewID(PrefixWishList)
 	return nil
 }
 
 func (m *Cart) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixCart)
-	}
+	m.ID = NewID(PrefixCart)
 	return nil
 }
 
 func (m *CartItem) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixCartItem)
-	}
+	m.ID = NewID(PrefixCartItem)
 	return nil
 }
 
 func (m *Wallet) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixWallet)
-	}
+	m.ID = NewID(PrefixWallet)
 	return nil
 }
 
 func (m *Transaction) BeforeCreate(*gorm.DB) error {
-	if m.TransactionID == "" {
-		m.TransactionID = NewID(PrefixTransaction)
-	}
+	m.TransactionID = NewID(PrefixTransaction)
 	return nil
 }
 
 func (m *ShopVerification) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixShopVerif)
-	}
+	m.ID = NewID(PrefixShopVerif)
 	return nil
 }
 
 func (m *ShopVerificationHistory) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixShopVerifHist)
-	}
+	m.ID = NewID(PrefixShopVerifHist)
 	return nil
 }
 
 func (m *Advertisement) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixAdvertisement)
-	}
+	m.ID = NewID(PrefixAdvertisement)
 	return nil
 }
 
 func (m *SubTypeAttributes) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixSubTypeAttr)
-	}
+	m.ID = NewID(PrefixSubTypeAttr)
 	return nil
 }
 
 func (m *SubTypeAttributeOptions) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixSubTypeAttrOpt)
-	}
+	m.ID = NewID(PrefixSubTypeAttrOpt)
 	return nil
 }
 
 func (m *CategoryImage) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixCategoryImage)
-	}
+	m.ID = NewID(PrefixCategoryImage)
 	return nil
 }
 
 func (m *PaymentMethod) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixPaymentMethod)
-	}
+	m.ID = NewID(PrefixPaymentMethod)
 	return nil
 }
 
 func (m *ShopOrder) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixOrder)
-	}
+	m.ID = NewID(PrefixOrder)
 	return nil
 }
 
 func (m *OrderLine) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixOrderLine)
-	}
+	m.ID = NewID(PrefixOrderLine)
 	return nil
 }
 
 func (m *OrderReturn) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixOrderReturn)
-	}
+	m.ID = NewID(PrefixOrderReturn)
 	return nil
 }
 
 func (m *Product) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixProduct)
-	}
+	m.ID = NewID(PrefixProduct)
 	return nil
 }
 
 func (m *ProductItem) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixProductItem)
-	}
+	m.ID = NewID(PrefixProductItem)
 	return nil
 }
 
 func (m *ProductItemImage) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixProductImage)
-	}
+	m.ID = NewID(PrefixProductImage)
 	return nil
 }
 
 func (m *Department) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixDepartment)
-	}
+	m.ID = NewID(PrefixDepartment)
 	return nil
 }
 
 func (m *Category) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixCategory)
-	}
+	m.ID = NewID(PrefixCategory)
 	return nil
 }
 
 func (m *SubCategory) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixSubCategory)
-	}
+	m.ID = NewID(PrefixSubCategory)
 	return nil
 }
 
 func (m *Brand) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixBrand)
-	}
+	m.ID = NewID(PrefixBrand)
 	return nil
 }
 
 func (m *Variation) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixVariation)
-	}
+	m.ID = NewID(PrefixVariation)
 	return nil
 }
 
 func (m *VariationOption) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixVariationOption)
-	}
+	m.ID = NewID(PrefixVariationOption)
 	return nil
 }
 
 func (m *ProductImage) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixProductImage)
-	}
+	m.ID = NewID(PrefixProductImage)
 	return nil
 }
 
 func (m *ProductItemView) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixProductItemView)
-	}
+	m.ID = NewID(PrefixProductItemView)
 	return nil
 }
 
 func (m *ProductItemFilterType) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixProductFilter)
-	}
+	m.ID = NewID(PrefixProductFilter)
 	return nil
 }
 
 func (m *PromotionsType) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixPromotionType)
-	}
+	m.ID = NewID(PrefixPromotionType)
 	return nil
 }
 
 func (m *PromotionCategory) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixPromotionCat)
-	}
+	m.ID = NewID(PrefixPromotionCat)
 	return nil
 }
 
 func (m *Promotion) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixPromotion)
-	}
+	m.ID = NewID(PrefixPromotion)
 	return nil
 }
 
 func (m *Offer) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixOffer)
-	}
+	m.ID = NewID(PrefixOffer)
 	return nil
 }
 
 func (m *OfferCategory) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixOfferCategory)
-	}
+	m.ID = NewID(PrefixOfferCategory)
 	return nil
 }
 
 func (m *OfferProduct) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixOfferProduct)
-	}
+	m.ID = NewID(PrefixOfferProduct)
 	return nil
 }
 
 func (m *ShopDetails) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixShop)
-	}
+	m.ID = NewID(PrefixShop)
 	return nil
 }
 
 func (m *ShopOffer) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixShopOffer)
-	}
+	m.ID = NewID(PrefixShopOffer)
 	return nil
 }
 
 func (m *ShopDepartment) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixShopDepartment)
-	}
+	m.ID = NewID(PrefixShopDepartment)
 	return nil
 }
 
 func (m *ShopTime) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixShopTime)
-	}
+	m.ID = NewID(PrefixShopTime)
 	return nil
 }
 
 func (m *ShopSocial) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixShopSocial)
-	}
+	m.ID = NewID(PrefixShopSocial)
 	return nil
 }
 
 func (m *Coupon) BeforeCreate(*gorm.DB) error {
-	if m.CouponID == "" {
-		m.CouponID = NewID(PrefixCoupon)
-	}
+	m.CouponID = NewID(PrefixCoupon)
 	return nil
 }
 
 func (m *CouponUses) BeforeCreate(*gorm.DB) error {
-	if m.CouponUsesID == "" {
-		m.CouponUsesID = NewID(PrefixCouponUses)
-	}
+	m.CouponUsesID = NewID(PrefixCouponUses)
 	return nil
 }
 
 func (m *Notification) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixNotification)
-	}
+	m.ID = NewID(PrefixNotification)
 	return nil
 }
 
 func (m *NotificationDeviceToken) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixDeviceToken)
-	}
+	m.ID = NewID(PrefixDeviceToken)
 	return nil
 }
 
 func (m *MobileUser) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixMobileUser)
-	}
+	m.ID = NewID(PrefixMobileUser)
 	return nil
 }
 
 func (m *OTPRequest) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixOTPRequest)
-	}
+	m.ID = NewID(PrefixOTPRequest)
 	return nil
 }
 
 func (m *LoginAuditLog) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixLoginAudit)
-	}
+	m.ID = NewID(PrefixLoginAudit)
 	return nil
 }
 
 func (m *OtpSession) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixOtpSession)
-	}
+	m.ID = NewID(PrefixOtpSession)
 	return nil
 }
 
 func (m *OtpSessionEmail) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixOtpSession)
-	}
+	m.ID = NewID(PrefixOtpSession)
 	return nil
 }
 
 func (m *Alert) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixAlert)
-	}
+	m.ID = NewID(PrefixAlert)
 	return nil
 }
 
 func (m *AlertAction) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixAlertAction)
-	}
+	m.ID = NewID(PrefixAlertAction)
 	return nil
 }
 
 func (m *AlertTemplate) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixAlertTemplate)
-	}
+	m.ID = NewID(PrefixAlertTemplate)
 	return nil
 }
 
 func (m *SellerAlertLog) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixSellerAlertLog)
-	}
+	m.ID = NewID(PrefixSellerAlertLog)
 	return nil
 }
 
 func (m *Banner) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixBanner)
-	}
+	m.ID = NewID(PrefixBanner)
 	return nil
 }
 
 func (m *SubscriptionPlan) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixSubscPlan)
-	}
+	m.ID = NewID(PrefixSubscPlan)
 	return nil
 }
 
 func (m *SubscriptionOrder) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixSubscOrder)
-	}
+	m.ID = NewID(PrefixSubscOrder)
 	return nil
 }
 
 func (m *UserSubscription) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = fmt.Sprintf("%d", time.Now().UnixNano())
-	}
+	m.ID = NewID(PrefixUserSubsc)
 	return nil
 }
 
 func (m *FcmToken) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixDeviceToken)
-	}
+	m.ID = NewID(PrefixDeviceToken)
 	return nil
 }
 
 func (m *Job) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixProduct) // Jobs use product-adjacent prefix; no dedicated Job prefix in registry
-	}
+	m.ID = NewID(PrefixJob)
 	return nil
 }
 
 func (m *JobCategory) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixCategory)
-	}
+	m.ID = NewID(PrefixJobCategory)
 	return nil
 }
 
 func (m *JobSubCategory) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixSubCategory)
-	}
+	m.ID = NewID(PrefixJobSubCategory)
 	return nil
 }
 
 func (m *JobLocation) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixAddress) // no dedicated prefix; reuse address-adjacent
-	}
+	m.ID = NewID(PrefixJobLocation)
 	return nil
 }
 
 func (m *JobFilter) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixProductFilter)
-	}
+	m.ID = NewID(PrefixJobFilter)
 	return nil
 }
 
 func (m *JobCategoryFilter) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixProductFilter)
-	}
+	m.ID = NewID(PrefixJobCategoryFilter)
 	return nil
 }
 
 func (m *JobCategoryLocation) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixAddress)
-	}
+	m.ID = NewID(PrefixJobCategoryLocation)
 	return nil
 }

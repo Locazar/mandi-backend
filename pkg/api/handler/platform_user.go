@@ -52,6 +52,14 @@ func (h *platformUserHandler) CreateAdmin(ctx *gin.Context) {
 		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
 		return
 	}
+
+	// Reject any create request that supplies the record's own primary key.
+	if body.ID != "" {
+		appErr := domain.ValidationError("id", "must not be provided when creating a new admin")
+		response.ErrorResponse(ctx, appErr.StatusCode, appErr.Message, appErr, nil)
+		return
+	}
+
 	otpID, err := h.useCase.CreateAdmin(ctx, callerID, body)
 	if err != nil {
 		h.handleAppErr(ctx, "Failed to create platform user", err)

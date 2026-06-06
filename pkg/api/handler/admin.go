@@ -72,6 +72,13 @@ func (a *adminHandler) AdminSignUp(ctx *gin.Context) {
 		return
 	}
 
+	// Reject any create request that supplies the record's own primary key.
+	if body.ID != "" {
+		appErr := domain.ValidationError("id", "must not be provided when creating a new admin")
+		response.ErrorResponse(ctx, appErr.StatusCode, appErr.Message, appErr, nil)
+		return
+	}
+
 	// Validate mobile number
 	if body.Mobile == "" || body.Mobile == "null" {
 		response.ErrorResponse(ctx, http.StatusBadRequest, "Mobile number is required", nil, nil)
@@ -421,6 +428,13 @@ func (c *adminHandler) CreateAdvertisement(ctx *gin.Context) {
 		return
 	}
 
+	// Reject any create request that supplies the record's own primary key.
+	if body.ID != "" {
+		appErr := domain.ValidationError("id", "must not be provided when creating a new advertisement")
+		response.ErrorResponse(ctx, appErr.StatusCode, appErr.Message, appErr, nil)
+		return
+	}
+
 	_, err := c.adminUseCase.CreateAdvertisement(ctx, body)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to create advertisement", err, nil)
@@ -526,6 +540,13 @@ func (h *adminHandler) CreateShop(ctx *gin.Context) {
 	if err := ctx.ShouldBindJSON(&body); err != nil {
 		log.Printf("JSON Binding Error: %v", err)
 		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, body)
+		return
+	}
+
+	// Reject any create request that supplies the record's own primary key.
+	if body.ID != "" {
+		appErr := domain.ValidationError("id", "must not be provided when creating a new shop")
+		response.ErrorResponse(ctx, appErr.StatusCode, appErr.Message, appErr, nil)
 		return
 	}
 
