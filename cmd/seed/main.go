@@ -111,15 +111,15 @@ func main() {
 
 	fmt.Printf("\nDone. Created: %d  Skipped: %d\n", created, skipped)
 
-	sqlFile := filepath.Join("seed.sql")
+	sqlFile := filepath.Join("baseline_seed.sql")
 	sqlBytes, err := os.ReadFile(sqlFile)
 	if err != nil {
-		log.Fatalf("failed to read seed.sql: %v", err)
+		log.Fatalf("failed to read baseline_seed.sql: %v", err)
 	}
 	if _, err := sqlDB.Exec(string(sqlBytes)); err != nil {
-		log.Fatalf("failed to apply seed.sql: %v", err)
+		log.Fatalf("failed to apply baseline_seed.sql: %v", err)
 	}
-	fmt.Println("seed.sql applied.")
+	fmt.Println("baseline_seed.sql applied.")
 
 	os.Exit(0)
 }
