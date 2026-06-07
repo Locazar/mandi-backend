@@ -89,7 +89,7 @@ func main() {
 		}
 
 		now := time.Now()
-		adminID := utils.GenerateAdminID()
+		adminID := domain.NewID(domain.PrefixAdmin)
 		var insertedID string
 
 		err = sqlDB.QueryRow(`
