@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/rohit221990/mandi-backend/pkg/config"
@@ -109,5 +110,16 @@ func main() {
 	}
 
 	fmt.Printf("\nDone. Created: %d  Skipped: %d\n", created, skipped)
+
+	sqlFile := filepath.Join("seed.sql")
+	sqlBytes, err := os.ReadFile(sqlFile)
+	if err != nil {
+		log.Fatalf("failed to read seed.sql: %v", err)
+	}
+	if _, err := sqlDB.Exec(string(sqlBytes)); err != nil {
+		log.Fatalf("failed to apply seed.sql: %v", err)
+	}
+	fmt.Println("seed.sql applied.")
+
 	os.Exit(0)
 }
