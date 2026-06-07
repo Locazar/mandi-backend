@@ -89,15 +89,14 @@ func main() {
 		}
 
 		now := time.Now()
-		var insertedID int64
+		adminID := utils.GenerateAdminID()
+		var insertedID string
 
-		// INSERT into the actual table schema (bigint auto-increment id, no deleted_at).
-		// The role column is added by migration 000007 which runs above via ConnectDatabase.
 		err = sqlDB.QueryRow(`
-			INSERT INTO admins (user_name, full_name, email, password, status, role, verified_seller, created_at, updated_at)
-			VALUES ($1, $2, $3, $4, $5, $6, FALSE, $7, $8)
+			INSERT INTO admins (id, user_name, full_name, email, password, status, role, verified_seller, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE, $8, $9)
 			RETURNING id`,
-			a.UserName, a.FullName, a.Email, hash,
+			adminID, a.UserName, a.FullName, a.Email, hash,
 			string(domain.AdminStatusActive), string(a.Role),
 			now, now,
 		).Scan(&insertedID)
@@ -105,7 +104,7 @@ func main() {
 			log.Fatalf("failed to create %s: %v", a.Email, err)
 		}
 
-		fmt.Printf("  CREATE %-32s id=%-6d role=%s\n", a.Email, insertedID, a.Role)
+		fmt.Printf("  CREATE %-32s id=%s role=%s\n", a.Email, insertedID, a.Role)
 		created++
 	}
 
