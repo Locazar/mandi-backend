@@ -93,6 +93,12 @@ func (c *userDatabase) SaveUser(ctx context.Context, user domain.User) (userID s
 		values = append(values, user.Phone)
 		paramCount++
 	}
+	// password is NOT NULL in the DB; phone-only users have no password so we store
+	// an empty string as a safe placeholder (auth is via OTP, not password, for these users)
+	columns = append(columns, "password")
+	placeholders = append(placeholders, fmt.Sprintf("$%d", paramCount))
+	values = append(values, user.Password) // empty string is fine for phone-only signups
+	paramCount++
 
 	// Always add created_at
 	columns = append(columns, "created_at")
