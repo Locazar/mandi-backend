@@ -1292,14 +1292,14 @@ func buildGeoDistanceQuery(lat, lng, radius float64, startParam int, locationCol
 				locationColumnOrLatCol,
 			)
 
-			whereFilterTemplate := `AND %s IS NOT NULL AND %s IS NOT NULL AND
+			whereFilterTemplate := ` AND %s IS NOT NULL AND %s IS NOT NULL AND
 			  (6371 * acos(
 				LEAST(1, GREATEST(-1,
-					cos(radians($%s)) * cos(radians(%s::double precision)) *
-					cos(radians(%s::double precision) - radians($%s)) +
-					sin(radians($%s)) * sin(radians(%s::double precision))
+					cos(radians($%d)) * cos(radians(%s::double precision)) *
+					cos(radians(%s::double precision) - radians($%d)) +
+					sin(radians($%d)) * sin(radians(%s::double precision))
 				))
-			  )) <= $%s`
+			  )) <= $%d`
 
 			if radius > 0 {
 				geoFilter = fmt.Sprintf(whereFilterTemplate,

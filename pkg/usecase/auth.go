@@ -138,6 +138,7 @@ func (c *authUseCase) UserLoginOtpSend(ctx context.Context, loginDetails request
 			OtpID:    otpID,
 			UserID:   user.ID,
 			Phone:    user.Phone,
+			UserType: domain.UserTypeUser,
 			ExpireAt: time.Now().Add(otpExpireDuration), // 2 minutes expire for otp
 		}
 		err := c.authRepo.SaveOtpSession(ctx, otpSession)
@@ -413,6 +414,7 @@ func (c *authUseCase) UserSignUp(ctx context.Context, signUpDetails domain.User)
 			OtpID:    otpID,
 			UserID:   userID,
 			Phone:    signUpDetails.Phone,
+			UserType: domain.UserTypeUser,
 			ExpireAt: time.Now().Add(otpExpireDuration), // 2 minutes expire for otp
 		}
 		err := c.authRepo.SaveOtpSession(ctx, otpSession)
