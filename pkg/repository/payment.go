@@ -47,13 +47,13 @@ func (c *paymentDatabase) FindAllPaymentMethods(ctx context.Context) (paymentMet
 }
 
 func (c *paymentDatabase) SavePaymentMethod(ctx context.Context, paymentMethod domain.PaymentMethod) (paymentMethodID string, err error) {
+	paymentMethodID = domain.NewID(domain.PrefixPaymentMethod)
+	query := `INSERT INTO payment_methods (id, name, block_status, maximum_amount_amount_minor, maximum_amount_currency)
+	VALUES ($1, $2, $3, $4, $5)`
+	err = c.db.Exec(query, paymentMethodID, paymentMethod.Name, paymentMethod.BlockStatus,
+		paymentMethod.MaximumAmount.AmountMinor, paymentMethod.MaximumAmount.Currency).Error
 
-	query := `INSERT INTO payment_methods (name, block_status, maximum_amount_amount_minor, maximum_amount_currency)
-	VALUES ($1, $2, $3, $4) RETURNING id`
-	err = c.db.Raw(query, paymentMethod.Name, paymentMethod.BlockStatus,
-		paymentMethod.MaximumAmount.AmountMinor, paymentMethod.MaximumAmount.Currency).Scan(&paymentMethod).Error
-
-	return string(paymentMethod.ID), err
+	return paymentMethodID, err
 }
 func (c *paymentDatabase) UpdatePaymentMethod(ctx context.Context, paymentMethod request.PaymentMethodUpdate) error {
 

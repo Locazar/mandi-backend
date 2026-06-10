@@ -72,6 +72,15 @@ func (c *userDatabase) SaveUser(ctx context.Context, user domain.User) (userID s
 	values := []interface{}{}
 	paramCount := 1
 
+	// Always generate and include the ID (string PK, no DB-side autoincrement)
+	if user.ID == "" {
+		user.ID = domain.NewID(domain.PrefixUser)
+	}
+	columns = append(columns, "id")
+	placeholders = append(placeholders, fmt.Sprintf("$%d", paramCount))
+	values = append(values, user.ID)
+	paramCount++
+
 	if user.Email != "" {
 		columns = append(columns, "email")
 		placeholders = append(placeholders, fmt.Sprintf("$%d", paramCount))

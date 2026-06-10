@@ -99,8 +99,8 @@ func (c *productDatabase) IsCategoryNameExist(ctx context.Context, name string, 
 // Save Category
 func (c *productDatabase) SaveCategory(ctx context.Context, category request.Category, departmentId string) (err error) {
 
-	query := `INSERT INTO categories (name, department_id) VALUES ($1, $2)`
-	err = c.DB.Exec(query, category.Name, departmentId).Error
+	query := `INSERT INTO categories (id, name, department_id) VALUES ($1, $2, $3)`
+	err = c.DB.Exec(query, domain.NewID(domain.PrefixCategory), category.Name, departmentId).Error
 
 	return err
 }
@@ -118,8 +118,8 @@ func (c *productDatabase) IsSubCategoryNameExist(ctx context.Context, name strin
 func (c *productDatabase) SaveSubCategory(ctx context.Context, body request.SubCategory, brandID string, categoryID string) (err error) {
 
 	print("department id in repo", brandID, "category id in repo", categoryID)
-	query := `INSERT INTO sub_categories (department_id, category_id, name) VALUES ($1, $2, $3)`
-	err = c.DB.Exec(query, brandID, categoryID, body.Name).Error
+	query := `INSERT INTO sub_categories (id, department_id, category_id, name) VALUES ($1, $2, $3, $4)`
+	err = c.DB.Exec(query, domain.NewID(domain.PrefixSubCategory), brandID, categoryID, body.Name).Error
 
 	return err
 }
@@ -191,8 +191,8 @@ func (c *productDatabase) IsVariationValueExistForVariation(ctx context.Context,
 // Save Variation for category
 func (c *productDatabase) SaveVariation(ctx context.Context, categoryID string, variationName string) error {
 
-	query := `INSERT INTO variations (category_id, name) VALUES($1, $2)`
-	err := c.DB.Exec(query, categoryID, variationName).Error
+	query := `INSERT INTO variations (id, category_id, name) VALUES($1, $2, $3)`
+	err := c.DB.Exec(query, domain.NewID(domain.PrefixVariation), categoryID, variationName).Error
 
 	return err
 }
@@ -200,8 +200,8 @@ func (c *productDatabase) SaveVariation(ctx context.Context, categoryID string, 
 // add variation option
 func (c *productDatabase) SaveVariationOption(ctx context.Context, variationID string, variationValue string) error {
 
-	query := `INSERT INTO variation_options (variation_id, value) VALUES($1, $2)`
-	err := c.DB.Exec(query, variationID, variationValue).Error
+	query := `INSERT INTO variation_options (id, variation_id, value) VALUES($1, $2, $3)`
+	err := c.DB.Exec(query, domain.NewID(domain.PrefixVariationOption), variationID, variationValue).Error
 
 	return err
 }
@@ -281,11 +281,12 @@ func (c *productDatabase) SaveProduct(ctx context.Context, product domain.Produc
 	}
 
 	// Insert new product
-	query = `INSERT INTO products (name, description, category_id, image, department_id, shop_id, created_at) 
-	VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING id`
+	productID = domain.NewID(domain.PrefixProduct)
+	query = `INSERT INTO products (id, name, description, category_id, image, department_id, shop_id, created_at)
+	VALUES($1, $2, $3, $4, $5, $6, $7, $8)`
 
 	createdAt := time.Now()
-	err = c.DB.Raw(query, product.Name, product.Description, product.CategoryID, product.Image, product.DepartmentID, shopDetails.ShopID, createdAt).Scan(&productID).Error
+	err = c.DB.Exec(query, productID, product.Name, product.Description, product.CategoryID, product.Image, product.DepartmentID, shopDetails.ShopID, createdAt).Error
 	if err != nil {
 		return "", fmt.Errorf("failed to insert product: %v", err)
 	}
@@ -515,10 +516,10 @@ func (c *productDatabase) UpdateShopDepartments(ctx context.Context, shopID stri
 	// adminID and shopID are already string IDs
 
 	// Insert into shop_departments with ON CONFLICT DO NOTHING to handle duplicates
-	query := `INSERT INTO shop_departments (admin_id, shop_id, department_id, category_id, sub_category_id, created_at, updated_at)
-	VALUES ($1, $2, $3, $4, $5, NOW(), NOW()) ON CONFLICT (shop_id, department_id) DO NOTHING`
+	query := `INSERT INTO shop_departments (id, admin_id, shop_id, department_id, category_id, sub_category_id, created_at, updated_at)
+	VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW()) ON CONFLICT (shop_id, department_id) DO NOTHING`
 
-	result := c.DB.WithContext(ctx).Exec(query, adminID, shopID, departmentID, categoryID, subCategoryId)
+	result := c.DB.WithContext(ctx).Exec(query, domain.NewID(domain.PrefixShopDepartment), adminID, shopID, departmentID, categoryID, subCategoryId)
 	if result.Error != nil {
 		log.Printf("Failed to update shop departments: shopID=%s, departmentID=%s, adminID=%s, categoryID=%s, error=%v", shopID, departmentID, adminID, categoryID, result.Error)
 		return fmt.Errorf("failed to update shop departments: %w", result.Error)
@@ -536,7 +537,7 @@ func (c *productDatabase) UpdateShopDepartments(ctx context.Context, shopID stri
 func (c *productDatabase) SaveProductItem(ctx context.Context, productItem request.ProductItem, adminID string, shopID string) (productItemID string, err error) {
 
 	query := `INSERT INTO product_items (id, admin_id, sub_category_name, dynamic_fields, product_item_images, category_id, department_id, sub_category_id, shop_id, created_at, updated_at)
-VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`
+VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`
 
 	createdAt := time.Now()
 	newID := domain.NewID(domain.PrefixProductItem)
@@ -554,7 +555,10 @@ VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`
 		productItemImagesStr = "{}"
 	}
 
-	err = c.DB.Raw(query, newID, adminID, productItem.SubCategoryName, dynamicFieldsJSON, productItemImagesStr, productItem.CategoryID, productItem.DepartmentID, productItem.SubCategoryID, shopID, createdAt, createdAt).Scan(&productItemID).Error
+	err = c.DB.Exec(query, newID, adminID, productItem.SubCategoryName, dynamicFieldsJSON, productItemImagesStr, productItem.CategoryID, productItem.DepartmentID, productItem.SubCategoryID, shopID, createdAt, createdAt).Error
+	if err == nil {
+		productItemID = newID
+	}
 
 	if err == nil && c.ElasticClient != nil {
 		domainItem := domain.ProductItem{
@@ -1219,8 +1223,8 @@ func (c *productDatabase) FindAllVariationValuesOfProductItem(ctx context.Contex
 // To save image for product item
 func (c *productDatabase) SaveProductItemImage(ctx context.Context, productItemID string, image domain.ProductItemImage) error {
 
-	query := `INSERT INTO product_images (product_item_id, image) VALUES ($1, $2)`
-	err := c.DB.Exec(query, productItemID, image).Error
+	query := `INSERT INTO product_images (id, product_item_id, image) VALUES ($1, $2, $3)`
+	err := c.DB.Exec(query, domain.NewID(domain.PrefixProductImage), productItemID, image).Error
 
 	return err
 }
@@ -1591,8 +1595,8 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 
 func (c *productDatabase) SaveDepartment(ctx context.Context, departmentName string) error {
 
-	query := `INSERT INTO departments (name) VALUES ($1)`
-	err := c.DB.Exec(query, departmentName).Error
+	query := `INSERT INTO departments (id, name) VALUES ($1, $2)`
+	err := c.DB.Exec(query, domain.NewID(domain.PrefixDepartment), departmentName).Error
 
 	return err
 }
@@ -1689,9 +1693,9 @@ func (c *productDatabase) GetSubTypeAttributeOptionByID(ctx context.Context, opt
 // SaveCategoryImage saves a new category image
 func (c *productDatabase) SaveCategoryImage(ctx context.Context, categoryID string, image domain.CategoryImage) error {
 	image.CategoryID = categoryID
-	query := `INSERT INTO category_images (category_id, image_url, alt_text, sort_order, is_active) 
-	          VALUES ($1, $2, $3, $4, $5)`
-	return c.DB.Exec(query, image.CategoryID, image.ImageURL, image.AltText, image.SortOrder, image.IsActive).Error
+	query := `INSERT INTO category_images (id, category_id, image_url, alt_text, sort_order, is_active)
+	          VALUES ($1, $2, $3, $4, $5, $6)`
+	return c.DB.Exec(query, domain.NewID(domain.PrefixCategoryImage), image.CategoryID, image.ImageURL, image.AltText, image.SortOrder, image.IsActive).Error
 }
 
 // GetAllCategoryImages retrieves all images for a category
