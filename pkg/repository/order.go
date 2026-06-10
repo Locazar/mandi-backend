@@ -106,27 +106,25 @@ func (c *OrderDatabase) FindAllOrdersItemsByShopOrderID(ctx context.Context,
 // ! order place
 
 func (c *OrderDatabase) SaveShopOrder(ctx context.Context, shopOrder domain.ShopOrder) (shopOrderID string, err error) {
-
-	// save the shop_order — status is now stored directly as a varchar column.
-	query := `INSERT INTO shop_orders (user_id, address_id,
+	shopOrderID = domain.NewID(domain.PrefixOrder)
+	query := `INSERT INTO shop_orders (id, user_id, address_id,
 	order_total_amount_minor, order_total_currency, discount_amount_minor, discount_currency,
 	status, order_date)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 
 	orderDate := time.Now()
-	err = c.DB.Raw(query, shopOrder.UserID, shopOrder.AddressID,
+	err = c.DB.Exec(query, shopOrderID, shopOrder.UserID, shopOrder.AddressID,
 		shopOrder.OrderTotal.AmountMinor, shopOrder.OrderTotal.Currency,
 		shopOrder.Discount.AmountMinor, shopOrder.Discount.Currency,
-		shopOrder.Status, orderDate).Scan(&shopOrderID).Error
+		shopOrder.Status, orderDate).Error
 
 	return shopOrderID, err
 }
 
 func (c *OrderDatabase) SaveOrderLine(ctx context.Context, orderLine domain.OrderLine) error {
-
-	query := `INSERT INTO order_lines (product_item_id, shop_order_id, qty, price_amount_minor, price_currency)
-	VALUES ($1, $2, $3, $4, $5)`
-	err := c.DB.Exec(query, orderLine.ProductItemID, orderLine.ShopOrderID, orderLine.Qty,
+	query := `INSERT INTO order_lines (id, product_item_id, shop_order_id, qty, price_amount_minor, price_currency)
+	VALUES ($1, $2, $3, $4, $5, $6)`
+	err := c.DB.Exec(query, domain.NewID(domain.PrefixOrderLine), orderLine.ProductItemID, orderLine.ShopOrderID, orderLine.Qty,
 		orderLine.Price.AmountMinor, orderLine.Price.Currency).Error
 
 	return err
@@ -232,10 +230,9 @@ func (c *OrderDatabase) FindAllPendingOrderReturns(ctx context.Context,
 
 // to save a return request
 func (c *OrderDatabase) SaveOrderReturn(ctx context.Context, orderReturn domain.OrderReturn) error {
-
-	query := `INSERT INTO order_returns (shop_order_id,return_reason,request_date,refund_amount_amount_minor,refund_amount_currency,is_approved)
-	VALUES($1,$2,$3,$4,$5,$6)`
-	err := c.DB.Exec(query, orderReturn.ShopOrderID, orderReturn.ReturnReason,
+	query := `INSERT INTO order_returns (id, shop_order_id,return_reason,request_date,refund_amount_amount_minor,refund_amount_currency,is_approved)
+	VALUES($1,$2,$3,$4,$5,$6,$7)`
+	err := c.DB.Exec(query, domain.NewID(domain.PrefixOrderReturn), orderReturn.ShopOrderID, orderReturn.ReturnReason,
 		orderReturn.RequestDate, orderReturn.RefundAmount.AmountMinor, orderReturn.RefundAmount.Currency, false).Error
 
 	return err

@@ -21,13 +21,14 @@ func NewMobileAuthRepository(db *sql.DB) repoInterface.MobileAuthRepository {
 
 // CreateUser creates a new user
 func (m *mobileAuthDatabase) CreateUser(ctx context.Context, user *domain.MobileUser) error {
+	user.ID = domain.NewID(domain.PrefixMobileUser)
 	query := `
-		INSERT INTO users (phone, first_name, last_name, email, is_active, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
-		RETURNING id, created_at, updated_at
+		INSERT INTO users (id, phone, first_name, last_name, email, is_active, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+		RETURNING created_at, updated_at
 	`
-	err := m.db.QueryRowContext(ctx, query, user.Phone, user.FirstName, user.LastName, user.Email, user.IsActive).
-		Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt)
+	err := m.db.QueryRowContext(ctx, query, user.ID, user.Phone, user.FirstName, user.LastName, user.Email, user.IsActive).
+		Scan(&user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		log.Printf("Failed to create user: %v", err)
 		return err
@@ -73,12 +74,14 @@ func (m *mobileAuthDatabase) UpdateUser(ctx context.Context, user *domain.Mobile
 
 // CreateOTPRequest creates a new OTP request
 func (m *mobileAuthDatabase) CreateOTPRequest(ctx context.Context, otpReq *domain.OTPRequest) error {
+	otpReq.ID = domain.NewID(domain.PrefixOTPRequest)
 	query := `
-		INSERT INTO otp_requests (phone, otp_hash, expires_at, attempts, max_attempts, status, ip_address, user_agent, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
-		RETURNING id, created_at, updated_at
+		INSERT INTO otp_requests (id, phone, otp_hash, expires_at, attempts, max_attempts, status, ip_address, user_agent, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+		RETURNING created_at, updated_at
 	`
 	err := m.db.QueryRowContext(ctx, query,
+		otpReq.ID,
 		otpReq.Phone,
 		otpReq.OTPHash,
 		otpReq.ExpiresAt,
@@ -87,7 +90,7 @@ func (m *mobileAuthDatabase) CreateOTPRequest(ctx context.Context, otpReq *domai
 		otpReq.Status,
 		otpReq.IPAddress,
 		otpReq.UserAgent,
-	).Scan(&otpReq.ID, &otpReq.CreatedAt, &otpReq.UpdatedAt)
+	).Scan(&otpReq.CreatedAt, &otpReq.UpdatedAt)
 	if err != nil {
 		log.Printf("Failed to create OTP request: %v", err)
 		return err
@@ -207,18 +210,20 @@ func (m *mobileAuthDatabase) GetLastOTPRequestTime(ctx context.Context, phone st
 
 // CreateAuditLog creates an audit log entry
 func (m *mobileAuthDatabase) CreateAuditLog(ctx context.Context, auditLog *domain.LoginAuditLog) error {
+	auditLog.ID = domain.NewID(domain.PrefixLoginAudit)
 	query := `
-		INSERT INTO login_audit_logs (phone, event, ip_address, user_agent, details, created_at)
-		VALUES ($1, $2, $3, $4, $5, NOW())
-		RETURNING id, created_at
+		INSERT INTO login_audit_logs (id, phone, event, ip_address, user_agent, details, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, NOW())
+		RETURNING created_at
 	`
 	err := m.db.QueryRowContext(ctx, query,
+		auditLog.ID,
 		auditLog.Phone,
 		auditLog.Event,
 		auditLog.IPAddress,
 		auditLog.UserAgent,
 		auditLog.Details,
-	).Scan(&auditLog.ID, &auditLog.CreatedAt)
+	).Scan(&auditLog.CreatedAt)
 	if err != nil {
 		log.Printf("Failed to create audit log: %v", err)
 		return err

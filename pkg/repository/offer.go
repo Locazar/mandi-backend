@@ -86,20 +86,18 @@ func (c *offerDatabase) FindAllOffers(ctx context.Context,
 
 // save a new offer
 func (c *offerDatabase) SaveOffer(ctx context.Context, offer request.Offer) error {
-
-	query := `INSERT INTO offers (name, description, discount_rate, start_date, end_date, offer_type, created_at, updated_at) 
-	VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())`
-	err := c.DB.Exec(query, offer.Name, offer.Description, offer.DiscountRate, offer.StartDate, offer.EndDate, offer.Type).Error
+	query := `INSERT INTO offers (id, name, description, discount_rate, start_date, end_date, offer_type, created_at, updated_at)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())`
+	err := c.DB.Exec(query, domain.NewID(domain.PrefixOffer), offer.Name, offer.Description, offer.DiscountRate, offer.StartDate, offer.EndDate, offer.Type).Error
 
 	return err
 }
 
 // save a new offer with image URLs
 func (c *offerDatabase) SaveOfferWithImages(ctx context.Context, offer request.Offer, imageURL, thumbnailURL string) error {
-
-	query := `INSERT INTO offers (name, description, discount_rate, start_date, end_date, offer_type, image, thumbnail, created_at, updated_at) 
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())`
-	err := c.DB.Exec(query, offer.Name, offer.Description, offer.DiscountRate, offer.StartDate, offer.EndDate, offer.Type, imageURL, thumbnailURL).Error
+	query := `INSERT INTO offers (id, name, description, discount_rate, start_date, end_date, offer_type, image, thumbnail, created_at, updated_at)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())`
+	err := c.DB.Exec(query, domain.NewID(domain.PrefixOffer), offer.Name, offer.Description, offer.DiscountRate, offer.StartDate, offer.EndDate, offer.Type, imageURL, thumbnailURL).Error
 
 	return err
 }
@@ -171,8 +169,9 @@ func (c *offerDatabase) FindAllOfferCategories(ctx context.Context,
 func (c *offerDatabase) SaveCategoryOffer(ctx context.Context,
 	categoryOffer request.OfferCategory) (categoryOfferID string, err error) {
 
-	query := `INSERT INTO offer_categories (offer_id,category_id) VALUES ($1, $2) RETURNING id`
-	err = c.DB.Raw(query, categoryOffer.OfferID, categoryOffer.CategoryID).Scan(&categoryOfferID).Error
+	categoryOfferID = domain.NewID(domain.PrefixOfferCategory)
+	query := `INSERT INTO offer_categories (id, offer_id, category_id) VALUES ($1, $2, $3)`
+	err = c.DB.Exec(query, categoryOfferID, categoryOffer.OfferID, categoryOffer.CategoryID).Error
 
 	return
 }
@@ -247,8 +246,9 @@ func (c *offerDatabase) SaveOfferProduct(ctx context.Context,
 		return "", err
 	}
 
-	query := `INSERT INTO offer_products (offer_id, product_item_id) VALUES ($1,$2)  RETURNING id`
-	err = c.DB.Raw(query, offerProduct.OfferID, offerProduct.ProductItemID).Scan(&productOfferId).Error
+	productOfferId = domain.NewID(domain.PrefixOfferProduct)
+	query := `INSERT INTO offer_products (id, offer_id, product_item_id) VALUES ($1, $2, $3)`
+	err = c.DB.Exec(query, productOfferId, offerProduct.OfferID, offerProduct.ProductItemID).Error
 
 	return
 }
