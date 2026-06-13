@@ -57,7 +57,7 @@ func (r *subscriptionDatabase) UpdateSubscriptionOrderToPaid(ctx context.Context
 
 func (r *subscriptionDatabase) FindSubscriptionPlanByID(ctx context.Context, planID string) (domain.SubscriptionPlan, error) {
 	var plan domain.SubscriptionPlan
-	err := r.db.First(&plan, planID).Error
+	err := r.db.First(&plan, "id = ?", planID).Error
 	return plan, err
 }
 
