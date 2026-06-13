@@ -1441,12 +1441,11 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 		}
 	}
 
-	if departmentID != nil {
-		if did, err := strconv.ParseUint(*departmentID, 10, 64); err == nil {
-			whereClause += fmt.Sprintf(" AND pi.department_id = $%d", paramIndex)
-			params = append(params, did)
-			paramIndex++
-		}
+	// department_id is varchar(32) (e.g. "dept_00001"), not an integer.
+	if departmentID != nil && *departmentID != "" {
+		whereClause += fmt.Sprintf(" AND pi.department_id = $%d", paramIndex)
+		params = append(params, *departmentID)
+		paramIndex++
 	}
 
 	if shopID != nil {
