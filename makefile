@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: all build test deps deps-cleancache migrate-up migrate-down migrate-create migrate-version migrate-force
+.PHONY: all build test deps deps-cleancache migrate-up migrate-down migrate-create migrate-version migrate-force seed
 
 GOCMD=go
 DATABASE_URL ?= postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable

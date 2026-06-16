@@ -1270,34 +1270,24 @@ func (h *ProductHandler) SearchProducts(c *gin.Context) {
 	// The DB uses numeric IDs for these fields; parsing as UUIDs caused type mismatches.
 	var catIDPtr, brandIDPtr, locIDPtr, shopIDPtr, deptIDPtr *string
 	if cid := c.Query("category_id"); cid != "" {
-		if _, err := strconv.ParseUint(cid, 10, 64); err == nil {
-			s := cid
-			catIDPtr = &s
-		}
+		s := cid
+		catIDPtr = &s
 	}
 	if did := c.Query("department_id"); did != "" {
-		if _, err := strconv.ParseUint(did, 10, 64); err == nil {
-			s := did
-			deptIDPtr = &s
-		}
+		s := did
+		deptIDPtr = &s
 	}
 	if bid := c.Query("brand_id"); bid != "" {
-		if _, err := strconv.ParseUint(bid, 10, 64); err == nil {
-			s := bid
-			brandIDPtr = &s
-		}
+		s := bid
+		brandIDPtr = &s
 	}
 	if lid := c.Query("location_id"); lid != "" {
-		if _, err := strconv.ParseUint(lid, 10, 64); err == nil {
-			s := lid
-			locIDPtr = &s
-		}
+		s := lid
+		locIDPtr = &s
 	}
 	if sid := c.Query("shop_id"); sid != "" {
-		if _, err := strconv.ParseUint(sid, 10, 64); err == nil {
-			s := sid
-			shopIDPtr = &s
-		}
+		s := sid
+		shopIDPtr = &s
 	}
 
 	// Parse geolocation parameters (optional)
