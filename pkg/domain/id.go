@@ -21,17 +21,14 @@ const (
 	PrefixAdmin           IDPrefix = "adm"
 	PrefixShopVerif       IDPrefix = "shvf"
 	PrefixShopVerifHist   IDPrefix = "shvh"
-	PrefixAgent           IDPrefix = "agt"
 	PrefixCategory        IDPrefix = "cat"
 	PrefixCategoryImage   IDPrefix = "catim"
 	PrefixSubCategory     IDPrefix = "scat"
-	PrefixSubCategoryDet  IDPrefix = "scatd"
 	PrefixDepartment      IDPrefix = "dept"
 	PrefixProduct         IDPrefix = "prd"
 	PrefixProductItem     IDPrefix = "pri"
 	PrefixProductItemView IDPrefix = "priv"
 	PrefixProductImage    IDPrefix = "pimg"
-	PrefixProductConfig   IDPrefix = "prcfg"
 	PrefixProductFilter   IDPrefix = "prift"
 	PrefixBrand           IDPrefix = "brnd"
 	PrefixVariation       IDPrefix = "var"
@@ -76,19 +73,25 @@ const (
 	PrefixLoginAudit      IDPrefix = "lal"
 	PrefixUserConsent     IDPrefix = "cnst"
 	PrefixAuditLog        IDPrefix = "aud"
-	PrefixUserOfferHist   IDPrefix = "uoh"
 	PrefixMobileUser      IDPrefix = "musr"
 	PrefixOtpSession      IDPrefix = "otps"
+	PrefixJob             IDPrefix = "job"
+	PrefixJobCategory     IDPrefix = "jcat"
+	PrefixJobSubCategory  IDPrefix = "jscat"
+	PrefixJobLocation     IDPrefix = "jloc"
+	PrefixJobFilter       IDPrefix = "jflt"
+	PrefixJobCategoryFilter IDPrefix = "jcflt"
+	PrefixJobCategoryLocation IDPrefix = "jcloc"
 )
 
 // allPrefixes is the authoritative registry of every entity prefix. Used by
 // tests to guarantee uniqueness and bounded length.
 var allPrefixes = []IDPrefix{
 	PrefixUser, PrefixAddress, PrefixUserAddress, PrefixCountry, PrefixAdmin,
-	PrefixShopVerif, PrefixShopVerifHist, PrefixAgent, PrefixCategory,
-	PrefixCategoryImage, PrefixSubCategory, PrefixSubCategoryDet, PrefixDepartment,
+	PrefixShopVerif, PrefixShopVerifHist, PrefixCategory,
+	PrefixCategoryImage, PrefixSubCategory, PrefixDepartment,
 	PrefixProduct, PrefixProductItem, PrefixProductItemView, PrefixProductImage,
-	PrefixProductConfig, PrefixProductFilter, PrefixBrand, PrefixVariation,
+	PrefixProductFilter, PrefixBrand, PrefixVariation,
 	PrefixVariationOption, PrefixSubTypeAttr, PrefixSubTypeAttrOpt, PrefixWishList,
 	PrefixCart, PrefixCartItem, PrefixOrder, PrefixOrderLine, PrefixOrderReturn,
 	PrefixFeedback, PrefixOffer, PrefixOfferCategory, PrefixOfferProduct,
@@ -99,7 +102,9 @@ var allPrefixes = []IDPrefix{
 	PrefixSellerAlertLog, PrefixPromotion, PrefixPromotionType, PrefixPromotionCat,
 	PrefixBanner, PrefixSubscPlan, PrefixSubscOrder, PrefixUserSubsc,
 	PrefixOTPRequest, PrefixLoginAudit, PrefixUserConsent, PrefixAuditLog,
-	PrefixUserOfferHist, PrefixMobileUser, PrefixOtpSession,
+	PrefixMobileUser, PrefixOtpSession,
+	PrefixJob, PrefixJobCategory, PrefixJobSubCategory, PrefixJobLocation,
+	PrefixJobFilter, PrefixJobCategoryFilter, PrefixJobCategoryLocation,
 }
 
 // NewID returns a fresh typed-prefix identifier, e.g. "usr_x7k2q9m4p3...".

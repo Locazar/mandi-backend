@@ -272,11 +272,12 @@ func (c *productDatabase) SaveProduct(ctx context.Context, product domain.Produc
 	}
 
 	// Insert new product
-	query = `INSERT INTO products (name, description, category_id, image, department_id, shop_id, created_at) 
-	VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING id`
+	productID = domain.NewID(domain.PrefixProduct)
+	query = `INSERT INTO products (id, name, description, category_id, image, department_id, shop_id, created_at)
+	VALUES($1, $2, $3, $4, $5, $6, $7, $8)`
 
 	createdAt := time.Now()
-	err = c.DB.Raw(query, product.Name, product.Description, product.CategoryID, product.Image, product.DepartmentID, shopDetails.ShopID, createdAt).Scan(&productID).Error
+	err = c.DB.Exec(query, productID, product.Name, product.Description, product.CategoryID, product.Image, product.DepartmentID, shopDetails.ShopID, createdAt).Error
 	if err != nil {
 		return "", fmt.Errorf("failed to insert product: %v", err)
 	}
@@ -412,7 +413,6 @@ func (c *productDatabase) findProductItemsByProductID(ctx context.Context, produ
 
 // to get productItem id
 func (c *productDatabase) FindProductItemByID(ctx context.Context, productItemID string) (productItem domain.ProductItem, err error) {
-	// Use a temporary struct to scan the array as string
 	type tempProductItem struct {
 		ID                string    `gorm:"column:id"`
 		SubCategoryName   string    `gorm:"column:sub_category_name"`
@@ -421,7 +421,9 @@ func (c *productDatabase) FindProductItemByID(ctx context.Context, productItemID
 		DepartmentID      string    `gorm:"column:department_id"`
 		DynamicFields     string    `gorm:"column:dynamic_fields"`
 		AdminID           string    `gorm:"column:admin_id"`
-		ProductItemImages string    `gorm:"column:product_item_images"` // Scan as string
+		ProductItemImages string    `gorm:"column:product_item_images"`
+		Description       string    `gorm:"column:description"`
+		Highlights        string    `gorm:"column:highlights"`
 		ShopID            string    `gorm:"column:shop_id"`
 		CreatedAt         time.Time `gorm:"column:created_at"`
 		UpdatedAt         time.Time `gorm:"column:updated_at"`
@@ -433,7 +435,6 @@ func (c *productDatabase) FindProductItemByID(ctx context.Context, productItemID
 		return productItem, err
 	}
 
-	// Convert temp to domain.ProductItem, parsing the array
 	productItem.ID = temp.ID
 	productItem.SubCategoryName = temp.SubCategoryName
 	productItem.SubCategoryID = temp.SubCategoryID
@@ -442,21 +443,34 @@ func (c *productDatabase) FindProductItemByID(ctx context.Context, productItemID
 	productItem.DynamicFields = temp.DynamicFields
 	productItem.AdminID = temp.AdminID
 	productItem.ShopID = temp.ShopID
+	productItem.Description = temp.Description
 	productItem.CreatedAt = temp.CreatedAt
 	productItem.UpdatedAt = temp.UpdatedAt
 
 	// Parse product_item_images from PostgreSQL array format
 	if temp.ProductItemImages != "" {
-		// Remove curly braces and parse comma-separated values
 		imageStr := temp.ProductItemImages
 		if len(imageStr) > 2 && imageStr[0] == '{' && imageStr[len(imageStr)-1] == '}' {
-			imageStr = imageStr[1 : len(imageStr)-1] // Remove braces
+			imageStr = imageStr[1 : len(imageStr)-1]
 			if imageStr != "" {
 				productItem.ProductItemImages = strings.Split(imageStr, ",")
 			}
 		}
 	}
-	fmt.Printf("DEBUG: Fetched product item: %+v\n", productItem)
+
+	// Parse highlights PostgreSQL array format
+	if temp.Highlights != "" {
+		h := temp.Highlights
+		if len(h) > 2 && h[0] == '{' && h[len(h)-1] == '}' {
+			h = h[1 : len(h)-1]
+		}
+		if h != "" {
+			for _, part := range strings.Split(h, ",") {
+				productItem.Highlights = append(productItem.Highlights, strings.Trim(strings.TrimSpace(part), `"`))
+			}
+		}
+	}
+
 	return productItem, nil
 }
 
@@ -502,10 +516,10 @@ func (c *productDatabase) UpdateShopDepartments(ctx context.Context, shopID stri
 	// adminID and shopID are already string IDs
 
 	// Insert into shop_departments with ON CONFLICT DO NOTHING to handle duplicates
-	query := `INSERT INTO shop_departments (admin_id, shop_id, department_id, category_id, sub_category_id, created_at, updated_at)
-	VALUES ($1, $2, $3, $4, $5, NOW(), NOW()) ON CONFLICT (shop_id, department_id) DO NOTHING`
+	query := `INSERT INTO shop_departments (id, admin_id, shop_id, department_id, category_id, sub_category_id, created_at, updated_at)
+	VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW()) ON CONFLICT (shop_id, department_id) DO NOTHING`
 
-	result := c.DB.WithContext(ctx).Exec(query, adminID, shopID, departmentID, categoryID, subCategoryId)
+	result := c.DB.WithContext(ctx).Exec(query, domain.NewID(domain.PrefixShopDepartment), adminID, shopID, departmentID, categoryID, subCategoryId)
 	if result.Error != nil {
 		log.Printf("Failed to update shop departments: shopID=%s, departmentID=%s, adminID=%s, categoryID=%s, error=%v", shopID, departmentID, adminID, categoryID, result.Error)
 		return fmt.Errorf("failed to update shop departments: %w", result.Error)
@@ -540,7 +554,21 @@ VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`
 		productItemImagesStr = "{}"
 	}
 
-	err = c.DB.Raw(query, newID, adminID, productItem.SubCategoryName, dynamicFieldsJSON, productItemImagesStr, productItem.CategoryID, productItem.DepartmentID, productItem.SubCategoryID, shopID, createdAt, createdAt).Scan(&productItemID).Error
+	var highlightsStr string
+	if len(productItem.Highlights) > 0 {
+		escaped := make([]string, len(productItem.Highlights))
+		for i, h := range productItem.Highlights {
+			escaped[i] = `"` + strings.ReplaceAll(h, `"`, `\"`) + `"`
+		}
+		highlightsStr = "{" + strings.Join(escaped, ",") + "}"
+	} else {
+		highlightsStr = "{}"
+	}
+
+	err = c.DB.Exec(query, newID, adminID, productItem.SubCategoryName, dynamicFieldsJSON, productItemImagesStr, productItem.CategoryID, productItem.DepartmentID, productItem.SubCategoryID, shopID, productItem.Description, highlightsStr, createdAt, createdAt).Error
+	if err == nil {
+		productItemID = newID
+	}
 
 	if err == nil && c.ElasticClient != nil {
 		domainItem := domain.ProductItem{
@@ -573,84 +601,70 @@ VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`
 }
 
 func (c *productDatabase) UpdateProductItem(ctx context.Context, productItemID string, productItem request.ProductItem) error {
-	// First, fetch the existing product item to merge dynamic_fields
 	existing, err := c.FindProductItemByID(ctx, productItemID)
 	if err != nil {
 		return fmt.Errorf("failed to fetch existing product item: %w", err)
 	}
 
-	// Parse existing dynamic_fields from JSON string to map
+	// Merge dynamic_fields: existing as base, new values overwrite
 	var existingDynamicFields map[string]interface{}
 	if existing.DynamicFields != "" {
 		if err := json.Unmarshal([]byte(existing.DynamicFields), &existingDynamicFields); err != nil {
 			return fmt.Errorf("failed to unmarshal existing dynamic fields: %w", err)
 		}
-		// Handle case where JSON is "null" which results in nil map
-		if existingDynamicFields == nil {
-			existingDynamicFields = make(map[string]interface{})
-		}
-	} else {
+	}
+	if existingDynamicFields == nil {
 		existingDynamicFields = make(map[string]interface{})
 	}
-
-	// Merge dynamic_fields: existing data as base, new data overwrites
-	mergedDynamicFields := existingDynamicFields
 	if productItem.DynamicFields != nil {
-		// Ensure productItem.DynamicFields is treated as a map
-		fieldsBytes, err := json.Marshal(productItem.DynamicFields)
-		if err != nil {
-			return fmt.Errorf("failed to marshal new dynamic fields: %w", err)
-		}
-		var newFields map[string]interface{}
-		if err := json.Unmarshal(fieldsBytes, &newFields); err != nil {
-			return fmt.Errorf("failed to unmarshal new dynamic fields: %w", err)
-		}
-		// Merge: new fields overwrite existing ones
-		for key, value := range newFields {
-			mergedDynamicFields[key] = value
+		for k, v := range productItem.DynamicFields {
+			existingDynamicFields[k] = v
 		}
 	}
-
-	query := `UPDATE product_items SET sub_category_name = $1, dynamic_fields = $2, product_item_images = $3, category_id = $4, department_id = $5, sub_category_id = $6, updated_at = $7 WHERE id = $8`
-
-	updatedAt := time.Now()
-
-	// Marshal merged DynamicFields to JSON for JSONB column
-	dynamicFieldsJSON, err := json.Marshal(mergedDynamicFields)
+	dynamicFieldsJSON, err := json.Marshal(existingDynamicFields)
 	if err != nil {
 		return err
 	}
 
-	// Use provided values or fall back to existing values for fields not provided
+	// Scalar fields: fall back to existing when not provided
 	subCategoryName := productItem.SubCategoryName
 	if subCategoryName == "" {
 		subCategoryName = existing.SubCategoryName
 	}
-
 	categoryID := productItem.CategoryID
 	if categoryID == "" {
 		categoryID = existing.CategoryID
 	}
-
 	departmentID := productItem.DepartmentID
 	if departmentID == "" {
 		departmentID = existing.DepartmentID
 	}
-
 	subCategoryID := productItem.SubCategoryID
 	if subCategoryID == "" {
 		subCategoryID = existing.SubCategoryID
 	}
-
-	productItemImages := existing.ProductItemImages
-	if len(productItem.ProductItemImages) > 0 {
-		productItemImages = append(productItemImages, productItem.ProductItemImages...)
+	description := productItem.Description
+	if description == "" {
+		description = existing.Description
+	}
+	highlights := productItem.Highlights
+	if len(highlights) == 0 {
+		highlights = existing.Highlights
 	}
 
-	// Convert []string to PostgreSQL array format
+	// Image set: retained (client's kept keys) + newly uploaded.
+	// If client sends no retained_images at all, preserve existing (back-compat).
+	var finalImages []string
+	if len(productItem.RetainedImages) > 0 {
+		finalImages = append(finalImages, productItem.RetainedImages...)
+	} else if len(productItem.ProductItemImages) == 0 {
+		finalImages = existing.ProductItemImages
+	}
+	finalImages = append(finalImages, productItem.ProductItemImages...)
+
 	var productItemImagesStr string
-	if len(productItemImages) > 0 {
-		productItemImagesStr = "{" + strings.Join(productItemImages, ",") + "}"
+	if len(finalImages) > 0 {
+		productItemImagesStr = "{" + strings.Join(finalImages, ",") + "}"
 	} else {
 		productItemImagesStr = "{}"
 	}
@@ -660,7 +674,7 @@ func (c *productDatabase) UpdateProductItem(ctx context.Context, productItemID s
 		return err
 	}
 
-	if err == nil && c.ElasticClient != nil {
+	if c.ElasticClient != nil {
 		domainItem := domain.ProductItem{
 			ID:                productItemID,
 			SubCategoryName:   subCategoryName,
@@ -668,7 +682,9 @@ func (c *productDatabase) UpdateProductItem(ctx context.Context, productItemID s
 			DepartmentID:      departmentID,
 			SubCategoryID:     subCategoryID,
 			DynamicFields:     string(dynamicFieldsJSON),
-			ProductItemImages: productItemImages,
+			ProductItemImages: finalImages,
+			Description:       description,
+			Highlights:        highlights,
 		}
 		go func() {
 			if updateErr := c.ElasticClient.UpdateProductItem(ctx, domainItem); updateErr != nil {
@@ -677,7 +693,7 @@ func (c *productDatabase) UpdateProductItem(ctx context.Context, productItemID s
 		}()
 	}
 
-	return err
+	return nil
 }
 
 // for get all products items for a product filtered by admin_id and additional filters
@@ -1269,14 +1285,14 @@ func buildGeoDistanceQuery(lat, lng, radius float64, startParam int, locationCol
 				locationColumnOrLatCol,
 			)
 
-			whereFilterTemplate := `AND %s IS NOT NULL AND %s IS NOT NULL AND
+			whereFilterTemplate := ` AND %s IS NOT NULL AND %s IS NOT NULL AND
 			  (6371 * acos(
 				LEAST(1, GREATEST(-1,
-					cos(radians($%s)) * cos(radians(%s::double precision)) *
-					cos(radians(%s::double precision) - radians($%s)) +
-					sin(radians($%s)) * sin(radians(%s::double precision))
+					cos(radians($%d)) * cos(radians(%s::double precision)) *
+					cos(radians(%s::double precision) - radians($%d)) +
+					sin(radians($%d)) * sin(radians(%s::double precision))
 				))
-			  )) <= $%s`
+			  )) <= $%d`
 
 			if radius > 0 {
 				geoFilter = fmt.Sprintf(whereFilterTemplate,
@@ -1418,12 +1434,11 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 		}
 	}
 
-	if departmentID != nil {
-		if did, err := strconv.ParseUint(*departmentID, 10, 64); err == nil {
-			whereClause += fmt.Sprintf(" AND pi.department_id = $%d", paramIndex)
-			params = append(params, did)
-			paramIndex++
-		}
+	// department_id is varchar(32) (e.g. "dept_00001"), not an integer.
+	if departmentID != nil && *departmentID != "" {
+		whereClause += fmt.Sprintf(" AND pi.department_id = $%d", paramIndex)
+		params = append(params, *departmentID)
+		paramIndex++
 	}
 
 	if shopID != nil {
@@ -1663,9 +1678,9 @@ func (c *productDatabase) GetSubTypeAttributeOptionByID(ctx context.Context, opt
 // SaveCategoryImage saves a new category image
 func (c *productDatabase) SaveCategoryImage(ctx context.Context, categoryID string, image domain.CategoryImage) error {
 	image.CategoryID = categoryID
-	query := `INSERT INTO category_images (category_id, image_url, alt_text, sort_order, is_active) 
-	          VALUES ($1, $2, $3, $4, $5)`
-	return c.DB.Exec(query, image.CategoryID, image.ImageURL, image.AltText, image.SortOrder, image.IsActive).Error
+	query := `INSERT INTO category_images (id, category_id, image_url, alt_text, sort_order, is_active)
+	          VALUES ($1, $2, $3, $4, $5, $6)`
+	return c.DB.Exec(query, domain.NewID(domain.PrefixCategoryImage), image.CategoryID, image.ImageURL, image.AltText, image.SortOrder, image.IsActive).Error
 }
 
 // GetAllCategoryImages retrieves all images for a category
@@ -1702,25 +1717,27 @@ func (c *productDatabase) DeleteCategoryImage(ctx context.Context, imageID strin
 }
 
 func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID string) (productItem response.ProductItems, err error) {
-	// First, get product item details (excluding images)
-	query := `SELECT pi.id, pi.sub_category_name, pi.category_id, pi.stock,
-	           sc.name AS category_name, mc.name AS main_category_name, 
-	           pi.dynamic_fields, pi.created_at, pi.updated_at, pi.shop_id,
+	query := `SELECT pi.id, pi.sub_category_name, pi.category_id, pi.department_id, pi.sub_category_id, pi.stock,
+	           sc.name AS category_name, mc.name AS main_category_name,
+	           pi.dynamic_fields, pi.description, pi.highlights, pi.created_at, pi.updated_at, pi.shop_id,
 	           (SELECT COALESCE(SUM(view_count), 0) FROM product_item_views WHERE product_item_id = pi.id) AS view_count
-	       FROM product_items pi 
-	       LEFT JOIN categories sc ON pi.category_id = sc.id 
-	       LEFT JOIN categories mc ON pi.category_id = mc.id 
+	       FROM product_items pi
+	       LEFT JOIN categories sc ON pi.category_id = sc.id
+	       LEFT JOIN categories mc ON pi.category_id = mc.id
 	       WHERE pi.id = $1;`
 
 	var dbItem struct {
 		ID               string
 		SubCategoryName  string
-		ProductID        string
 		CategoryID       string
+		DepartmentID     string
+		SubCategoryID    string
 		CategoryName     string
 		MainCategoryName string
 		Stock            bool
 		DynamicFields    []byte
+		Description      string
+		Highlights       string
 		CreatedAt        time.Time
 		UpdatedAt        time.Time
 		ViewCount        uint
@@ -1734,15 +1751,32 @@ func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID 
 
 	productItem.ID = dbItem.ID
 	productItem.Name = dbItem.SubCategoryName
+	productItem.CategoryID = dbItem.CategoryID
+	productItem.DepartmentID = dbItem.DepartmentID
+	productItem.SubCategoryID = dbItem.SubCategoryID
 	productItem.CategoryName = dbItem.CategoryName
 	productItem.MainCategoryName = dbItem.MainCategoryName
 	productItem.Stock = dbItem.Stock
+	productItem.Description = dbItem.Description
 	productItem.CreatedAt = dbItem.CreatedAt
 	productItem.UpdatedAt = dbItem.UpdatedAt
 	productItem.ViewCount = dbItem.ViewCount
 	productItem.ShopID = dbItem.ShopId
 
-	// Fetch images from product_images table
+	// Parse highlights PostgreSQL array format
+	if dbItem.Highlights != "" {
+		h := dbItem.Highlights
+		if len(h) > 2 && h[0] == '{' && h[len(h)-1] == '}' {
+			h = h[1 : len(h)-1]
+		}
+		if h != "" {
+			for _, part := range strings.Split(h, ",") {
+				productItem.Highlights = append(productItem.Highlights, strings.Trim(strings.TrimSpace(part), `"`))
+			}
+		}
+	}
+
+	// Fetch raw image keys from product_items.product_item_images
 	images, imgErr := c.FindAllProductItemImages(ctx, dbItem.ID)
 	if imgErr != nil {
 		productItem.ProductItemImages = []string{}

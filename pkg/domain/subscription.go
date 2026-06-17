@@ -11,11 +11,15 @@ const (
 )
 
 type SubscriptionPlan struct {
-	ID           string `json:"id" gorm:"primaryKey;type:varchar(32)"`
-	Name         string `json:"name" gorm:"unique;not null"`
-	PriceMonthly Money  `json:"price_monthly" gorm:"embedded;embeddedPrefix:price_monthly_"`
-	DurationDays uint   `json:"duration_days" gorm:"not null;default:30"`
-	IsActive     bool   `json:"is_active" gorm:"not null;default:true"`
+	ID   string `json:"id" gorm:"primaryKey;type:varchar(32)"`
+	Name string `json:"name" gorm:"unique;not null"`
+	// PriceMonthly is the total price (Money) charged once for the plan's
+	// full DurationDays window. The name is historical from when every plan
+	// was billed monthly; the value is NOT a per-month figure for the
+	// duration-based plans (3 Months / 6 Months).
+	PriceMonthly Money `json:"price_monthly" gorm:"embedded;embeddedPrefix:price_monthly_"`
+	DurationDays uint  `json:"duration_days" gorm:"not null;default:30"`
+	IsActive     bool  `json:"is_active" gorm:"not null;default:true"`
 }
 
 type SubscriptionOrder struct {

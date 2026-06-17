@@ -274,8 +274,8 @@ func (c *adminDatabase) VerifyShop(ctx context.Context, shopVerification request
 		verificationStatusValue = verificationStatus
 	}
 
-	insertQuery := `INSERT INTO shop_details (admin_id, shop_verification_status, photo_shop_verification, business_doc_verification, identity_doc_verification, address_proof_verification, updated_at, created_at)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	insertQuery := `INSERT INTO shop_details (id, admin_id, shop_verification_status, photo_shop_verification, business_doc_verification, identity_doc_verification, address_proof_verification, updated_at, created_at)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 	ON CONFLICT (admin_id) DO UPDATE SET
 	shop_verification_status = EXCLUDED.shop_verification_status,
 	photo_shop_verification = EXCLUDED.photo_shop_verification,
@@ -283,7 +283,7 @@ func (c *adminDatabase) VerifyShop(ctx context.Context, shopVerification request
 	identity_doc_verification = EXCLUDED.identity_doc_verification,
 	address_proof_verification = EXCLUDED.address_proof_verification,
 	updated_at = EXCLUDED.updated_at`
-	err = c.DB.Exec(insertQuery, adminId, verificationStatusValue, shopVerification.Photo_Shop_Verification, shopVerification.Business_Doc_Verification, shopVerification.Identity_Doc_Verification, shopVerification.Address_Proof_Verification, time.Now(), time.Now()).Error
+	err = c.DB.Exec(insertQuery, domain.NewID(domain.PrefixShop), adminId, verificationStatusValue, shopVerification.Photo_Shop_Verification, shopVerification.Business_Doc_Verification, shopVerification.Identity_Doc_Verification, shopVerification.Address_Proof_Verification, time.Now(), time.Now()).Error
 	if err != nil {
 		return fmt.Errorf("failed to upsert shop details for admin %s: %v", adminId, err)
 	}
@@ -292,12 +292,13 @@ func (c *adminDatabase) VerifyShop(ctx context.Context, shopVerification request
 }
 
 func (c *adminDatabase) CreateAdvertisement(ctx context.Context, ad domain.Advertisement) (domain.Advertisement, error) {
-	query := `INSERT INTO advertisements (title, content, image_url, start_date, end_date, created_at, updated_at, created_by_admin, admin_id, area_targeted, pincode_targeted, latitude, longitude, distance_km, status, distance_km, priority)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING id`
+	ad.ID = domain.NewID(domain.PrefixAdvertisement)
+	query := `INSERT INTO advertisements (id, title, content, image_url, start_date, end_date, created_at, updated_at, created_by_admin, admin_id, area_targeted, pincode_targeted, latitude, longitude, distance_km, status, priority)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`
 
-	err := c.DB.Raw(query, ad.Title, ad.Content, ad.ImageURL, ad.StartDate, ad.EndDate, time.Now(), time.Now(),
+	err := c.DB.Exec(query, ad.ID, ad.Title, ad.Content, ad.ImageURL, ad.StartDate, ad.EndDate, time.Now(), time.Now(),
 		ad.CreatedByAdmin, ad.AdminID, ad.AreaTargeted, ad.PincodeTargeted, ad.Latitude, ad.Longitude,
-		ad.DistanceKM, ad.Status, ad.Priority).Scan(&ad.ID).Error
+		ad.DistanceKM, ad.Status, ad.Priority).Error
 
 	return ad, err
 }
@@ -619,8 +620,8 @@ func (c *adminDatabase) UploadAddress(ctx context.Context, adminId string, addre
 	}
 
 	//insert or update address in shop_details table
-	query := `INSERT INTO shop_details (admin_id, shop_name, owner_name, phone, address_line1, address_line2, city, state, pincode, latitude, longitude, created_at, updated_at)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+	query := `INSERT INTO shop_details (id, admin_id, shop_name, owner_name, phone, address_line1, address_line2, city, state, pincode, latitude, longitude, created_at, updated_at)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 	ON CONFLICT (admin_id) DO UPDATE SET
 		shop_name = EXCLUDED.shop_name,
 		owner_name = EXCLUDED.owner_name,
@@ -634,7 +635,7 @@ func (c *adminDatabase) UploadAddress(ctx context.Context, adminId string, addre
 		longitude = EXCLUDED.longitude,
 		updated_at = EXCLUDED.updated_at`
 
-	err = c.DB.Exec(query, adminId, address.ShopName, address.OwnerName, address.Phone, address.AddressLine1, address.AddressLine2, address.City, address.State, address.Pincode,
+	err = c.DB.Exec(query, domain.NewID(domain.PrefixShop), adminId, address.ShopName, address.OwnerName, address.Phone, address.AddressLine1, address.AddressLine2, address.City, address.State, address.Pincode,
 		latitude, longitude, time.Now(), time.Now()).Error
 
 	return err

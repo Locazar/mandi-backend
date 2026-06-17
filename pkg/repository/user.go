@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -72,6 +71,15 @@ func (c *userDatabase) SaveUser(ctx context.Context, user domain.User) (userID s
 	values := []interface{}{}
 	paramCount := 1
 
+	// Always generate and include the ID (string PK, no DB-side autoincrement)
+	if user.ID == "" {
+		user.ID = domain.NewID(domain.PrefixUser)
+	}
+	columns = append(columns, "id")
+	placeholders = append(placeholders, fmt.Sprintf("$%d", paramCount))
+	values = append(values, user.ID)
+	paramCount++
+
 	if user.Email != "" {
 		columns = append(columns, "email")
 		placeholders = append(placeholders, fmt.Sprintf("$%d", paramCount))
@@ -84,6 +92,12 @@ func (c *userDatabase) SaveUser(ctx context.Context, user domain.User) (userID s
 		values = append(values, user.Phone)
 		paramCount++
 	}
+	// password is NOT NULL in the DB; phone-only users have no password so we store
+	// an empty string as a safe placeholder (auth is via OTP, not password, for these users)
+	columns = append(columns, "password")
+	placeholders = append(placeholders, fmt.Sprintf("$%d", paramCount))
+	values = append(values, user.Password) // empty string is fine for phone-only signups
+	paramCount++
 
 	// Always add created_at
 	columns = append(columns, "created_at")
@@ -406,26 +420,10 @@ func (c *userDatabase) SearchShopList(ctx context.Context, reqData request.Searc
 	}
 
 	// Filter by department_id and/or category_id if provided (with AND condition)
-	// If both are provided, check for products matching BOTH criteria in a single subquery
+	// department_id and category_id are varchar(32) strings (e.g. "dept_00001"), not integers.
 	if reqData.DepartmentID != nil || reqData.CategoryID != nil {
-		var deptID uint64
-		var catID uint64
-		deptProvided := false
-		catProvided := false
-
-		if reqData.DepartmentID != nil {
-			if id, err := strconv.ParseUint(*reqData.DepartmentID, 10, 64); err == nil {
-				deptID = id
-				deptProvided = true
-			}
-		}
-
-		if reqData.CategoryID != nil {
-			if id, err := strconv.ParseUint(*reqData.CategoryID, 10, 64); err == nil {
-				catID = id
-				catProvided = true
-			}
-		}
+		deptProvided := reqData.DepartmentID != nil && *reqData.DepartmentID != ""
+		catProvided := reqData.CategoryID != nil && *reqData.CategoryID != ""
 
 		if deptProvided && catProvided {
 			// Both department_id and category_id provided - check for products matching BOTH
@@ -433,7 +431,7 @@ func (c *userDatabase) SearchShopList(ctx context.Context, reqData request.Searc
 				SELECT DISTINCT pi.shop_id FROM product_items pi
 				WHERE pi.department_id = $%d AND pi.category_id = $%d
 			)`, paramIndex, paramIndex+1)
-			args = append(args, deptID, catID)
+			args = append(args, *reqData.DepartmentID, *reqData.CategoryID)
 			paramIndex += 2
 		} else if deptProvided {
 			// Only department_id provided
@@ -441,7 +439,7 @@ func (c *userDatabase) SearchShopList(ctx context.Context, reqData request.Searc
 				SELECT DISTINCT pi.shop_id FROM product_items pi
 				WHERE pi.department_id = $%d
 			)`, paramIndex)
-			args = append(args, deptID)
+			args = append(args, *reqData.DepartmentID)
 			paramIndex++
 		} else if catProvided {
 			// Only category_id provided
@@ -449,7 +447,7 @@ func (c *userDatabase) SearchShopList(ctx context.Context, reqData request.Searc
 				SELECT DISTINCT pi.shop_id FROM product_items pi
 				WHERE pi.category_id = $%d
 			)`, paramIndex)
-			args = append(args, catID)
+			args = append(args, *reqData.CategoryID)
 			paramIndex++
 		}
 	}

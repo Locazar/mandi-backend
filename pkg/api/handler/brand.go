@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -53,7 +54,7 @@ func (b *brandHandler) Save(ctx *gin.Context) {
 			statusCode = http.StatusInternalServerError
 			message    = "failed to save brand"
 		)
-		if err == usecase.ErrBrandAlreadyExist {
+		if errors.Is(err, usecase.ErrBrandAlreadyExist) {
 			statusCode = http.StatusConflict
 			message = "brand name already exist different other name"
 		}

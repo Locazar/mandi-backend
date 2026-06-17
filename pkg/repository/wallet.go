@@ -19,9 +19,9 @@ func (c *OrderDatabase) FindWalletByUserID(ctx context.Context, userID string) (
 
 // create a new wallet for user
 func (c *OrderDatabase) SaveWallet(ctx context.Context, userID string) (walletID string, err error) {
-
-	query := `INSERT INTO wallets (user_id,total_amount_amount_minor,total_amount_currency) VALUES ($1, $2, $3) RETURNING id`
-	err = c.DB.Raw(query, userID, 0, domain.CurrencyINR).Scan(&walletID).Error
+	walletID = domain.NewID(domain.PrefixWallet)
+	query := `INSERT INTO wallets (id, user_id, total_amount_amount_minor, total_amount_currency) VALUES ($1, $2, $3, $4)`
+	err = c.DB.Exec(query, walletID, userID, 0, domain.CurrencyINR).Error
 
 	return
 }
@@ -34,11 +34,10 @@ func (c *OrderDatabase) UpdateWallet(ctx context.Context, walletID string, upate
 }
 
 func (c *OrderDatabase) SaveWalletTransaction(ctx context.Context, walletTrx domain.Transaction) error {
-
 	trxDate := time.Now()
-	query := `INSERT INTO transactions (wallet_id, transaction_date, amount_amount_minor, amount_currency, transaction_type)
-	VALUES ($1, $2, $3, $4, $5)`
-	err := c.DB.Exec(query, walletTrx.WalletID, trxDate,
+	query := `INSERT INTO transactions (transaction_id, wallet_id, transaction_date, amount_amount_minor, amount_currency, transaction_type)
+	VALUES ($1, $2, $3, $4, $5, $6)`
+	err := c.DB.Exec(query, domain.NewID(domain.PrefixTransaction), walletTrx.WalletID, trxDate,
 		walletTrx.Amount.AmountMinor, walletTrx.Amount.Currency, walletTrx.TransactionType).Error
 
 	return err

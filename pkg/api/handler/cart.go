@@ -102,7 +102,7 @@ func (u *cartHandler) UpdateCart(ctx *gin.Context) {
 	err := u.carUseCase.UpdateCartItem(ctx, body)
 
 	if err != nil {
-		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to update product item in cart", err, nil)
+		errResponse(ctx, "Failed to update product item in cart", err)
 		return
 	}
 

@@ -82,13 +82,13 @@ func (c *couponDatabase) FindAllCoupons(ctx context.Context, pagination request.
 
 // save a new coupon
 func (c *couponDatabase) SaveCoupon(ctx context.Context, coupon domain.Coupon) error {
-	query := `INSERT INTO coupons (coupon_name, coupon_code, description, expire_date,
-		discount_rate, minimum_cart_price_amount_minor, minimum_cart_price_currency, image, block_status,created_at)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
+	query := `INSERT INTO coupons (coupon_id, coupon_name, coupon_code, description, expire_date,
+		discount_rate, minimum_cart_price_amount_minor, minimum_cart_price_currency, image, block_status, created_at)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`
 
 	cratedAt := time.Now()
 
-	err := c.DB.Exec(query, coupon.CouponName, coupon.CouponCode, coupon.Description, coupon.ExpireDate,
+	err := c.DB.Exec(query, domain.NewID(domain.PrefixCoupon), coupon.CouponName, coupon.CouponCode, coupon.Description, coupon.ExpireDate,
 		coupon.DiscountRate, coupon.MinimumCartPrice.AmountMinor, coupon.MinimumCartPrice.Currency,
 		coupon.Image, coupon.BlockStatus, cratedAt,
 	).Error
@@ -131,10 +131,9 @@ func (c *couponDatabase) FindCouponUsesByCouponAndUserID(ctx context.Context, us
 
 // save a couponUses
 func (c *couponDatabase) SaveCouponUses(ctx context.Context, couponUses domain.CouponUses) error {
-
 	usedAt := time.Now()
-	query := `INSERT INTO coupon_uses ( user_id, coupon_id, used_at) VALUES ($1, $2, $3)`
-	err := c.DB.Exec(query, couponUses.UserID, couponUses.CouponID, usedAt).Error
+	query := `INSERT INTO coupon_uses (coupon_uses_id, user_id, coupon_id, used_at) VALUES ($1, $2, $3, $4)`
+	err := c.DB.Exec(query, domain.NewID(domain.PrefixCouponUses), couponUses.UserID, couponUses.CouponID, usedAt).Error
 
 	return err
 }

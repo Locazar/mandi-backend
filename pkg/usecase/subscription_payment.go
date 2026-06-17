@@ -89,7 +89,8 @@ func (uc *subscriptionPaymentUseCase) CreateSubscriptionOrder(ctx context.Contex
 	// PriceMonthly is stored in minor units (paise), which is exactly what Razorpay expects.
 	amountPaise := plan.PriceMonthly.AmountMinor
 	client := razorpay.NewClient(uc.config.RazorPayKey, uc.config.RazorPaySecret)
-	receipt := fmt.Sprintf("sub_%s_%s_%d", userID, plan.ID, time.Now().Unix())
+	// Razorpay caps receipt at 40 chars; keep traceable suffixes of both IDs.
+	receipt := fmt.Sprintf("sub_%s_%s_%d", lastN(userID, 8), lastN(plan.ID, 8), time.Now().Unix())
 
 	rzpData := map[string]interface{}{
 		"amount":   amountPaise,
@@ -362,4 +363,11 @@ func (uc *subscriptionPaymentUseCase) crossCheckPayment(paymentID, expectedOrder
 	}
 
 	return nil
+}
+
+func lastN(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[len(s)-n:]
 }

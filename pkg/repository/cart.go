@@ -30,9 +30,9 @@ func (c *cartDatabase) FindCartByUserID(ctx context.Context, userID string) (car
 
 // save cart for user
 func (c *cartDatabase) SaveCart(ctx context.Context, userID string) (cartID string, err error) {
-
-	query := `INSERT INTO carts (user_id,total_price_amount_minor,total_price_currency) VALUES($1, $2, $3) RETURNING id`
-	err = c.DB.Raw(query, userID, 0, domain.CurrencyINR).Scan(&cartID).Error
+	cartID = domain.NewID(domain.PrefixCart)
+	query := `INSERT INTO carts (id, user_id,total_price_amount_minor,total_price_currency) VALUES($1, $2, $3, $4)`
+	err = c.DB.Exec(query, cartID, userID, 0, domain.CurrencyINR).Error
 
 	return cartID, err
 }
@@ -61,9 +61,8 @@ func (c *cartDatabase) FindCartItemByCartAndProductItemID(ctx context.Context, c
 }
 
 func (c *cartDatabase) SaveCartItem(ctx context.Context, cartId, productItemId string) error {
-
-	query := `INSERT INTO cart_items (cart_id, product_item_id, qty) VALUES ($1, $2, $3)`
-	err := c.DB.Exec(query, cartId, productItemId, 1).Error
+	query := `INSERT INTO cart_items (id, cart_id, product_item_id, qty) VALUES ($1, $2, $3, $4)`
+	err := c.DB.Exec(query, domain.NewID(domain.PrefixCartItem), cartId, productItemId, 1).Error
 
 	return err
 }

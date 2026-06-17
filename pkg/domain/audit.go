@@ -22,8 +22,6 @@ type AuditLog struct {
 }
 
 func (m *AuditLog) BeforeCreate(*gorm.DB) error {
-	if m.ID == "" {
-		m.ID = NewID(PrefixAuditLog)
-	}
+	m.ID = NewID(PrefixAuditLog)
 	return nil
 }

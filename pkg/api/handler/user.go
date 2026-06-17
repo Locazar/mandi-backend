@@ -562,7 +562,10 @@ func (c *UserHandler) SearchShopList(ctx *gin.Context) {
 	// get optional query parameters
 	query := ctx.Query("q")
 	latStr := ctx.Query("lat")
-	lngStr := ctx.Query("long")
+	lngStr := ctx.Query("lng")
+	if lngStr == "" {
+		lngStr = ctx.Query("long")
+	}
 	radiusStr := ctx.Query("radius")
 	pincodeStr := ctx.Query("pincode")
 	departmentIDStr := ctx.Query("department_id")
@@ -611,16 +614,12 @@ func (c *UserHandler) SearchShopList(ctx *gin.Context) {
 
 	// parse department_id if provided
 	if departmentIDStr != "" {
-		if _, err := strconv.ParseUint(departmentIDStr, 10, 64); err == nil {
-			departmentID = &departmentIDStr
-		}
+		departmentID = &departmentIDStr
 	}
 
 	// parse category_id if provided
 	if categoryIDStr != "" {
-		if _, err := strconv.ParseUint(categoryIDStr, 10, 64); err == nil {
-			categoryID = &categoryIDStr
-		}
+		categoryID = &categoryIDStr
 	}
 
 	pagination := request.GetPagination(ctx)
