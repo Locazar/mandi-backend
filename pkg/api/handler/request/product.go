@@ -29,6 +29,9 @@ type ProductItem struct {
 	ProductItemImages []string               `json:"product_item_images " binding:"omitempty,dive,required"`
 	DepartmentID      string                 `json:"department_id" binding:"required"`
 	CategoryID        string                 `json:"category_id" binding:"required"`
+	Description       string                 `json:"description"`
+	Highlights        []string               `json:"highlights"`
+	RetainedImages    []string               `json:"retained_images"`
 }
 
 type Variation struct {

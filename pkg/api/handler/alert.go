@@ -49,6 +49,17 @@ func (h *AlertHandler) GetSellerAlerts(ctx *gin.Context) {
 		return
 	}
 
+	// Filter by type query param if provided
+	if alertType := ctx.Query("type"); alertType != "" {
+		filtered := alerts[:0]
+		for _, a := range alerts {
+			if string(a.Type) == alertType {
+				filtered = append(filtered, a)
+			}
+		}
+		alerts = filtered
+	}
+
 	// Convert to response format
 	alertResponses := make([]map[string]interface{}, 0)
 	for _, alert := range alerts {

@@ -238,10 +238,28 @@ func (r *DBDrivenAlertRule) Evaluate(ctx context.Context, sellerID string, data 
 		IsActive:    r.Template.IsActive,
 	}
 
-	// Parse and set actions if available
+	// Parse actions from template JSON
 	if r.Template.Actions != nil {
-		// In a real implementation, parse actions from JSON
-		alert.Actions = make([]domain.AlertAction, 0)
+		var rawActions []map[string]interface{}
+		if err := json.Unmarshal(r.Template.Actions, &rawActions); err == nil {
+			actions := make([]domain.AlertAction, 0, len(rawActions))
+			for _, a := range rawActions {
+				action := domain.AlertAction{}
+				if v, ok := a["label"].(string); ok {
+					action.Label = v
+				}
+				if v, ok := a["action_type"].(string); ok {
+					action.ActionType = domain.AlertActionType(v)
+				}
+				if v, ok := a["action_url"].(string); ok {
+					action.ActionURL = v
+				}
+				actions = append(actions, action)
+			}
+			alert.Actions = actions
+		} else {
+			alert.Actions = make([]domain.AlertAction, 0)
+		}
 	}
 
 	// Parse frequency config

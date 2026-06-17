@@ -96,6 +96,8 @@ type ProductItems struct {
 	SubCategoryImageURL string                 `json:"sub_category_image_url"`
 	ProductItemImages   []string               `json:"product_item_images"`
 	DynamicFields       map[string]interface{} `json:"dynamic_fields"`
+	Description         string                 `json:"description"`
+	Highlights          []string               `json:"highlights"`
 	OfferProducts       []OfferProduct         `json:"offer_products"`
 	DiscountRate        *uint                  `json:"discount_rate,omitempty"`
 	ShopID              string                 `json:"shop_id"`

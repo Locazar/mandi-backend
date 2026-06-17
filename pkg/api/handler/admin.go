@@ -288,7 +288,7 @@ func (a *adminHandler) BlockUser(ctx *gin.Context) {
 
 	err := a.adminUseCase.BlockOrUnBlockUser(ctx, body)
 	if err != nil {
-		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to change block status of user", err, nil)
+		errResponse(ctx, "Failed to change block status of user", err)
 		return
 	}
 

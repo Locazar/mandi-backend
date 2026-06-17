@@ -341,7 +341,7 @@ func (c *OrderHandler) GetAllPendingReturns(ctx *gin.Context) {
 
 	orderReturns, err := c.orderUseCase.FindAllPendingOrderReturns(ctx, pagination)
 	if err != nil {
-		response.ErrorResponse(ctx, 500, "Failed to find all pending order return requests", err, nil)
+		errResponse(ctx, "Failed to find all pending order return requests", err)
 		return
 	}
 

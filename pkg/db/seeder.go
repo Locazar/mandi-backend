@@ -8,33 +8,42 @@ import (
 	"gorm.io/gorm"
 )
 
-// SeedProductItemFilters inserts sample data into ProductItemFilterType table
+// SeedProductItemFilters inserts default filter types ("Offers", "All") for each
+// existing shop that doesn't have them yet. Skips silently if no shops exist.
 func SeedProductItemFilters(db *gorm.DB) error {
-	// Sample data for ProductItemFilterType
-	filters := []domain.ProductItemFilterType{
-		{
-			FilterName: "Offers",
-		},
-		{
-			FilterName: "All",
-		},
+	var shopIDs []string
+	if err := db.Model(&domain.ShopDetails{}).Pluck("id", &shopIDs).Error; err != nil {
+		return err
 	}
-
-	// Check if data already exists to avoid duplicates
-	var count int64
-	db.Model(&domain.ProductItemFilterType{}).Count(&count)
-	if count > 0 {
-		log.Println("ProductItemFilterType data already exists, skipping seed")
+	if len(shopIDs) == 0 {
+		log.Println("No shops found, skipping ProductItemFilterType seed")
 		return nil
 	}
 
-	// Insert data
-	err := db.CreateInBatches(&filters, 10).Error
-	if err != nil {
-		return err
+	defaultFilterNames := []string{"Offers", "All"}
+	seeded := 0
+	for _, shopID := range shopIDs {
+		for _, name := range defaultFilterNames {
+			var count int64
+			db.Model(&domain.ProductItemFilterType{}).
+				Where("filter_name = ? AND shop_id = ?", name, shopID).
+				Count(&count)
+			if count > 0 {
+				continue
+			}
+			f := domain.ProductItemFilterType{FilterName: name, ShopID: shopID}
+			if err := db.Create(&f).Error; err != nil {
+				return err
+			}
+			seeded++
+		}
 	}
 
-	log.Println("Successfully seeded ProductItemFilterType data")
+	if seeded > 0 {
+		log.Printf("Successfully seeded %d ProductItemFilterType records", seeded)
+	} else {
+		log.Println("ProductItemFilterType data already exists, skipping seed")
+	}
 	return nil
 }
 

@@ -236,33 +236,6 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 			// Insert follower, following, like, rating, review count in shop details response to avoid multiple calls from client
 		}
 
-		// Legacy social endpoints retained for backward compatibility.
-		legacyRating := api.Group("/rating")
-		{
-			legacyRating.POST("/shop/:shop_id", userHandler.RateShop)
-			legacyRating.GET("/shop/:shop_id", userHandler.GetUserShopRating)
-			legacyRating.PUT("/shop/:shop_id", userHandler.RateShop)
-			legacyRating.PATCH("/shop/:shop_id", userHandler.RateShop)
-			legacyRating.GET("/shop/:shop_id/average-rating", userHandler.GetShopAverageRating)
-			legacyRating.GET("/shop/:shop_id/rating-distribution", userHandler.GetShopRatingDistribution)
-		}
-
-		legacyReview := api.Group("/review")
-		{
-			legacyReview.POST("/shop/:shop_id", userHandler.ReviewShop)
-			legacyReview.GET("/shop/:shop_id", userHandler.GetUserShopReview)
-			legacyReview.PUT("/shop/:shop_id", userHandler.ReviewShop)
-			legacyReview.PATCH("/shop/:shop_id", userHandler.ReviewShop)
-			legacyReview.GET("/shop/:shop_id/reviews", userHandler.GetAllShopReviews)
-		}
-
-		legacyLike := api.Group("/like")
-		{
-			legacyLike.POST("/shop/:shop_id", userHandler.LikeShop)
-			legacyLike.DELETE("/shop/:shop_id", userHandler.UnlikeShop)
-			legacyLike.GET("/shop/:shop_id/is-liked", userHandler.IsLikedShop)
-			legacyLike.GET("/:id", userHandler.GetLikedShops)
-		}
 		// Shop by Category
 		category := api.Group("/categories")
 		{

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -421,26 +420,10 @@ func (c *userDatabase) SearchShopList(ctx context.Context, reqData request.Searc
 	}
 
 	// Filter by department_id and/or category_id if provided (with AND condition)
-	// If both are provided, check for products matching BOTH criteria in a single subquery
+	// department_id and category_id are varchar(32) strings (e.g. "dept_00001"), not integers.
 	if reqData.DepartmentID != nil || reqData.CategoryID != nil {
-		var deptID uint64
-		var catID uint64
-		deptProvided := false
-		catProvided := false
-
-		if reqData.DepartmentID != nil {
-			if id, err := strconv.ParseUint(*reqData.DepartmentID, 10, 64); err == nil {
-				deptID = id
-				deptProvided = true
-			}
-		}
-
-		if reqData.CategoryID != nil {
-			if id, err := strconv.ParseUint(*reqData.CategoryID, 10, 64); err == nil {
-				catID = id
-				catProvided = true
-			}
-		}
+		deptProvided := reqData.DepartmentID != nil && *reqData.DepartmentID != ""
+		catProvided := reqData.CategoryID != nil && *reqData.CategoryID != ""
 
 		if deptProvided && catProvided {
 			// Both department_id and category_id provided - check for products matching BOTH
@@ -448,7 +431,7 @@ func (c *userDatabase) SearchShopList(ctx context.Context, reqData request.Searc
 				SELECT DISTINCT pi.shop_id FROM product_items pi
 				WHERE pi.department_id = $%d AND pi.category_id = $%d
 			)`, paramIndex, paramIndex+1)
-			args = append(args, deptID, catID)
+			args = append(args, *reqData.DepartmentID, *reqData.CategoryID)
 			paramIndex += 2
 		} else if deptProvided {
 			// Only department_id provided
@@ -456,7 +439,7 @@ func (c *userDatabase) SearchShopList(ctx context.Context, reqData request.Searc
 				SELECT DISTINCT pi.shop_id FROM product_items pi
 				WHERE pi.department_id = $%d
 			)`, paramIndex)
-			args = append(args, deptID)
+			args = append(args, *reqData.DepartmentID)
 			paramIndex++
 		} else if catProvided {
 			// Only category_id provided
@@ -464,7 +447,7 @@ func (c *userDatabase) SearchShopList(ctx context.Context, reqData request.Searc
 				SELECT DISTINCT pi.shop_id FROM product_items pi
 				WHERE pi.category_id = $%d
 			)`, paramIndex)
-			args = append(args, catID)
+			args = append(args, *reqData.CategoryID)
 			paramIndex++
 		}
 	}

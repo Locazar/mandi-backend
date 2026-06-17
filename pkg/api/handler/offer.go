@@ -250,7 +250,7 @@ func (c *offerHandler) SaveProductItemOffer(ctx *gin.Context) {
 
 	err := c.offerUseCase.SaveProductItemOffer(ctx, offerProduct)
 	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to add offer for given product", err, nil)
+		errResponse(ctx, "Failed to add offer for given product", err)
 		return
 	}
 

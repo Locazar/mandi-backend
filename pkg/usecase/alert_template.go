@@ -193,14 +193,16 @@ func (uc *alertTemplateUseCase) ToggleTemplate(ctx context.Context, key string, 
 // SeedDefaults creates the four built-in templates if they don't already exist
 func (uc *alertTemplateUseCase) SeedDefaults(ctx context.Context) error {
 	seeds := []struct {
-		key           string
-		title         string
-		description   string
-		templateType  string
-		displayType   string
-		alertType     string
-		priority      int
-		contentSchema string
+		key             string
+		title           string
+		description     string
+		templateType    string
+		displayType     string
+		alertType       string
+		priority        int
+		contentSchema   string
+		actions         string
+		frequencyConfig string
 	}{
 		{
 			key:          "promo_welcome",
@@ -242,6 +244,18 @@ func (uc *alertTemplateUseCase) SeedDefaults(ctx context.Context) error {
 			priority:     1,
 			contentSchema: `{"title":"Help Center","url":"https://locazar.com/help","show_close_icon":true}`,
 		},
+		{
+			key:           "subscription_trial",
+			title:         "Start Your Free Trial",
+			description:   "Unlock all premium features free for 90 days — no payment required.",
+			templateType:  "subscription",
+			displayType:   "bottom_sheet",
+			alertType:     "subscription",
+			priority:      20,
+			contentSchema: `{"title":"Start Your Free Trial","description":"Unlock all premium features free for 90 days — no payment required.","badge_text":"Free Trial"}`,
+			actions:       `[{"label":"Start Free Trial","action_type":"primary"},{"label":"Maybe Later","action_type":"dismiss"}]`,
+			frequencyConfig: `{"type":"once","dismiss_behavior":"permanent"}`,
+		},
 	}
 
 	for _, s := range seeds {
@@ -265,6 +279,12 @@ func (uc *alertTemplateUseCase) SeedDefaults(ctx context.Context) error {
 			Enabled:       true,
 			IsActive:      true,
 			ContentSchema: json.RawMessage(s.contentSchema),
+		}
+		if s.actions != "" {
+			t.Actions = json.RawMessage(s.actions)
+		}
+		if s.frequencyConfig != "" {
+			t.FrequencyConfig = json.RawMessage(s.frequencyConfig)
 		}
 		if err := uc.repo.SaveAlertTemplate(ctx, t); err != nil {
 			return fmt.Errorf("failed to seed template %q: %w", s.key, err)
