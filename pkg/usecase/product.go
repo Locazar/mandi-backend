@@ -9,6 +9,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"gorm.io/gorm"
+
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
@@ -16,7 +18,6 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/service/cloud"
 	service "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
-	"gorm.io/gorm"
 )
 
 type productUseCase struct {
@@ -151,7 +152,6 @@ func NewProductUseCase(productRepo interfaces.ProductRepository, cloudService cl
 }
 
 func (c *productUseCase) FindAllCategories(ctx context.Context, pagination request.Pagination) ([]response.Category, error) {
-
 	categories, err := c.productRepo.FindAllMainCategories(ctx, pagination)
 	if err != nil {
 		return nil, utils.PrependMessageToError(err, "failed find all main categories")
@@ -168,7 +168,6 @@ func (c *productUseCase) FindAllCategories(ctx context.Context, pagination reque
 
 // Save category
 func (c *productUseCase) SaveCategory(ctx context.Context, body request.Category, departmentId string) error {
-
 	err := c.productRepo.SaveCategory(ctx, body, departmentId)
 	if err != nil {
 		return utils.PrependMessageToError(err, "failed to save category")
@@ -179,7 +178,6 @@ func (c *productUseCase) SaveCategory(ctx context.Context, body request.Category
 
 // Save Sub category
 func (c *productUseCase) SaveSubCategory(ctx context.Context, body request.SubCategory, departmentId string, category_id string) error {
-
 	err := c.productRepo.SaveSubCategory(ctx, body, departmentId, category_id)
 	if err != nil {
 		return utils.PrependMessageToError(err, "failed to save sub category")
@@ -190,9 +188,7 @@ func (c *productUseCase) SaveSubCategory(ctx context.Context, body request.SubCa
 
 // to add new variation for a category
 func (c *productUseCase) SaveVariation(ctx context.Context, categoryID string, variationNames []string) error {
-
 	err := c.productRepo.Transactions(ctx, func(repo interfaces.ProductRepository) error {
-
 		for _, variationName := range variationNames {
 
 			variationExist, err := repo.IsVariationNameExistForCategory(ctx, variationName, categoryID)
@@ -217,7 +213,6 @@ func (c *productUseCase) SaveVariation(ctx context.Context, categoryID string, v
 
 // to add new variation value for variation
 func (c *productUseCase) SaveVariationOption(ctx context.Context, variationID string, variationOptionValues []string) error {
-
 	err := c.productRepo.Transactions(ctx, func(repo interfaces.ProductRepository) error {
 		for _, variationValue := range variationOptionValues {
 
@@ -241,7 +236,6 @@ func (c *productUseCase) SaveVariationOption(ctx context.Context, variationID st
 }
 
 func (c *productUseCase) FindAllVariationsAndItsValues(ctx context.Context, categoryID string) ([]response.Variation, error) {
-
 	variations, err := c.productRepo.FindAllVariationsByCategoryID(ctx, categoryID)
 	if err != nil {
 		return nil, utils.PrependMessageToError(err, "failed to find all variations of category")
@@ -282,7 +276,6 @@ func (c *productUseCase) FindProductByID(ctx context.Context, productID string) 
 
 // to add new product
 func (c *productUseCase) SaveProduct(ctx context.Context, product request.Product, adminID string) (productID string, err error) {
-
 	// productNameExist, err := c.productRepo.IsProductNameExist(ctx, product.Name)
 	// if err != nil {
 	// 	return 0, utils.PrependMessageToError(err, "failed to check product name already exist")
@@ -339,7 +332,6 @@ func (c *productUseCase) UpdateProductItem(ctx context.Context, productItemID st
 // step 8 : check if any of the product items id's count is greater than the variation options ids length then return true
 // step 9 : if the loop exist means product configuration is not exist
 func (c *productUseCase) isProductVariationCombinationExist(productID string, variationOptionIDs []string) (exist bool, err error) {
-
 	setOfIds := map[string]int{}
 
 	for _, variationOptionID := range variationOptionIDs {
@@ -368,7 +360,6 @@ func (c *productUseCase) isProductVariationCombinationExist(productID string, va
 
 // for get all productItem for a specific product
 func (c *productUseCase) FindAllProductItems(ctx context.Context, adminId string, keyword string, categoryID, brandID, locationID *string, offer string, sortby string, pagination *request.Pagination, filterByShopID string) ([]response.ProductItems, error) {
-
 	productItems, err := c.productRepo.FindAllProductItems(ctx, adminId, keyword, categoryID, brandID, locationID, offer, sortby, pagination, filterByShopID)
 	if err != nil {
 		return productItems, err
@@ -378,7 +369,6 @@ func (c *productUseCase) FindAllProductItems(ctx context.Context, adminId string
 }
 
 func (c *productUseCase) FindLowViewProductItems(ctx context.Context, adminId string, keyword string, categoryID, brandID, locationID *string, sortby string, pagination *request.Pagination, filterByShopID *string) ([]response.ProductItems, error) {
-
 	productItems, err := c.productRepo.FindLowViewProductItems(ctx, adminId, keyword, categoryID, brandID, locationID, sortby, pagination, filterByShopID)
 	if err != nil {
 		return productItems, err
@@ -396,7 +386,6 @@ func (c *productUseCase) DeleteProductItem(ctx context.Context, productItemID st
 }
 
 func (c *productUseCase) UpdateProduct(ctx context.Context, updateDetails domain.Product) error {
-
 	nameExistForOther, err := c.productRepo.IsProductNameExistForOtherProduct(ctx, updateDetails.Name, updateDetails.ID)
 	if err != nil {
 		return utils.PrependMessageToError(err, "failed to check product name already exist for other product")
@@ -983,7 +972,6 @@ func (s *productUseCase) GetLocationByPincode(ctx context.Context, pincodeID str
 const DefaultRadiusMeters = 5000 // or get from config/env
 
 func (s *productUseCase) GetNearbyProductsByPincode(ctx context.Context, pincode string, limit, offset int) ([]response.ProductItems, error) {
-
 	// Check if pincode exists in shop_details
 	checkQuery := `SELECT COUNT(*) FROM shop_details WHERE pincode = $1`
 	var count int
@@ -1235,8 +1223,8 @@ func (c *productUseCase) GetProductsByRadius(ctx context.Context, latitude float
 	return products, nil
 }
 
-func (c *productUseCase) SaveDepartment(ctx context.Context, departmentName string) error {
-	err := c.productRepo.SaveDepartment(ctx, departmentName)
+func (c *productUseCase) SaveDepartment(ctx context.Context, department request.Department) error {
+	err := c.productRepo.SaveDepartment(ctx, department)
 	if err != nil {
 		return utils.PrependMessageToError(err, "failed to save department")
 	}

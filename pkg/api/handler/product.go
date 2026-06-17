@@ -20,6 +20,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jinzhu/copier"
+
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
@@ -1965,7 +1966,7 @@ func (a *ProductHandler) SaveDepartment(ctx *gin.Context) {
 		return
 	}
 
-	err := a.productUseCase.SaveDepartment(ctx, body.Name)
+	err := a.productUseCase.SaveDepartment(ctx, body)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to save department", err, nil)
 		return

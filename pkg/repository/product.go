@@ -12,12 +12,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
+
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/service/elasticsearch"
-	"gorm.io/gorm"
 )
 
 type productDatabase struct {
@@ -70,7 +71,6 @@ func NewProductRepository(db *gorm.DB, elasticClient *elasticsearch.ElasticServi
 }
 
 func (c *productDatabase) Transactions(ctx context.Context, trxFn func(repo interfaces.ProductRepository) error) error {
-
 	trx := c.DB.Begin()
 
 	repo := NewProductRepository(trx, c.ElasticClient)
@@ -89,7 +89,6 @@ func (c *productDatabase) Transactions(ctx context.Context, trxFn func(repo inte
 
 // To check the category name exist
 func (c *productDatabase) IsCategoryNameExist(ctx context.Context, name string, departmentId string) (exist bool, err error) {
-
 	query := `SELECT EXISTS(SELECT 1 FROM categories WHERE name = $1 AND department_id = $2)`
 	err = c.DB.Raw(query, name, departmentId).Scan(&exist).Error
 
@@ -98,16 +97,14 @@ func (c *productDatabase) IsCategoryNameExist(ctx context.Context, name string, 
 
 // Save Category
 func (c *productDatabase) SaveCategory(ctx context.Context, category request.Category, departmentId string) (err error) {
-
-	query := `INSERT INTO categories (name, department_id) VALUES ($1, $2)`
-	err = c.DB.Exec(query, category.Name, departmentId).Error
+	query := `INSERT INTO categories (name, department_id, sort_order, is_active, image_url, icon) VALUES ($1, $2, $3, $4, $5, $6)`
+	err = c.DB.Exec(query, category.Name, departmentId, category.SortOrder, category.IsActive, category.ImageURL, category.Icon).Error
 
 	return err
 }
 
 // To check the sub category name already exist for the category
 func (c *productDatabase) IsSubCategoryNameExist(ctx context.Context, name string, departmentId string) (exist bool, err error) {
-
 	query := `SELECT EXISTS(SELECT 1 FROM categories WHERE name = $1 AND department_id = $2)`
 	err = c.DB.Raw(query, name, departmentId).Scan(&exist).Error
 
@@ -116,18 +113,17 @@ func (c *productDatabase) IsSubCategoryNameExist(ctx context.Context, name strin
 
 // Save Category as sub category
 func (c *productDatabase) SaveSubCategory(ctx context.Context, body request.SubCategory, brandID string, categoryID string) (err error) {
-
 	print("department id in repo", brandID, "category id in repo", categoryID)
-	query := `INSERT INTO sub_categories (department_id, category_id, name) VALUES ($1, $2, $3)`
-	err = c.DB.Exec(query, brandID, categoryID, body.Name).Error
+	query := `INSERT INTO sub_categories (department_id, category_id, name, sort_order,  is_active, image_url) VALUES ($1, $2, $3, $4, $5, $6)`
+	err = c.DB.Exec(query, brandID, categoryID, body.Name, body.SortOrder, body.IsActive, body.ImageURL).Error
 
 	return err
 }
 
 // Find all main category(its not have a category_id)
 func (c *productDatabase) FindAllMainCategories(ctx context.Context,
-	pagination request.Pagination) (categories []response.Category, err error) {
-
+	pagination request.Pagination,
+) (categories []response.Category, err error) {
 	limit := pagination.Limit
 	offset := pagination.Offset
 
@@ -140,8 +136,8 @@ func (c *productDatabase) FindAllMainCategories(ctx context.Context,
 
 // Find all sub categories of a category
 func (c *productDatabase) FindAllSubCategories(ctx context.Context,
-	categoryID string) (subCategories []response.SubCategory, err error) {
-
+	categoryID string,
+) (subCategories []response.SubCategory, err error) {
 	query := `SELECT id, name FROM sub_categories WHERE category_id = $1`
 	err = c.DB.Raw(query, categoryID).Scan(&subCategories).Error
 
@@ -150,8 +146,8 @@ func (c *productDatabase) FindAllSubCategories(ctx context.Context,
 
 // Find all variations which related to given category id
 func (c *productDatabase) FindAllVariationsByCategoryID(ctx context.Context,
-	categoryID string) (variations []response.Variation, err error) {
-
+	categoryID string,
+) (variations []response.Variation, err error) {
 	query := `SELECT id, name FROM variations WHERE category_id = $1`
 	err = c.DB.Raw(query, categoryID).Scan(&variations).Error
 
@@ -160,8 +156,8 @@ func (c *productDatabase) FindAllVariationsByCategoryID(ctx context.Context,
 
 // Find all variation options which related to given variation id
 func (c productDatabase) FindAllVariationOptionsByVariationID(ctx context.Context,
-	variationID string) (variationOptions []response.VariationOption, err error) {
-
+	variationID string,
+) (variationOptions []response.VariationOption, err error) {
 	query := `SELECT id, value FROM variation_options WHERE variation_id = $1`
 	err = c.DB.Raw(query, variationID).Scan(&variationOptions).Error
 
@@ -170,8 +166,8 @@ func (c productDatabase) FindAllVariationOptionsByVariationID(ctx context.Contex
 
 // To check a variation exist for the given category
 func (c *productDatabase) IsVariationNameExistForCategory(ctx context.Context,
-	name string, categoryID string) (exist bool, err error) {
-
+	name string, categoryID string,
+) (exist bool, err error) {
 	query := `SELECT EXISTS(SELECT 1 FROM variations WHERE name = $1 AND category_id = $2)`
 	err = c.DB.Raw(query, name, categoryID).Scan(&exist).Error
 
@@ -180,8 +176,8 @@ func (c *productDatabase) IsVariationNameExistForCategory(ctx context.Context,
 
 // To check a variation value exist for the given variation
 func (c *productDatabase) IsVariationValueExistForVariation(ctx context.Context,
-	value string, variationID string) (exist bool, err error) {
-
+	value string, variationID string,
+) (exist bool, err error) {
 	query := `SELECT EXISTS(SELECT 1 FROM variation_options WHERE value = $1 AND variation_id = $2)`
 	err = c.DB.Raw(query, value, variationID).Scan(&exist).Error
 
@@ -190,7 +186,6 @@ func (c *productDatabase) IsVariationValueExistForVariation(ctx context.Context,
 
 // Save Variation for category
 func (c *productDatabase) SaveVariation(ctx context.Context, categoryID string, variationName string) error {
-
 	query := `INSERT INTO variations (category_id, name) VALUES($1, $2)`
 	err := c.DB.Exec(query, categoryID, variationName).Error
 
@@ -199,7 +194,6 @@ func (c *productDatabase) SaveVariation(ctx context.Context, categoryID string, 
 
 // add variation option
 func (c *productDatabase) SaveVariationOption(ctx context.Context, variationID string, variationValue string) error {
-
 	query := `INSERT INTO variation_options (variation_id, value) VALUES($1, $2)`
 	err := c.DB.Exec(query, variationID, variationValue).Error
 
@@ -208,7 +202,6 @@ func (c *productDatabase) SaveVariationOption(ctx context.Context, variationID s
 
 // find product by id
 func (c *productDatabase) FindProductByID(ctx context.Context, productID string) (product domain.Product, err error) {
-
 	query := `SELECT * FROM products WHERE id = $1`
 	err = c.DB.Raw(query, productID).Scan(&product).Error
 
@@ -216,8 +209,8 @@ func (c *productDatabase) FindProductByID(ctx context.Context, productID string)
 }
 
 func (c *productDatabase) IsProductNameExistForOtherProduct(ctx context.Context,
-	name string, productID string) (exist bool, err error) {
-
+	name string, productID string,
+) (exist bool, err error) {
 	query := `SELECT EXISTS(SELECT id FROM products WHERE name = $1 AND id != $2)`
 	err = c.DB.Raw(query, name, productID).Scan(&exist).Error
 
@@ -225,7 +218,6 @@ func (c *productDatabase) IsProductNameExistForOtherProduct(ctx context.Context,
 }
 
 func (c *productDatabase) IsProductNameExist(ctx context.Context, productName string) (exist bool, err error) {
-
 	query := `SELECT EXISTS(SELECT 1 FROM products WHERE name = $1)`
 	err = c.DB.Raw(query, productName).Scan(&exist).Error
 
@@ -234,7 +226,6 @@ func (c *productDatabase) IsProductNameExist(ctx context.Context, productName st
 
 // Check if product with same name exists for a specific shop
 func (c *productDatabase) IsProductNameExistForShop(ctx context.Context, productName string, shopID *string) (exist bool, err error) {
-
 	query := `SELECT EXISTS(SELECT 1 FROM products WHERE name = $1 AND shop_id = $2)`
 	err = c.DB.Raw(query, productName, shopID).Scan(&exist).Error
 
@@ -295,7 +286,6 @@ func (c *productDatabase) SaveProduct(ctx context.Context, product domain.Produc
 
 // update product
 func (c *productDatabase) UpdateProduct(ctx context.Context, product domain.Product) error {
-
 	query := `UPDATE products SET name = $1, description = $2, category_id = $3, image = $4, updated_at = $5 
 	WHERE id = $6`
 
@@ -309,7 +299,6 @@ func (c *productDatabase) UpdateProduct(ctx context.Context, product domain.Prod
 
 // get all products from database
 func (c *productDatabase) FindAllProducts(ctx context.Context, pagination request.Pagination, search string) (products []response.Product, err error) {
-
 	limit := pagination.Limit
 	offset := pagination.Offset
 
@@ -473,7 +462,6 @@ func (c *productDatabase) FindProductItemByID(ctx context.Context, productItemID
 
 // to get how many variations are available for a product
 func (c *productDatabase) FindVariationCountForProduct(ctx context.Context, productID string) (variationCount uint, err error) {
-
 	query := `SELECT COUNT(v.id) FROM variations v
 	INNER JOIN categories c ON c.id = v.category_id 
 	INNER JOIN products p ON p.category_id = v.category_id 
@@ -486,8 +474,8 @@ func (c *productDatabase) FindVariationCountForProduct(ctx context.Context, prod
 
 // To find all product item ids which related to the given product id and variation option id
 func (c *productDatabase) FindAllProductItemIDsByProductIDAndVariationOptionID(ctx context.Context, productID,
-	variationOptionID string) (productItemIDs []string, err error) {
-
+	variationOptionID string,
+) (productItemIDs []string, err error) {
 	query := `SELECT id FROM product_items pi 
 		INNER JOIN product_configurations pc ON pi.id = pc.product_item_id 
 		WHERE pi.product_id = $1 AND variation_option_id = $2`
@@ -497,7 +485,6 @@ func (c *productDatabase) FindAllProductItemIDsByProductIDAndVariationOptionID(c
 }
 
 func (c *productDatabase) SaveProductConfiguration(ctx context.Context, productItemID, variationOptionID string) error {
-
 	query := `INSERT INTO product_configurations (product_item_id, variation_option_id) VALUES ($1, $2)`
 	err := c.DB.Exec(query, productItemID, variationOptionID).Error
 
@@ -534,7 +521,6 @@ func (c *productDatabase) UpdateShopDepartments(ctx context.Context, shopID stri
 }
 
 func (c *productDatabase) SaveProductItem(ctx context.Context, productItem request.ProductItem, adminID string, shopID string) (productItemID string, err error) {
-
 	query := `INSERT INTO product_items (id, admin_id, sub_category_name, dynamic_fields, product_item_images, category_id, department_id, sub_category_id, shop_id, created_at, updated_at)
 VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`
 
@@ -670,7 +656,6 @@ func (c *productDatabase) UpdateProductItem(ctx context.Context, productItemID s
 	}
 
 	err = c.DB.Exec(query, subCategoryName, dynamicFieldsJSON, productItemImagesStr, categoryID, departmentID, subCategoryID, updatedAt, productItemID).Error
-
 	if err != nil {
 		return err
 	}
@@ -697,7 +682,6 @@ func (c *productDatabase) UpdateProductItem(ctx context.Context, productItemID s
 
 // for get all products items for a product filtered by admin_id and additional filters
 func (c *productDatabase) FindAllProductItems(ctx context.Context, adminID string, keyword string, categoryID *string, brandID *string, locationID *string, offer string, sortby string, pagination *request.Pagination, filterByShopID string) (productItems []response.ProductItems, err error) {
-
 	var ids []string
 	if keyword != "" && c.ElasticClient != nil {
 		limit := 100
@@ -780,8 +764,6 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context, adminID strin
 			LEFT JOIN departments d ON pi.department_id = d.id
 			LEFT JOIN sub_categories sc ON pi.sub_category_id = sc.id
 			WHERE 1=1`
-
-
 
 	// Add offer filter - this ensures different data sets based on offer parameter
 	log.Printf("DEBUG: offer=%s, len=%d", offer, len(offer))
@@ -977,8 +959,8 @@ func parsePostgresArray(s string) []string {
 // FindLowViewProductItems finds products with less than 5 views in the last 10 days for a specific shop
 // Used to identify underperforming products that need promotion
 func (c *productDatabase) FindLowViewProductItems(ctx context.Context,
-	adminID string, keyword string, categoryID *string, brandID *string, locationID *string, sortby string, pagination *request.Pagination, filterByShopID *string) (productItems []response.ProductItems, err error) {
-
+	adminID string, keyword string, categoryID *string, brandID *string, locationID *string, sortby string, pagination *request.Pagination, filterByShopID *string,
+) (productItems []response.ProductItems, err error) {
 	log.Printf("FindLowViewProductItems called with shopID: %v", filterByShopID)
 
 	var ids []string
@@ -1204,8 +1186,8 @@ func (c *productDatabase) FindLowViewProductItems(ctx context.Context,
 
 // Find all variation and value of a product item
 func (c *productDatabase) FindAllVariationValuesOfProductItem(ctx context.Context,
-	productItemID string) (productVariationsValues []response.ProductVariationValue, err error) {
-
+	productItemID string,
+) (productVariationsValues []response.ProductVariationValue, err error) {
 	query := `SELECT v.id AS variation_id, v.name, vo.id AS variation_option_id, vo.value 
 	FROM  product_configurations pc 
 	INNER JOIN variation_options vo ON vo.id = pc.variation_option_id 
@@ -1218,7 +1200,6 @@ func (c *productDatabase) FindAllVariationValuesOfProductItem(ctx context.Contex
 
 // To save image for product item
 func (c *productDatabase) SaveProductItemImage(ctx context.Context, productItemID string, image domain.ProductItemImage) error {
-
 	query := `INSERT INTO product_images (product_item_id, image) VALUES ($1, $2)`
 	err := c.DB.Exec(query, productItemID, image).Error
 
@@ -1589,23 +1570,19 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 	return
 }
 
-func (c *productDatabase) SaveDepartment(ctx context.Context, departmentName string) error {
-
-	query := `INSERT INTO departments (name) VALUES ($1)`
-	err := c.DB.Exec(query, departmentName).Error
-
+func (c *productDatabase) SaveDepartment(ctx context.Context, department request.Department) error {
+	query := `INSERT INTO departments (name, slug, sort_order, is_active, image_url, icon) VALUES ($1, $2, $3, $4, $5, $6)`
+	err := c.DB.Exec(query, department.Name, department.Slug, department.SortOrder, department.IsActive, department.ImageURL, department.Icon).Error
 	return err
 }
 
 func (c *productDatabase) GetAllDepartments(ctx context.Context) (departments []response.Department, err error) {
-
 	query := `SELECT id, name, image_url, icon FROM departments where is_active = true ORDER BY sort_order ASC`
 	err = c.DB.Raw(query).Scan(&departments).Error
 	return
 }
 
 func (c *productDatabase) GetDepartmentByID(ctx context.Context, brandID string) (department response.Department, err error) {
-
 	query := `SELECT id, name, image_url, icon FROM departments WHERE id = $1`
 	err = c.DB.Raw(query, brandID).Scan(&department).Error
 
@@ -1613,7 +1590,6 @@ func (c *productDatabase) GetDepartmentByID(ctx context.Context, brandID string)
 }
 
 func (c *productDatabase) GetAllSubCategories(ctx context.Context) (subCategories []response.SubCategory, err error) {
-
 	query := `SELECT * FROM sub_categories ORDER BY sort_order ASC`
 	err = c.DB.Raw(query).Scan(&subCategories).Error
 
@@ -1621,7 +1597,6 @@ func (c *productDatabase) GetAllSubCategories(ctx context.Context) (subCategorie
 }
 
 func (c *productDatabase) GetAllCategoriesByDepartmentID(ctx context.Context, brandID string) (categories []response.Category, err error) {
-
 	query := `SELECT id, name, image_url, icon FROM categories WHERE department_id = $1 ORDER BY sort_order ASC`
 	err = c.DB.Raw(query, brandID).Scan(&categories).Error
 
@@ -1629,7 +1604,6 @@ func (c *productDatabase) GetAllCategoriesByDepartmentID(ctx context.Context, br
 }
 
 func (c *productDatabase) GetAllSubCategoriesByCategoryID(ctx context.Context, categoryID string) (subCategories []response.SubCategory, err error) {
-
 	query := `SELECT id, name, image_url FROM sub_categories WHERE category_id = $1 ORDER BY sort_order ASC`
 	err = c.DB.Raw(query, categoryID).Scan(&subCategories).Error
 
@@ -1909,6 +1883,7 @@ func (c *productDatabase) IncrementProductItemViewCount(ctx context.Context, pro
 		VALUES ($1, $2, $3, $4, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
 	return c.DB.Exec(insertQuery, domain.NewID(domain.PrefixProductItemView), productItemID, shopID, adminID).Error
 }
+
 func (c *productDatabase) GetProductItemViewCount(ctx context.Context, productItemID string, adminID string) (viewCount uint, err error) {
 	// Get shop ID using admin ID
 	var shopID string
