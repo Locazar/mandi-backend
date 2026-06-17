@@ -59,7 +59,7 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 
 	engine := gin.New()
 
-	engine.RedirectTrailingSlash = false
+	engine.RedirectTrailingSlash = true
 
 	engine.LoadHTMLGlob("views/*.html")
 

@@ -29,6 +29,8 @@ type ProductItem struct {
 	DynamicFields     string    `json:"dynamic_fields" gorm:"type:jsonb;not null"`
 	AdminID           string    `json:"admin_id" gorm:"type:varchar(32);index"`
 	ProductItemImages []string  `json:"product_item_images" gorm:"type:text[]"`
+	Description       string    `json:"description" gorm:"type:text"`
+	Highlights        []string  `json:"highlights" gorm:"type:text[]"`
 	ShopID            string    `json:"shop_id" gorm:"type:varchar(32)"`
 	CreatedBy         string    `json:"created_by" gorm:"type:varchar(32)"`
 	UpdatedBy         string    `json:"updated_by" gorm:"type:varchar(32)"`

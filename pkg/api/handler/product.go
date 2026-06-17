@@ -751,6 +751,15 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 	if err := json.Unmarshal([]byte(dynamicFieldsStr), &dynamicFields); err != nil {
 		// handle error
 	}
+	description := ctx.PostForm("description")
+	highlightsStr := ctx.PostForm("highlights")
+	var highlights []string
+	if highlightsStr != "" {
+		if err := json.Unmarshal([]byte(highlightsStr), &highlights); err != nil {
+			highlights = []string{highlightsStr}
+		}
+	}
+
 	productItem := request.ProductItem{
 		SubCategoryName:   subCategoryName,
 		SubCategoryID:     subCategoryID,
@@ -758,14 +767,9 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 		CategoryID:        categoryID,
 		DepartmentID:      departmentID,
 		ProductItemImages: imagePaths,
+		Description:       description,
+		Highlights:        highlights,
 	}
-
-	// // Convert request.ProductItem to domain.ProductItem
-	// var domainProductItem domain.ProductItem
-	// if err := copier.Copy(&domainProductItem, &productItem); err != nil {
-	// 	response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to map product item", err, nil)
-	// 	return
-	// }
 
 	err := p.productUseCase.SaveProductItem(ctx, productItem, adminID, shopID)
 
@@ -2488,30 +2492,37 @@ func (p *ProductHandler) UpdateProductItem(ctx *gin.Context) {
 	subCategoryID := ctx.PostForm("sub_category_id")
 	categoryID := ctx.PostForm("category_id")
 	departmentID := ctx.PostForm("department_id")
-
 	subCategoryName := ctx.PostForm("sub_category_name")
-	dynamicFieldsStr := ctx.PostForm("dynamic_fields")
 	categoryName := ctx.PostForm("category_name")
+	dynamicFieldsStr := ctx.PostForm("dynamic_fields")
+	description := ctx.PostForm("description")
+	highlightsStr := ctx.PostForm("highlights")
+	retainedImagesStr := ctx.PostFormArray("retained_images[]")
+
+	var highlights []string
+	if highlightsStr != "" {
+		if err := json.Unmarshal([]byte(highlightsStr), &highlights); err != nil {
+			highlights = []string{highlightsStr}
+		}
+	}
+
 	files := ctx.Request.MultipartForm.File["images[]"]
+	newImagePaths := make([]string, len(files))
 
-	var imagePaths []string
-	for _, fileHeader := range files {
-
+	// Upload new images (single path, no duplicate)
+	for i, fileHeader := range files {
 		localPath, err := handleUpload(fileHeader)
 		if err != nil {
 			response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to process image", err, nil)
 			return
 		}
 
-		// Validate product image matches category using AI service if available
 		if categoryName != "" {
 			validationResult, err := p.aiClient.ValidateProduct(localPath, categoryName)
 			if err != nil {
 				response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to validate product image", err, nil)
 				return
 			}
-
-			// If validation failed (valid is false) and confidence is high, reject the upload
 			if !validationResult.Valid && validationResult.Confidence > 0.1 {
 				response.ErrorResponse(ctx, http.StatusBadRequest,
 					fmt.Sprintf("Product image does not match '%s' category. Reason: %s", categoryName, validationResult.Reason),
@@ -2525,36 +2536,7 @@ func (p *ProductHandler) UpdateProductItem(ctx *gin.Context) {
 			response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to upload processed image", err, nil)
 			return
 		}
-		imagePaths = append(imagePaths, objectKey)
-	}
-
-	type uploadResult struct {
-		path  string
-		err   error
-		index int // preserve order
-	}
-
-	uploadChan := make(chan uploadResult, len(files))
-	for i, fileHeader := range files {
-		go func(idx int, fh *multipart.FileHeader) {
-			key, err := p.cloudService.SaveFile(ctx, fh, cloud.SaveOptions{
-				Namespace:  "products",
-				Visibility: cloud.VisibilityPublic,
-			})
-			uploadChan <- uploadResult{path: key, err: err, index: idx}
-		}(i, fileHeader)
-	}
-
-	// Collect results in order
-	results := make([]uploadResult, len(files))
-	for i := 0; i < len(files); i++ {
-		result := <-uploadChan
-		results[result.index] = result
-		if result.err != nil {
-			// handle error
-			return
-		}
-		imagePaths = append(imagePaths, result.path)
+		newImagePaths[i] = objectKey
 	}
 
 	var dynamicFields map[string]interface{}
@@ -2571,7 +2553,10 @@ func (p *ProductHandler) UpdateProductItem(ctx *gin.Context) {
 		DynamicFields:     dynamicFields,
 		CategoryID:        categoryID,
 		DepartmentID:      departmentID,
-		ProductItemImages: imagePaths,
+		ProductItemImages: newImagePaths,
+		Description:       description,
+		Highlights:        highlights,
+		RetainedImages:    retainedImagesStr,
 	}
 
 	if err := p.productUseCase.UpdateProductItem(ctx, productItemID, req); err != nil {
