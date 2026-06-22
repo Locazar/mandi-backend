@@ -8,6 +8,7 @@ type AdminHandler interface {
 	AdminSignUpVerify(ctx *gin.Context)
 
 	AdminSignUp(ctx *gin.Context)
+	SignupOtpSend(ctx *gin.Context)
 	GetAdminWithShopVerificationByPhone(ctx *gin.Context)
 	GetFullSalesReport(ctx *gin.Context)
 

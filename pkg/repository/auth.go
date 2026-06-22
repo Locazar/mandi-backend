@@ -64,6 +64,12 @@ func (c *AuthRepository) FindOtpSession(ctx context.Context, otpID string) (otpS
 	return otpSession, err
 }
 
+// DeleteOtpSession removes an OTP session so a verified OTP cannot be reused.
+func (c *AuthRepository) DeleteOtpSession(ctx context.Context, otpID string) error {
+	query := `DELETE FROM otp_sessions WHERE otp_id = $1`
+	return c.DB.Exec(query, otpID).Error
+}
+
 func (c *AuthRepository) SaveOtpSessionEmail(ctx context.Context, otpSession domain.OtpSessionEmail) error {
 	if otpSession.ID == "" {
 		otpSession.ID = domain.NewID(domain.PrefixOtpSession)

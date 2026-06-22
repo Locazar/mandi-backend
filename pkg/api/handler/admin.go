@@ -104,6 +104,51 @@ func (a *adminHandler) AdminSignUp(ctx *gin.Context) {
 	response.SuccessResponse(ctx, 200, "Successfully account created for admin", responseData)
 }
 
+// SignupOtpSend godoc
+//
+//	@Summary		Send signup/login OTP (Seller)
+//	@Description	Sends an OTP to the seller's mobile. Creates the seller if new (full_name/password), otherwise resends for login. Returns otp_id used on verify.
+//	@Id				SellerSignupOtpSend
+//	@Tags			Seller Authentication
+//	@Param			input	body	request.SignupOtpSend{}	true	"Phone (mobile/phone) and optional full_name/password"
+//	@Router			/admin/auth/signup/otp/send [post]
+//	@Success		200	{object}	response.Response{}	"OTP sent"
+//	@Failure		400	{object}	response.Response{}	"Invalid input"
+//	@Failure		500	{object}	response.Response{}	"Failed to send OTP"
+func (a *adminHandler) SignupOtpSend(ctx *gin.Context) {
+	var body request.SignupOtpSend
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, body)
+		return
+	}
+
+	phone := body.PhoneNumber()
+	if phone == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Mobile number is required", nil, nil)
+		return
+	}
+	if matched, _ := regexp.MatchString(`^\d{10}$`, phone); !matched {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid mobile number. Must be 10 digits.", nil, nil)
+		return
+	}
+
+	otpID, err := a.adminUseCase.SignupOtpSend(ctx, domain.Admin{
+		Mobile:   phone,
+		FullName: body.FullName,
+		Password: body.Password,
+	})
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to send OTP", err, nil)
+		return
+	}
+
+	responseData := map[string]interface{}{
+		"otp_id":  otpID,
+		"message": "OTP sent to mobile number for verification",
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "OTP sent successfully", responseData)
+}
+
 // GetAdminWithShopVerificationByPhone godoc
 // @summary api to get admin with shop verification data by phone
 // @id GetAdminWithShopVerificationByPhone

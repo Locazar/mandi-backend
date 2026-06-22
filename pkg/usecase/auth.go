@@ -173,6 +173,11 @@ func (c *authUseCase) LoginOtpVerify(ctx context.Context, otpVerifyDetails reque
 		return "", ErrInvalidOtp
 	}
 
+	// OTP verified — invalidate the session so the same OTP cannot be reused.
+	if delErr := c.authRepo.DeleteOtpSession(ctx, otpSession.OtpID); delErr != nil {
+		log.Printf("warning: failed to delete used otp session %s: %v", otpSession.OtpID, delErr)
+	}
+
 	return otpSession.UserID, nil
 }
 

@@ -89,7 +89,56 @@ func (c *adminUseCase) SignUp(ctx context.Context, signUpDetails domain.Admin) (
 	adminID := savedAdmin.ID
 	fmt.Printf("Admin details saved successfully for phone number: %s, admin_id: %s\n", signUpDetails.Mobile, adminID)
 
-	// Generate a 6-digit OTP and store only its hash (never plaintext)
+	return c.issueOtpSession(ctx, adminID, signUpDetails.Mobile)
+}
+
+// SignupOtpSend sends a signup/login OTP for a seller. It is idempotent with
+// respect to the admin record: if an admin already exists for the phone it
+// reuses it (login / resend); otherwise it creates a new seller using the
+// provided full_name/password (signup). In all cases it stores a hashed OTP
+// session and sends the OTP via SMS, returning the otp_id used on verify.
+func (c *adminUseCase) SignupOtpSend(ctx context.Context, details domain.Admin) (string, error) {
+	if details.Mobile == "" || details.Mobile == "null" {
+		return "", fmt.Errorf("mobile number is required")
+	}
+
+	existAdmin, err := c.adminRepo.FindAdminByPhone(ctx, details.Mobile)
+	if err != nil {
+		return "", utils.PrependMessageToError(err, "failed to check admin details already exist")
+	}
+
+	var adminID string
+	if existAdmin.ID != "" {
+		// Existing seller — login / resend OTP, do not recreate.
+		adminID = existAdmin.ID
+	} else {
+		// New seller — create the record (hash password if provided).
+		if details.Password != "" {
+			hashPass, err := utils.GenerateHashFromPassword(details.Password)
+			if err != nil {
+				return "", utils.PrependMessageToError(err, "failed to hash the password")
+			}
+			details.Password = string(hashPass)
+		}
+		if details.Role == "" {
+			details.Role = domain.AdminRoleSeller
+		}
+		if details.Status == "" {
+			details.Status = "active"
+		}
+		savedAdmin, err := c.adminRepo.SaveAdmin(ctx, details)
+		if err != nil {
+			return "", utils.PrependMessageToError(err, "failed to save admin details")
+		}
+		adminID = savedAdmin.ID
+	}
+
+	return c.issueOtpSession(ctx, adminID, details.Mobile)
+}
+
+// issueOtpSession generates a 6-digit OTP, stores only its hash in a new OTP
+// session keyed by a fresh otp_id, sends the OTP via SMS, and returns the otp_id.
+func (c *adminUseCase) issueOtpSession(ctx context.Context, adminID, phone string) (string, error) {
 	generatedOTP, err := c.otpService.GenerateOTP()
 	if err != nil {
 		return "", utils.PrependMessageToError(err, "failed to generate otp")
@@ -99,14 +148,13 @@ func (c *adminUseCase) SignUp(ctx context.Context, signUpDetails domain.Admin) (
 		return "", utils.PrependMessageToError(err, "failed to hash otp")
 	}
 
-	// Create OTP session
 	otpID := uuid.NewString()
 	otpSession := domain.OtpSession{
 		OtpID:    otpID,
 		OtpHash:  otpHash,
 		UserID:   adminID,
-		AdminID:  adminID, // Using admin ID as user ID for OTP session
-		Phone:    signUpDetails.Mobile,
+		AdminID:  adminID,
+		Phone:    phone,
 		UserType: "Seller",
 		ExpireAt: c.otpService.CalculateOTPExpiry(),
 	}
@@ -116,12 +164,11 @@ func (c *adminUseCase) SignUp(ctx context.Context, signUpDetails domain.Admin) (
 	}
 
 	// Send the OTP via the 2factor.in SMS API
-	if err = c.smsService.SendOTPSMS(signUpDetails.Mobile, generatedOTP); err != nil {
+	if err = c.smsService.SendOTPSMS(phone, generatedOTP); err != nil {
 		return "", utils.PrependMessageToError(err, "failed to send otp")
 	}
 
 	fmt.Printf("OTP session created successfully with OTP ID: %s for admin ID: %s\n", otpID, adminID)
-
 	return otpID, nil
 }
 
@@ -132,9 +179,20 @@ func (c *adminUseCase) GetAdminWithShopVerificationByPhone(ctx context.Context, 
 func (c *adminUseCase) AdminSignUpOtpVerify(ctx context.Context,
 	otpVerifyDetails request.OTPVerify) (userID string, shop domain.ShopDetails, err error) {
 	fmt.Printf("Starting OTP verification for OTP ID: %s\n", otpVerifyDetails.OtpID)
+
+	// An otp_id (session id) is required to know which OTP to verify against
+	if otpVerifyDetails.OtpID == "" {
+		return "", domain.ShopDetails{}, ErrInvalidOtp
+	}
+
 	otpSession, err := c.authRepo.FindOtpSession(ctx, otpVerifyDetails.OtpID)
 	if err != nil {
 		return "", domain.ShopDetails{}, utils.PrependMessageToError(err, "failed to find otp session from database")
+	}
+
+	// No session found for this otp_id (zero-value struct) — reject
+	if otpSession.OtpID == "" || otpSession.OtpHash == "" {
+		return "", domain.ShopDetails{}, ErrInvalidOtp
 	}
 
 	// Reject expired OTP sessions
@@ -142,9 +200,15 @@ func (c *adminUseCase) AdminSignUpOtpVerify(ctx context.Context,
 		return "", domain.ShopDetails{}, ErrOtpExpired
 	}
 
-	// Verify the entered OTP against the stored hash
+	// Verify the entered OTP against the stored hash (the OTP generated/sent at send time)
 	if err := c.otpService.VerifyOTP(otpVerifyDetails.Otp, otpSession.OtpHash); err != nil {
 		return "", domain.ShopDetails{}, ErrInvalidOtp
+	}
+
+	// OTP verified — invalidate the session so the same OTP cannot be reused.
+	if delErr := c.authRepo.DeleteOtpSession(ctx, otpSession.OtpID); delErr != nil {
+		// Non-fatal: log and continue; the session will still expire on its own.
+		log.Printf("warning: failed to delete used otp session %s: %v", otpSession.OtpID, delErr)
 	}
 
 	// Try to get existing admin by phone
