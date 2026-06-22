@@ -4,7 +4,11 @@
 package di
 
 import (
+	"database/sql"
+
 	"github.com/google/wire"
+	"gorm.io/gorm"
+
 	http "github.com/rohit221990/mandi-backend/pkg/api"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/interfaces"
@@ -19,12 +23,21 @@ import (
 	elasticsearch "github.com/rohit221990/mandi-backend/pkg/service/elasticsearch"
 	"github.com/rohit221990/mandi-backend/pkg/service/graphics"
 	"github.com/rohit221990/mandi-backend/pkg/service/otp"
+	"github.com/rohit221990/mandi-backend/pkg/service/sms"
 	"github.com/rohit221990/mandi-backend/pkg/service/token"
 	"github.com/rohit221990/mandi-backend/pkg/usecase"
 )
 
 func provideElasticURL(cfg config.Config) string {
 	return cfg.ElasticsearchURL
+}
+
+func provideSQLDB(gormDB *gorm.DB) (*sql.DB, error) {
+	return gormDB.DB()
+}
+
+func provideTwoFactorSMSService(cfg config.Config) *sms.TwoFactorSMSService {
+	return sms.NewTwoFactorSMSService(cfg.TwoFactorAPIKey)
 }
 
 func provideAIServiceClient(cfg config.Config) *aiservice.Client {
@@ -161,6 +174,15 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		usecase.NewJobCategoryService,
 		wire.Bind(new(handler.JobCategoryService), new(*usecase.JobCategoryService)),
 		handler.NewPlatformUserHandler,
+
+		// mobile OTP auth (seller signup)
+		provideSQLDB,
+		provideTwoFactorSMSService,
+		otp.NewMobileOTPService,
+		repository.NewMobileAuthRepository,
+		usecase.NewMobileAuthUseCase,
+		handler.NewHandler,
+		wire.Bind(new(interfaces.OTPAuthRequestHandler), new(*handler.Handler)),
 
 		http.NewServerHTTP,
 	)

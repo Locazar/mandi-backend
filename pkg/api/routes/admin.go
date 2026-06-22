@@ -18,6 +18,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 	alertTemplateHandler handlerInterface.AlertTemplateHandler,
 	jobHandler *handler.JobHandler, jobCategoryHandler *handler.JobCategoryHandler,
 	platformUserHandler handlerInterface.PlatformUserHandler,
+	mobileAuthHandler handlerInterface.OTPAuthRequestHandler,
 ) {
 
 	auth := api.Group("/auth")
@@ -31,8 +32,8 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		{
 			signup.POST("/", adminHandler.AdminSignUp)
 			signup.POST("/verify", adminHandler.AdminSignUpVerify)
-			signup.POST("/otp/send", authHandler.AdminSignUpOtpSend)
-			signup.POST("/otp/verify", authHandler.AdminSignUpOtpVerify)
+			signup.POST("/otp/send", mobileAuthHandler.SellerSignUpOtpSend)
+			signup.POST("/otp/verify", mobileAuthHandler.SellerSignUpOtpVerify)
 		}
 
 		auth.POST("/renew-access-token", authHandler.AdminRenewAccessToken())

@@ -24,6 +24,7 @@ type RefreshSession struct {
 
 // VerifyOTPRequest is used to verify OTP sent to mobile
 type VerifyOTPRequest struct {
-	Phone string `json:"phone" binding:"required,min=10,max=15"`
-	OTP   string `json:"otp" binding:"required,len=6"`
+	SessionID string `json:"session_id" binding:"required"`
+	Phone     string `json:"phone" binding:"required,min=10,max=15"`
+	OTP       string `json:"otp" binding:"required,len=6"`
 }

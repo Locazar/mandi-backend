@@ -12,6 +12,7 @@ type OTPResponse struct {
 // SendOTPResponse returned after sending OTP (no OTP in response)
 type SendOTPResponse struct {
 	Message            string `json:"message"`
+	SessionID          string `json:"session_id"`
 	Phone              string `json:"phone"`
 	OTPValiditySeconds int    `json:"otp_validity_seconds"`
 	ConsentMessage     string `json:"consent_message"`

@@ -44,7 +44,7 @@ type LoginAuditLog struct {
 // OTP rate limit constants
 const (
 	OTPMaxAttemptsPerPhone = 3
-	OTPValidityDuration    = 5 * time.Minute
+	OTPValidityDuration    = 10 * time.Minute
 	OTPMaxRequestsPerHour  = 3
 	OTPCooldownSeconds     = 60
 	OTPLength              = 6

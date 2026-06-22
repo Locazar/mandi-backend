@@ -18,7 +18,7 @@ import (
 type mobileAuthUseCase struct {
 	mobileAuthRepo repoInterface.MobileAuthRepository
 	otpService     *otp.MobileOTPService
-	smsService     *sms.TwilioSMSService
+	smsService     *sms.TwoFactorSMSService
 	tokenService   token.TokenService
 }
 
@@ -26,7 +26,7 @@ type mobileAuthUseCase struct {
 func NewMobileAuthUseCase(
 	mobileAuthRepo repoInterface.MobileAuthRepository,
 	otpService *otp.MobileOTPService,
-	smsService *sms.TwilioSMSService,
+	smsService *sms.TwoFactorSMSService,
 	tokenService token.TokenService,
 ) usecaseInterface.MobileAuthUseCase {
 	return &mobileAuthUseCase{
@@ -122,8 +122,10 @@ func (m *mobileAuthUseCase) SendOTP(ctx context.Context, phone, ipAddress, userA
 	m.mobileAuthRepo.CreateAuditLog(ctx, auditLog)
 
 	// Return success response (without exposing OTP)
+	// SessionID is the OTP request ID; the client sends it back on verify.
 	return &response.SendOTPResponse{
 		Message:            "OTP sent successfully",
+		SessionID:          otpRequest.ID,
 		Phone:              phone,
 		OTPValiditySeconds: int(domain.OTPValidityDuration.Seconds()),
 		ConsentMessage:     "By proceeding, you consent to receive SMS OTP for authentication. This is as per TRAI DLT guidelines.",
@@ -143,10 +145,28 @@ func (m *mobileAuthUseCase) VerifyOTP(ctx context.Context, req *request.VerifyOT
 		return nil, fmt.Errorf("invalid phone number format")
 	}
 
-	// Get latest OTP request for this phone
-	otpRequest, err := m.mobileAuthRepo.GetLatestOTPRequest(ctx, req.Phone)
+	// Session ID is required to identify which OTP request to verify against
+	if req.SessionID == "" {
+		return nil, fmt.Errorf("session id is required")
+	}
+
+	// Get OTP request by session ID (the ID returned during send)
+	otpRequest, err := m.mobileAuthRepo.GetOTPRequestByID(ctx, req.SessionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve OTP request: %v", err)
+	}
+
+	// Ensure the session belongs to the phone number being verified
+	if otpRequest != nil && otpRequest.Phone != req.Phone {
+		auditLog := &domain.LoginAuditLog{
+			Phone:     req.Phone,
+			Event:     domain.AuditEventOTPFailed,
+			IPAddress: ipAddress,
+			UserAgent: userAgent,
+			Details:   `{"reason":"session_phone_mismatch"}`,
+		}
+		m.mobileAuthRepo.CreateAuditLog(ctx, auditLog)
+		return nil, fmt.Errorf("invalid session for phone number")
 	}
 
 	if otpRequest == nil {
@@ -159,6 +179,19 @@ func (m *mobileAuthUseCase) VerifyOTP(ctx context.Context, req *request.VerifyOT
 		}
 		m.mobileAuthRepo.CreateAuditLog(ctx, auditLog)
 		return nil, fmt.Errorf("no OTP request found")
+	}
+
+	// Reject sessions that are no longer active (already verified, expired or blocked)
+	if otpRequest.Status != domain.OTPStatusActive {
+		auditLog := &domain.LoginAuditLog{
+			Phone:     req.Phone,
+			Event:     domain.AuditEventOTPFailed,
+			IPAddress: ipAddress,
+			UserAgent: userAgent,
+			Details:   fmt.Sprintf(`{"reason":"session_not_active","status":%q}`, otpRequest.Status),
+		}
+		m.mobileAuthRepo.CreateAuditLog(ctx, auditLog)
+		return nil, fmt.Errorf("OTP session is no longer valid")
 	}
 
 	// Check if OTP is expired
