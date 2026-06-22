@@ -155,7 +155,7 @@ func (c *adminUseCase) issueOtpSession(ctx context.Context, adminID, phone strin
 		UserID:   adminID,
 		AdminID:  adminID,
 		Phone:    phone,
-		UserType: "Seller",
+		UserType: domain.UserTypeAdmin, // sellers are admins; satisfies otp_sessions user_type constraint
 		ExpireAt: c.otpService.CalculateOTPExpiry(),
 	}
 
