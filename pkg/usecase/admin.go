@@ -8,7 +8,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -17,6 +16,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/service/otp"
+	"github.com/rohit221990/mandi-backend/pkg/service/sms"
 	"github.com/rohit221990/mandi-backend/pkg/service/token"
 	service "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
@@ -29,9 +29,11 @@ type adminUseCase struct {
 	authRepo     interfaces.AuthRepository
 	optAuth      otp.OtpAuth
 	tokenService token.TokenService
+	otpService   *otp.MobileOTPService
+	smsService   *sms.TwoFactorSMSService
 }
 
-func NewAdminUseCase(repo interfaces.AdminRepository, userRepo interfaces.UserRepository, authRepo interfaces.AuthRepository, optAuth otp.OtpAuth, tokenService token.TokenService) service.AdminUseCase {
+func NewAdminUseCase(repo interfaces.AdminRepository, userRepo interfaces.UserRepository, authRepo interfaces.AuthRepository, optAuth otp.OtpAuth, tokenService token.TokenService, otpService *otp.MobileOTPService, smsService *sms.TwoFactorSMSService) service.AdminUseCase {
 
 	return &adminUseCase{
 		adminRepo:    repo,
@@ -39,6 +41,8 @@ func NewAdminUseCase(repo interfaces.AdminRepository, userRepo interfaces.UserRe
 		authRepo:     authRepo,
 		optAuth:      optAuth,
 		tokenService: tokenService,
+		otpService:   otpService,
+		smsService:   smsService,
 	}
 }
 
@@ -71,68 +75,49 @@ func (c *adminUseCase) SignUp(ctx context.Context, signUpDetails domain.Admin) (
 	// 	}
 	// }
 
-	errChan := make(chan error, 2)
-	wait := sync.WaitGroup{}
-	wait.Add(2)
+	// Save admin (hash the password first)
+	hashPass, err := utils.GenerateHashFromPassword(signUpDetails.Password)
+	if err != nil {
+		return "", utils.PrependMessageToError(err, "failed to hash the password")
+	}
+	signUpDetails.Password = string(hashPass)
 
-	// Send OTP in goroutine
-	go func() {
-		defer wait.Done()
-		// _, err := c.optAuth.SentOtp(countryCode + signUpDetails.Mobile)
-		// if err != nil {
-		// 	errChan <- fmt.Errorf("failed to send otp \nerrors:%v", err.Error())
-		// }
-	}()
+	savedAdmin, err := c.adminRepo.SaveAdmin(ctx, signUpDetails)
+	if err != nil {
+		return "", utils.PrependMessageToError(err, "failed to save admin details")
+	}
+	adminID := savedAdmin.ID
+	fmt.Printf("Admin details saved successfully for phone number: %s, admin_id: %s\n", signUpDetails.Mobile, adminID)
 
-	fmt.Printf("Simulating OTP send to phone number: %s\n", signUpDetails.Mobile)
-	var adminID string
-
-	// Save admin in goroutine
-	go func() {
-		defer wait.Done()
-
-		// Generate hashed password
-		hashPass, err := utils.GenerateHashFromPassword(signUpDetails.Password)
-		if err != nil {
-			errChan <- utils.PrependMessageToError(err, "failed to hash the password")
-			return
-		}
-
-		signUpDetails.Password = string(hashPass)
-		savedAdmin, err := c.adminRepo.SaveAdmin(ctx, signUpDetails)
-		if err != nil {
-			errChan <- utils.PrependMessageToError(err, "failed to save admin details")
-			return
-		}
-		fmt.Printf("Admin details saved successfully for phone number: %s, admin_id: %s\n", signUpDetails.Mobile, savedAdmin.AdminID)
-		adminID = savedAdmin.ID
-		fmt.Printf("Retrieved saved admin details: %+v\n", savedAdmin)
-	}()
-	fmt.Printf("Waiting for OTP send and admin save operations to complete for phone number: %s\n", signUpDetails.Mobile)
-	wait.Wait()
-	fmt.Printf("OTP send and admin save operations completed for phone number: %s\n", signUpDetails.Mobile)
-	// Check for any errors from goroutines
-	close(errChan)
-	for err := range errChan {
-		if err != nil {
-			return "", err
-		}
+	// Generate a 6-digit OTP and store only its hash (never plaintext)
+	generatedOTP, err := c.otpService.GenerateOTP()
+	if err != nil {
+		return "", utils.PrependMessageToError(err, "failed to generate otp")
+	}
+	otpHash, err := c.otpService.HashOTP(generatedOTP)
+	if err != nil {
+		return "", utils.PrependMessageToError(err, "failed to hash otp")
 	}
 
 	// Create OTP session
 	otpID := uuid.NewString()
 	otpSession := domain.OtpSession{
 		OtpID:    otpID,
+		OtpHash:  otpHash,
 		UserID:   adminID,
 		AdminID:  adminID, // Using admin ID as user ID for OTP session
 		Phone:    signUpDetails.Mobile,
 		UserType: "Seller",
-		ExpireAt: time.Now().Add(otpExpireDuration), // 2 minutes expire for otp
+		ExpireAt: c.otpService.CalculateOTPExpiry(),
 	}
 
-	err = c.authRepo.SaveOtpSession(ctx, otpSession)
-	if err != nil {
+	if err = c.authRepo.SaveOtpSession(ctx, otpSession); err != nil {
 		return "", utils.PrependMessageToError(err, "failed to save otp session")
+	}
+
+	// Send the OTP via the 2factor.in SMS API
+	if err = c.smsService.SendOTPSMS(signUpDetails.Mobile, generatedOTP); err != nil {
+		return "", utils.PrependMessageToError(err, "failed to send otp")
 	}
 
 	fmt.Printf("OTP session created successfully with OTP ID: %s for admin ID: %s\n", otpID, adminID)
@@ -151,17 +136,16 @@ func (c *adminUseCase) AdminSignUpOtpVerify(ctx context.Context,
 	if err != nil {
 		return "", domain.ShopDetails{}, utils.PrependMessageToError(err, "failed to find otp session from database")
 	}
-	// if time.Since(otpSession.ExpireAt) > 0 {
-	// 	return "", domain.ShopDetails{}, ErrOtpExpired
-	// }
 
-	// valid, err := c.optAuth.VerifyOtp(countryCode+otpSession.Phone, otpVerifyDetails.Otp)
-	if err != nil {
-		return "", domain.ShopDetails{}, utils.PrependMessageToError(err, "failed to verify otp")
+	// Reject expired OTP sessions
+	if c.otpService.IsOTPExpired(otpSession.ExpireAt) {
+		return "", domain.ShopDetails{}, ErrOtpExpired
 	}
-	// if !valid {
-	// 	return "", ErrInvalidOtp
-	// }
+
+	// Verify the entered OTP against the stored hash
+	if err := c.otpService.VerifyOTP(otpVerifyDetails.Otp, otpSession.OtpHash); err != nil {
+		return "", domain.ShopDetails{}, ErrInvalidOtp
+	}
 
 	// Try to get existing admin by phone
 	admin, err := c.adminRepo.FindAdminByPhone(ctx, otpSession.Phone)
