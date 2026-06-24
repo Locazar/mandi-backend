@@ -11,7 +11,11 @@ import (
 type ProductUseCase interface {
 	FindAllCategories(ctx context.Context, pagination request.Pagination) ([]response.Category, error)
 	SaveCategory(ctx context.Context, body request.Category, departmentId string) error
+	CreateCategory(ctx context.Context, departmentID, name, imageURL string, sortOrder int, isActive bool) error
+	UpdateCategory(ctx context.Context, categoryID, name, imageURL string, sortOrder int, isActive bool) error
 	SaveSubCategory(ctx context.Context, body request.SubCategory, departmentId string, category_id string) error
+	CreateSubCategory(ctx context.Context, departmentID, categoryID, name, imageURL string, sortOrder int, isActive bool) error
+	UpdateSubCategory(ctx context.Context, subCategoryID, name, imageURL string, sortOrder int, isActive bool) error
 
 	// variations
 	SaveVariation(ctx context.Context, categoryID string, variationNames []string) error
@@ -58,6 +62,8 @@ type ProductUseCase interface {
 	SaveDepartment(ctx context.Context, departmentName string) error
 	GetAllDepartments(ctx context.Context) ([]response.Department, error)
 	GetDepartmentByID(ctx context.Context, departmentID string) (response.Department, error)
+	CreateDepartment(ctx context.Context, name, imageURL string, sortOrder int, isActive bool) error
+	UpdateDepartment(ctx context.Context, departmentID, name, imageURL string, sortOrder int, isActive bool) error
 
 	GetAllSubCategories(ctx context.Context) ([]response.SubCategory, error)
 	GetAllCategoriesByDepartmentID(ctx context.Context, departmentID string) ([]response.Category, error)

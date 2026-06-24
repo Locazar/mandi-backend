@@ -1,0 +1,1 @@
+ALTER TABLE otp_sessions ADD COLUMN IF NOT EXISTS otp_hash VARCHAR(255);

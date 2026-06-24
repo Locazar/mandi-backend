@@ -2825,3 +2825,39 @@ func GetProductItemsByOfferID(ctx context.Context, db *gorm.DB, offerID string, 
 
 	return
 }
+
+// CreateCategory inserts a new category with image_url and sort_order.
+func (c *productDatabase) CreateCategory(ctx context.Context, departmentID, name, imageURL string, sortOrder int, isActive bool) error {
+	query := `INSERT INTO categories (id, department_id, name, image_url, sort_order, is_active)
+	          VALUES ($1, $2, $3, $4, $5, $6)`
+	return c.DB.Exec(query, domain.NewID(domain.PrefixCategory), departmentID, name, imageURL, sortOrder, isActive).Error
+}
+
+// UpdateCategory updates name, image_url, sort_order, is_active for a category.
+// If imageURL is empty the existing image_url is preserved.
+func (c *productDatabase) UpdateCategory(ctx context.Context, categoryID, name, imageURL string, sortOrder int, isActive bool) error {
+	if imageURL != "" {
+		query := `UPDATE categories SET name = $1, image_url = $2, sort_order = $3, is_active = $4 WHERE id = $5`
+		return c.DB.Exec(query, name, imageURL, sortOrder, isActive, categoryID).Error
+	}
+	query := `UPDATE categories SET name = $1, sort_order = $2, is_active = $3 WHERE id = $4`
+	return c.DB.Exec(query, name, sortOrder, isActive, categoryID).Error
+}
+
+// CreateSubCategory inserts a new sub-category with image_url and sort_order.
+func (c *productDatabase) CreateSubCategory(ctx context.Context, departmentID, categoryID, name, imageURL string, sortOrder int, isActive bool) error {
+	query := `INSERT INTO sub_categories (id, department_id, category_id, name, image_url, sort_order, is_active)
+	          VALUES ($1, $2, $3, $4, $5, $6, $7)`
+	return c.DB.Exec(query, domain.NewID(domain.PrefixSubCategory), departmentID, categoryID, name, imageURL, sortOrder, isActive).Error
+}
+
+// UpdateSubCategory updates name, image_url, sort_order, is_active for a sub-category.
+// If imageURL is empty the existing image_url is preserved.
+func (c *productDatabase) UpdateSubCategory(ctx context.Context, subCategoryID, name, imageURL string, sortOrder int, isActive bool) error {
+	if imageURL != "" {
+		query := `UPDATE sub_categories SET name = $1, image_url = $2, sort_order = $3, is_active = $4 WHERE id = $5`
+		return c.DB.Exec(query, name, imageURL, sortOrder, isActive, subCategoryID).Error
+	}
+	query := `UPDATE sub_categories SET name = $1, sort_order = $2, is_active = $3 WHERE id = $4`
+	return c.DB.Exec(query, name, sortOrder, isActive, subCategoryID).Error
+}

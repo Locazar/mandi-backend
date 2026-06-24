@@ -14,6 +14,24 @@ type OTPVerify struct {
 	OtpID string `json:"otp_id" `
 }
 
+// SignupOtpSend is the body for the seller signup/login OTP-send endpoint.
+// It accepts the phone number under either "mobile" (signup) or "phone"
+// (login/resend); full_name and password are only used when creating a new seller.
+type SignupOtpSend struct {
+	Mobile   string `json:"mobile"`
+	Phone    string `json:"phone"`
+	FullName string `json:"full_name"`
+	Password string `json:"password"`
+}
+
+// PhoneNumber returns the phone number regardless of which field the client sent.
+func (s SignupOtpSend) PhoneNumber() string {
+	if s.Mobile != "" {
+		return s.Mobile
+	}
+	return s.Phone
+}
+
 type BlockUser struct {
 	UserID string `json:"user_id" binding:"required"`
 	Block  bool   `json:"block"`

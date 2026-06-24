@@ -1478,3 +1478,19 @@ func (s *productUseCase) GetProductItemsByOfferID(ctx context.Context, offerID s
 }
 
 // services/product_service.go
+
+func (c *productUseCase) CreateCategory(ctx context.Context, departmentID, name, imageURL string, sortOrder int, isActive bool) error {
+	return c.productRepo.CreateCategory(ctx, departmentID, name, imageURL, sortOrder, isActive)
+}
+
+func (c *productUseCase) UpdateCategory(ctx context.Context, categoryID, name, imageURL string, sortOrder int, isActive bool) error {
+	return c.productRepo.UpdateCategory(ctx, categoryID, name, imageURL, sortOrder, isActive)
+}
+
+func (c *productUseCase) CreateSubCategory(ctx context.Context, departmentID, categoryID, name, imageURL string, sortOrder int, isActive bool) error {
+	return c.productRepo.CreateSubCategory(ctx, departmentID, categoryID, name, imageURL, sortOrder, isActive)
+}
+
+func (c *productUseCase) UpdateSubCategory(ctx context.Context, subCategoryID, name, imageURL string, sortOrder int, isActive bool) error {
+	return c.productRepo.UpdateSubCategory(ctx, subCategoryID, name, imageURL, sortOrder, isActive)
+}

@@ -13,6 +13,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/service/otp"
+	"github.com/rohit221990/mandi-backend/pkg/service/sms"
 	"github.com/rohit221990/mandi-backend/pkg/service/token"
 	service "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
@@ -31,11 +32,13 @@ type authUseCase struct {
 	adminRepo    interfaces.AdminRepository
 	tokenService token.TokenService
 	optAuth      otp.OtpAuth
+	otpService   *otp.MobileOTPService
+	smsService   *sms.TwoFactorSMSService
 }
 
 func NewAuthUseCase(authRepo interfaces.AuthRepository, tokenService token.TokenService,
 	userRepo interfaces.UserRepository, adminRepo interfaces.AdminRepository,
-	optAuth otp.OtpAuth) service.AuthUseCase {
+	optAuth otp.OtpAuth, otpService *otp.MobileOTPService, smsService *sms.TwoFactorSMSService) service.AuthUseCase {
 
 	return &authUseCase{
 		userRepo:     userRepo,
@@ -43,6 +46,8 @@ func NewAuthUseCase(authRepo interfaces.AuthRepository, tokenService token.Token
 		tokenService: tokenService,
 		authRepo:     authRepo,
 		optAuth:      optAuth,
+		otpService:   otpService,
+		smsService:   smsService,
 	}
 }
 
@@ -119,41 +124,33 @@ func (c *authUseCase) UserLoginOtpSend(ctx context.Context, loginDetails request
 		return "", ErrUserBlocked
 	}
 
-	errChan := make(chan error, 2)
-	wait := sync.WaitGroup{}
-	wait.Add(2)
+	// Generate a 6-digit OTP and store only its hash (never plaintext)
+	generatedOTP, err := c.otpService.GenerateOTP()
+	if err != nil {
+		return "", fmt.Errorf("failed to generate otp \nerror:%v", err.Error())
+	}
 
-	go func() {
-		defer wait.Done()
-		_, err := c.optAuth.SentOtp(countryCode + user.Phone)
-		if err != nil {
-			errChan <- fmt.Errorf("failed to send otp \nerrors:%v", err.Error())
-		}
-	}()
+	otpHash, err := c.otpService.HashOTP(generatedOTP)
+	if err != nil {
+		return "", fmt.Errorf("failed to hash otp \nerror:%v", err.Error())
+	}
+
 	otpID := uuid.NewString()
+	otpSession := domain.OtpSession{
+		OtpID:    otpID,
+		OtpHash:  otpHash,
+		UserID:   user.ID,
+		Phone:    user.Phone,
+		UserType: domain.UserTypeUser,
+		ExpireAt: c.otpService.CalculateOTPExpiry(),
+	}
+	if err := c.authRepo.SaveOtpSession(ctx, otpSession); err != nil {
+		return "", fmt.Errorf("failed to save otp session \nerror:%v", err.Error())
+	}
 
-	go func() {
-		defer wait.Done()
-		otpSession := domain.OtpSession{
-			OtpID:    otpID,
-			UserID:   user.ID,
-			Phone:    user.Phone,
-			UserType: domain.UserTypeUser,
-			ExpireAt: time.Now().Add(otpExpireDuration), // 2 minutes expire for otp
-		}
-		err := c.authRepo.SaveOtpSession(ctx, otpSession)
-		if err != nil {
-			errChan <- fmt.Errorf("failed to save otp session \nerror:%v", err.Error())
-		}
-	}()
-
-	wait.Wait()
-	close(errChan)
-
-	for err := range errChan {
-		if err != nil {
-			return "", err
-		}
+	// Send the OTP via the 2factor.in SMS API
+	if err := c.smsService.SendOTPSMS(user.Phone, generatedOTP); err != nil {
+		return "", fmt.Errorf("failed to send otp \nerror:%v", err.Error())
 	}
 
 	return otpID, nil
@@ -166,17 +163,20 @@ func (c *authUseCase) LoginOtpVerify(ctx context.Context, otpVerifyDetails reque
 		return "", utils.PrependMessageToError(err, "failed to find otp session from database")
 	}
 
-	// if time.Since(otpSession.ExpireAt) > 0 {
-	// 	return "", ErrOtpExpired
-	// }
-
-	//valid, err := c.optAuth.VerifyOtp(countryCode+otpSession.Phone, otpVerifyDetails.Otp)
-	if err != nil {
-		return "", utils.PrependMessageToError(err, "failed to verify otp")
+	// Reject expired OTP sessions
+	if c.otpService.IsOTPExpired(otpSession.ExpireAt) {
+		return "", ErrOtpExpired
 	}
-	// if !valid {
-	// 	return "", ErrInvalidOtp
-	// }
+
+	// Verify the entered OTP against the stored hash
+	if err := c.otpService.VerifyOTP(otpVerifyDetails.Otp, otpSession.OtpHash); err != nil {
+		return "", ErrInvalidOtp
+	}
+
+	// OTP verified — invalidate the session so the same OTP cannot be reused.
+	if delErr := c.authRepo.DeleteOtpSession(ctx, otpSession.OtpID); delErr != nil {
+		log.Printf("warning: failed to delete used otp session %s: %v", otpSession.OtpID, delErr)
+	}
 
 	return otpSession.UserID, nil
 }
@@ -219,6 +219,7 @@ func (c *authUseCase) AdminLogin(ctx context.Context, loginDetails request.Login
 }
 
 func (c *authUseCase) AdminSignUpOtpSend(ctx context.Context, phone string) (string, error) {
+	
 	if phone == "" {
 		return "", ErrEmptyLoginCredentials
 	}

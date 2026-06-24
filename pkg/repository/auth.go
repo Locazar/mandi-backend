@@ -49,9 +49,9 @@ func (c *AuthRepository) SaveOtpSession(ctx context.Context, otpSession domain.O
 	if otpSession.ID == "" {
 		otpSession.ID = domain.NewID(domain.PrefixOtpSession)
 	}
-	query := `INSERT INTO otp_sessions (id, otp_id, user_id, admin_id, user_type, phone, expire_at)
-	VALUES ($1, $2, $3, $4, $5, $6, $7)`
-	err := c.DB.Exec(query, otpSession.ID, otpSession.OtpID, otpSession.UserID, otpSession.AdminID, otpSession.UserType, otpSession.Phone, otpSession.ExpireAt).Error
+	query := `INSERT INTO otp_sessions (id, otp_id, otp_hash, user_id, admin_id, user_type, phone, expire_at)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
+	err := c.DB.Exec(query, otpSession.ID, otpSession.OtpID, otpSession.OtpHash, otpSession.UserID, otpSession.AdminID, otpSession.UserType, otpSession.Phone, otpSession.ExpireAt).Error
 	return err
 }
 
@@ -62,6 +62,12 @@ func (c *AuthRepository) FindOtpSession(ctx context.Context, otpID string) (otpS
 	err = c.DB.Raw(query, otpID).Scan(&otpSession).Error
 	fmt.Printf("Queried OTP session for OTP ID: %s, Result: %+v, Error: %v\n", otpID, otpSession, err)
 	return otpSession, err
+}
+
+// DeleteOtpSession removes an OTP session so a verified OTP cannot be reused.
+func (c *AuthRepository) DeleteOtpSession(ctx context.Context, otpID string) error {
+	query := `DELETE FROM otp_sessions WHERE otp_id = $1`
+	return c.DB.Exec(query, otpID).Error
 }
 
 func (c *AuthRepository) SaveOtpSessionEmail(ctx context.Context, otpSession domain.OtpSessionEmail) error {

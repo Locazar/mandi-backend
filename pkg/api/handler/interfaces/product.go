@@ -5,7 +5,11 @@ import "github.com/gin-gonic/gin"
 type ProductHandler interface {
 	GetAllCategories(ctx *gin.Context)
 	SaveCategory(ctx *gin.Context)
+	CreateCategory(ctx *gin.Context)
+	UpdateCategory(ctx *gin.Context)
 	SaveSubCategory(ctx *gin.Context)
+	CreateSubCategory(ctx *gin.Context)
+	UpdateSubCategory(ctx *gin.Context)
 	SaveVariation(ctx *gin.Context)
 	SaveVariationOption(ctx *gin.Context)
 	GetAllVariations(ctx *gin.Context)
@@ -56,6 +60,8 @@ type ProductHandler interface {
 	// department
 	SaveDepartment(ctx *gin.Context)
 	GetAllDepartments(ctx *gin.Context)
+	CreateDepartment(ctx *gin.Context)
+	UpdateDepartment(ctx *gin.Context)
 
 	// sub type attributes
 	SaveSubTypeAttribute(ctx *gin.Context)

@@ -27,6 +27,7 @@ type UserRefreshSession struct {
 type OtpSession struct {
 	ID       string    `json:"id" gorm:"primaryKey;type:varchar(32)"`
 	OtpID    string    `json:"otp_id" gorm:"unique;not null"`
+	OtpHash  string    `json:"-" gorm:"size:255"` // bcrypt hash of the OTP (never store plaintext)
 	UserID   string    `json:"user_id" gorm:"type:varchar(32)"`
 	AdminID  string    `json:"admin_id" gorm:"type:varchar(32)"`
 	UserType UserType  `json:"user_type"`

@@ -10,6 +10,7 @@ import (
 
 type AdminUseCase interface {
 	SignUp(ctx context.Context, admin domain.Admin) (string, error)
+	SignupOtpSend(ctx context.Context, details domain.Admin) (string, error)
 	AdminSignUpOtpVerify(ctx context.Context, otpVerifyDetails request.OTPVerify) (userID string, shop domain.ShopDetails, err error)
 	GetAdminWithShopVerificationByPhone(ctx context.Context, phone string) (domain.Admin, domain.ShopVerification, error)
 	GenerateAccessToken(ctx context.Context, tokenParams GenerateTokenParams) (tokenString string, err error)

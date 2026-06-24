@@ -7,7 +7,11 @@
 package di
 
 import (
-	"github.com/rohit221990/mandi-backend/pkg/api"
+	"database/sql"
+
+	"gorm.io/gorm"
+
+	http "github.com/rohit221990/mandi-backend/pkg/api"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler"
 	"github.com/rohit221990/mandi-backend/pkg/api/middleware"
 	"github.com/rohit221990/mandi-backend/pkg/config"
@@ -20,6 +24,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/service/elasticsearch"
 	"github.com/rohit221990/mandi-backend/pkg/service/graphics"
 	"github.com/rohit221990/mandi-backend/pkg/service/otp"
+	"github.com/rohit221990/mandi-backend/pkg/service/sms"
 	"github.com/rohit221990/mandi-backend/pkg/service/token"
 	"github.com/rohit221990/mandi-backend/pkg/usecase"
 )
@@ -40,10 +45,12 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	}
 	adminRepository := repository.NewAdminRepository(gormDB, service)
 	otpAuth := otp.NewOtpAuth(cfg)
-	authUseCase := usecase.NewAuthUseCase(authRepository, tokenService, userRepository, adminRepository, otpAuth)
+	mobileOTPService := otp.NewMobileOTPService()
+	twoFactorSMSService := provideTwoFactorSMSService(cfg)
+	authUseCase := usecase.NewAuthUseCase(authRepository, tokenService, userRepository, adminRepository, otpAuth, mobileOTPService, twoFactorSMSService)
 	authHandler := handler.NewAuthHandler(authUseCase, cfg, tokenService)
 	middlewareMiddleware := middleware.NewMiddleware(tokenService)
-	adminUseCase := usecase.NewAdminUseCase(adminRepository, userRepository, authRepository, otpAuth, tokenService)
+	adminUseCase := usecase.NewAdminUseCase(adminRepository, userRepository, authRepository, otpAuth, tokenService, mobileOTPService, twoFactorSMSService)
 	shopTimeRepository := repository.NewShopTimeRepository(gormDB)
 	shopTimeUseCase := usecase.NewShopTimeUseCase(shopTimeRepository)
 	cloudService, err := cloud.NewObjectStorageService(cfg)
@@ -119,7 +126,14 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	platformUserRepository := repository.NewPlatformUserRepository(gormDB)
 	platformUserUseCase := usecase.NewPlatformUserUseCase(platformUserRepository, adminUseCase)
 	platformUserHandler := handler.NewPlatformUserHandler(platformUserUseCase, adminUseCase)
-	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler, jobHandler, jobCategoryHandler, platformUserHandler)
+	sqlDB, err := provideSQLDB(gormDB)
+	if err != nil {
+		return nil, err
+	}
+	mobileAuthRepository := repository.NewMobileAuthRepository(sqlDB)
+	mobileAuthUseCase := usecase.NewMobileAuthUseCase(mobileAuthRepository, mobileOTPService, twoFactorSMSService, tokenService)
+	mobileAuthHandler := handler.NewHandler(mobileAuthUseCase)
+	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler, jobHandler, jobCategoryHandler, platformUserHandler, mobileAuthHandler)
 	return serverHTTP, nil
 }
 
@@ -127,6 +141,14 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 
 func provideElasticURL(cfg config.Config) string {
 	return cfg.ElasticsearchURL
+}
+
+func provideSQLDB(gormDB *gorm.DB) (*sql.DB, error) {
+	return gormDB.DB()
+}
+
+func provideTwoFactorSMSService(cfg config.Config) *sms.TwoFactorSMSService {
+	return sms.NewTwoFactorSMSService(cfg.TwoFactorAPIKey)
 }
 
 func provideAIServiceClient(cfg config.Config) *ai.Client {

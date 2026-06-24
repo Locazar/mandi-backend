@@ -14,11 +14,15 @@ type ProductRepository interface {
 	// category
 	FindAllMainCategories(ctx context.Context, pagination request.Pagination) ([]response.Category, error)
 	SaveCategory(ctx context.Context, category request.Category, departmentId string) error
+	CreateCategory(ctx context.Context, departmentID, name, imageURL string, sortOrder int, isActive bool) error
+	UpdateCategory(ctx context.Context, categoryID, name, imageURL string, sortOrder int, isActive bool) error
 
 	// sub category
 	IsSubCategoryNameExist(ctx context.Context, categoryName string, categoryID string) (bool, error)
 	FindAllSubCategories(ctx context.Context, categoryID string) ([]response.SubCategory, error)
 	SaveSubCategory(ctx context.Context, body request.SubCategory, departmentID string, categoryID string) error
+	CreateSubCategory(ctx context.Context, departmentID, categoryID, name, imageURL string, sortOrder int, isActive bool) error
+	UpdateSubCategory(ctx context.Context, subCategoryID, name, imageURL string, sortOrder int, isActive bool) error
 
 	// variation
 	IsVariationNameExistForCategory(ctx context.Context, name string, categoryID string) (bool, error)
@@ -66,6 +70,8 @@ type ProductRepository interface {
 	SaveDepartment(ctx context.Context, departmentName string) error
 	GetAllDepartments(ctx context.Context) ([]response.Department, error)
 	GetDepartmentByID(ctx context.Context, departmentID string) (response.Department, error)
+	CreateDepartment(ctx context.Context, name, imageURL string, sortOrder int, isActive bool) error
+	UpdateDepartment(ctx context.Context, departmentID, name, imageURL string, sortOrder int, isActive bool) error
 
 	GetAllSubCategories(ctx context.Context) ([]response.SubCategory, error)
 
