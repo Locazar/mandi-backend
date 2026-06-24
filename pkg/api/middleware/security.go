@@ -8,6 +8,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/rohit221990/mandi-backend/pkg/config"
+	applogger "github.com/rohit221990/mandi-backend/pkg/logger"
+	"go.uber.org/zap"
 )
 
 type rateEntry struct {
@@ -66,6 +68,9 @@ func SecurityMiddleware(cfg config.Config) gin.HandlerFunc {
 
 		if cfg.Security.BruteForceProtectionEnabled {
 			if state.isBlocked(clientIP, now) {
+				applogger.SecurityEvent(ctx, applogger.EventSecurityBruteForcBlock,
+					zap.String("client_ip", clientIP),
+				).Warn("request blocked: brute force protection")
 				ctx.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
 					"success": false,
 					"message": "Too many authentication attempts. Try again later.",
@@ -76,6 +81,11 @@ func SecurityMiddleware(cfg config.Config) gin.HandlerFunc {
 
 		if cfg.Security.RateLimitingEnabled {
 			if exceeded := state.registerRate(clientIP, cfg.Security.RateLimitRequests, time.Duration(cfg.Security.RateLimitWindowSeconds)*time.Second, now); exceeded {
+				applogger.SecurityEvent(ctx, applogger.EventSecurityRateLimited,
+					zap.String("client_ip", clientIP),
+					zap.Int("limit", cfg.Security.RateLimitRequests),
+					zap.Int("window_seconds", cfg.Security.RateLimitWindowSeconds),
+				).Warn("request blocked: rate limit exceeded")
 				ctx.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
 					"success": false,
 					"message": "Rate limit exceeded. Slow down your requests.",

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"strings"
 	"os"
 	"time"
 
@@ -102,38 +103,58 @@ func (c *adminUseCase) SignupOtpSend(ctx context.Context, details domain.Admin) 
 		return "", fmt.Errorf("mobile number is required")
 	}
 
-	existAdmin, err := c.adminRepo.FindAdminByPhone(ctx, details.Mobile)
+	adminID, err := c.findOrCreateAdminByMobile(ctx, details)
 	if err != nil {
-		return "", utils.PrependMessageToError(err, "failed to check admin details already exist")
-	}
-
-	var adminID string
-	if existAdmin.ID != "" {
-		// Existing seller — login / resend OTP, do not recreate.
-		adminID = existAdmin.ID
-	} else {
-		// New seller — create the record (hash password if provided).
-		if details.Password != "" {
-			hashPass, err := utils.GenerateHashFromPassword(details.Password)
-			if err != nil {
-				return "", utils.PrependMessageToError(err, "failed to hash the password")
-			}
-			details.Password = string(hashPass)
-		}
-		if details.Role == "" {
-			details.Role = domain.AdminRoleSeller
-		}
-		if details.Status == "" {
-			details.Status = "active"
-		}
-		savedAdmin, err := c.adminRepo.SaveAdmin(ctx, details)
-		if err != nil {
-			return "", utils.PrependMessageToError(err, "failed to save admin details")
-		}
-		adminID = savedAdmin.ID
+		return "", err
 	}
 
 	return c.issueOtpSession(ctx, adminID, details.Mobile)
+}
+
+// findOrCreateAdminByMobile returns the ID of the existing seller for the given
+// mobile number, or creates a new minimal seller record and returns its ID.
+// It is safe under concurrent requests: if two goroutines race on the same new
+// number, the one that loses the INSERT recovers by re-fetching the winner's row.
+func (c *adminUseCase) findOrCreateAdminByMobile(ctx context.Context, details domain.Admin) (string, error) {
+	existing, err := c.adminRepo.FindAdminByPhone(ctx, details.Mobile)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return "", utils.PrependMessageToError(err, "failed to look up seller by mobile")
+	}
+	if existing.ID != "" {
+		return existing.ID, nil
+	}
+
+	// New number — prepare and insert a minimal seller record.
+	if details.Password != "" {
+		hashPass, hashErr := utils.GenerateHashFromPassword(details.Password)
+		if hashErr != nil {
+			return "", utils.PrependMessageToError(hashErr, "failed to hash password")
+		}
+		details.Password = string(hashPass)
+	}
+	if details.Role == "" {
+		details.Role = domain.AdminRoleSeller
+	}
+	if details.Status == "" {
+		details.Status = "active"
+	}
+
+	saved, saveErr := c.adminRepo.SaveAdmin(ctx, details)
+	if saveErr == nil {
+		return saved.ID, nil
+	}
+
+	// Handle race condition: another request inserted the same mobile concurrently.
+	// Recover by re-fetching the winner's row.
+	if strings.Contains(saveErr.Error(), "unique constraint") ||
+		strings.Contains(saveErr.Error(), "duplicate key") {
+		recovered, findErr := c.adminRepo.FindAdminByPhone(ctx, details.Mobile)
+		if findErr == nil && recovered.ID != "" {
+			return recovered.ID, nil
+		}
+	}
+
+	return "", utils.PrependMessageToError(saveErr, "failed to create seller account")
 }
 
 // issueOtpSession generates a 6-digit OTP, stores only its hash in a new OTP
