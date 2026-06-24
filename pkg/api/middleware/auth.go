@@ -2,14 +2,14 @@ package middleware
 
 import (
 	"errors"
-	"fmt"
-	"log"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
+	applogger "github.com/rohit221990/mandi-backend/pkg/logger"
 	"github.com/rohit221990/mandi-backend/pkg/service/token"
+	"go.uber.org/zap"
 )
 
 const (
@@ -32,16 +32,15 @@ func (c *middleware) AuthenticateAdmin() gin.HandlerFunc {
 // authorize request on request header using user type
 func (c *middleware) authorize(tokenUser token.UserType) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		fmt.Printf("Starting authorization middleware for userType: %s\n", tokenUser)
 		authorizationValues := ctx.GetHeader(authorizationHeaderKey)
-
 		authFields := strings.Fields(authorizationValues)
-		fmt.Printf("Authorization header fields: %v\n", authFields)
-		fmt.Printf("length authFields: %d\n", len(authFields))
+
 		if len(authFields) < 2 {
-
 			err := errors.New("authorization token not provided properly with prefix of Bearer")
-
+			applogger.SecurityEvent(ctx, applogger.EventSecurityAuthFailed,
+				zap.String("reason", "missing_bearer_token"),
+				zap.String("token_user_type", string(tokenUser)),
+			).Warn("auth rejected: missing bearer token")
 			response.ErrorResponse(ctx, http.StatusUnauthorized, "Failed to authorize request", err, nil)
 			ctx.Abort()
 			return
@@ -50,11 +49,12 @@ func (c *middleware) authorize(tokenUser token.UserType) gin.HandlerFunc {
 		authType := authFields[0]
 		accessToken := authFields[1]
 
-		log.Printf("Authorization header: %s", authorizationValues)
-		log.Printf("Access token: %s", accessToken)
-
 		if !strings.EqualFold(authType, authorizationType) {
 			err := errors.New("invalid authorization type")
+			applogger.SecurityEvent(ctx, applogger.EventSecurityAuthFailed,
+				zap.String("reason", "invalid_auth_type"),
+				zap.String("got", authType),
+			).Warn("auth rejected: invalid authorization type")
 			response.ErrorResponse(ctx, http.StatusUnauthorized, "Unauthorized user", err, nil)
 			ctx.Abort()
 			return
@@ -76,13 +76,17 @@ func (c *middleware) authorize(tokenUser token.UserType) gin.HandlerFunc {
 			}
 			altRes, altErr := c.tokenService.VerifyToken(altReq)
 			if altErr == nil {
-				// treat as valid admin token
 				verifyRes = altRes
 				err = nil
 			}
 		}
 
 		if err != nil {
+			applogger.SecurityEvent(ctx, applogger.EventSecurityTokenInvalid,
+				zap.String("reason", "token_verification_failed"),
+				zap.String("token_user_type", string(tokenUser)),
+				zap.Error(err),
+			).Warn("auth rejected: invalid token")
 			response.ErrorResponse(ctx, http.StatusUnauthorized, "Unauthorized user", err, nil)
 			ctx.Abort()
 			return

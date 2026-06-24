@@ -16,6 +16,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/config"
 	"github.com/rohit221990/mandi-backend/pkg/db"
 	"github.com/rohit221990/mandi-backend/pkg/di"
+	applogger "github.com/rohit221990/mandi-backend/pkg/logger"
 )
 
 func main() {
@@ -25,6 +26,18 @@ func main() {
 	if err != nil {
 		log.Fatal("Error to load the config: ", err)
 	}
+
+	// Initialise structured logger as early as possible so all subsequent
+	// startup messages are captured in the same format.
+	// LOG_LEVEL env: debug | info | warn | error (default: info)
+	// APP_ENV env: development | production (default: production)
+	applogger.Init(applogger.Config{
+		Level:       os.Getenv("LOG_LEVEL"),
+		Development: os.Getenv("APP_ENV") == "development",
+		LogDir:      "logs",
+		ServiceName: "mandi-backend",
+	})
+	defer applogger.Sync()
 
 	// Connect to database and seed data
 	dbConn, err := db.ConnectDatabase(cfg)

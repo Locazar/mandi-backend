@@ -12,6 +12,7 @@ import (
 	handlerInterface "github.com/rohit221990/mandi-backend/pkg/api/handler/interfaces"
 	mw "github.com/rohit221990/mandi-backend/pkg/api/middleware"
 	"github.com/rohit221990/mandi-backend/pkg/api/routes"
+	applogger "github.com/rohit221990/mandi-backend/pkg/logger"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
 	swaggerfiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
@@ -64,7 +65,7 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 
 	engine.LoadHTMLGlob("views/*.html")
 
-	engine.Use(gin.Logger())
+	engine.Use(applogger.RequestLogger())
 	engine.Use(utils.RecoveryMiddleware())
 	engine.Use(mw.CORSMiddleware())
 
