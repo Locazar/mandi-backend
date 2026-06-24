@@ -103,14 +103,16 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		department := api.Group("/departments")
 		{
 			department.GET("/:department_id", middleware.TrimSpaces(), productHandler.GetDepartmentByID)
-			department.POST("/", middleware.TrimSpaces(), productHandler.SaveDepartment)
+			department.POST("/", middleware.TrimSpaces(), productHandler.CreateDepartment)
+			department.PUT("/:department_id", middleware.TrimSpaces(), productHandler.UpdateDepartment)
 			department.GET("/", middleware.TrimSpaces(), productHandler.GetAllDepartments)
 
 			// category
 			category := department.Group("/:department_id/categories")
 			{
 				category.GET("/", productHandler.GetAllCategoriesByDepartmentID)
-				category.POST("/", middleware.TrimSpaces(), productHandler.SaveCategory)
+				category.POST("/", middleware.TrimSpaces(), productHandler.CreateCategory)
+				category.PUT("/:category_id", middleware.TrimSpaces(), productHandler.UpdateCategory)
 
 				// Category images for a specific category
 				categoryImages := category.Group("/:category_id/images")
@@ -125,7 +127,8 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 				// Sub-categories for a specific category
 				subCategory := category.Group("/:category_id/sub-categories")
 				{
-					subCategory.POST("/", middleware.TrimSpaces(), productHandler.SaveSubCategory)
+					subCategory.POST("/", middleware.TrimSpaces(), productHandler.CreateSubCategory)
+					subCategory.PUT("/:sub_category_id", middleware.TrimSpaces(), productHandler.UpdateSubCategory)
 					subCategory.GET("/", productHandler.GetAllSubCategoriesByCategoryID)
 
 					// Sub type attributes for a specific subcategory

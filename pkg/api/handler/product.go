@@ -2793,3 +2793,144 @@ func handleSecureMagic(fileHeader *multipart.FileHeader) (string, error) {
 	}
 	return savePath, nil
 }
+
+func (p *ProductHandler) CreateCategory(ctx *gin.Context) {
+	departmentID := ctx.Param("department_id")
+	if departmentID == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "department_id is required", nil, nil)
+		return
+	}
+	name := ctx.PostForm("category_name")
+	if len(name) < 1 || len(name) > 30 {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "category_name must be between 1 and 30 characters", nil, nil)
+		return
+	}
+	sortOrder, _ := strconv.Atoi(ctx.PostForm("sort_order"))
+	isActive := ctx.PostForm("is_active") != "false"
+
+	var imageURL string
+	fileHeader, err := ctx.FormFile("photo")
+	if err == nil && fileHeader != nil {
+		objectKey, uploadErr := p.cloudService.SaveFile(ctx, fileHeader, cloud.SaveOptions{
+			Namespace:  "categories",
+			Visibility: cloud.VisibilityPublic,
+		})
+		if uploadErr != nil {
+			response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to upload image", uploadErr, nil)
+			return
+		}
+		imageURL = objectKey
+	}
+
+	if err := p.productUseCase.CreateCategory(ctx, departmentID, name, imageURL, sortOrder, isActive); err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to create category", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusCreated, "Successfully created category", nil)
+}
+
+func (p *ProductHandler) UpdateCategory(ctx *gin.Context) {
+	categoryID := ctx.Param("category_id")
+	if categoryID == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "category_id is required", nil, nil)
+		return
+	}
+	name := ctx.PostForm("category_name")
+	if len(name) < 1 || len(name) > 30 {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "category_name must be between 1 and 30 characters", nil, nil)
+		return
+	}
+	sortOrder, _ := strconv.Atoi(ctx.PostForm("sort_order"))
+	isActive := ctx.PostForm("is_active") != "false"
+
+	var imageURL string
+	fileHeader, err := ctx.FormFile("photo")
+	if err == nil && fileHeader != nil {
+		objectKey, uploadErr := p.cloudService.SaveFile(ctx, fileHeader, cloud.SaveOptions{
+			Namespace:  "categories",
+			Visibility: cloud.VisibilityPublic,
+		})
+		if uploadErr != nil {
+			response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to upload image", uploadErr, nil)
+			return
+		}
+		imageURL = objectKey
+	}
+
+	if err := p.productUseCase.UpdateCategory(ctx, categoryID, name, imageURL, sortOrder, isActive); err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to update category", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully updated category", nil)
+}
+
+func (p *ProductHandler) CreateSubCategory(ctx *gin.Context) {
+	departmentID := ctx.Param("department_id")
+	categoryID := ctx.Param("category_id")
+	if departmentID == "" || categoryID == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "department_id and category_id are required", nil, nil)
+		return
+	}
+	name := ctx.PostForm("sub_category_name")
+	if len(name) < 1 || len(name) > 30 {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "sub_category_name must be between 1 and 30 characters", nil, nil)
+		return
+	}
+	sortOrder, _ := strconv.Atoi(ctx.PostForm("sort_order"))
+	isActive := ctx.PostForm("is_active") != "false"
+
+	var imageURL string
+	fileHeader, err := ctx.FormFile("photo")
+	if err == nil && fileHeader != nil {
+		objectKey, uploadErr := p.cloudService.SaveFile(ctx, fileHeader, cloud.SaveOptions{
+			Namespace:  "sub-categories",
+			Visibility: cloud.VisibilityPublic,
+		})
+		if uploadErr != nil {
+			response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to upload image", uploadErr, nil)
+			return
+		}
+		imageURL = objectKey
+	}
+
+	if err := p.productUseCase.CreateSubCategory(ctx, departmentID, categoryID, name, imageURL, sortOrder, isActive); err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to create sub-category", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusCreated, "Successfully created sub-category", nil)
+}
+
+func (p *ProductHandler) UpdateSubCategory(ctx *gin.Context) {
+	subCategoryID := ctx.Param("sub_category_id")
+	if subCategoryID == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "sub_category_id is required", nil, nil)
+		return
+	}
+	name := ctx.PostForm("sub_category_name")
+	if len(name) < 1 || len(name) > 30 {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "sub_category_name must be between 1 and 30 characters", nil, nil)
+		return
+	}
+	sortOrder, _ := strconv.Atoi(ctx.PostForm("sort_order"))
+	isActive := ctx.PostForm("is_active") != "false"
+
+	var imageURL string
+	fileHeader, err := ctx.FormFile("photo")
+	if err == nil && fileHeader != nil {
+		objectKey, uploadErr := p.cloudService.SaveFile(ctx, fileHeader, cloud.SaveOptions{
+			Namespace:  "sub-categories",
+			Visibility: cloud.VisibilityPublic,
+		})
+		if uploadErr != nil {
+			response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to upload image", uploadErr, nil)
+			return
+		}
+		imageURL = objectKey
+	}
+
+	if err := p.productUseCase.UpdateSubCategory(ctx, subCategoryID, name, imageURL, sortOrder, isActive); err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to update sub-category", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully updated sub-category", nil)
+}
