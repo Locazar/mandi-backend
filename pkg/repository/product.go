@@ -1762,7 +1762,7 @@ func (c *productDatabase) DeleteCategoryImage(ctx context.Context, imageID strin
 func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID string) (productItem response.ProductItems, err error) {
 	query := `SELECT pi.id, pi.sub_category_name, pi.category_id, pi.department_id, pi.sub_category_id, pi.stock,
 	           sc.name AS category_name, mc.name AS main_category_name,
-	           pi.dynamic_fields, pi.description, pi.highlights, pi.created_at, pi.updated_at, pi.shop_id,
+	           pi.dynamic_fields, pi.created_at, pi.updated_at, pi.shop_id,
 	           (SELECT COALESCE(SUM(view_count), 0) FROM product_item_views WHERE product_item_id = pi.id) AS view_count
 	       FROM product_items pi
 	       LEFT JOIN categories sc ON pi.category_id = sc.id
