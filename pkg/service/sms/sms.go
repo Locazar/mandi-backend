@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -53,13 +54,17 @@ func (t *TwoFactorSMSService) SendOTPSMSWithCtx(ctx context.Context, phone, otp 
 		url.PathEscape(otp),
 	)
 
+	log.Printf("[2factor] sending OTP SMS to phone=%s", phone)
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
+		log.Printf("[2factor] failed to build request: %v", err)
 		return err
 	}
 
 	resp, err := t.Client.Do(req)
 	if err != nil {
+		log.Printf("[2factor] HTTP request failed: %v", err)
 		return err
 	}
 	defer resp.Body.Close()
@@ -68,6 +73,8 @@ func (t *TwoFactorSMSService) SendOTPSMSWithCtx(ctx context.Context, phone, otp 
 	if err != nil {
 		return err
 	}
+
+	log.Printf("[2factor] response status=%s body=%s", resp.Status, strings.TrimSpace(string(body)))
 
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("2factor send failed: %s: %s", resp.Status, strings.TrimSpace(string(body)))
@@ -78,8 +85,11 @@ func (t *TwoFactorSMSService) SendOTPSMSWithCtx(ctx context.Context, phone, otp 
 		return fmt.Errorf("2factor unexpected response: %s", strings.TrimSpace(string(body)))
 	}
 	if !strings.EqualFold(parsed.Status, "Success") {
+		log.Printf("[2factor] API returned failure: %s", parsed.Details)
 		return fmt.Errorf("2factor send failed: %s", parsed.Details)
 	}
+
+	log.Printf("[2factor] OTP SMS sent successfully to phone=%s session=%s", phone, parsed.Details)
 	return nil
 }
 

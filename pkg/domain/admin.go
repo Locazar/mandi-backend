@@ -161,6 +161,14 @@ type ShopVerificationHistory struct {
 	ChangedAt          time.Time              `json:"changed_at" gorm:"not null;autoCreateTime"`
 }
 
+// AdvertisementAudience distinguishes who sees the advertisement.
+type AdvertisementAudience string
+
+const (
+	AdvertisementAudienceCustomer AdvertisementAudience = "customer"
+	AdvertisementAudienceSeller   AdvertisementAudience = "seller"
+)
+
 type Advertisement struct {
 	ID              string                `json:"id" gorm:"primaryKey;type:varchar(32)"`
 	Title           string                `json:"title" gorm:"size:100" binding:"required"`
@@ -182,6 +190,10 @@ type Advertisement struct {
 	Priority        AdvertisementPriority `json:"priority" gorm:"size:20"`
 	CreatedBy       string                `json:"created_by" gorm:"type:varchar(32)"`
 	UpdatedBy       string                `json:"updated_by" gorm:"type:varchar(32)"`
+	// Audience segmentation
+	Audience     AdvertisementAudience `json:"audience" gorm:"size:20;default:'customer'"`
+	DepartmentID string                `json:"department_id" gorm:"type:varchar(32);default:null"`
+	CategoryID   string                `json:"category_id" gorm:"type:varchar(32);default:null"`
 }
 
 type SubTypeAttributes struct {

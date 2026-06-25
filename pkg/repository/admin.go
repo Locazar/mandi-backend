@@ -293,12 +293,22 @@ func (c *adminDatabase) VerifyShop(ctx context.Context, shopVerification request
 
 func (c *adminDatabase) CreateAdvertisement(ctx context.Context, ad domain.Advertisement) (domain.Advertisement, error) {
 	ad.ID = domain.NewID(domain.PrefixAdvertisement)
-	query := `INSERT INTO advertisements (id, title, content, image_url, start_date, end_date, created_at, updated_at, created_by_admin, admin_id, area_targeted, pincode_targeted, latitude, longitude, distance_km, status, priority)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`
+	if ad.Audience == "" {
+		ad.Audience = domain.AdvertisementAudienceCustomer
+	}
+	query := `INSERT INTO advertisements
+		(id, title, content, image_url, target_url, start_date, end_date, created_at, updated_at,
+		 created_by_admin, admin_id, area_targeted, pincode_targeted, latitude, longitude, distance_km,
+		 status, priority, audience, department_id, category_id)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)`
 
-	err := c.DB.Exec(query, ad.ID, ad.Title, ad.Content, ad.ImageURL, ad.StartDate, ad.EndDate, time.Now(), time.Now(),
-		ad.CreatedByAdmin, ad.AdminID, ad.AreaTargeted, ad.PincodeTargeted, ad.Latitude, ad.Longitude,
-		ad.DistanceKM, ad.Status, ad.Priority).Error
+	err := c.DB.Exec(query,
+		ad.ID, ad.Title, ad.Content, ad.ImageURL, ad.TargetURL,
+		ad.StartDate, ad.EndDate, time.Now(), time.Now(),
+		ad.CreatedByAdmin, ad.AdminID,
+		ad.AreaTargeted, ad.PincodeTargeted, ad.Latitude, ad.Longitude, ad.DistanceKM,
+		ad.Status, ad.Priority, ad.Audience, ad.DepartmentID, ad.CategoryID,
+	).Error
 
 	return ad, err
 }
@@ -314,13 +324,23 @@ func (c *adminDatabase) GetAllAdvertisements(ctx context.Context, pagination req
 }
 
 func (c *adminDatabase) UpdateAdvertisement(ctx context.Context, ad domain.Advertisement) (domain.Advertisement, error) {
-	query := `UPDATE advertisements SET title = $1, content = $2, image_url = $3, target_url = $4,
-	start_date = $5, end_date = $6, updated_at = $7, area_targeted = $8, pincode_targeted = $9,
-	latitude = $10, longitude = $11, distance_km = $12, status = $13, priority = $14 WHERE id = $15`
+	query := `UPDATE advertisements SET
+		title = $1, content = $2, image_url = $3, target_url = $4,
+		start_date = $5, end_date = $6, updated_at = $7,
+		area_targeted = $8, pincode_targeted = $9,
+		latitude = $10, longitude = $11, distance_km = $12,
+		status = $13, priority = $14,
+		audience = $15, department_id = $16, category_id = $17
+		WHERE id = $18`
 
-	err := c.DB.Exec(query, ad.Title, ad.Content, ad.ImageURL, ad.TargetURL, ad.StartDate, ad.EndDate,
-		time.Now(), ad.AreaTargeted, ad.PincodeTargeted, ad.Latitude, ad.Longitude, ad.DistanceKM,
-		ad.Status, ad.Priority, ad.ID).Error
+	err := c.DB.Exec(query,
+		ad.Title, ad.Content, ad.ImageURL, ad.TargetURL,
+		ad.StartDate, ad.EndDate, time.Now(),
+		ad.AreaTargeted, ad.PincodeTargeted, ad.Latitude, ad.Longitude, ad.DistanceKM,
+		ad.Status, ad.Priority,
+		ad.Audience, ad.DepartmentID, ad.CategoryID,
+		ad.ID,
+	).Error
 
 	return ad, err
 }
@@ -330,6 +350,26 @@ func (c *adminDatabase) DeleteAdvertisement(ctx context.Context, advertisementID
 	err := c.DB.Exec(query, advertisementID).Error
 
 	return err
+}
+
+func (c *adminDatabase) GetAdvertisementByID(ctx context.Context, advertisementID string) (domain.Advertisement, error) {
+	var ad domain.Advertisement
+	query := `SELECT * FROM advertisements WHERE id = $1`
+	err := c.DB.Raw(query, advertisementID).Scan(&ad).Error
+	return ad, err
+}
+
+func (c *adminDatabase) GetActiveAdvertisements(ctx context.Context) ([]domain.Advertisement, error) {
+	var ads []domain.Advertisement
+	query := `SELECT * FROM advertisements
+		WHERE status = 'active'
+		  AND start_date <= NOW()
+		  AND end_date   >= NOW()
+		ORDER BY
+		  CASE priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,
+		  created_at DESC`
+	err := c.DB.Raw(query).Scan(&ads).Error
+	return ads, err
 }
 
 // Shop Details

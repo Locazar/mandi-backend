@@ -271,9 +271,9 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		// advertisement
 		advertisement := api.Group("/advertisements")
 		{
-			advertisement.POST("/", adminHandler.CreateAdvertisement)
+			advertisement.POST("/", middleware.TrimSpaces(), adminHandler.CreateAdvertisement)
 			advertisement.GET("/", adminHandler.GetAllAdvertisements)
-			advertisement.PUT("/", adminHandler.UpdateAdvertisement)
+			advertisement.PUT("/:advertisement_id", middleware.TrimSpaces(), adminHandler.UpdateAdvertisement)
 			advertisement.DELETE("/:advertisement_id", adminHandler.DeleteAdvertisement)
 		}
 
