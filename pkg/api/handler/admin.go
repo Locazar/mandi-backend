@@ -457,58 +457,154 @@ func (c *adminHandler) VerifyShop(ctx *gin.Context) {
 
 // CreateAdvertisement godoc
 //
-//	@summary 	api for admin to create advertisement
-//	@Security	BearerAuth
-//	@id			CreateAdvertisement
-//	@tags		Advertisement Management
-//	@Param		input	body	domain.Advertisement{}	true	"inputs"
-//	@Router		/admin/advertisements [post]
-//	@Success	200	{object}	response.Response{}	"Successfully created advertisement"
-//	@Failure	400	{object}	response.Response{}	"invalid input"
+//	@summary		Create advertisement (Admin)
+//	@Security		BearerAuth
+//	@id				CreateAdvertisement
+//	@tags			Advertisement Management
+//	@Accept			multipart/form-data
+//	@Produce		json
+//	@Param			title				formData	string	true	"Title"
+//	@Param			content				formData	string	true	"Content / description"
+//	@Param			target_url			formData	string	false	"Click-through URL"
+//	@Param			start_date			formData	string	true	"Start date (RFC3339)"
+//	@Param			end_date			formData	string	true	"End date (RFC3339)"
+//	@Param			status				formData	string	false	"active | inactive | expired"
+//	@Param			priority			formData	string	false	"high | medium | low"
+//	@Param			area_targeted		formData	string	false	"Target area name"
+//	@Param			pincode_targeted	formData	string	false	"Target pincode"
+//	@Param			latitude			formData	number	false	"Latitude"
+//	@Param			longitude			formData	number	false	"Longitude"
+//	@Param			distance_km			formData	number	false	"Radius in km"
+//	@Param			photo				formData	file	false	"Banner image"
+//	@Router			/admin/advertisements [post]
+//	@Success		201	{object}	response.Response{}
+//	@Failure		400	{object}	response.Response{}
+//	@Failure		500	{object}	response.Response{}
 func (c *adminHandler) CreateAdvertisement(ctx *gin.Context) {
-	var body domain.Advertisement
-
-	if err := ctx.ShouldBindJSON(&body); err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, body)
+	adminID, exists := ctx.Get("userId")
+	if !exists {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Unauthorized", nil, nil)
 		return
 	}
 
-	// Reject any create request that supplies the record's own primary key.
-	if body.ID != "" {
-		appErr := domain.ValidationError("id", "must not be provided when creating a new advertisement")
-		response.ErrorResponse(ctx, appErr.StatusCode, appErr.Message, appErr, nil)
+	title := ctx.PostForm("title")
+	if title == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "title is required", nil, nil)
+		return
+	}
+	content := ctx.PostForm("content")
+	if content == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "content is required", nil, nil)
 		return
 	}
 
-	_, err := c.adminUseCase.CreateAdvertisement(ctx, body)
+	startDate, err := time.Parse(time.RFC3339, ctx.PostForm("start_date"))
+	if err != nil {
+		startDate, err = time.Parse("2006-01-02", ctx.PostForm("start_date"))
+		if err != nil {
+			response.ErrorResponse(ctx, http.StatusBadRequest, "start_date must be RFC3339 or YYYY-MM-DD", nil, nil)
+			return
+		}
+	}
+	endDate, err := time.Parse(time.RFC3339, ctx.PostForm("end_date"))
+	if err != nil {
+		endDate, err = time.Parse("2006-01-02", ctx.PostForm("end_date"))
+		if err != nil {
+			response.ErrorResponse(ctx, http.StatusBadRequest, "end_date must be RFC3339 or YYYY-MM-DD", nil, nil)
+			return
+		}
+	}
+
+	lat, _ := strconv.ParseFloat(ctx.PostForm("latitude"), 64)
+	lng, _ := strconv.ParseFloat(ctx.PostForm("longitude"), 64)
+	dist, _ := strconv.ParseFloat(ctx.PostForm("distance_km"), 64)
+
+	status := domain.AdvertisementStatus(ctx.PostForm("status"))
+	if status == "" {
+		status = domain.AdvertisementStatusActive
+	}
+	priority := domain.AdvertisementPriority(ctx.PostForm("priority"))
+	if priority == "" {
+		priority = domain.AdvertisementPriorityMedium
+	}
+
+	var imageURL string
+	if fh, err := ctx.FormFile("photo"); err == nil && fh != nil {
+		objectKey, uploadErr := c.cloudService.SaveFile(ctx, fh, cloud.SaveOptions{
+			Namespace:  "advertisements",
+			Visibility: cloud.VisibilityPublic,
+		})
+		if uploadErr != nil {
+			response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to upload banner image", uploadErr, nil)
+			return
+		}
+		imageURL = objectKey
+	}
+
+	audience := domain.AdvertisementAudience(ctx.PostForm("audience"))
+	if audience != domain.AdvertisementAudienceSeller {
+		audience = domain.AdvertisementAudienceCustomer
+	}
+
+	adminIDStr := fmt.Sprintf("%v", adminID)
+	ad := domain.Advertisement{
+		Title:           title,
+		Content:         content,
+		ImageURL:        imageURL,
+		TargetURL:       ctx.PostForm("target_url"),
+		StartDate:       startDate,
+		EndDate:         endDate,
+		Status:          status,
+		Priority:        priority,
+		AreaTargeted:    ctx.PostForm("area_targeted"),
+		PincodeTargeted: ctx.PostForm("pincode_targeted"),
+		Latitude:        lat,
+		Longitude:       lng,
+		DistanceKM:      dist,
+		AdminID:         adminIDStr,
+		CreatedByAdmin:  adminIDStr,
+		Audience:        audience,
+		DepartmentID:    ctx.PostForm("department_id"),
+		CategoryID:      ctx.PostForm("category_id"),
+	}
+
+	created, err := c.adminUseCase.CreateAdvertisement(ctx, ad)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to create advertisement", err, nil)
 		return
 	}
 
-	response.SuccessResponse(ctx, http.StatusOK, "Successfully created advertisement", nil)
+	if created.ImageURL != "" {
+		created.ImageURL = c.cloudService.PublicURL(created.ImageURL)
+	}
+	response.SuccessResponse(ctx, http.StatusCreated, "Advertisement created successfully", created)
 }
 
 // GetAllAdvertisements godoc
 //
-//	@summary		Get all advertisements
+//	@summary		List advertisements (Admin)
 //	@Security		BearerAuth
-//	@Description	API for admin to get all advertisements
+//	@Description	Returns all advertisements with pagination.
 //	@Id				GetAllAdvertisements
 //	@Tags			Advertisement Management
-//	@Param			page_number	query	int	false	"Page Number"
-//	@Param			count		query	int	false	"Count"
+//	@Param			page_number	query	int	false	"Page number"
+//	@Param			count		query	int	false	"Items per page"
 //	@Router			/admin/advertisements [get]
-//	@Success		200	{object}	response.Response{}	"Successfully got all advertisements"
-//	@Success		204	{object}	response.Response{}	"No advertisements found"
-//	@Failure		500	{object}	response.Response{}	"Failed to get all advertisements"
+//	@Success		200	{object}	response.Response{}
+//	@Failure		500	{object}	response.Response{}
 func (c *adminHandler) GetAllAdvertisements(ctx *gin.Context) {
 	pagination := request.GetPagination(ctx)
 
 	ads, err := c.adminUseCase.GetAllAdvertisements(ctx, pagination)
 	if err != nil {
-		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get all advertisements", err, nil)
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get advertisements", err, nil)
 		return
+	}
+
+	for i := range ads {
+		if ads[i].ImageURL != "" {
+			ads[i].ImageURL = c.cloudService.PublicURL(ads[i].ImageURL)
+		}
 	}
 
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully got all advertisements", ads)
@@ -516,57 +612,179 @@ func (c *adminHandler) GetAllAdvertisements(ctx *gin.Context) {
 
 // UpdateAdvertisement godoc
 //
-//	@summary 	api for admin to update advertisement
-//	@Security	BearerAuth
-//	@id			UpdateAdvertisement
-//	@tags		Advertisement Management
-//	@Param		input	body	domain.Advertisement{}	true	"inputs"
-//	@Router		/admin/advertisements [put]
-//	@Success	200	{object}	response.Response{}	"Successfully updated advertisement"
-//	@Failure	400	{object}	response.Response{}	"invalid input"
+//	@summary		Update advertisement (Admin)
+//	@Security		BearerAuth
+//	@id				UpdateAdvertisement
+//	@tags			Advertisement Management
+//	@Accept			multipart/form-data
+//	@Produce		json
+//	@Param			advertisement_id	path		string	true	"Advertisement ID"
+//	@Param			title				formData	string	false	"Title"
+//	@Param			content				formData	string	false	"Content"
+//	@Param			target_url			formData	string	false	"Click-through URL"
+//	@Param			start_date			formData	string	false	"Start date"
+//	@Param			end_date			formData	string	false	"End date"
+//	@Param			status				formData	string	false	"active | inactive | expired"
+//	@Param			priority			formData	string	false	"high | medium | low"
+//	@Param			area_targeted		formData	string	false	"Target area"
+//	@Param			pincode_targeted	formData	string	false	"Target pincode"
+//	@Param			latitude			formData	number	false	"Latitude"
+//	@Param			longitude			formData	number	false	"Longitude"
+//	@Param			distance_km			formData	number	false	"Radius km"
+//	@Param			photo				formData	file	false	"New banner image (omit to keep existing)"
+//	@Router			/admin/advertisements/{advertisement_id} [put]
+//	@Success		200	{object}	response.Response{}
+//	@Failure		400	{object}	response.Response{}
+//	@Failure		500	{object}	response.Response{}
 func (c *adminHandler) UpdateAdvertisement(ctx *gin.Context) {
-	var body domain.Advertisement
-
-	if err := ctx.ShouldBindJSON(&body); err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, body)
+	advertisementID := ctx.Param("advertisement_id")
+	if advertisementID == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "advertisement_id is required", nil, nil)
 		return
 	}
 
-	_, err := c.adminUseCase.UpdateAdvertisement(ctx, body)
+	// Fetch existing record so we can preserve fields the caller didn't send.
+	existing, err := c.adminUseCase.GetAdvertisementByID(ctx, advertisementID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusNotFound, "Advertisement not found", err, nil)
+		return
+	}
+
+	if v := ctx.PostForm("title"); v != "" {
+		existing.Title = v
+	}
+	if v := ctx.PostForm("content"); v != "" {
+		existing.Content = v
+	}
+	if v := ctx.PostForm("target_url"); v != "" {
+		existing.TargetURL = v
+	}
+	if v := ctx.PostForm("status"); v != "" {
+		existing.Status = domain.AdvertisementStatus(v)
+	}
+	if v := ctx.PostForm("priority"); v != "" {
+		existing.Priority = domain.AdvertisementPriority(v)
+	}
+	if v := ctx.PostForm("area_targeted"); v != "" {
+		existing.AreaTargeted = v
+	}
+	if v := ctx.PostForm("pincode_targeted"); v != "" {
+		existing.PincodeTargeted = v
+	}
+	if v := ctx.PostForm("latitude"); v != "" {
+		if f, e := strconv.ParseFloat(v, 64); e == nil {
+			existing.Latitude = f
+		}
+	}
+	if v := ctx.PostForm("longitude"); v != "" {
+		if f, e := strconv.ParseFloat(v, 64); e == nil {
+			existing.Longitude = f
+		}
+	}
+	if v := ctx.PostForm("distance_km"); v != "" {
+		if f, e := strconv.ParseFloat(v, 64); e == nil {
+			existing.DistanceKM = f
+		}
+	}
+	if v := ctx.PostForm("start_date"); v != "" {
+		if t, e := time.Parse(time.RFC3339, v); e == nil {
+			existing.StartDate = t
+		} else if t, e := time.Parse("2006-01-02", v); e == nil {
+			existing.StartDate = t
+		}
+	}
+	if v := ctx.PostForm("end_date"); v != "" {
+		if t, e := time.Parse(time.RFC3339, v); e == nil {
+			existing.EndDate = t
+		} else if t, e := time.Parse("2006-01-02", v); e == nil {
+			existing.EndDate = t
+		}
+	}
+
+	if v := ctx.PostForm("audience"); v == string(domain.AdvertisementAudienceCustomer) || v == string(domain.AdvertisementAudienceSeller) {
+		existing.Audience = domain.AdvertisementAudience(v)
+	}
+	if v := ctx.PostForm("department_id"); v != "" {
+		existing.DepartmentID = v
+	}
+	if v := ctx.PostForm("category_id"); v != "" {
+		existing.CategoryID = v
+	}
+
+	// Upload new banner only when the caller provides one.
+	if fh, ferr := ctx.FormFile("photo"); ferr == nil && fh != nil {
+		objectKey, uploadErr := c.cloudService.SaveFile(ctx, fh, cloud.SaveOptions{
+			Namespace:  "advertisements",
+			Visibility: cloud.VisibilityPublic,
+		})
+		if uploadErr != nil {
+			response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to upload banner image", uploadErr, nil)
+			return
+		}
+		existing.ImageURL = objectKey
+	}
+
+	updated, err := c.adminUseCase.UpdateAdvertisement(ctx, existing)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to update advertisement", err, nil)
 		return
 	}
 
-	response.SuccessResponse(ctx, http.StatusOK, "Successfully updated advertisement", nil)
+	if updated.ImageURL != "" {
+		updated.ImageURL = c.cloudService.PublicURL(updated.ImageURL)
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Advertisement updated successfully", updated)
 }
 
 // DeleteAdvertisement godoc
 //
-//	@summary 	api for admin to delete advertisement
-//	@Security	BearerAuth
-//	@id			DeleteAdvertisement
-//	@tags		Advertisement Management
-//	@Param		advertisement_id	path	string	true	"Advertisement ID"
-//	@Router		/admin/advertisements/{advertisement_id} [delete]
-//	@Success	200	{object}	response.Response{}	"Successfully deleted advertisement"
-//	@Failure	400	{object}	response.Response{}	"invalid advertisement ID"
-//	@Failure	500	{object}	response.Response{}	"Failed to delete advertisement"
+//	@summary		Delete advertisement (Admin)
+//	@Security		BearerAuth
+//	@id				DeleteAdvertisement
+//	@tags			Advertisement Management
+//	@Param			advertisement_id	path	string	true	"Advertisement ID"
+//	@Router			/admin/advertisements/{advertisement_id} [delete]
+//	@Success		200	{object}	response.Response{}
+//	@Failure		400	{object}	response.Response{}
+//	@Failure		500	{object}	response.Response{}
 func (c *adminHandler) DeleteAdvertisement(ctx *gin.Context) {
-	advertisementIDStr := ctx.Param("advertisement_id")
-	_, err := strconv.ParseUint(advertisementIDStr, 10, 64)
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid advertisement ID", err, nil)
+	advertisementID := ctx.Param("advertisement_id")
+	if advertisementID == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "advertisement_id is required", nil, nil)
 		return
 	}
 
-	err = c.adminUseCase.DeleteAdvertisement(ctx, advertisementIDStr)
-	if err != nil {
+	if err := c.adminUseCase.DeleteAdvertisement(ctx, advertisementID); err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to delete advertisement", err, nil)
 		return
 	}
 
-	response.SuccessResponse(ctx, http.StatusOK, "Successfully deleted advertisement", nil)
+	response.SuccessResponse(ctx, http.StatusOK, "Advertisement deleted successfully", nil)
+}
+
+// GetActiveAdvertisements godoc
+//
+//	@summary		Get active advertisements (public)
+//	@Description	Returns currently active advertisements for display inside the app.
+//	@Id				GetActiveAdvertisements
+//	@Tags			Advertisement Management
+//	@Router			/advertisements/active [get]
+//	@Success		200	{object}	response.Response{}
+//	@Failure		500	{object}	response.Response{}
+func (c *adminHandler) GetActiveAdvertisements(ctx *gin.Context) {
+	ads, err := c.adminUseCase.GetActiveAdvertisements(ctx)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get active advertisements", err, nil)
+		return
+	}
+
+	for i := range ads {
+		if ads[i].ImageURL != "" {
+			ads[i].ImageURL = c.cloudService.PublicURL(ads[i].ImageURL)
+		}
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Active advertisements", ads)
 }
 
 // CreateShop godoc

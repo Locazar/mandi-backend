@@ -7,20 +7,22 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"strings"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
+	applogger "github.com/rohit221990/mandi-backend/pkg/logger"
 	"github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/service/otp"
 	"github.com/rohit221990/mandi-backend/pkg/service/sms"
 	"github.com/rohit221990/mandi-backend/pkg/service/token"
 	service "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -59,7 +61,7 @@ func (c *adminUseCase) SignUp(ctx context.Context, signUpDetails domain.Admin) (
 	if err != nil {
 		return "", utils.PrependMessageToError(err, "failed to check admin details already exist")
 	}
-	fmt.Printf("Existing admin details for phone %s: %+v\n", signUpDetails.Mobile, existAdmin)
+	applogger.L().Debug("existing admin lookup", zap.String("event", applogger.EventSecurityLoginSuccess), zap.String("admin_id", existAdmin.ID))
 	// If admin already exists, return error
 	if existAdmin.ID != "" && existAdmin.VerifiedSeller {
 		return "", errors.New("Admin already exists with this phone")
@@ -88,7 +90,7 @@ func (c *adminUseCase) SignUp(ctx context.Context, signUpDetails domain.Admin) (
 		return "", utils.PrependMessageToError(err, "failed to save admin details")
 	}
 	adminID := savedAdmin.ID
-	fmt.Printf("Admin details saved successfully for phone number: %s, admin_id: %s\n", signUpDetails.Mobile, adminID)
+	applogger.L().Info("seller account created", zap.String("event", applogger.EventSecurityOTPSent), zap.String("admin_id", adminID))
 
 	return c.issueOtpSession(ctx, adminID, signUpDetails.Mobile)
 }
@@ -189,7 +191,7 @@ func (c *adminUseCase) issueOtpSession(ctx context.Context, adminID, phone strin
 		return "", utils.PrependMessageToError(err, "failed to send otp")
 	}
 
-	fmt.Printf("OTP session created successfully with OTP ID: %s for admin ID: %s\n", otpID, adminID)
+	applogger.L().Info("OTP session issued", zap.String("event", applogger.EventSecurityOTPSent), zap.String("otp_id", otpID), zap.String("admin_id", adminID))
 	return otpID, nil
 }
 
@@ -388,6 +390,22 @@ func (c *adminUseCase) DeleteAdvertisement(ctx context.Context, advertisementID 
 		return fmt.Errorf("failed to delete advertisement \nerror:%v", err.Error())
 	}
 	return nil
+}
+
+func (c *adminUseCase) GetAdvertisementByID(ctx context.Context, advertisementID string) (domain.Advertisement, error) {
+	ad, err := c.adminRepo.GetAdvertisementByID(ctx, advertisementID)
+	if err != nil {
+		return domain.Advertisement{}, fmt.Errorf("failed to get advertisement: %v", err)
+	}
+	return ad, nil
+}
+
+func (c *adminUseCase) GetActiveAdvertisements(ctx context.Context) ([]domain.Advertisement, error) {
+	ads, err := c.adminRepo.GetActiveAdvertisements(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get active advertisements: %v", err)
+	}
+	return ads, nil
 }
 
 func (c *adminUseCase) CreateShop(ctx context.Context, shop domain.ShopDetails) (domain.ShopDetails, error) {

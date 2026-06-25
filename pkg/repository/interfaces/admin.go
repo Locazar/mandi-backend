@@ -25,6 +25,8 @@ type AdminRepository interface {
 	// Advertisement Management
 	CreateAdvertisement(ctx context.Context, ad domain.Advertisement) (domain.Advertisement, error)
 	GetAllAdvertisements(ctx context.Context, pagination request.Pagination) (ads []domain.Advertisement, err error)
+	GetAdvertisementByID(ctx context.Context, advertisementID string) (domain.Advertisement, error)
+	GetActiveAdvertisements(ctx context.Context) ([]domain.Advertisement, error)
 	UpdateAdvertisement(ctx context.Context, ad domain.Advertisement) (domain.Advertisement, error)
 	DeleteAdvertisement(ctx context.Context, advertisementID string) error
 
