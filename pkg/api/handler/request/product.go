@@ -43,11 +43,21 @@ type VariationOption struct {
 }
 
 type Category struct {
-	Name string `json:"category_name" binding:"required"`
+	Name         string `json:"category_name" binding:"required"`
+	DepartmentId string `json:"department_id" binding:"required"`
+	SortOrder    int    `json:"sort_order"`
+	IsActive     bool   `json:"is_active"`
+	ImageURL     string `json:"image_url" binding:"required"`
+	Icon         string `json:"icon"`
 }
 
 type SubCategory struct {
-	Name string `json:"sub_category_name" binding:"required"`
+	Name         string `json:"sub_category_name" binding:"required"`
+	DepartmentID string `json:"department_id" binding:"required"`
+	CategoryID   string `json:"category_id" binding:"required"`
+	SortOrder    int    `json:"sort_order"`
+	IsActive     bool   `json:"is_active"`
+	ImageURL     string `json:"image_url" binding:"required"`
 }
 
 type Brand struct {
@@ -55,7 +65,12 @@ type Brand struct {
 }
 
 type Department struct {
-	Name string `json:"department_name" binding:"required,min=3,max=25"`
+	Name      string `json:"department_name" binding:"required,min=3,max=25"`
+	Slug      string `json:"slug" binding:"required,min=3,max=25"`
+	SortOrder int    `json:"sort_order"`
+	IsActive  bool   `json:"is_active"`
+	ImageURL  string `json:"image_url" binding:"required"`
+	Icon      string `json:"icon"`
 }
 
 type SubTypeAttribute struct {

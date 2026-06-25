@@ -59,7 +59,7 @@ type ProductUseCase interface {
 	GetProductsByRadius(ctx context.Context, latitude float64, longitude float64, radiusKm float64, limit, offset int) ([]response.ProductItems, error)
 
 	// department
-	SaveDepartment(ctx context.Context, departmentName string) error
+	SaveDepartment(ctx context.Context, department request.Department) error
 	GetAllDepartments(ctx context.Context) ([]response.Department, error)
 	GetDepartmentByID(ctx context.Context, departmentID string) (response.Department, error)
 	CreateDepartment(ctx context.Context, name, imageURL string, sortOrder int, isActive bool) error

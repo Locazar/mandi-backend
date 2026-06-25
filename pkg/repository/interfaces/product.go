@@ -35,7 +35,7 @@ type ProductRepository interface {
 	FindAllVariationOptionsByVariationID(ctx context.Context, variationID string) ([]response.VariationOption, error)
 
 	FindAllVariationValuesOfProductItem(ctx context.Context, productItemID string) ([]response.ProductVariationValue, error)
-	//product
+	// product
 	FindProductByID(ctx context.Context, productID string) (product domain.Product, err error)
 	IsProductNameExistForOtherProduct(ctx context.Context, name string, productID string) (bool, error)
 	IsProductNameExist(ctx context.Context, productName string) (exist bool, err error)
@@ -67,7 +67,7 @@ type ProductRepository interface {
 	SearchProducts(ctx context.Context, keyword string, categoryID, departmentID, brandID, locationID *string, shopID *string, latitude, longitude, radius float64, pincode *uint, pagination request.Pagination) (products []response.ProductItems, err error)
 
 	// department
-	SaveDepartment(ctx context.Context, departmentName string) error
+	SaveDepartment(ctx context.Context, department request.Department) error
 	GetAllDepartments(ctx context.Context) ([]response.Department, error)
 	GetDepartmentByID(ctx context.Context, departmentID string) (response.Department, error)
 	CreateDepartment(ctx context.Context, name, imageURL string, sortOrder int, isActive bool) error
