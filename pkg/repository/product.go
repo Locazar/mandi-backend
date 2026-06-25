@@ -669,6 +669,12 @@ func (c *productDatabase) UpdateProductItem(ctx context.Context, productItemID s
 		productItemImagesStr = "{}"
 	}
 
+	updatedAt := time.Now()
+	query := `UPDATE product_items
+		SET sub_category_name = $1, dynamic_fields = $2, product_item_images = $3,
+		    category_id = $4, department_id = $5, sub_category_id = $6, updated_at = $7
+		WHERE id = $8`
+
 	err = c.DB.Exec(query, subCategoryName, dynamicFieldsJSON, productItemImagesStr, categoryID, departmentID, subCategoryID, updatedAt, productItemID).Error
 	if err != nil {
 		return err
