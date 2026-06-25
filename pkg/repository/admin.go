@@ -386,12 +386,19 @@ func (c *adminDatabase) GetActiveAdvertisementsFiltered(ctx context.Context, fil
 	args := []interface{}{}
 	argIdx := 1
 
-	// Audience / app-type filter: include ads with no audience set OR matching audience.
-	if filter.AppType != "" {
-		query += fmt.Sprintf(" AND (audience = '' OR audience = $%d)", argIdx)
-		args = append(args, string(filter.AppType))
-		argIdx++
+	// Audience filter:
+	// - 'seller'   ads → only seller app
+	// - 'customer' ads → customer app AND seller app (it's the default/general audience)
+	// - '' / NULL  ads → everyone
+	// So: seller app sees seller + customer + empty; customer app sees customer + empty.
+	if filter.AppType == domain.AdvertisementAudienceSeller {
+		// Seller app: show only seller-targeted ads.
+		query += " AND audience = 'seller'"
+	} else if filter.AppType == domain.AdvertisementAudienceCustomer {
+		// Customer app: show only customer-targeted ads.
+		query += " AND audience = 'customer'"
 	}
+	// If AppType is empty, no audience filter applied — return all.
 
 	// Location filter logic:
 	//   An ad passes if ANY of these is true:
