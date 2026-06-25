@@ -787,6 +787,53 @@ func (c *adminHandler) GetActiveAdvertisements(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Active advertisements", ads)
 }
 
+// GetActiveAdvertisementsFiltered godoc
+//
+//	@summary		Get active advertisements with location/audience filters
+//	@Description	Returns active ads filtered by lat/lng/radius, pincode, and app type (seller|customer).
+//	@Id				GetActiveAdvertisementsFiltered
+//	@Tags			Advertisement Management
+//	@Param			lat      query number false "Latitude of the user"
+//	@Param			lng      query number false "Longitude of the user"
+//	@Param			radius   query number false "Search radius in km (default 10)"
+//	@Param			pincode  query string false "User pincode"
+//	@Param			app_type query string false "App type: seller or customer"
+//	@Router			/advertisements/active/filter [get]
+//	@Success		200	{object}	response.Response{}
+//	@Failure		500	{object}	response.Response{}
+func (c *adminHandler) GetActiveAdvertisementsFiltered(ctx *gin.Context) {
+	lat, _ := strconv.ParseFloat(ctx.Query("lat"), 64)
+	lng, _ := strconv.ParseFloat(ctx.Query("lng"), 64)
+	radiusKM, _ := strconv.ParseFloat(ctx.Query("radius"), 64)
+	if radiusKM == 0 {
+		radiusKM = 10
+	}
+	pincode := ctx.Query("pincode")
+	appType := domain.AdvertisementAudience(ctx.Query("app_type"))
+
+	filter := domain.AdvertisementFilter{
+		Latitude:  lat,
+		Longitude: lng,
+		RadiusKM:  radiusKM,
+		Pincode:   pincode,
+		AppType:   appType,
+	}
+
+	ads, err := c.adminUseCase.GetActiveAdvertisementsFiltered(ctx, filter)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get advertisements", err, nil)
+		return
+	}
+
+	for i := range ads {
+		if ads[i].ImageURL != "" {
+			ads[i].ImageURL = c.cloudService.PublicURL(ads[i].ImageURL)
+		}
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Active advertisements", ads)
+}
+
 // CreateShop godoc
 //
 //	@summary 	api for admin to create shop

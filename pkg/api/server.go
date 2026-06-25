@@ -121,8 +121,9 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 		jobHandler, jobCategoryHandler, platformUserHandler, mobileAuthHandler)
 	routes.UIRoutes(engine.Group("/api/web"), middleware, uiHandler)
 
-	// Public advertisement endpoint — no auth required (used by mobile app)
+	// Public advertisement endpoints — no auth required (used by mobile app)
 	engine.GET("/api/advertisements/active", adminHandler.GetActiveAdvertisements)
+	engine.GET("/api/advertisements/active/filter", adminHandler.GetActiveAdvertisementsFiltered)
 
 	// log registered routes for debug
 	for _, route := range engine.Routes() {

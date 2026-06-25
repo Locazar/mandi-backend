@@ -196,6 +196,15 @@ type Advertisement struct {
 	CategoryID   string                `json:"category_id" gorm:"type:varchar(32);default:null"`
 }
 
+// AdvertisementFilter holds query-time filter parameters from the app.
+type AdvertisementFilter struct {
+	Latitude  float64
+	Longitude float64
+	RadiusKM  float64 // 0 means no geo filter
+	Pincode   string
+	AppType   AdvertisementAudience // "seller" | "customer" | "" (all)
+}
+
 type SubTypeAttributes struct {
 	ID            string    `json:"id" gorm:"primaryKey;type:varchar(32)"`
 	SubCategoryID string    `json:"sub_category_id" gorm:"type:varchar(32);not null" binding:"required"`

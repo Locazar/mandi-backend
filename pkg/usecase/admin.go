@@ -408,6 +408,14 @@ func (c *adminUseCase) GetActiveAdvertisements(ctx context.Context) ([]domain.Ad
 	return ads, nil
 }
 
+func (c *adminUseCase) GetActiveAdvertisementsFiltered(ctx context.Context, filter domain.AdvertisementFilter) ([]domain.Advertisement, error) {
+	ads, err := c.adminRepo.GetActiveAdvertisementsFiltered(ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get filtered active advertisements: %v", err)
+	}
+	return ads, nil
+}
+
 func (c *adminUseCase) CreateShop(ctx context.Context, shop domain.ShopDetails) (domain.ShopDetails, error) {
 	createdShop, err := c.adminRepo.CreateShop(ctx, shop)
 	if err != nil {

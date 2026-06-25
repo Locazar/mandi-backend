@@ -361,14 +361,67 @@ func (c *adminDatabase) GetAdvertisementByID(ctx context.Context, advertisementI
 
 func (c *adminDatabase) GetActiveAdvertisements(ctx context.Context) ([]domain.Advertisement, error) {
 	var ads []domain.Advertisement
+	// start_date must be <= NOW (ad has already started or starts today)
+	// end_date must be >= today midnight (ad is still valid today — not expired yesterday)
 	query := `SELECT * FROM advertisements
 		WHERE status = 'active'
 		  AND start_date <= NOW()
-		  AND end_date   >= NOW()
+		  AND end_date   >= DATE_TRUNC('day', NOW())
 		ORDER BY
 		  CASE priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,
 		  created_at DESC`
 	err := c.DB.Raw(query).Scan(&ads).Error
+	return ads, err
+}
+
+func (c *adminDatabase) GetActiveAdvertisementsFiltered(ctx context.Context, filter domain.AdvertisementFilter) ([]domain.Advertisement, error) {
+	var ads []domain.Advertisement
+
+	// start_date <= NOW: ad has started
+	// end_date >= today midnight: ad is still valid today (not expired yesterday)
+	query := `SELECT * FROM advertisements
+		WHERE status = 'active'
+		  AND start_date <= NOW()
+		  AND end_date   >= DATE_TRUNC('day', NOW())`
+	args := []interface{}{}
+	argIdx := 1
+
+	// Audience / app-type filter: include ads with no audience set OR matching audience.
+	if filter.AppType != "" {
+		query += fmt.Sprintf(" AND (audience = '' OR audience = $%d)", argIdx)
+		args = append(args, string(filter.AppType))
+		argIdx++
+	}
+
+	// Pincode filter: include ads with no pincode set OR matching pincode.
+	if filter.Pincode != "" {
+		query += fmt.Sprintf(" AND (pincode_targeted = '' OR pincode_targeted = $%d)", argIdx)
+		args = append(args, filter.Pincode)
+		argIdx++
+	}
+
+	// Geo-radius filter using Haversine: include ads with no location set (lat=0,lng=0)
+	// OR within distance_km radius of the provided coordinates.
+	if filter.Latitude != 0 && filter.Longitude != 0 && filter.RadiusKM > 0 {
+		query += fmt.Sprintf(`
+		  AND (
+		    (latitude = 0 AND longitude = 0)
+		    OR (
+		      distance_km = 0
+		      OR (6371 * acos(
+		        cos(radians($%d)) * cos(radians(latitude)) *
+		        cos(radians(longitude) - radians($%d)) +
+		        sin(radians($%d)) * sin(radians(latitude))
+		      )) <= LEAST(distance_km, $%d)
+		    )
+		  )`, argIdx, argIdx+1, argIdx+2, argIdx+3)
+		args = append(args, filter.Latitude, filter.Longitude, filter.Latitude, filter.RadiusKM)
+		argIdx += 4
+	}
+
+	query += ` ORDER BY CASE priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END, created_at DESC`
+
+	err := c.DB.Raw(query, args...).Scan(&ads).Error
 	return ads, err
 }
 

@@ -16,6 +16,7 @@ type AdminHandler interface {
 	CreateAdvertisement(ctx *gin.Context)
 	GetAllAdvertisements(ctx *gin.Context)
 	GetActiveAdvertisements(ctx *gin.Context)
+	GetActiveAdvertisementsFiltered(ctx *gin.Context)
 	UpdateAdvertisement(ctx *gin.Context)
 	DeleteAdvertisement(ctx *gin.Context)
 
