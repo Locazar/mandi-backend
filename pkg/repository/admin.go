@@ -393,31 +393,61 @@ func (c *adminDatabase) GetActiveAdvertisementsFiltered(ctx context.Context, fil
 		argIdx++
 	}
 
-	// Pincode filter: include ads with no pincode set OR matching pincode.
-	if filter.Pincode != "" {
-		query += fmt.Sprintf(" AND (pincode_targeted = '' OR pincode_targeted = $%d)", argIdx)
-		args = append(args, filter.Pincode)
-		argIdx++
-	}
+	// Location filter logic:
+	//   An ad passes if ANY of these is true:
+	//   1. Ad has no geo and no pincode targeting (global ad — shown everywhere)
+	//   2. Geo provided and ad is within range (Haversine)
+	//   3. Pincode provided and ad's pincode_targeted matches
+	//
+	// This means an ad targeted by pincode will always match when the user's
+	// pincode matches, even when lat/lng are also present, and vice-versa.
+	hasGeo := filter.Latitude != 0 && filter.Longitude != 0 && filter.RadiusKM > 0
+	hasPincode := filter.Pincode != ""
 
-	// Geo-radius filter using Haversine: include ads with no location set (lat=0,lng=0)
-	// OR within distance_km radius of the provided coordinates.
-	if filter.Latitude != 0 && filter.Longitude != 0 && filter.RadiusKM > 0 {
+	if hasGeo && hasPincode {
 		query += fmt.Sprintf(`
 		  AND (
-		    (latitude = 0 AND longitude = 0)
-		    OR (
+		    -- Global ad: no geo and no pincode targeting
+		    ((latitude = 0 AND longitude = 0) AND (pincode_targeted IS NULL OR pincode_targeted = ''))
+		    OR
+		    -- Geo match: ad has a location and user is within range
+		    (latitude != 0 AND longitude != 0 AND (
 		      distance_km = 0
 		      OR (6371 * acos(
 		        cos(radians($%d)) * cos(radians(latitude)) *
 		        cos(radians(longitude) - radians($%d)) +
 		        sin(radians($%d)) * sin(radians(latitude))
 		      )) <= LEAST(distance_km, $%d)
-		    )
+		    ))
+		    OR
+		    -- Pincode match: ad targets this pincode
+		    (pincode_targeted IS NOT NULL AND pincode_targeted != '' AND pincode_targeted = $%d)
+		  )`, argIdx, argIdx+1, argIdx+2, argIdx+3, argIdx+4)
+		args = append(args, filter.Latitude, filter.Longitude, filter.Latitude, filter.RadiusKM, filter.Pincode)
+		argIdx += 5
+	} else if hasGeo {
+		query += fmt.Sprintf(`
+		  AND (
+		    (latitude = 0 AND longitude = 0)
+		    OR (latitude != 0 AND longitude != 0 AND (
+		      distance_km = 0
+		      OR (6371 * acos(
+		        cos(radians($%d)) * cos(radians(latitude)) *
+		        cos(radians(longitude) - radians($%d)) +
+		        sin(radians($%d)) * sin(radians(latitude))
+		      )) <= LEAST(distance_km, $%d)
+		    ))
 		  )`, argIdx, argIdx+1, argIdx+2, argIdx+3)
 		args = append(args, filter.Latitude, filter.Longitude, filter.Latitude, filter.RadiusKM)
 		argIdx += 4
+	} else if hasPincode {
+		// Pincode-only: ads with no pincode targeted (NULL or '') are always included.
+		query += fmt.Sprintf(`
+		  AND (pincode_targeted IS NULL OR pincode_targeted = '' OR pincode_targeted = $%d)`, argIdx)
+		args = append(args, filter.Pincode)
+		argIdx++
 	}
+	// If neither geo nor pincode is provided, no location filter is applied.
 
 	query += ` ORDER BY CASE priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END, created_at DESC`
 
