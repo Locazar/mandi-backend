@@ -819,13 +819,18 @@ func (c *adminHandler) GetActiveAdvertisementsFiltered(ctx *gin.Context) {
 		AppType:   appType,
 	}
 
+	log.Printf("[AdsFilter] lat=%v lng=%v radius=%v pincode=%q app_type=%q", lat, lng, radiusKM, pincode, appType)
+
 	ads, err := c.adminUseCase.GetActiveAdvertisementsFiltered(ctx, filter)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get advertisements", err, nil)
 		return
 	}
 
+	log.Printf("[AdsFilter] query returned %d ads", len(ads))
 	for i := range ads {
+		log.Printf("[AdsFilter]  → id=%v audience=%v pincode=%q lat=%v lng=%v radius=%v image=%q start=%v end=%v",
+			ads[i].ID, ads[i].Audience, ads[i].PincodeTargeted, ads[i].Latitude, ads[i].Longitude, ads[i].DistanceKM, ads[i].ImageURL, ads[i].StartDate, ads[i].EndDate)
 		if ads[i].ImageURL != "" {
 			ads[i].ImageURL = c.cloudService.PublicURL(ads[i].ImageURL)
 		}

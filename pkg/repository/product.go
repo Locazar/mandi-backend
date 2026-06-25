@@ -535,8 +535,8 @@ func (c *productDatabase) UpdateShopDepartments(ctx context.Context, shopID stri
 }
 
 func (c *productDatabase) SaveProductItem(ctx context.Context, productItem request.ProductItem, adminID string, shopID string) (productItemID string, err error) {
-	query := `INSERT INTO product_items (id, admin_id, sub_category_name, dynamic_fields, product_item_images, category_id, department_id, sub_category_id, shop_id, created_at, updated_at)
-VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`
+	query := `INSERT INTO product_items (id, admin_id, sub_category_name, dynamic_fields, product_item_images, category_id, department_id, sub_category_id, shop_id, description, highlights, created_at, updated_at)
+VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`
 
 	createdAt := time.Now()
 	newID := domain.NewID(domain.PrefixProductItem)
