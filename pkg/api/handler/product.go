@@ -2254,6 +2254,93 @@ func (p *ProductHandler) GetSubTypeAttributeOptionByID(ctx *gin.Context) {
 	})
 }
 
+// UpdateSubTypeAttribute godoc
+//
+//	@Summary		Update sub type attribute
+//	@Tags			Admin Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			sub_category_id	path		string					true	"Sub Category ID"
+//	@Param			attribute_id	path		string					true	"Attribute ID"
+//	@Param			attribute		body		request.SubTypeAttribute	true	"Updated attribute"
+//	@Success		200				{object}	response.Response{}
+//	@Failure		400				{object}	response.Response{}
+//	@Router			/admin/catalog/categories/{category_id}/sub-categories/{sub_category_id}/attributes/{attribute_id} [put]
+func (p *ProductHandler) UpdateSubTypeAttribute(ctx *gin.Context) {
+	attributeID := ctx.Param("attribute_id")
+	var body request.SubTypeAttribute
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid request body", err, nil)
+		return
+	}
+	if err := p.productUseCase.UpdateSubTypeAttribute(ctx, attributeID, body); err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to update sub type attribute", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Sub type attribute updated successfully", nil)
+}
+
+// DeleteSubTypeAttribute godoc
+//
+//	@Summary		Delete sub type attribute
+//	@Tags			Admin Products
+//	@Produce		json
+//	@Param			attribute_id	path		string	true	"Attribute ID"
+//	@Success		200				{object}	response.Response{}
+//	@Failure		500				{object}	response.Response{}
+//	@Router			/admin/catalog/categories/{category_id}/sub-categories/{sub_category_id}/attributes/{attribute_id} [delete]
+func (p *ProductHandler) DeleteSubTypeAttribute(ctx *gin.Context) {
+	attributeID := ctx.Param("attribute_id")
+	if err := p.productUseCase.DeleteSubTypeAttribute(ctx, attributeID); err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to delete sub type attribute", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Sub type attribute deleted successfully", nil)
+}
+
+// UpdateSubTypeAttributeOption godoc
+//
+//	@Summary		Update sub type attribute option
+//	@Tags			Admin Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			option_id	path		string							true	"Option ID"
+//	@Param			option		body		request.SubTypeAttributeOption	true	"Updated option"
+//	@Success		200			{object}	response.Response{}
+//	@Failure		400			{object}	response.Response{}
+//	@Router			/admin/catalog/categories/{category_id}/sub-categories/{sub_category_id}/attributes/{attribute_id}/options/{option_id} [put]
+func (p *ProductHandler) UpdateSubTypeAttributeOption(ctx *gin.Context) {
+	optionID := ctx.Param("option_id")
+	var body request.SubTypeAttributeOption
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid request body", err, nil)
+		return
+	}
+	if err := p.productUseCase.UpdateSubTypeAttributeOption(ctx, optionID, body); err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to update sub type attribute option", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Sub type attribute option updated successfully", nil)
+}
+
+// DeleteSubTypeAttributeOption godoc
+//
+//	@Summary		Delete sub type attribute option
+//	@Tags			Admin Products
+//	@Produce		json
+//	@Param			option_id	path		string	true	"Option ID"
+//	@Success		200			{object}	response.Response{}
+//	@Failure		500			{object}	response.Response{}
+//	@Router			/admin/catalog/categories/{category_id}/sub-categories/{sub_category_id}/attributes/{attribute_id}/options/{option_id} [delete]
+func (p *ProductHandler) DeleteSubTypeAttributeOption(ctx *gin.Context) {
+	optionID := ctx.Param("option_id")
+	if err := p.productUseCase.DeleteSubTypeAttributeOption(ctx, optionID); err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to delete sub type attribute option", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Sub type attribute option deleted successfully", nil)
+}
+
 // SaveCategoryImage godoc
 //
 //	@Summary		Save category image
@@ -2909,4 +2996,30 @@ func (p *ProductHandler) UpdateSubCategory(ctx *gin.Context) {
 		return
 	}
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully updated sub-category", nil)
+}
+
+func (p *ProductHandler) DeleteCategory(ctx *gin.Context) {
+	categoryID := ctx.Param("category_id")
+	if categoryID == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "category_id is required", nil, nil)
+		return
+	}
+	if err := p.productUseCase.DeleteCategory(ctx, categoryID); err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to delete category", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully deleted category", nil)
+}
+
+func (p *ProductHandler) DeleteSubCategory(ctx *gin.Context) {
+	subCategoryID := ctx.Param("sub_category_id")
+	if subCategoryID == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "sub_category_id is required", nil, nil)
+		return
+	}
+	if err := p.productUseCase.DeleteSubCategory(ctx, subCategoryID); err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to delete sub-category", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully deleted sub-category", nil)
 }

@@ -60,4 +60,5 @@ type AdminHandler interface {
 
 	// Dashboard
 	GetDashboardStats(ctx *gin.Context)
+
 }

@@ -32,3 +32,7 @@ func (c *productDatabase) UpdateDepartment(ctx context.Context, departmentID, na
 	          WHERE id = $4`
 	return c.DB.Exec(query, name, sortOrder, isActive, departmentID).Error
 }
+
+func (c *productDatabase) DeleteDepartment(ctx context.Context, departmentID string) error {
+	return c.DB.Exec(`DELETE FROM departments WHERE id = $1`, departmentID).Error
+}

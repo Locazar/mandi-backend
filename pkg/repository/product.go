@@ -1674,11 +1674,36 @@ func (c *productDatabase) GetAllSubTypeAttributeOptions(ctx context.Context, att
 
 // GetSubTypeAttributeOptionByID retrieves a single option by ID
 func (c *productDatabase) GetSubTypeAttributeOptionByID(ctx context.Context, optionID string) (option response.SubTypeAttributeOption, err error) {
-	query := `SELECT id, sub_type_attribute_id, option_value, sort_order 
-	          FROM sub_type_attribute_options 
+	query := `SELECT id, sub_type_attribute_id, option_value, sort_order
+	          FROM sub_type_attribute_options
 	          WHERE id = $1`
 	err = c.DB.Raw(query, optionID).Scan(&option).Error
 	return
+}
+
+// UpdateSubTypeAttribute updates field_name, field_type, is_required, sort_order for a sub type attribute
+func (c *productDatabase) UpdateSubTypeAttribute(ctx context.Context, attributeID string, attribute domain.SubTypeAttributes) error {
+	query := `UPDATE sub_type_attributes SET field_name = $1, field_type = $2, is_required = $3, sort_order = $4 WHERE id = $5`
+	return c.DB.Exec(query, attribute.FieldName, attribute.FieldType, attribute.IsRequired, attribute.SortOrder, attributeID).Error
+}
+
+// DeleteSubTypeAttribute deletes a sub type attribute and its options
+func (c *productDatabase) DeleteSubTypeAttribute(ctx context.Context, attributeID string) error {
+	if err := c.DB.Exec(`DELETE FROM sub_type_attribute_options WHERE sub_type_attribute_id = $1`, attributeID).Error; err != nil {
+		return err
+	}
+	return c.DB.Exec(`DELETE FROM sub_type_attributes WHERE id = $1`, attributeID).Error
+}
+
+// UpdateSubTypeAttributeOption updates option_value and sort_order for a sub type attribute option
+func (c *productDatabase) UpdateSubTypeAttributeOption(ctx context.Context, optionID string, option domain.SubTypeAttributeOptions) error {
+	query := `UPDATE sub_type_attribute_options SET option_value = $1, sort_order = $2 WHERE id = $3`
+	return c.DB.Exec(query, option.OptionValue, option.SortOrder, optionID).Error
+}
+
+// DeleteSubTypeAttributeOption deletes a single sub type attribute option
+func (c *productDatabase) DeleteSubTypeAttributeOption(ctx context.Context, optionID string) error {
+	return c.DB.Exec(`DELETE FROM sub_type_attribute_options WHERE id = $1`, optionID).Error
 }
 
 // SaveCategoryImage saves a new category image
@@ -2808,11 +2833,19 @@ func (c *productDatabase) UpdateCategory(ctx context.Context, categoryID, name, 
 	return c.DB.Exec(query, name, sortOrder, isActive, categoryID).Error
 }
 
+func (c *productDatabase) DeleteCategory(ctx context.Context, categoryID string) error {
+	return c.DB.Exec(`DELETE FROM categories WHERE id = $1`, categoryID).Error
+}
+
 // CreateSubCategory inserts a new sub-category with image_url and sort_order.
 func (c *productDatabase) CreateSubCategory(ctx context.Context, departmentID, categoryID, name, imageURL string, sortOrder int, isActive bool) error {
 	query := `INSERT INTO sub_categories (id, department_id, category_id, name, image_url, sort_order, is_active)
 	          VALUES ($1, $2, $3, $4, $5, $6, $7)`
 	return c.DB.Exec(query, domain.NewID(domain.PrefixSubCategory), departmentID, categoryID, name, imageURL, sortOrder, isActive).Error
+}
+
+func (c *productDatabase) DeleteSubCategory(ctx context.Context, subCategoryID string) error {
+	return c.DB.Exec(`DELETE FROM sub_categories WHERE id = $1`, subCategoryID).Error
 }
 
 // UpdateSubCategory updates name, image_url, sort_order, is_active for a sub-category.

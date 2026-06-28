@@ -12,3 +12,7 @@ func (c *productUseCase) CreateDepartment(ctx context.Context, name, imageURL st
 func (c *productUseCase) UpdateDepartment(ctx context.Context, departmentID, name, imageURL string, sortOrder int, isActive bool) error {
 	return c.productRepo.UpdateDepartment(ctx, departmentID, name, imageURL, sortOrder, isActive)
 }
+
+func (c *productUseCase) DeleteDepartment(ctx context.Context, departmentID string) error {
+	return c.productRepo.DeleteDepartment(ctx, departmentID)
+}
