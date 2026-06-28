@@ -132,16 +132,25 @@ func (c *userDatabase) UpdateAdminVerified(ctx context.Context, adminID string) 
 func (c *userDatabase) UpdateUser(ctx context.Context, user domain.User) (err error) {
 
 	updatedAt := time.Now()
-	// check password need to update or not
-	if user.Password != "" {
+	if user.Password != "" && user.Email != "" {
 		query := `UPDATE users SET first_name = $1, last_name = $2, date_of_birth = $3,
 		email = $4, phone = $5, password = $6, updated_at = $7 WHERE id = $8`
 		err = c.DB.Exec(query, user.FirstName, user.LastName, user.DateOfBirth, user.Email,
 			user.Phone, user.Password, updatedAt, user.ID).Error
-	} else {
+	} else if user.Password != "" {
+		query := `UPDATE users SET first_name = $1, last_name = $2, date_of_birth = $3,
+		phone = $4, password = $5, updated_at = $6 WHERE id = $7`
+		err = c.DB.Exec(query, user.FirstName, user.LastName, user.DateOfBirth,
+			user.Phone, user.Password, updatedAt, user.ID).Error
+	} else if user.Email != "" {
 		query := `UPDATE users SET first_name = $1, last_name = $2, date_of_birth = $3,
 		email = $4, phone = $5, updated_at = $6 WHERE id = $7`
 		err = c.DB.Exec(query, user.FirstName, user.LastName, user.DateOfBirth, user.Email,
+			user.Phone, updatedAt, user.ID).Error
+	} else {
+		query := `UPDATE users SET first_name = $1, last_name = $2, date_of_birth = $3,
+		phone = $4, updated_at = $5 WHERE id = $6`
+		err = c.DB.Exec(query, user.FirstName, user.LastName, user.DateOfBirth,
 			user.Phone, updatedAt, user.ID).Error
 	}
 
