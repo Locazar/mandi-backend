@@ -1363,6 +1363,48 @@ func (c *productUseCase) GetSubTypeAttributeOptionByID(ctx context.Context, opti
 	return option, nil
 }
 
+// UpdateSubTypeAttribute updates a sub type attribute
+func (c *productUseCase) UpdateSubTypeAttribute(ctx context.Context, attributeID string, attribute request.SubTypeAttribute) error {
+	domainAttribute := domain.SubTypeAttributes{
+		FieldName:  attribute.FieldName,
+		FieldType:  domain.FieldType(attribute.FieldType),
+		IsRequired: attribute.IsRequired,
+		SortOrder:  attribute.SortOrder,
+	}
+	if err := c.productRepo.UpdateSubTypeAttribute(ctx, attributeID, domainAttribute); err != nil {
+		return utils.PrependMessageToError(err, "failed to update sub type attribute")
+	}
+	return nil
+}
+
+// DeleteSubTypeAttribute deletes a sub type attribute and its options
+func (c *productUseCase) DeleteSubTypeAttribute(ctx context.Context, attributeID string) error {
+	if err := c.productRepo.DeleteSubTypeAttribute(ctx, attributeID); err != nil {
+		return utils.PrependMessageToError(err, "failed to delete sub type attribute")
+	}
+	return nil
+}
+
+// UpdateSubTypeAttributeOption updates a sub type attribute option
+func (c *productUseCase) UpdateSubTypeAttributeOption(ctx context.Context, optionID string, option request.SubTypeAttributeOption) error {
+	domainOption := domain.SubTypeAttributeOptions{
+		OptionValue: option.OptionValue,
+		SortOrder:   option.SortOrder,
+	}
+	if err := c.productRepo.UpdateSubTypeAttributeOption(ctx, optionID, domainOption); err != nil {
+		return utils.PrependMessageToError(err, "failed to update sub type attribute option")
+	}
+	return nil
+}
+
+// DeleteSubTypeAttributeOption deletes a sub type attribute option
+func (c *productUseCase) DeleteSubTypeAttributeOption(ctx context.Context, optionID string) error {
+	if err := c.productRepo.DeleteSubTypeAttributeOption(ctx, optionID); err != nil {
+		return utils.PrependMessageToError(err, "failed to delete sub type attribute option")
+	}
+	return nil
+}
+
 // SaveCategoryImage saves a new category image
 func (c *productUseCase) SaveCategoryImage(ctx context.Context, categoryID string, image request.CategoryImage) error {
 	categoryImage := domain.CategoryImage{
@@ -1475,10 +1517,18 @@ func (c *productUseCase) UpdateCategory(ctx context.Context, categoryID, name, i
 	return c.productRepo.UpdateCategory(ctx, categoryID, name, imageURL, sortOrder, isActive)
 }
 
+func (c *productUseCase) DeleteCategory(ctx context.Context, categoryID string) error {
+	return c.productRepo.DeleteCategory(ctx, categoryID)
+}
+
 func (c *productUseCase) CreateSubCategory(ctx context.Context, departmentID, categoryID, name, imageURL string, sortOrder int, isActive bool) error {
 	return c.productRepo.CreateSubCategory(ctx, departmentID, categoryID, name, imageURL, sortOrder, isActive)
 }
 
 func (c *productUseCase) UpdateSubCategory(ctx context.Context, subCategoryID, name, imageURL string, sortOrder int, isActive bool) error {
 	return c.productRepo.UpdateSubCategory(ctx, subCategoryID, name, imageURL, sortOrder, isActive)
+}
+
+func (c *productUseCase) DeleteSubCategory(ctx context.Context, subCategoryID string) error {
+	return c.productRepo.DeleteSubCategory(ctx, subCategoryID)
 }

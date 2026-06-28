@@ -16,6 +16,7 @@ type ProductRepository interface {
 	SaveCategory(ctx context.Context, category request.Category, departmentId string) error
 	CreateCategory(ctx context.Context, departmentID, name, imageURL string, sortOrder int, isActive bool) error
 	UpdateCategory(ctx context.Context, categoryID, name, imageURL string, sortOrder int, isActive bool) error
+	DeleteCategory(ctx context.Context, categoryID string) error
 
 	// sub category
 	IsSubCategoryNameExist(ctx context.Context, categoryName string, categoryID string) (bool, error)
@@ -23,6 +24,7 @@ type ProductRepository interface {
 	SaveSubCategory(ctx context.Context, body request.SubCategory, departmentID string, categoryID string) error
 	CreateSubCategory(ctx context.Context, departmentID, categoryID, name, imageURL string, sortOrder int, isActive bool) error
 	UpdateSubCategory(ctx context.Context, subCategoryID, name, imageURL string, sortOrder int, isActive bool) error
+	DeleteSubCategory(ctx context.Context, subCategoryID string) error
 
 	// variation
 	IsVariationNameExistForCategory(ctx context.Context, name string, categoryID string) (bool, error)
@@ -72,6 +74,7 @@ type ProductRepository interface {
 	GetDepartmentByID(ctx context.Context, departmentID string) (response.Department, error)
 	CreateDepartment(ctx context.Context, name, imageURL string, sortOrder int, isActive bool) error
 	UpdateDepartment(ctx context.Context, departmentID, name, imageURL string, sortOrder int, isActive bool) error
+	DeleteDepartment(ctx context.Context, departmentID string) error
 
 	GetAllSubCategories(ctx context.Context) ([]response.SubCategory, error)
 
@@ -83,11 +86,15 @@ type ProductRepository interface {
 	SaveSubTypeAttribute(ctx context.Context, subCategoryID string, attribute domain.SubTypeAttributes) error
 	GetAllSubTypeAttributes(ctx context.Context, subCategoryID string) ([]response.SubTypeAttribute, error)
 	GetSubTypeAttributeByID(ctx context.Context, attributeID string) (response.SubTypeAttribute, error)
+	UpdateSubTypeAttribute(ctx context.Context, attributeID string, attribute domain.SubTypeAttributes) error
+	DeleteSubTypeAttribute(ctx context.Context, attributeID string) error
 
 	// sub type attribute options
 	SaveSubTypeAttributeOption(ctx context.Context, attributeID string, option domain.SubTypeAttributeOptions) error
 	GetAllSubTypeAttributeOptions(ctx context.Context, attributeID string) ([]response.SubTypeAttributeOption, error)
 	GetSubTypeAttributeOptionByID(ctx context.Context, optionID string) (response.SubTypeAttributeOption, error)
+	UpdateSubTypeAttributeOption(ctx context.Context, optionID string, option domain.SubTypeAttributeOptions) error
+	DeleteSubTypeAttributeOption(ctx context.Context, optionID string) error
 
 	// category images
 	SaveCategoryImage(ctx context.Context, categoryID string, image domain.CategoryImage) error

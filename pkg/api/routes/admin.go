@@ -21,7 +21,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 	mobileAuthHandler handlerInterface.OTPAuthRequestHandler,
 ) {
 
-	auth := api.Group("/auth")
+auth := api.Group("/auth")
 	{
 		login := auth.Group("/signin")
 		{
@@ -105,6 +105,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			department.GET("/:department_id", middleware.TrimSpaces(), productHandler.GetDepartmentByID)
 			department.POST("/", middleware.TrimSpaces(), productHandler.CreateDepartment)
 			department.PUT("/:department_id", middleware.TrimSpaces(), productHandler.UpdateDepartment)
+			department.DELETE("/:department_id", productHandler.DeleteDepartment)
 			department.GET("/", middleware.TrimSpaces(), productHandler.GetAllDepartments)
 
 			// category
@@ -113,6 +114,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 				category.GET("/", productHandler.GetAllCategoriesByDepartmentID)
 				category.POST("/", middleware.TrimSpaces(), productHandler.CreateCategory)
 				category.PUT("/:category_id", middleware.TrimSpaces(), productHandler.UpdateCategory)
+				category.DELETE("/:category_id", productHandler.DeleteCategory)
 
 				// Category images for a specific category
 				categoryImages := category.Group("/:category_id/images")
@@ -129,6 +131,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 				{
 					subCategory.POST("/", middleware.TrimSpaces(), productHandler.CreateSubCategory)
 					subCategory.PUT("/:sub_category_id", middleware.TrimSpaces(), productHandler.UpdateSubCategory)
+					subCategory.DELETE("/:sub_category_id", productHandler.DeleteSubCategory)
 					subCategory.GET("/", productHandler.GetAllSubCategoriesByCategoryID)
 
 					// Sub type attributes for a specific subcategory
@@ -137,6 +140,8 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 						subTypeAttr.POST("/", middleware.TrimSpaces(), productHandler.SaveSubTypeAttribute)
 						subTypeAttr.GET("/", productHandler.GetAllSubTypeAttributes)
 						subTypeAttr.GET("/:attribute_id", productHandler.GetSubTypeAttributeByID)
+						subTypeAttr.PUT("/:attribute_id", middleware.TrimSpaces(), productHandler.UpdateSubTypeAttribute)
+						subTypeAttr.DELETE("/:attribute_id", productHandler.DeleteSubTypeAttribute)
 
 						// Sub type attribute options for a specific attribute
 						attrOption := subTypeAttr.Group("/:attribute_id/options")
@@ -144,6 +149,8 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 							attrOption.POST("/", middleware.TrimSpaces(), productHandler.SaveSubTypeAttributeOption)
 							attrOption.GET("/", productHandler.GetAllSubTypeAttributeOptions)
 							attrOption.GET("/:option_id", productHandler.GetSubTypeAttributeOptionByID)
+							attrOption.PUT("/:option_id", middleware.TrimSpaces(), productHandler.UpdateSubTypeAttributeOption)
+							attrOption.DELETE("/:option_id", productHandler.DeleteSubTypeAttributeOption)
 						}
 					}
 				}
@@ -161,6 +168,10 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 				}
 			}
 		}
+		// flat delete routes used by admin-portal
+		api.DELETE("/categories/:category_id", productHandler.DeleteCategory)
+		api.DELETE("/sub-categories/:sub_category_id", productHandler.DeleteSubCategory)
+
 		// brand
 		brand := api.Group("/brands")
 		{

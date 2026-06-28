@@ -110,3 +110,16 @@ func (a *ProductHandler) UpdateDepartment(ctx *gin.Context) {
 
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully updated department", nil)
 }
+
+func (a *ProductHandler) DeleteDepartment(ctx *gin.Context) {
+	departmentID := ctx.Param("department_id")
+	if departmentID == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "department_id is required", nil, nil)
+		return
+	}
+	if err := a.productUseCase.DeleteDepartment(ctx, departmentID); err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to delete department", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully deleted department", nil)
+}

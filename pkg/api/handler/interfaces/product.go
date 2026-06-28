@@ -7,9 +7,11 @@ type ProductHandler interface {
 	SaveCategory(ctx *gin.Context)
 	CreateCategory(ctx *gin.Context)
 	UpdateCategory(ctx *gin.Context)
+	DeleteCategory(ctx *gin.Context)
 	SaveSubCategory(ctx *gin.Context)
 	CreateSubCategory(ctx *gin.Context)
 	UpdateSubCategory(ctx *gin.Context)
+	DeleteSubCategory(ctx *gin.Context)
 	SaveVariation(ctx *gin.Context)
 	SaveVariationOption(ctx *gin.Context)
 	GetAllVariations(ctx *gin.Context)
@@ -62,16 +64,21 @@ type ProductHandler interface {
 	GetAllDepartments(ctx *gin.Context)
 	CreateDepartment(ctx *gin.Context)
 	UpdateDepartment(ctx *gin.Context)
+	DeleteDepartment(ctx *gin.Context)
 
 	// sub type attributes
 	SaveSubTypeAttribute(ctx *gin.Context)
 	GetAllSubTypeAttributes(ctx *gin.Context)
 	GetSubTypeAttributeByID(ctx *gin.Context)
+	UpdateSubTypeAttribute(ctx *gin.Context)
+	DeleteSubTypeAttribute(ctx *gin.Context)
 
 	// sub type attribute options
 	SaveSubTypeAttributeOption(ctx *gin.Context)
 	GetAllSubTypeAttributeOptions(ctx *gin.Context)
 	GetSubTypeAttributeOptionByID(ctx *gin.Context)
+	UpdateSubTypeAttributeOption(ctx *gin.Context)
+	DeleteSubTypeAttributeOption(ctx *gin.Context)
 
 	// category images
 	SaveCategoryImage(ctx *gin.Context)
