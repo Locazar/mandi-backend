@@ -2834,7 +2834,12 @@ func (c *productDatabase) UpdateCategory(ctx context.Context, categoryID, name, 
 }
 
 func (c *productDatabase) DeleteCategory(ctx context.Context, categoryID string) error {
-	return c.DB.Exec(`DELETE FROM categories WHERE id = $1`, categoryID).Error
+	return c.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec(`DELETE FROM sub_categories WHERE category_id = $1`, categoryID).Error; err != nil {
+			return err
+		}
+		return tx.Exec(`DELETE FROM categories WHERE id = $1`, categoryID).Error
+	})
 }
 
 // CreateSubCategory inserts a new sub-category with image_url and sort_order.
