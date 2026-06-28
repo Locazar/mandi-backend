@@ -72,23 +72,6 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 	// swagger docs
 	engine.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
 
-	// Android App Links verification — must be served at exactly this path,
-	// with Content-Type: application/json, no auth, no redirect.
-	engine.GET("/.well-known/assetlinks.json", func(c *gin.Context) {
-		c.Header("Cache-Control", "public, max-age=3600")
-		c.File("./.well-known/assetlinks.json")
-	})
-
-	// Shop deep-link endpoint — https://locazar.app/shop/{shopId}
-	// If the Locazar customer app is installed, Android App Links intercepts
-	// this URL before the browser reaches the server, opening the shop directly.
-	// If the app is NOT installed the browser hits this endpoint and we redirect
-	// to the Play Store so the user can download the app.
-	engine.GET("/shop/:shopId", func(c *gin.Context) {
-		c.Redirect(http.StatusFound,
-			"https://play.google.com/store/apps/details?id=com.locazar.app&hl=en_IN",
-		)
-	})
 
 	// Handle icon requests with fallback
 	engine.GET("/uploads/icon/*filepath", func(c *gin.Context) {

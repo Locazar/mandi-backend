@@ -131,7 +131,13 @@ func (u *UserHandler) UpdateProfile(ctx *gin.Context) {
 		return
 	}
 
-	response.SuccessResponse(ctx, http.StatusOK, "Successfully profile updated", nil)
+	updatedUser, err := u.userUseCase.FindProfile(ctx, userID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to retrieve updated profile", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully profile updated", updatedUser)
 }
 
 // SaveAddress godoc
