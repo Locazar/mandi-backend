@@ -1,0 +1,10 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.locazar.app",
+      "sha256_cert_fingerprints": ["63:EA:90:69:A3:C8:03:9A:00:D1:DC:20:7B:8F:F4:D5:1E:62:FB:35:58:80:4D:DB:F9:4E:19:52:22:F9:75:E8"]
+    }
+  }
+]

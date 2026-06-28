@@ -11,7 +11,7 @@ jobs:
     name: Test Application
     runs-on: ubuntu-latest
 
-    steps:
+    steps:  
       - name: Setup action
         uses: actions/checkout@v3
 
