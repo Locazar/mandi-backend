@@ -119,7 +119,8 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	platformUserRepository := repository.NewPlatformUserRepository(gormDB)
 	platformUserUseCase := usecase.NewPlatformUserUseCase(platformUserRepository, adminUseCase)
 	platformUserHandler := handler.NewPlatformUserHandler(platformUserUseCase, adminUseCase)
-	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler, jobHandler, jobCategoryHandler, platformUserHandler)
+	aiHandler := handler.NewAIHandler(client)
+	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler, jobHandler, jobCategoryHandler, platformUserHandler, aiHandler)
 	return serverHTTP, nil
 }
 

@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go build *)",
+      "Bash(go vet *)",
+      "Bash(go test *)",
+      "Bash(echo \"=== ai-service docs dir ===\"; ls -la a:/Dev/ai-service/docs/ 2>/dev/null; echo; echo \"=== mandi-backend docs dir ===\"; ls -la a:/Dev/mandi-backend/docs/ 2>/dev/null)",
+      "Read(//a/Dev/ai-service/docs/**)",
+      "Bash(cd a:/Dev/mandi-backend && echo \"=== mandi-backend: swagger generated files anywhere ===\"; find . -name \"swagger.json\" -o -name \"swagger.yaml\" -o -name \"docs.go\" 2>/dev/null | grep -v node_modules; echo; echo \"=== mandi-backend: ginSwagger / swag references ===\"; grep -rl \"ginSwagger\\\\|swaggo\\\\|@title\\\\|swagger\" --include=*.go . | head; echo; echo \"=== ai-service swagger: which AI endpoints present ===\"; cd a:/Dev/ai-service && grep -oE '/api/\\(health|ai/[a-z-]+\\)' docs/swagger.json | sort -u)",
+      "Read(//a/Dev/ai-service/**)",
+      "PowerShell(Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue | Select-Object LocalAddress,LocalPort,OwningProcess; Get-Process -Id \\(Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue\\).OwningProcess -ErrorAction SilentlyContinue | Select-Object Id,ProcessName,Path)"
+    ]
+  }
+}

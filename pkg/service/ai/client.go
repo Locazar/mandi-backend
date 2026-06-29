@@ -7,7 +7,12 @@
 // Available operations:
 //   - ValidateProduct: checks if a product image matches a given category (JPEG only).
 //   - CompareImages: determines if two images belong to the same product category (JPEG only).
+//   - DetectObjects: detects objects (label/category/color/material/brand) in a base64 JPEG.
+//   - VerifyImage: checks whether a base64 JPEG satisfies a free-text condition prompt.
 //   - GenerateEmbedding / GenerateEmbeddings: returns float64 embeddings for text search.
+//
+// ValidateProduct and CompareImages send a server-readable image_path; DetectObjects and
+// VerifyImage send the image inline as base64 (use the *FromPath helpers to encode a local file).
 //
 // Warning: all image inputs must be JPEG. The ai-service hardcodes media_type: image/jpeg;
 // PNG or WebP inputs will cause Claude API errors on the ai-service side.
@@ -15,10 +20,12 @@ package ai
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -79,6 +86,42 @@ type BatchEmbeddingResponse struct {
 	Embeddings [][]float64 `json:"embeddings"`
 	Model      string      `json:"model"`
 	Count      int         `json:"count"`
+}
+
+// ObjectDetectionRequest is the request body for object detection.
+// The image is sent inline as a base64-encoded JPEG.
+type ObjectDetectionRequest struct {
+	ImageBase64 string `json:"image_base64"`
+	DetectAll   bool   `json:"detect_all"`
+}
+
+// DetectedObject is a single object detected in an image.
+type DetectedObject struct {
+	Label      string  `json:"label"`
+	Category   string  `json:"category"`
+	Color      string  `json:"color"`
+	Material   string  `json:"material"`
+	Brand      string  `json:"brand"`
+	Confidence float64 `json:"confidence"`
+}
+
+// ObjectDetectionResponse is the response for object detection.
+type ObjectDetectionResponse struct {
+	Objects []DetectedObject `json:"objects"`
+}
+
+// ImageVerificationRequest is the request body for prompt-based image verification.
+// The image is sent inline as a base64-encoded JPEG.
+type ImageVerificationRequest struct {
+	ImageBase64 string `json:"image_base64"`
+	Prompt      string `json:"prompt"`
+}
+
+// ImageVerificationResponse is the verdict for prompt-based image verification.
+type ImageVerificationResponse struct {
+	Matches    bool    `json:"matches"`
+	Confidence float64 `json:"confidence"`
+	Reason     string  `json:"reason"`
 }
 
 // Client is the HTTP client for AI service
@@ -213,6 +256,95 @@ func (c *Client) GenerateEmbeddings(texts []string) (*BatchEmbeddingResponse, er
 	}
 
 	return &batchResp, nil
+}
+
+// DetectObjects calls the object detection endpoint with a base64-encoded JPEG.
+// When detectAll is false the service returns only the single most prominent object.
+func (c *Client) DetectObjects(imageBase64 string, detectAll bool) (*ObjectDetectionResponse, error) {
+	req := ObjectDetectionRequest{
+		ImageBase64: imageBase64,
+		DetectAll:   detectAll,
+	}
+
+	var result ServiceResponse
+	if err := c.post("/api/ai/detect-objects", req, &result); err != nil {
+		return nil, err
+	}
+
+	if !result.Success {
+		return nil, fmt.Errorf("object detection failed: %s", result.Error)
+	}
+
+	// Extract detection response from data
+	dataBytes, err := json.Marshal(result.Data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	var detectionResp ObjectDetectionResponse
+	if err := json.Unmarshal(dataBytes, &detectionResp); err != nil {
+		return nil, fmt.Errorf("failed to parse detection response: %w", err)
+	}
+
+	return &detectionResp, nil
+}
+
+// DetectObjectsFromPath reads a local JPEG file, base64-encodes it, and calls DetectObjects.
+func (c *Client) DetectObjectsFromPath(imagePath string, detectAll bool) (*ObjectDetectionResponse, error) {
+	encoded, err := encodeImageFile(imagePath)
+	if err != nil {
+		return nil, err
+	}
+	return c.DetectObjects(encoded, detectAll)
+}
+
+// VerifyImage calls the prompt-based image verification endpoint with a base64-encoded JPEG.
+// It returns whether the image satisfies the supplied condition prompt.
+func (c *Client) VerifyImage(imageBase64 string, prompt string) (*ImageVerificationResponse, error) {
+	req := ImageVerificationRequest{
+		ImageBase64: imageBase64,
+		Prompt:      prompt,
+	}
+
+	var result ServiceResponse
+	if err := c.post("/api/ai/verify-image", req, &result); err != nil {
+		return nil, err
+	}
+
+	if !result.Success {
+		return nil, fmt.Errorf("image verification failed: %s", result.Error)
+	}
+
+	// Extract verification response from data
+	dataBytes, err := json.Marshal(result.Data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	var verificationResp ImageVerificationResponse
+	if err := json.Unmarshal(dataBytes, &verificationResp); err != nil {
+		return nil, fmt.Errorf("failed to parse verification response: %w", err)
+	}
+
+	return &verificationResp, nil
+}
+
+// VerifyImageFromPath reads a local JPEG file, base64-encodes it, and calls VerifyImage.
+func (c *Client) VerifyImageFromPath(imagePath string, prompt string) (*ImageVerificationResponse, error) {
+	encoded, err := encodeImageFile(imagePath)
+	if err != nil {
+		return nil, err
+	}
+	return c.VerifyImage(encoded, prompt)
+}
+
+// encodeImageFile reads an image file from disk and returns its base64 (std) encoding.
+func encodeImageFile(imagePath string) (string, error) {
+	data, err := os.ReadFile(imagePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read image file %q: %w", imagePath, err)
+	}
+	return base64.StdEncoding.EncodeToString(data), nil
 }
 
 // HealthCheck checks if the AI service is healthy

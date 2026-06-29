@@ -162,6 +162,9 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		wire.Bind(new(handler.JobCategoryService), new(*usecase.JobCategoryService)),
 		handler.NewPlatformUserHandler,
 
+		// ai service proxy
+		handler.NewAIHandler,
+
 		http.NewServerHTTP,
 	)
 

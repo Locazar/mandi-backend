@@ -76,88 +76,18 @@ func NewProductHandler(productUsecase usecaseInterface.ProductUseCase, tokenServ
 	}
 }
 
-// callCompareImages validates that two images match by category using the AI service
-// It returns nil if images match, or an AppError if they don't match or service fails
+// callCompareImages validates that two images match by category using the AI service.
+// It delegates to the injected aiClient (which honors AI_SERVICE_URL) and returns nil if
+// the images match, or an AppError if they don't match or the service call fails.
 func (p *ProductHandler) callCompareImages(imagePath1, imagePath2 string) *domain.AppError {
-	payload := map[string]string{
-		"image_path1": imagePath1,
-		"image_path2": imagePath2,
-	}
-	body, err := json.Marshal(payload)
+	result, err := p.aiClient.CompareImages(imagePath1, imagePath2)
 	if err != nil {
-		return domain.InternalError("failed to prepare image comparison request", err)
+		return domain.ExternalServiceError("compare-images", "failed to compare images via AI service", err)
 	}
 
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Post("http://localhost:3001/api/ai/compare-images", "application/json", bytes.NewReader(body))
-	if err != nil {
-		return domain.ExternalServiceError("compare-images", "failed to connect to AI service", err)
-	}
-	defer func() {
-		if cerr := resp.Body.Close(); cerr != nil {
-			log.Printf("failed to close response body: %v", cerr)
-		}
-	}()
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return domain.ExternalServiceError("compare-images", "failed to read AI service response", err)
-	}
-
-	// Check HTTP status code first before parsing response
-	if resp.StatusCode >= 400 {
-		// Try to parse error response, but handle non-JSON responses gracefully
-		var compareResult map[string]interface{}
-		if err := json.Unmarshal(respBody, &compareResult); err != nil {
-			// If response is not JSON, create a generic error message
-			return domain.ExternalServiceError("compare-images", fmt.Sprintf("AI service returned status %d: %s", resp.StatusCode, string(respBody)), nil)
-		}
-
-		// Handle JSON error responses
-		serviceMessage, _ := compareResult["message"].(string)
-		if serviceMessage != "" {
-			// Check if we have detailed reason in data field
-			data, _ := compareResult["data"].(map[string]interface{})
-			if data != nil {
-				reason, _ := data["reason"].(string)
-				if reason != "" {
-					return domain.ImageMismatchError(reason)
-				}
-			}
-			// Use the service's error message
-			return domain.ImageMismatchError(serviceMessage)
-		}
-		return domain.ExternalServiceError("compare-images", fmt.Sprintf("service returned status %d", resp.StatusCode), nil)
-	}
-
-	// Parse successful response
-	var compareResult map[string]interface{}
-	if err := json.Unmarshal(respBody, &compareResult); err != nil {
-		return domain.ExternalServiceError("compare-images", "invalid response format from AI service", err)
-	}
-
-	// Check if comparison was successful
-	success, ok := compareResult["success"].(bool)
-	if !ok || !success {
-		return domain.ExternalServiceError("compare-images", "comparison operation failed", nil)
-	}
-
-	// Extract the data field containing comparison results
-	data, ok := compareResult["data"].(map[string]interface{})
-	if !ok {
-		return domain.ExternalServiceError("compare-images", "invalid response structure: missing data field", nil)
-	}
-
-	// Check if images match by category
-	sameCategory, ok := data["same_category"].(bool)
-	if !ok {
-		return domain.ExternalServiceError("compare-images", "invalid response structure: missing same_category field", nil)
-	}
-
-	// If categories don't match, return user-friendly error
-	if !sameCategory {
-		reason, _ := data["reason"].(string)
-		return domain.ImageMismatchError(reason)
+	// If categories don't match, return a user-friendly mismatch error.
+	if !result.SameCategory {
+		return domain.ImageMismatchError(result.Reason)
 	}
 
 	return nil
@@ -707,21 +637,19 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 
 		// Validate product image matches category using AI service if available
 		if categoryName != "" {
-			//validationResult, err := p.aiClient.ValidateProduct(localPath, categoryName)
-			_, err := p.aiClient.ValidateProduct(localPath, categoryName)
+			validationResult, err := p.aiClient.ValidateProduct(localPath, categoryName)
 			if err != nil {
 				response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to validate product image", err, nil)
 				return
 			}
 
-			// If validation failed (valid is false) and confidence is high, reject the upload
-
-			// if !validationResult.Valid && validationResult.Confidence > 0.6 {
-			// 	response.ErrorResponse(ctx, http.StatusBadRequest,
-			// 		fmt.Sprintf("Product image does not match '%s' category. Reason: %s", categoryName, validationResult.Reason),
-			// 		nil, nil)
-			// 	return
-			// }
+			// If validation failed (valid is false) and confidence is high, reject the upload.
+			if !validationResult.Valid && validationResult.Confidence > 0.1 {
+				response.ErrorResponse(ctx, http.StatusBadRequest,
+					fmt.Sprintf("Product image does not match '%s' category. Reason: %s", categoryName, validationResult.Reason),
+					nil, nil)
+				return
+			}
 		}
 
 		objectKey, err := uploadProcessedToCloud(ctx, p.cloudService, localPath)

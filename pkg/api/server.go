@@ -21,7 +21,7 @@ type ServerHTTP struct {
 	Engine *gin.Engine
 }
 
-// @title						E-commerce Application Backend API
+// @title						Mandi-backend API
 // @description				Backend API built with Golang using Clean Code architecture. \nGithub: [https://github.com/rohit221990/mandi-backend].
 //
 // @contact.name				For API Support
@@ -55,6 +55,7 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 	jobHandler *handler.JobHandler,
 	jobCategoryHandler *handler.JobCategoryHandler,
 	platformUserHandler handlerInterface.PlatformUserHandler,
+	aiHandler *handler.AIHandler,
 ) *ServerHTTP {
 
 	engine := gin.New()
@@ -118,6 +119,7 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler, promotionHandler, fcmTokenHandler, notificationHandler, alertHandler, uiHandler, alertTemplateHandler,
 		jobHandler, jobCategoryHandler, platformUserHandler)
 	routes.UIRoutes(engine.Group("/api/web"), middleware, uiHandler)
+	routes.AIRoutes(engine.Group("/api"), aiHandler)
 
 	// log registered routes for debug
 	for _, route := range engine.Routes() {
