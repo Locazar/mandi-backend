@@ -20,6 +20,7 @@ type Config struct {
 	DBUser        string `mapstructure:"DB_USER"`
 	DBPassword    string `mapstructure:"DB_PASSWORD"`
 	DBPort        string `mapstructure:"DB_PORT"`
+	DBSSLRootCert string `mapstructure:"DB_SSL_ROOT_CERT"` // path to CA cert; enables sslmode=verify-full when set
 
 	AdminAuthKey string `mapstructure:"ADMIN_AUTH_KEY"`
 	UserAuthKey  string `mapstructure:"USER_AUTH_KEY"`
@@ -117,7 +118,7 @@ var firbaseConfig = map[string]interface{}{
 // name of envs and used to read from system envs
 var envsNames = []string{
 	"ADMIN_EMAIL", "ADMIN_PASSWORD",
-	"DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD", "DB_PORT", // database
+	"DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD", "DB_PORT", "DB_SSL_ROOT_CERT", // database
 	"ADMIN_AUTH_KEY", "USER_AUTH_KEY", // token auth
 	"AUTH_TOKEN", "ACCOUNT_SID", "SERVICE_SID", // twilio
 	"TWO_FACTOR_API_KEY", // 2factor.in sms otp

@@ -15,7 +15,15 @@ import (
 // func to connect data base using config(database config) and return address of a new instnce of gorm DB
 func ConnectDatabase(cfg config.Config) (*gorm.DB, error) {
 
-	dsn := fmt.Sprintf("host=%s user=%s dbname=%s port=%s password=%s sslmode=disable", cfg.DBHost, cfg.DBUser, cfg.DBName, cfg.DBPort, cfg.DBPassword)
+	// When a CA cert is configured (e.g. managed Postgres on DigitalOcean),
+	// require a verified TLS connection. Otherwise fall back to sslmode=disable
+	// so local dev against a plain Postgres still connects.
+	dsn := fmt.Sprintf("host=%s user=%s dbname=%s port=%s password=%s", cfg.DBHost, cfg.DBUser, cfg.DBName, cfg.DBPort, cfg.DBPassword)
+	if cfg.DBSSLRootCert != "" {
+		dsn += fmt.Sprintf(" sslmode=verify-full sslrootcert=%s", cfg.DBSSLRootCert)
+	} else {
+		dsn += " sslmode=disable"
+	}
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
 		SkipDefaultTransaction: true,
