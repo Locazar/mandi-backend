@@ -24,7 +24,7 @@ type AdminRepository interface {
 	VerifyShop(ctx context.Context, shopVerification request.ShopVerification, adminId string, verificationStatus bool) error
 	// Advertisement Management
 	CreateAdvertisement(ctx context.Context, ad domain.Advertisement) (domain.Advertisement, error)
-	GetAllAdvertisements(ctx context.Context, pagination request.Pagination) (ads []domain.Advertisement, err error)
+	GetAllAdvertisements(ctx context.Context, pagination request.Pagination, filter domain.AdvertisementFilter) (ads []domain.Advertisement, err error)
 	GetAdvertisementByID(ctx context.Context, advertisementID string) (domain.Advertisement, error)
 	GetActiveAdvertisements(ctx context.Context) ([]domain.Advertisement, error)
 	GetActiveAdvertisementsFiltered(ctx context.Context, filter domain.AdvertisementFilter) ([]domain.Advertisement, error)

@@ -584,18 +584,67 @@ func (c *adminHandler) CreateAdvertisement(ctx *gin.Context) {
 //
 //	@summary		List advertisements (Admin)
 //	@Security		BearerAuth
-//	@Description	Returns all advertisements with pagination.
+//	@Description	Returns all advertisements with optional filters. All filters are optional and can be combined.
 //	@Id				GetAllAdvertisements
 //	@Tags			Advertisement Management
-//	@Param			page_number	query	int	false	"Page number"
-//	@Param			count		query	int	false	"Items per page"
+//	@Param			page_number			query	int		false	"Page number"
+//	@Param			count				query	int		false	"Items per page"
+//	@Param			department_id		query	string	false	"Filter by department ID"
+//	@Param			category_id			query	string	false	"Filter by category ID"
+//	@Param			pincode_targeted	query	string	false	"Filter by targeted pincode"
+//	@Param			latitude			query	number	false	"Latitude for geo proximity filter (requires longitude and distance_km)"
+//	@Param			longitude			query	number	false	"Longitude for geo proximity filter (requires latitude and distance_km)"
+//	@Param			distance_km			query	number	false	"Radius in km for geo proximity filter (requires latitude and longitude)"
+//	@Param			status				query	string	false	"Filter by status (active|inactive|expired)"
+//	@Param			audience			query	string	false	"Filter by audience (customer|seller)"
+//	@Param			priority			query	string	false	"Filter by priority (high|medium|low)"
+//	@Param			admin_id			query	string	false	"Filter by admin ID"
+//	@Param			start_date			query	string	false	"Filter ads whose start_date >= this date (YYYY-MM-DD or RFC3339)"
+//	@Param			end_date			query	string	false	"Filter ads whose end_date <= this date (YYYY-MM-DD or RFC3339)"
 //	@Router			/admin/advertisements [get]
 //	@Success		200	{object}	response.Response{}
 //	@Failure		500	{object}	response.Response{}
 func (c *adminHandler) GetAllAdvertisements(ctx *gin.Context) {
 	pagination := request.GetPagination(ctx)
 
-	ads, err := c.adminUseCase.GetAllAdvertisements(ctx, pagination)
+	var filter domain.AdvertisementFilter
+
+	filter.DepartmentID = ctx.Query("department_id")
+	filter.CategoryID = ctx.Query("category_id")
+	filter.PincodeTargeted = ctx.Query("pincode_targeted")
+	filter.Status = domain.AdvertisementStatus(ctx.Query("status"))
+	filter.Audience = domain.AdvertisementAudience(ctx.Query("audience"))
+	filter.Priority = domain.AdvertisementPriority(ctx.Query("priority"))
+	filter.AdminID = ctx.Query("admin_id")
+
+	if lat, err := strconv.ParseFloat(ctx.Query("latitude"), 64); err == nil {
+		filter.FilterLatitude = lat
+	}
+	if lng, err := strconv.ParseFloat(ctx.Query("longitude"), 64); err == nil {
+		filter.FilterLongitude = lng
+	}
+	if dist, err := strconv.ParseFloat(ctx.Query("distance_km"), 64); err == nil {
+		filter.DistanceKM = dist
+	}
+	if sd := ctx.Query("start_date"); sd != "" {
+		for _, layout := range []string{time.RFC3339, "2006-01-02"} {
+			if t, err := time.Parse(layout, sd); err == nil {
+				filter.StartDateFrom = t
+				break
+			}
+		}
+	}
+	if ed := ctx.Query("end_date"); ed != "" {
+		for _, layout := range []string{time.RFC3339, "2006-01-02"} {
+			if t, err := time.Parse(layout, ed); err == nil {
+				// end_date <= end of that day
+				filter.EndDateTo = t.Add(24*time.Hour - time.Second)
+				break
+			}
+		}
+	}
+
+	ads, err := c.adminUseCase.GetAllAdvertisements(ctx, pagination, filter)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get advertisements", err, nil)
 		return

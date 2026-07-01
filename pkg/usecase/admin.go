@@ -368,8 +368,8 @@ func (c *adminUseCase) CreateAdvertisement(ctx context.Context, ad domain.Advert
 	return createdAd, nil
 }
 
-func (c *adminUseCase) GetAllAdvertisements(ctx context.Context, pagination request.Pagination) (ads []domain.Advertisement, err error) {
-	ads, err = c.adminRepo.GetAllAdvertisements(ctx, pagination)
+func (c *adminUseCase) GetAllAdvertisements(ctx context.Context, pagination request.Pagination, filter domain.AdvertisementFilter) (ads []domain.Advertisement, err error) {
+	ads, err = c.adminRepo.GetAllAdvertisements(ctx, pagination, filter)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get all advertisements \nerror:%v", err.Error())
 	}
