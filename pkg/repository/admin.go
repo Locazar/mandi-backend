@@ -313,12 +313,53 @@ func (c *adminDatabase) CreateAdvertisement(ctx context.Context, ad domain.Adver
 	return ad, err
 }
 
-func (c *adminDatabase) GetAllAdvertisements(ctx context.Context, pagination request.Pagination) (ads []domain.Advertisement, err error) {
-	limit := pagination.Limit
-	offset := pagination.Offset
+func (c *adminDatabase) GetAllAdvertisements(ctx context.Context, pagination request.Pagination, filter domain.AdvertisementFilter) (ads []domain.Advertisement, err error) {
+	db := c.DB.WithContext(ctx).Model(&domain.Advertisement{})
 
-	query := `SELECT * FROM advertisements ORDER BY created_at DESC LIMIT $1 OFFSET $2`
-	err = c.DB.Raw(query, limit, offset).Scan(&ads).Error
+	if filter.DepartmentID != "" {
+		db = db.Where("department_id = ?", filter.DepartmentID)
+	}
+	if filter.CategoryID != "" {
+		db = db.Where("category_id = ?", filter.CategoryID)
+	}
+	if filter.PincodeTargeted != "" {
+		db = db.Where("pincode_targeted = ?", filter.PincodeTargeted)
+	}
+	if filter.Status != "" {
+		db = db.Where("status = ?", filter.Status)
+	}
+	if filter.Audience != "" {
+		db = db.Where("audience = ?", filter.Audience)
+	}
+	if filter.Priority != "" {
+		db = db.Where("priority = ?", filter.Priority)
+	}
+	if filter.AdminID != "" {
+		db = db.Where("admin_id = ?", filter.AdminID)
+	}
+	if !filter.StartDateFrom.IsZero() {
+		db = db.Where("start_date >= ?", filter.StartDateFrom)
+	}
+	if !filter.EndDateTo.IsZero() {
+		db = db.Where("end_date <= ?", filter.EndDateTo)
+	}
+	// geo proximity filter: earth_distance via haversine in pure SQL
+	if filter.FilterLatitude != 0 && filter.FilterLongitude != 0 && filter.DistanceKM > 0 {
+		db = db.Where(`
+			(6371 * acos(
+				cos(radians(?)) * cos(radians(latitude)) *
+				cos(radians(longitude) - radians(?)) +
+				sin(radians(?)) * sin(radians(latitude))
+			)) <= ?`,
+			filter.FilterLatitude, filter.FilterLongitude,
+			filter.FilterLatitude, filter.DistanceKM,
+		)
+	}
+
+	err = db.Order("created_at DESC").
+		Limit(int(pagination.Limit)).
+		Offset(int(pagination.Offset)).
+		Find(&ads).Error
 
 	return ads, err
 }

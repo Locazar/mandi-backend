@@ -196,13 +196,30 @@ type Advertisement struct {
 	CategoryID   string                `json:"category_id" gorm:"type:varchar(32);default:null"`
 }
 
-// AdvertisementFilter holds query-time filter parameters from the app.
+// AdvertisementFilter holds query-time filter parameters for admin list.
 type AdvertisementFilter struct {
+	// existing app-facing fields
 	Latitude  float64
 	Longitude float64
-	RadiusKM  float64 // 0 means no geo filter
+	RadiusKM  float64               // 0 means no geo filter
 	Pincode   string
 	AppType   AdvertisementAudience // "seller" | "customer" | "" (all)
+
+	// admin filter fields
+	DepartmentID    string
+	CategoryID      string
+	PincodeTargeted string
+	Status          AdvertisementStatus
+	Audience        AdvertisementAudience
+	Priority        AdvertisementPriority
+	AdminID         string
+	// date range: zero value means no filter
+	StartDateFrom time.Time // ads whose start_date >= this value
+	EndDateTo     time.Time // ads whose end_date <= this value
+	// geo proximity: all three must be non-zero to apply
+	FilterLatitude  float64
+	FilterLongitude float64
+	DistanceKM      float64
 }
 
 type SubTypeAttributes struct {
