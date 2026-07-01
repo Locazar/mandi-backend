@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"log"
 	"fmt"
 	"strconv"
 	"strings"
@@ -375,6 +376,7 @@ func (c *adminDatabase) GetAllAdvertisements(ctx context.Context, pagination req
 	)
 	args = append(args, int(pagination.Limit), int(pagination.Offset))
 
+	log.Printf("[GetAllAdvertisements] query: %s | args: %v", query, args)
 	err = c.DB.WithContext(ctx).Raw(query, args...).Scan(&ads).Error
 	return ads, err
 }
