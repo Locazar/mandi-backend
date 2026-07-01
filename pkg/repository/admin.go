@@ -314,53 +314,68 @@ func (c *adminDatabase) CreateAdvertisement(ctx context.Context, ad domain.Adver
 }
 
 func (c *adminDatabase) GetAllAdvertisements(ctx context.Context, pagination request.Pagination, filter domain.AdvertisementFilter) (ads []domain.Advertisement, err error) {
-	db := c.DB.WithContext(ctx).Model(&domain.Advertisement{})
+	var conditions []string
+	var args []interface{}
 
 	if filter.DepartmentID != "" {
-		db = db.Where("department_id = ?", filter.DepartmentID)
+		conditions = append(conditions, fmt.Sprintf("department_id = $%d", len(args)+1))
+		args = append(args, filter.DepartmentID)
 	}
 	if filter.CategoryID != "" {
-		db = db.Where("category_id = ?", filter.CategoryID)
+		conditions = append(conditions, fmt.Sprintf("category_id = $%d", len(args)+1))
+		args = append(args, filter.CategoryID)
 	}
 	if filter.PincodeTargeted != "" {
-		db = db.Where("pincode_targeted = ?", filter.PincodeTargeted)
+		conditions = append(conditions, fmt.Sprintf("pincode_targeted = $%d", len(args)+1))
+		args = append(args, filter.PincodeTargeted)
 	}
 	if filter.Status != "" {
-		db = db.Where("status = ?", filter.Status)
+		conditions = append(conditions, fmt.Sprintf("status = $%d", len(args)+1))
+		args = append(args, string(filter.Status))
 	}
 	if filter.Audience != "" {
-		db = db.Where("audience = ?", filter.Audience)
+		conditions = append(conditions, fmt.Sprintf("audience = $%d", len(args)+1))
+		args = append(args, string(filter.Audience))
 	}
 	if filter.Priority != "" {
-		db = db.Where("priority = ?", filter.Priority)
+		conditions = append(conditions, fmt.Sprintf("priority = $%d", len(args)+1))
+		args = append(args, string(filter.Priority))
 	}
 	if filter.AdminID != "" {
-		db = db.Where("admin_id = ?", filter.AdminID)
+		conditions = append(conditions, fmt.Sprintf("admin_id = $%d", len(args)+1))
+		args = append(args, filter.AdminID)
 	}
 	if !filter.StartDateFrom.IsZero() {
-		db = db.Where("start_date >= ?", filter.StartDateFrom)
+		conditions = append(conditions, fmt.Sprintf("start_date >= $%d", len(args)+1))
+		args = append(args, filter.StartDateFrom)
 	}
 	if !filter.EndDateTo.IsZero() {
-		db = db.Where("end_date <= ?", filter.EndDateTo)
+		conditions = append(conditions, fmt.Sprintf("end_date <= $%d", len(args)+1))
+		args = append(args, filter.EndDateTo)
 	}
-	// geo proximity filter: earth_distance via haversine in pure SQL
 	if filter.FilterLatitude != 0 && filter.FilterLongitude != 0 && filter.DistanceKM > 0 {
-		db = db.Where(`
-			(6371 * acos(
-				cos(radians(?)) * cos(radians(latitude)) *
-				cos(radians(longitude) - radians(?)) +
-				sin(radians(?)) * sin(radians(latitude))
-			)) <= ?`,
-			filter.FilterLatitude, filter.FilterLongitude,
-			filter.FilterLatitude, filter.DistanceKM,
-		)
+		n := len(args) + 1
+		conditions = append(conditions, fmt.Sprintf(
+			`(6371 * acos(cos(radians($%d)) * cos(radians(latitude)) * cos(radians(longitude) - radians($%d)) + sin(radians($%d)) * sin(radians(latitude)))) <= $%d`,
+			n, n+1, n+2, n+3,
+		))
+		args = append(args, filter.FilterLatitude, filter.FilterLongitude, filter.FilterLatitude, filter.DistanceKM)
 	}
 
-	err = db.Order("created_at DESC").
-		Limit(int(pagination.Limit)).
-		Offset(int(pagination.Offset)).
-		Find(&ads).Error
+	where := ""
+	if len(conditions) > 0 {
+		where = "WHERE " + strings.Join(conditions, " AND ")
+	}
 
+	limitN := len(args) + 1
+	offsetN := len(args) + 2
+	query := fmt.Sprintf(
+		`SELECT * FROM advertisements %s ORDER BY created_at DESC LIMIT $%d OFFSET $%d`,
+		where, limitN, offsetN,
+	)
+	args = append(args, int(pagination.Limit), int(pagination.Offset))
+
+	err = c.DB.WithContext(ctx).Raw(query, args...).Scan(&ads).Error
 	return ads, err
 }
 
