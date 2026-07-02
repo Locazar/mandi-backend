@@ -26,4 +26,5 @@ type CloudService interface {
 	PublicURL(objectKey string) string
 	PresignedURL(ctx context.Context, objectKey string, ttl time.Duration) (url string, err error)
 	DeleteObject(ctx context.Context, objectKey string) error
+	ListObjects(ctx context.Context, prefix string) (keys []string, err error)
 }
