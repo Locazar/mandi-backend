@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"log"
+
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
@@ -230,6 +232,7 @@ func (m *mobileAuthUseCase) VerifyOTP(ctx context.Context, req *request.VerifyOT
 	}
 
 	// Verify OTP hash (skip when SKIP_OTP_VALIDATION=true)
+	log.Printf("[VerifyOTP] skipOTPValidation=%v phone=%s", m.skipOTPValidation, req.Phone)
 	if !m.skipOTPValidation {
 		err = m.otpService.VerifyOTP(req.OTP, otpRequest.OTPHash)
 		if err != nil {
