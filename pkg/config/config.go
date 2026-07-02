@@ -163,6 +163,7 @@ var envsNames = []string{
 	"SECURITY_BRUTE_FORCE_BLOCK_DURATION_SECONDS",
 	"PII_ENCRYPTION_KEYS",
 	"PII_ENCRYPTION_ACTIVE_KEY",
+	"SKIP_OTP_VALIDATION",
 }
 
 func LoadConfig() (config Config, err error) {
