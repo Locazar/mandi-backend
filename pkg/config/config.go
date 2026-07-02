@@ -66,6 +66,9 @@ type Config struct {
 	FirebaseConfig             string `mapstructure:"FIREBASE_CONFIG"`
 	EnquiryNotificationHandler string `mapstructure:"ENQUIRY_NOTIFICATION_HANDLER"`
 
+	// Set to "true" to skip OTP verification (development/testing only)
+	SkipOTPValidation bool `mapstructure:"SKIP_OTP_VALIDATION"`
+
 	// PII encryption keyring. PIIEncryptionKeys is a comma-separated list of
 	// "<id>:<base64-32-byte-key>" entries; PIIEncryptionActiveKey names the key
 	// used for new writes. Older keys remain present to decrypt existing data.
