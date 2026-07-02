@@ -191,7 +191,7 @@ func (s *objectStorage) ListObjects(ctx context.Context, prefix string) ([]strin
 				keys = append(keys, *obj.Key)
 			}
 		}
-		if !*out.IsTruncated {
+		if out.IsTruncated == nil || !*out.IsTruncated {
 			break
 		}
 		continuationToken = out.NextContinuationToken
