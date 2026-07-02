@@ -27,25 +27,27 @@ import (
 )
 
 type adminUseCase struct {
-	adminRepo    interfaces.AdminRepository
-	userRepo     interfaces.UserRepository
-	authRepo     interfaces.AuthRepository
-	optAuth      otp.OtpAuth
-	tokenService token.TokenService
-	otpService   *otp.MobileOTPService
-	smsService   *sms.TwoFactorSMSService
+	adminRepo         interfaces.AdminRepository
+	userRepo          interfaces.UserRepository
+	authRepo          interfaces.AuthRepository
+	optAuth           otp.OtpAuth
+	tokenService      token.TokenService
+	otpService        *otp.MobileOTPService
+	smsService        *sms.TwoFactorSMSService
+	skipOTPValidation bool
 }
 
-func NewAdminUseCase(repo interfaces.AdminRepository, userRepo interfaces.UserRepository, authRepo interfaces.AuthRepository, optAuth otp.OtpAuth, tokenService token.TokenService, otpService *otp.MobileOTPService, smsService *sms.TwoFactorSMSService) service.AdminUseCase {
+func NewAdminUseCase(repo interfaces.AdminRepository, userRepo interfaces.UserRepository, authRepo interfaces.AuthRepository, optAuth otp.OtpAuth, tokenService token.TokenService, otpService *otp.MobileOTPService, smsService *sms.TwoFactorSMSService, skipOTPValidation bool) service.AdminUseCase {
 
 	return &adminUseCase{
-		adminRepo:    repo,
-		userRepo:     userRepo,
-		authRepo:     authRepo,
-		optAuth:      optAuth,
-		tokenService: tokenService,
-		otpService:   otpService,
-		smsService:   smsService,
+		adminRepo:         repo,
+		userRepo:          userRepo,
+		authRepo:          authRepo,
+		optAuth:           optAuth,
+		tokenService:      tokenService,
+		otpService:        otpService,
+		smsService:        smsService,
+		skipOTPValidation: skipOTPValidation,
 	}
 }
 
@@ -223,9 +225,12 @@ func (c *adminUseCase) AdminSignUpOtpVerify(ctx context.Context,
 		return "", domain.ShopDetails{}, ErrOtpExpired
 	}
 
-	// Verify the entered OTP against the stored hash (the OTP generated/sent at send time)
-	if err := c.otpService.VerifyOTP(otpVerifyDetails.Otp, otpSession.OtpHash); err != nil {
-		return "", domain.ShopDetails{}, ErrInvalidOtp
+	// Verify the entered OTP against the stored hash (skip when SKIP_OTP_VALIDATION=true)
+	log.Printf("[VerifyOTP admin] skipOTPValidation=%v otp_id=%s", c.skipOTPValidation, otpVerifyDetails.OtpID)
+	if !c.skipOTPValidation {
+		if err := c.otpService.VerifyOTP(otpVerifyDetails.Otp, otpSession.OtpHash); err != nil {
+			return "", domain.ShopDetails{}, ErrInvalidOtp
+		}
 	}
 
 	// OTP verified — invalidate the session so the same OTP cannot be reused.
