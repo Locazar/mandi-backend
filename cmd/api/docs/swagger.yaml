@@ -53,6 +53,8 @@ definitions:
         type: string
       profile_image_url:
         type: string
+      role:
+        $ref: '#/definitions/domain.AdminRole'
       start_date:
         type: string
       state:
@@ -66,6 +68,20 @@ definitions:
       verified_seller:
         type: boolean
     type: object
+  domain.AdminRole:
+    enum:
+    - super_admin
+    - support_staff
+    - catalog_manager
+    - marketing_manager
+    - seller
+    type: string
+    x-enum-varnames:
+    - AdminRoleSuperAdmin
+    - AdminRoleSupportStaff
+    - AdminRoleCatalogManager
+    - AdminRoleMarketingManager
+    - AdminRoleSeller
   domain.AdminStatus:
     enum:
     - active
@@ -384,6 +400,62 @@ definitions:
         type: boolean
     required:
     - admin_id
+    type: object
+  request.AICompareImagesRequest:
+    properties:
+      image_path1:
+        type: string
+      image_path2:
+        type: string
+    required:
+    - image_path1
+    - image_path2
+    type: object
+  request.AIDetectObjectsRequest:
+    properties:
+      detect_all:
+        type: boolean
+      image_base64:
+        type: string
+    required:
+    - image_base64
+    type: object
+  request.AIEmbedBatchRequest:
+    properties:
+      texts:
+        items:
+          type: string
+        minItems: 1
+        type: array
+    required:
+    - texts
+    type: object
+  request.AIEmbedRequest:
+    properties:
+      text:
+        type: string
+    required:
+    - text
+    type: object
+  request.AIValidateProductRequest:
+    properties:
+      category:
+        type: string
+      image_path:
+        type: string
+    required:
+    - category
+    - image_path
+    type: object
+  request.AIVerifyImageRequest:
+    properties:
+      image_base64:
+        type: string
+      prompt:
+        type: string
+    required:
+    - image_base64
+    - prompt
     type: object
   request.Address:
     properties:
@@ -1363,6 +1435,8 @@ definitions:
         type: string
       department_id:
         type: string
+      description:
+        type: string
       discount_rate:
         type: integer
       distance_km:
@@ -1370,6 +1444,10 @@ definitions:
       dynamic_fields:
         additionalProperties: true
         type: object
+      highlights:
+        items:
+          type: string
+        type: array
       main_category_name:
         type: string
       offer_products:
@@ -1516,7 +1594,7 @@ info:
   license:
     name: MIT
     url: https://opensource.org/licenses/MIT
-  title: E-commerce Application Backend API
+  title: Mandi-backend API
 paths:
   /account:
     get:
@@ -4456,6 +4534,35 @@ paths:
       summary: API for admin to update shop by ID
       tags:
       - Admin Shop
+  /admin/shops/business-document/upload:
+    post:
+      operationId: UploadBusinessDocument
+      parameters:
+      - description: Business Document
+        in: formData
+        name: document
+        required: true
+        type: file
+      responses:
+        "200":
+          description: Successfully uploaded business document
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: unauthorized
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: failed to upload business document
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: api for admin to upload a business document
+      tags:
+      - Admin Shop
   /admin/shops/owner/{owner_id}:
     get:
       description: API for admin to get shop details by owner ID
@@ -4684,6 +4791,216 @@ paths:
       summary: api for admin to block or unblock user
       tags:
       - Admin User
+  /ai/compare-images:
+    post:
+      consumes:
+      - application/json
+      description: Determines whether two images (referenced by server-readable paths)
+        belong to the same product category.
+      operationId: AICompareImages
+      parameters:
+      - description: Two image paths
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.AICompareImagesRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Image comparison completed
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/response.Response'
+        "502":
+          description: AI service call failed
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Compare two product images by category
+      tags:
+      - AI Service
+  /ai/detect-objects:
+    post:
+      consumes:
+      - application/json
+      description: Detects objects (label/category/color/material/brand/confidence)
+        in a base64-encoded JPEG. Set detect_all=false to return only the most prominent
+        object.
+      operationId: AIDetectObjects
+      parameters:
+      - description: Base64 image and detect_all flag
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.AIDetectObjectsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Object detection completed
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/response.Response'
+        "502":
+          description: AI service call failed
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Detect objects in an image
+      tags:
+      - AI Service
+  /ai/embed:
+    post:
+      consumes:
+      - application/json
+      description: Generates an embedding vector for a single text for semantic search.
+      operationId: AIGenerateEmbedding
+      parameters:
+      - description: Text to embed
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.AIEmbedRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Embedding generated successfully
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/response.Response'
+        "502":
+          description: AI service call failed
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Generate a text embedding
+      tags:
+      - AI Service
+  /ai/embed-batch:
+    post:
+      consumes:
+      - application/json
+      description: Generates embedding vectors for multiple texts in a single call.
+      operationId: AIGenerateEmbeddings
+      parameters:
+      - description: Texts to embed
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.AIEmbedBatchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Embeddings generated successfully
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/response.Response'
+        "502":
+          description: AI service call failed
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Generate batch text embeddings
+      tags:
+      - AI Service
+  /ai/health:
+    get:
+      description: Proxies to the ai-service health endpoint to report whether it
+        is reachable.
+      operationId: AIHealthCheck
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: AI service is healthy
+          schema:
+            $ref: '#/definitions/response.Response'
+        "503":
+          description: AI service is unreachable
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: AI service health check
+      tags:
+      - AI Service
+  /ai/validate-product:
+    post:
+      consumes:
+      - application/json
+      description: Checks whether a product image (referenced by a server-readable
+        path) matches the given category. Returns valid/confidence/reason.
+      operationId: AIValidateProduct
+      parameters:
+      - description: Image path and category
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.AIValidateProductRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Product validation completed
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/response.Response'
+        "502":
+          description: AI service call failed
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Validate a product image against a category
+      tags:
+      - AI Service
+  /ai/verify-image:
+    post:
+      consumes:
+      - application/json
+      description: Checks whether a base64-encoded JPEG satisfies a free-text condition
+        prompt. Returns matches/confidence/reason.
+      operationId: AIVerifyImage
+      parameters:
+      - description: Base64 image and condition prompt
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.AIVerifyImageRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Image verification completed
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/response.Response'
+        "502":
+          description: AI service call failed
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Verify an image against a prompt
+      tags:
+      - AI Service
   /alerts/flows:
     get:
       description: Returns all active onboarding_step templates

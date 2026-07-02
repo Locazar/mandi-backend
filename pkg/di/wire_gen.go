@@ -133,7 +133,8 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	mobileAuthRepository := repository.NewMobileAuthRepository(sqlDB)
 	mobileAuthUseCase := usecase.NewMobileAuthUseCase(mobileAuthRepository, mobileOTPService, twoFactorSMSService, tokenService, cfg.SkipOTPValidation)
 	mobileAuthHandler := handler.NewHandler(mobileAuthUseCase)
-	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler, jobHandler, jobCategoryHandler, platformUserHandler, mobileAuthHandler)
+	aiHandler := handler.NewAIHandler(client)
+	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler, jobHandler, jobCategoryHandler, platformUserHandler, mobileAuthHandler, aiHandler)
 	return serverHTTP, nil
 }
 
