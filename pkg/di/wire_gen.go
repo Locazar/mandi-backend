@@ -47,7 +47,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	otpAuth := otp.NewOtpAuth(cfg)
 	mobileOTPService := otp.NewMobileOTPService()
 	twoFactorSMSService := provideTwoFactorSMSService(cfg)
-	authUseCase := usecase.NewAuthUseCase(authRepository, tokenService, userRepository, adminRepository, otpAuth, mobileOTPService, twoFactorSMSService)
+	authUseCase := usecase.NewAuthUseCase(authRepository, tokenService, userRepository, adminRepository, otpAuth, mobileOTPService, twoFactorSMSService, cfg.SkipOTPValidation)
 	authHandler := handler.NewAuthHandler(authUseCase, cfg, tokenService)
 	middlewareMiddleware := middleware.NewMiddleware(tokenService)
 	adminUseCase := usecase.NewAdminUseCase(adminRepository, userRepository, authRepository, otpAuth, tokenService, mobileOTPService, twoFactorSMSService, cfg.SkipOTPValidation)
