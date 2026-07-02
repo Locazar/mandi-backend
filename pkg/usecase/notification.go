@@ -222,14 +222,28 @@ func (uc *notificationUseCase) SendPushNotification(ctx context.Context, req req
 	}
 
 	// Primary path: tokens from Postgres
-	tokens, err := uc.notificationRepo.GetActiveTokensByOwner(ctx, req.OwnerID, req.OwnerType)
-	if err == nil && len(tokens) > 0 {
+	tokens, pgErr := uc.notificationRepo.GetActiveTokensByOwner(ctx, req.OwnerID, req.OwnerType)
+	if pgErr == nil && len(tokens) > 0 {
 		return uc.fcmPush.SendToTokens(ctx, tokens, req.Title, req.Body, data)
 	}
 
 	// Fallback: tokens from Firestore (populated by Cloud Functions or other services)
 	ownerCollection := ownerTypeToCollection(req.OwnerType)
-	return uc.fcmPush.SendToOwnerViaFirestore(ctx, ownerCollection, req.OwnerID, req.Title, req.Body, data)
+	fsErr := uc.fcmPush.SendToOwnerViaFirestore(ctx, ownerCollection, req.OwnerID, req.Title, req.Body, data)
+	if fsErr == nil {
+		return nil
+	}
+
+	// Both paths failed — surface a clear, actionable error.
+	// If Postgres found no tokens (not a DB error), the owner simply has no registered devices.
+	if pgErr == nil && len(tokens) == 0 {
+		return fmt.Errorf("no active FCM device tokens registered for %s %q — the seller's app must be opened at least once to register a device token", req.OwnerType, req.OwnerID)
+	}
+	// Both paths errored — combine the messages.
+	if pgErr != nil {
+		return fmt.Errorf("failed to send push notification: postgres: %v; firestore: %v", pgErr, fsErr)
+	}
+	return fsErr
 }
 
 // SendPushToUserOnOrderUpdate is a convenience helper called by the order usecase
