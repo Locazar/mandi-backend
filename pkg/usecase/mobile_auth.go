@@ -16,10 +16,11 @@ import (
 )
 
 type mobileAuthUseCase struct {
-	mobileAuthRepo repoInterface.MobileAuthRepository
-	otpService     *otp.MobileOTPService
-	smsService     *sms.TwoFactorSMSService
-	tokenService   token.TokenService
+	mobileAuthRepo    repoInterface.MobileAuthRepository
+	otpService        *otp.MobileOTPService
+	smsService        *sms.TwoFactorSMSService
+	tokenService      token.TokenService
+	skipOTPValidation bool
 }
 
 // NewMobileAuthUseCase creates a new mobile auth usecase
@@ -28,12 +29,14 @@ func NewMobileAuthUseCase(
 	otpService *otp.MobileOTPService,
 	smsService *sms.TwoFactorSMSService,
 	tokenService token.TokenService,
+	skipOTPValidation bool,
 ) usecaseInterface.MobileAuthUseCase {
 	return &mobileAuthUseCase{
-		mobileAuthRepo: mobileAuthRepo,
-		otpService:     otpService,
-		smsService:     smsService,
-		tokenService:   tokenService,
+		mobileAuthRepo:    mobileAuthRepo,
+		otpService:        otpService,
+		smsService:        smsService,
+		tokenService:      tokenService,
+		skipOTPValidation: skipOTPValidation,
 	}
 }
 
@@ -226,21 +229,22 @@ func (m *mobileAuthUseCase) VerifyOTP(ctx context.Context, req *request.VerifyOT
 		return nil, fmt.Errorf("maximum OTP attempts exceeded")
 	}
 
-	// Verify OTP hash
-	err = m.otpService.VerifyOTP(req.OTP, otpRequest.OTPHash)
-	if err != nil {
-		// Increment attempts on failure
-		m.mobileAuthRepo.IncrementOTPAttempts(ctx, otpRequest.ID)
+	// Verify OTP hash (skip when SKIP_OTP_VALIDATION=true)
+	if !m.skipOTPValidation {
+		err = m.otpService.VerifyOTP(req.OTP, otpRequest.OTPHash)
+		if err != nil {
+			m.mobileAuthRepo.IncrementOTPAttempts(ctx, otpRequest.ID)
 
-		auditLog := &domain.LoginAuditLog{
-			Phone:     req.Phone,
-			Event:     domain.AuditEventOTPFailed,
-			IPAddress: ipAddress,
-			UserAgent: userAgent,
-			Details:   fmt.Sprintf(`{"attempts":%d,"reason":"invalid_otp"}`, otpRequest.Attempts+1),
+			auditLog := &domain.LoginAuditLog{
+				Phone:     req.Phone,
+				Event:     domain.AuditEventOTPFailed,
+				IPAddress: ipAddress,
+				UserAgent: userAgent,
+				Details:   fmt.Sprintf(`{"attempts":%d,"reason":"invalid_otp"}`, otpRequest.Attempts+1),
+			}
+			m.mobileAuthRepo.CreateAuditLog(ctx, auditLog)
+			return nil, fmt.Errorf("invalid OTP")
 		}
-		m.mobileAuthRepo.CreateAuditLog(ctx, auditLog)
-		return nil, fmt.Errorf("invalid OTP")
 	}
 
 	// OTP verified! Mark as verified
