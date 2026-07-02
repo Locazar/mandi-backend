@@ -28,26 +28,29 @@ const (
 type authUseCase struct {
 	authRepo interfaces.AuthRepository
 
-	userRepo     interfaces.UserRepository
-	adminRepo    interfaces.AdminRepository
-	tokenService token.TokenService
-	optAuth      otp.OtpAuth
-	otpService   *otp.MobileOTPService
-	smsService   *sms.TwoFactorSMSService
+	userRepo          interfaces.UserRepository
+	adminRepo         interfaces.AdminRepository
+	tokenService      token.TokenService
+	optAuth           otp.OtpAuth
+	otpService        *otp.MobileOTPService
+	smsService        *sms.TwoFactorSMSService
+	skipOTPValidation bool
 }
 
 func NewAuthUseCase(authRepo interfaces.AuthRepository, tokenService token.TokenService,
 	userRepo interfaces.UserRepository, adminRepo interfaces.AdminRepository,
-	optAuth otp.OtpAuth, otpService *otp.MobileOTPService, smsService *sms.TwoFactorSMSService) service.AuthUseCase {
+	optAuth otp.OtpAuth, otpService *otp.MobileOTPService, smsService *sms.TwoFactorSMSService,
+	skipOTPValidation bool) service.AuthUseCase {
 
 	return &authUseCase{
-		userRepo:     userRepo,
-		adminRepo:    adminRepo,
-		tokenService: tokenService,
-		authRepo:     authRepo,
-		optAuth:      optAuth,
-		otpService:   otpService,
-		smsService:   smsService,
+		userRepo:          userRepo,
+		adminRepo:         adminRepo,
+		tokenService:      tokenService,
+		authRepo:          authRepo,
+		optAuth:           optAuth,
+		otpService:        otpService,
+		smsService:        smsService,
+		skipOTPValidation: skipOTPValidation,
 	}
 }
 
@@ -168,9 +171,12 @@ func (c *authUseCase) LoginOtpVerify(ctx context.Context, otpVerifyDetails reque
 		return "", ErrOtpExpired
 	}
 
-	// Verify the entered OTP against the stored hash
-	if err := c.otpService.VerifyOTP(otpVerifyDetails.Otp, otpSession.OtpHash); err != nil {
-		return "", ErrInvalidOtp
+	// Verify the entered OTP against the stored hash (skip when SKIP_OTP_VALIDATION=true)
+	log.Printf("[VerifyOTP user] skipOTPValidation=%v otp_id=%s", c.skipOTPValidation, otpVerifyDetails.OtpID)
+	if !c.skipOTPValidation {
+		if err := c.otpService.VerifyOTP(otpVerifyDetails.Otp, otpSession.OtpHash); err != nil {
+			return "", ErrInvalidOtp
+		}
 	}
 
 	// OTP verified — invalidate the session so the same OTP cannot be reused.
