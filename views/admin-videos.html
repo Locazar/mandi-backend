@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Video Manager — Admin Portal</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css" />
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; background: #f4f6f8; }
+
+    /* ── Layout ── */
+    .layout { display: flex; min-height: 100vh; }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 220px; min-width: 220px;
+      background: #1e2a3a; color: #c8d6e5;
+      display: flex; flex-direction: column;
+      padding-top: 20px;
+    }
+    .sidebar-brand {
+      font-size: 1.1rem; font-weight: 700; color: #fff;
+      padding: 0 20px 24px; border-bottom: 1px solid #2e3f52;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .sidebar-brand i { color: #4dabf7; }
+    .nav-section { padding: 16px 20px 6px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; color: #6b8096; }
+    .nav-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 11px 20px; cursor: pointer; font-size: 0.9rem;
+      border-left: 3px solid transparent; transition: all 0.2s;
+    }
+    .nav-item:hover { background: #26384f; color: #fff; }
+    .nav-item.active { background: #26384f; color: #4dabf7; border-left-color: #4dabf7; }
+    .nav-item i { width: 18px; text-align: center; }
+
+    /* ── Main ── */
+    .main { flex: 1; display: flex; flex-direction: column; }
+    .topbar {
+      background: #fff; padding: 14px 28px;
+      border-bottom: 1px solid #e0e6ed;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .topbar h5 { margin: 0; font-weight: 700; color: #1e2a3a; }
+    .token-input { display: flex; align-items: center; gap: 8px; }
+    .token-input input { font-size: 0.78rem; padding: 5px 10px; border-radius: 6px; border: 1px solid #cdd4dd; width: 280px; }
+    .token-input button { font-size: 0.78rem; padding: 5px 12px; }
+
+    .content { padding: 28px; flex: 1; }
+
+    /* ── Section header ── */
+    .section-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 18px;
+    }
+    .section-header h6 { margin: 0; font-weight: 700; color: #1e2a3a; font-size: 1rem; }
+
+    /* ── Table ── */
+    .table thead th { background: #1e2a3a; color: #fff; border: none; font-size: 0.82rem; }
+    .table td { vertical-align: middle; font-size: 0.85rem; }
+    .badge-ns { font-size: 0.7rem; background: #e8f4fd; color: #1a73e8; padding: 3px 8px; border-radius: 20px; }
+    .thumb-wrap { width: 100px; height: 60px; background: #000; border-radius: 6px; overflow: hidden; position: relative; cursor: pointer; }
+    .thumb-wrap video { width: 100%; height: 100%; object-fit: cover; }
+    .thumb-play { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 1.4rem; background: rgba(0,0,0,.35); }
+
+    /* ── Empty state ── */
+    .empty-state { text-align: center; padding: 48px 0; color: #8fa3b1; }
+    .empty-state i { font-size: 3rem; margin-bottom: 12px; display: block; }
+
+    /* ── Video Modal ── */
+    #videoModal .modal-dialog { max-width: 760px; }
+    #videoModal video { width: 100%; border-radius: 8px; background: #000; }
+
+    /* ── Upload Modal ── */
+    .drop-zone {
+      border: 2px dashed #ced4da; border-radius: 8px; padding: 36px;
+      text-align: center; cursor: pointer; transition: border-color .2s;
+    }
+    .drop-zone:hover, .drop-zone.dragover { border-color: #4dabf7; background: #f0f8ff; }
+    .drop-zone i { font-size: 2rem; color: #8fa3b1; margin-bottom: 8px; display: block; }
+    .drop-zone p { margin: 0; font-size: 0.85rem; color: #6c757d; }
+    #selectedFileName { font-size: 0.82rem; color: #495057; margin-top: 10px; }
+
+    /* ── Spinner overlay ── */
+    .spinner-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.4);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 9999; display: none;
+    }
+    .spinner-overlay.show { display: flex; }
+  </style>
+</head>
+<body>
+
+<div class="layout">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-brand"><i class="fas fa-play-circle"></i> Video Manager</div>
+    <div class="nav-section">Content</div>
+    <div class="nav-item active" onclick="switchSection('guide')" id="nav-guide">
+      <i class="fas fa-camera"></i> Guide Videos
+    </div>
+    <div class="nav-item" onclick="switchSection('training')" id="nav-training">
+      <i class="fas fa-graduation-cap"></i> Training Videos
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="topbar">
+      <h5 id="topbar-title">Guide Videos</h5>
+      <div class="token-input">
+        <i class="fas fa-key text-muted"></i>
+        <input type="password" id="adminToken" placeholder="Paste admin Bearer token…" oninput="saveToken()" />
+        <button class="btn btn-sm btn-outline-primary" onclick="loadVideos()"><i class="fas fa-sync-alt"></i> Load</button>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="section-header">
+        <h6 id="section-title">Guide Videos</h6>
+        <button class="btn btn-sm btn-primary" onclick="openUploadModal()">
+          <i class="fas fa-upload mr-1"></i> Upload Video
+        </button>
+      </div>
+
+      <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+          <table class="table table-hover mb-0" id="videoTable">
+            <thead>
+              <tr>
+                <th style="width:120px">Preview</th>
+                <th>File Name</th>
+                <th>URL</th>
+                <th style="width:180px">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="videoTableBody">
+              <tr>
+                <td colspan="4">
+                  <div class="empty-state">
+                    <i class="fas fa-film"></i>
+                    Enter your token and click <strong>Load</strong> to fetch videos.
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Video Playback Modal -->
+<div class="modal fade" id="videoModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-0">
+        <h6 class="modal-title font-weight-bold" id="videoModalTitle"></h6>
+        <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+      </div>
+      <div class="modal-body pt-2">
+        <video id="modalVideo" controls autoplay></video>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Upload / Replace Modal -->
+<div class="modal fade" id="uploadModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0">
+        <h6 class="modal-title font-weight-bold" id="uploadModalTitle">Upload Video</h6>
+        <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="small font-weight-bold">File Name (optional — leave blank to use original)</label>
+          <input type="text" class="form-control form-control-sm" id="uploadName" placeholder="e.g. video.mp4" />
+        </div>
+        <div class="drop-zone" id="dropZone" onclick="document.getElementById('videoFileInput').click()">
+          <i class="fas fa-cloud-upload-alt"></i>
+          <p>Click or drag &amp; drop a video file here</p>
+          <div id="selectedFileName" class="text-muted"></div>
+        </div>
+        <input type="file" id="videoFileInput" accept="video/*" class="d-none" onchange="onFileSelected(this)" />
+      </div>
+      <div class="modal-footer border-0">
+        <button class="btn btn-secondary btn-sm" data-dismiss="modal">Cancel</button>
+        <button class="btn btn-primary btn-sm" id="uploadSubmitBtn" onclick="submitUpload()">
+          <i class="fas fa-upload mr-1"></i> <span id="uploadSubmitLabel">Upload</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Spinner -->
+<div class="spinner-overlay" id="spinnerOverlay">
+  <div class="spinner-border text-light" style="width:3rem;height:3rem;"></div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  let currentSection = 'guide';   // 'guide' | 'training'
+  let replaceTarget  = null;       // filename being replaced, or null for new upload
+  let selectedFile   = null;
+
+  const SECTION_META = {
+    guide:    { label: 'Guide Videos',    api: '/api/admin/guide-videos' },
+    training: { label: 'Training Videos', api: '/api/admin/training-videos' },
+  };
+
+  // ── Token ──────────────────────────────────────────────────────────────────
+  window.addEventListener('DOMContentLoaded', () => {
+    const saved = localStorage.getItem('adminToken');
+    if (saved) document.getElementById('adminToken').value = saved;
+    setupDropZone();
+  });
+
+  function saveToken() {
+    localStorage.setItem('adminToken', document.getElementById('adminToken').value.trim());
+  }
+
+  function getToken() {
+    return document.getElementById('adminToken').value.trim();
+  }
+
+  function authHeaders() {
+    return { 'Authorization': 'Bearer ' + getToken() };
+  }
+
+  // ── Navigation ─────────────────────────────────────────────────────────────
+  function switchSection(section) {
+    currentSection = section;
+    const meta = SECTION_META[section];
+    document.getElementById('topbar-title').textContent = meta.label;
+    document.getElementById('section-title').textContent = meta.label;
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+    document.getElementById('nav-' + section).classList.add('active');
+    loadVideos();
+  }
+
+  // ── Load videos ────────────────────────────────────────────────────────────
+  async function loadVideos() {
+    const token = getToken();
+    if (!token) { showToast('Paste your admin token first.', 'warning'); return; }
+
+    showSpinner(true);
+    try {
+      const res = await fetch(SECTION_META[currentSection].api, { headers: authHeaders() });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || 'Request failed');
+      renderTable(json.data || []);
+    } catch (e) {
+      showToast(e.message, 'danger');
+      renderTable([]);
+    } finally {
+      showSpinner(false);
+    }
+  }
+
+  function renderTable(videos) {
+    const tbody = document.getElementById('videoTableBody');
+    if (!videos.length) {
+      tbody.innerHTML = `<tr><td colspan="4"><div class="empty-state"><i class="fas fa-film"></i>No videos found.</div></td></tr>`;
+      return;
+    }
+    tbody.innerHTML = videos.map(v => `
+      <tr>
+        <td>
+          <div class="thumb-wrap" onclick="playVideo('${esc(v.video_url)}', '${esc(v.name)}')">
+            <video src="${esc(v.video_url)}" preload="metadata" muted></video>
+            <div class="thumb-play"><i class="fas fa-play-circle"></i></div>
+          </div>
+        </td>
+        <td><strong>${esc(v.name)}</strong></td>
+        <td><a href="${esc(v.video_url)}" target="_blank" class="small text-truncate d-block" style="max-width:260px">${esc(v.video_url)}</a></td>
+        <td>
+          <button class="btn btn-sm btn-outline-primary mr-1" onclick="playVideo('${esc(v.video_url)}','${esc(v.name)}')">
+            <i class="fas fa-play"></i>
+          </button>
+          <button class="btn btn-sm btn-outline-warning mr-1" onclick="openReplaceModal('${esc(v.name)}')">
+            <i class="fas fa-sync-alt"></i>
+          </button>
+          <button class="btn btn-sm btn-outline-danger" onclick="deleteVideo('${esc(v.name)}')">
+            <i class="fas fa-trash"></i>
+          </button>
+        </td>
+      </tr>`).join('');
+  }
+
+  // ── Play ───────────────────────────────────────────────────────────────────
+  function playVideo(url, name) {
+    document.getElementById('modalVideo').src = url;
+    document.getElementById('videoModalTitle').textContent = name;
+    $('#videoModal').modal('show');
+  }
+
+  $('#videoModal').on('hidden.bs.modal', function () {
+    const v = document.getElementById('modalVideo');
+    v.pause(); v.src = '';
+  });
+
+  // ── Upload / Replace ───────────────────────────────────────────────────────
+  function openUploadModal() {
+    replaceTarget = null;
+    document.getElementById('uploadModalTitle').textContent = 'Upload Video';
+    document.getElementById('uploadSubmitLabel').textContent = 'Upload';
+    document.getElementById('uploadName').value = '';
+    resetFileInput();
+    $('#uploadModal').modal('show');
+  }
+
+  function openReplaceModal(name) {
+    replaceTarget = name;
+    document.getElementById('uploadModalTitle').textContent = 'Replace — ' + name;
+    document.getElementById('uploadSubmitLabel').textContent = 'Replace';
+    document.getElementById('uploadName').value = name;
+    resetFileInput();
+    $('#uploadModal').modal('show');
+  }
+
+  function onFileSelected(input) {
+    selectedFile = input.files[0] || null;
+    document.getElementById('selectedFileName').textContent = selectedFile ? selectedFile.name : '';
+  }
+
+  async function submitUpload() {
+    if (!selectedFile) { showToast('Please select a video file.', 'warning'); return; }
+    const name   = document.getElementById('uploadName').value.trim() || selectedFile.name;
+    const method = replaceTarget ? 'PUT' : 'POST';
+    const url    = SECTION_META[currentSection].api;
+
+    const fd = new FormData();
+    fd.append('video', selectedFile);
+    fd.append('name', name);
+
+    showSpinner(true);
+    $('#uploadModal').modal('hide');
+    try {
+      const res  = await fetch(url, { method, headers: authHeaders(), body: fd });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || 'Upload failed');
+      showToast(json.message || 'Done!', 'success');
+      loadVideos();
+    } catch (e) {
+      showToast(e.message, 'danger');
+    } finally {
+      showSpinner(false);
+    }
+  }
+
+  // ── Delete ─────────────────────────────────────────────────────────────────
+  async function deleteVideo(name) {
+    if (!confirm('Delete "' + name + '"? This cannot be undone.')) return;
+    showSpinner(true);
+    try {
+      const res  = await fetch(SECTION_META[currentSection].api + '?name=' + encodeURIComponent(name),
+        { method: 'DELETE', headers: authHeaders() });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || 'Delete failed');
+      showToast('Video deleted.', 'success');
+      loadVideos();
+    } catch (e) {
+      showToast(e.message, 'danger');
+    } finally {
+      showSpinner(false);
+    }
+  }
+
+  // ── Drag & drop ────────────────────────────────────────────────────────────
+  function setupDropZone() {
+    const zone = document.getElementById('dropZone');
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+    zone.addEventListener('drop', e => {
+      e.preventDefault(); zone.classList.remove('dragover');
+      const file = e.dataTransfer.files[0];
+      if (file) { selectedFile = file; document.getElementById('selectedFileName').textContent = file.name; }
+    });
+  }
+
+  function resetFileInput() {
+    selectedFile = null;
+    document.getElementById('videoFileInput').value = '';
+    document.getElementById('selectedFileName').textContent = '';
+  }
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  function showSpinner(on) { document.getElementById('spinnerOverlay').classList.toggle('show', on); }
+
+  function esc(str) { return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+  function showToast(msg, type) {
+    const id = 'toast_' + Date.now();
+    const colours = { success: '#28a745', danger: '#dc3545', warning: '#ffc107' };
+    const el = document.createElement('div');
+    el.id = id;
+    el.style.cssText = `position:fixed;bottom:24px;right:24px;z-index:99999;background:${colours[type]||'#333'};color:#fff;padding:12px 20px;border-radius:8px;font-size:.85rem;box-shadow:0 4px 16px rgba(0,0,0,.2);max-width:340px;`;
+    el.textContent = msg;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 3500);
+  }
+</script>
+</body>
+</html>

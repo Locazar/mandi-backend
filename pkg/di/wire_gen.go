@@ -118,7 +118,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	subscriptionPaymentHandler := handler.NewSubscriptionPaymentHandler(subscriptionPaymentUseCase)
 	subscriptionUseCase := usecase.NewSubscriptionUseCase(subscriptionRepository, userRepository)
 	subscriptionHandler := handler.NewSubscriptionHandler(subscriptionUseCase)
-	sellerGuideHandler := handler.NewSellerGuideHandler()
+	sellerGuideHandler := handler.NewSellerGuideHandler(cloudService)
 	jobService := usecase.NewJobService(gormDB)
 	jobHandler := handler.NewJobHandler(jobService)
 	jobCategoryService := usecase.NewJobCategoryService(gormDB)

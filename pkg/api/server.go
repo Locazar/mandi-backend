@@ -112,6 +112,11 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 	// Bundled assets — not user uploads.
 	engine.StaticFS("/uploads/promotions", http.Dir("./uploads/promotions"))
 
+	// Admin portal pages (no auth on the HTML itself; JS sends Bearer token)
+	engine.GET("/admin/videos", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "admin-videos.html", nil)
+	})
+
 	// set up routes
 	routes.UserRoutes(engine.Group("/api"), authHandler, middleware, userHandler, cartHandler,
 		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler, notificationHandler, promotionHandler, subscriptionPaymentHandler, subscriptionHandler, searchHandler)
@@ -119,7 +124,7 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 	routes.SellerGuideRoutes(engine.Group("/api"), sellerGuideHandler)
 	routes.AdminRoutes(engine.Group("/api/admin"), authHandler, middleware, adminHandler,
 		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler, promotionHandler, fcmTokenHandler, notificationHandler, alertHandler, uiHandler, alertTemplateHandler,
-		jobHandler, jobCategoryHandler, platformUserHandler, mobileAuthHandler)
+		jobHandler, jobCategoryHandler, platformUserHandler, mobileAuthHandler, sellerGuideHandler)
 	routes.UIRoutes(engine.Group("/api/web"), middleware, uiHandler)
 
 	// Public advertisement endpoints — no auth required (used by mobile app)
