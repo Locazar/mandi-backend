@@ -68,6 +68,7 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 	engine.Use(applogger.RequestLogger())
 	engine.Use(utils.RecoveryMiddleware())
 	engine.Use(mw.CORSMiddleware())
+	engine.MaxMultipartMemory = 500 << 20 // 500 MB max for video uploads
 
 	// swagger docs
 	engine.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
