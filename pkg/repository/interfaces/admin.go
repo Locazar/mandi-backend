@@ -34,6 +34,7 @@ type AdminRepository interface {
 	//Shop Details
 	CreateShop(ctx context.Context, shop domain.ShopDetails) (domain.ShopDetails, error)
 	GetAllShops(ctx context.Context, pagination request.Pagination) (shops []domain.ShopDetails, err error)
+	SearchShops(ctx context.Context, filter request.ShopSearch) ([]domain.ShopDetails, error)
 	GetShopByID(ctx context.Context, shopID string) (shop domain.ShopDetails, err error)
 	UpdateShop(ctx context.Context, shop map[string]interface{}, shopId string) (map[string]interface{}, error)
 	GetShopByOwnerID(ctx context.Context, ownerID string) (shop domain.ShopDetails, err error)

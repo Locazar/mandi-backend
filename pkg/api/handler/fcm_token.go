@@ -21,8 +21,8 @@ type fcmTokenPayload struct {
 	Device    string `json:"device" form:"device"`
 	DeviceTyp string `json:"device_type" form:"device_type"`
 	Platform  string `json:"platform" form:"platform"`
-	ShopID    uint   `json:"shop_id" form:"shop_id"`
-	AdminID   uint   `json:"admin_id" form:"admin_id"`
+	ShopID    string `json:"shop_id" form:"shop_id"`
+	AdminID   string `json:"admin_id" form:"admin_id"`
 	OwnerID   string `form:"owner_id"`
 	OwnerType string `json:"owner_type" form:"owner_type"`
 }
@@ -35,8 +35,8 @@ func (h *FcmTokenHandler) resolveAdminID(c *gin.Context, payload fcmTokenPayload
 		}
 	}
 
-	if payload.AdminID != 0 {
-		return strconv.FormatUint(uint64(payload.AdminID), 10)
+	if strings.TrimSpace(payload.AdminID) != "" && payload.AdminID != "0" {
+		return strings.TrimSpace(payload.AdminID)
 	}
 
 	ctxUserID := utils.GetUserIdFromContext(c)
@@ -140,8 +140,8 @@ func (h *FcmTokenHandler) SaveFcmToken(c *gin.Context) {
 			payload.Device = coerceString(raw["device"])
 			payload.DeviceTyp = coerceString(raw["device_type"])
 			payload.Platform = coerceString(raw["platform"])
-			payload.ShopID = coerceUint(raw["shop_id"])
-			payload.AdminID = coerceUint(raw["admin_id"])
+			payload.ShopID = coerceString(raw["shop_id"])
+			payload.AdminID = coerceString(raw["admin_id"])
 			payload.OwnerID = coerceString(raw["owner_id"])
 			payload.OwnerType = coerceString(raw["owner_type"])
 		}
@@ -177,11 +177,11 @@ func (h *FcmTokenHandler) SaveFcmToken(c *gin.Context) {
 	if payload.OwnerType == "" {
 		payload.OwnerType = c.PostForm("owner_type")
 	}
-	if payload.ShopID == 0 {
-		payload.ShopID = coerceUint(c.PostForm("shop_id"))
+	if payload.ShopID == "" {
+		payload.ShopID = c.PostForm("shop_id")
 	}
-	if payload.AdminID == 0 {
-		payload.AdminID = coerceUint(c.PostForm("admin_id"))
+	if payload.AdminID == "" {
+		payload.AdminID = c.PostForm("admin_id")
 	}
 	resolvedAdminID := h.resolveAdminID(c, payload)
 
@@ -226,8 +226,8 @@ func (h *FcmTokenHandler) SaveFcmToken(c *gin.Context) {
 		device = strings.TrimSpace(payload.DeviceTyp)
 	}
 
-	shopIDStr := strconv.FormatUint(uint64(payload.ShopID), 10)
-	if payload.ShopID == 0 {
+	shopIDStr := strings.TrimSpace(payload.ShopID)
+	if shopIDStr == "0" {
 		shopIDStr = ""
 	}
 
@@ -309,8 +309,8 @@ func (h *FcmTokenHandler) UnregisterFcmToken(c *gin.Context) {
 			payload.FcmToken = coerceString(raw["fcmToken"])
 			payload.DeviceTok = coerceString(raw["device_token"])
 			payload.RegToken = coerceString(raw["registration_token"])
-			payload.ShopID = coerceUint(raw["shop_id"])
-			payload.AdminID = coerceUint(raw["admin_id"])
+			payload.ShopID = coerceString(raw["shop_id"])
+			payload.AdminID = coerceString(raw["admin_id"])
 			payload.OwnerID = coerceString(raw["owner_id"])
 			payload.OwnerType = coerceString(raw["owner_type"])
 		}
@@ -337,11 +337,11 @@ func (h *FcmTokenHandler) UnregisterFcmToken(c *gin.Context) {
 	if payload.OwnerType == "" {
 		payload.OwnerType = c.PostForm("owner_type")
 	}
-	if payload.ShopID == 0 {
-		payload.ShopID = coerceUint(c.PostForm("shop_id"))
+	if payload.ShopID == "" {
+		payload.ShopID = c.PostForm("shop_id")
 	}
-	if payload.AdminID == 0 {
-		payload.AdminID = coerceUint(c.PostForm("admin_id"))
+	if payload.AdminID == "" {
+		payload.AdminID = c.PostForm("admin_id")
 	}
 	resolvedAdminID2 := h.resolveAdminID(c, payload)
 
@@ -373,8 +373,8 @@ func (h *FcmTokenHandler) UnregisterFcmToken(c *gin.Context) {
 		return
 	}
 
-	shopIDStr2 := strconv.FormatUint(uint64(payload.ShopID), 10)
-	if payload.ShopID == 0 {
+	shopIDStr2 := strings.TrimSpace(payload.ShopID)
+	if shopIDStr2 == "0" {
 		shopIDStr2 = ""
 	}
 
