@@ -10,5 +10,7 @@ func SellerGuideRoutes(api *gin.RouterGroup, sellerGuideHandler handlerInterface
 	sellerGuide := api.Group("/seller-guide")
 	{
 		sellerGuide.GET("/categories", sellerGuideHandler.GetCategories)
+		sellerGuide.GET("/shop-photo-tips", sellerGuideHandler.GetShopPhotoTips)
+		sellerGuide.GET("/videos", sellerGuideHandler.GetPublicGuideVideos)
 	}
 }

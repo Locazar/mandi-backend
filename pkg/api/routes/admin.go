@@ -19,6 +19,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 	jobHandler *handler.JobHandler, jobCategoryHandler *handler.JobCategoryHandler,
 	platformUserHandler handlerInterface.PlatformUserHandler,
 	mobileAuthHandler handlerInterface.OTPAuthRequestHandler,
+	sellerGuideHandler handlerInterface.SellerGuideHandler,
 ) {
 
 auth := api.Group("/auth")
@@ -408,6 +409,24 @@ auth := api.Group("/auth")
 		jobCategories := api.Group("/job-categories")
 		{
 			jobCategories.GET("/", jobCategoryHandler.GetAllJobCategories())
+		}
+
+		// Guide video management
+		guideVideos := api.Group("/guide-videos")
+		{
+			guideVideos.GET("", sellerGuideHandler.GetGuideVideos)
+			guideVideos.POST("", sellerGuideHandler.UploadGuideVideo)
+			guideVideos.PUT("", sellerGuideHandler.ReplaceGuideVideo)
+			guideVideos.DELETE("", sellerGuideHandler.DeleteGuideVideo)
+		}
+
+		// Training video management
+		trainingVideos := api.Group("/training-videos")
+		{
+			trainingVideos.GET("", sellerGuideHandler.GetTrainingVideos)
+			trainingVideos.POST("", sellerGuideHandler.UploadTrainingVideo)
+			trainingVideos.PUT("", sellerGuideHandler.ReplaceTrainingVideo)
+			trainingVideos.DELETE("", sellerGuideHandler.DeleteTrainingVideo)
 		}
 	}
 }

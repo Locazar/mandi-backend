@@ -92,6 +92,10 @@ func (noopObjectStorage) DeleteObject(ctx context.Context, objectKey string) err
 	return nil
 }
 
+func (noopObjectStorage) ListObjects(ctx context.Context, prefix string) ([]string, error) {
+	return nil, nil
+}
+
 func (s *objectStorage) SaveFile(ctx context.Context, fh *multipart.FileHeader, opts SaveOptions) (string, error) {
 	file, err := fh.Open()
 	if err != nil {
@@ -168,6 +172,31 @@ func (s *objectStorage) DeleteObject(ctx context.Context, objectKey string) erro
 		Key:    aws.String(objectKey),
 	})
 	return err
+}
+
+func (s *objectStorage) ListObjects(ctx context.Context, prefix string) ([]string, error) {
+	var keys []string
+	var continuationToken *string
+	for {
+		out, err := s.client.ListObjectsV2(ctx, &s3.ListObjectsV2Input{
+			Bucket:            aws.String(s.bucket),
+			Prefix:            aws.String(prefix),
+			ContinuationToken: continuationToken,
+		})
+		if err != nil {
+			return nil, err
+		}
+		for _, obj := range out.Contents {
+			if obj.Key != nil {
+				keys = append(keys, *obj.Key)
+			}
+		}
+		if out.IsTruncated == nil || !*out.IsTruncated {
+			break
+		}
+		continuationToken = out.NextContinuationToken
+	}
+	return keys, nil
 }
 
 func buildKey(opts SaveOptions, srcFilename string) string {

@@ -81,11 +81,12 @@ func (r *notificationRepository) SaveDeviceToken(ctx context.Context, token doma
 }
 
 // GetActiveTokensByOwner returns all active FCM tokens for a given owner (user/seller).
+// Matches on owner_id OR admin_id to handle both numeric shop IDs and admin string IDs.
 func (r *notificationRepository) GetActiveTokensByOwner(ctx context.Context, ownerID, ownerType string) ([]string, error) {
 	var tokens []string
 	err := r.db.WithContext(ctx).
 		Model(&domain.NotificationDeviceToken{}).
-		Where("owner_id = ? AND owner_type = ? AND is_active = true", ownerID, ownerType).
+		Where("(owner_id = ? OR admin_id = ?) AND owner_type = ? AND is_active = true", ownerID, ownerID, ownerType).
 		Pluck("token", &tokens).Error
 	return tokens, err
 }
