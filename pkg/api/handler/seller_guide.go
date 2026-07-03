@@ -26,10 +26,27 @@ func NewSellerGuideHandler(cloudService cloud.CloudService) *SellerGuideHandler 
 
 // ── Public ────────────────────────────────────────────────────────────────────
 
-// GetShopPhotoTips GET /api/seller-guide/shop-photo-tips?video=<filename>
+// GetShopPhotoTips GET /api/seller-guide/shop-photo-tips
+// Returns the single guide video (first object in the guide_video namespace).
 func (h *SellerGuideHandler) GetShopPhotoTips(ctx *gin.Context) {
-	videoName := ctx.DefaultQuery("video", "video.mp4")
-	videoURL := h.cloudService.PublicURL(guideVideoNamespace + "/" + videoName)
+	keys, err := h.cloudService.ListObjects(ctx, guideVideoNamespace+"/")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to load guide video", err, nil)
+		return
+	}
+	videoURL := ""
+	for _, key := range keys {
+		name := filepath.Base(key)
+		if name == "" || name == "." || strings.HasSuffix(key, "/") {
+			continue
+		}
+		videoURL = h.cloudService.PublicURL(key)
+		break
+	}
+	if videoURL == "" {
+		response.ErrorResponse(ctx, http.StatusNotFound, "No guide video uploaded", nil, nil)
+		return
+	}
 	tutorials := []map[string]interface{}{
 		{
 			"id":          "shop_photo_tips_1",
@@ -42,29 +59,15 @@ func (h *SellerGuideHandler) GetShopPhotoTips(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Shop photo tips retrieved", tutorials)
 }
 
-// GetPublicGuideVideos GET /api/seller-guide/videos — all guide and training videos, no auth (used by seller app)
+// GetPublicGuideVideos GET /api/seller-guide/guide-videos — guide videos (always one), no auth.
 func (h *SellerGuideHandler) GetPublicGuideVideos(ctx *gin.Context) {
-	videos := make([]map[string]interface{}, 0)
-	for _, namespace := range []string{guideVideoNamespace, trainingVideoNamespace} {
-		keys, err := h.cloudService.ListObjects(ctx, namespace+"/")
-		if err != nil {
-			response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to list videos", err, nil)
-			return
-		}
-		for _, key := range keys {
-			name := filepath.Base(key)
-			if name == "" || name == "." || strings.HasSuffix(key, "/") {
-				continue
-			}
-			videos = append(videos, map[string]interface{}{
-				"name":      name,
-				"key":       key,
-				"type":      namespace,
-				"video_url": h.cloudService.PublicURL(key),
-			})
-		}
-	}
-	response.SuccessResponse(ctx, http.StatusOK, "Videos retrieved", videos)
+	h.listVideos(ctx, guideVideoNamespace)
+}
+
+// GetPublicTrainingVideos GET /api/seller-guide/training-videos — all training videos, no auth.
+// Backs the seller app's Video Tutorials page.
+func (h *SellerGuideHandler) GetPublicTrainingVideos(ctx *gin.Context) {
+	h.listVideos(ctx, trainingVideoNamespace)
 }
 
 // GetCategories GET /api/seller-guide/categories
@@ -89,12 +92,19 @@ func (h *SellerGuideHandler) GetGuideVideos(ctx *gin.Context) {
 }
 
 // UploadGuideVideo POST /api/admin/guide-videos  (form: video file, name?)
+// The guide namespace holds exactly one video, so any existing ones are removed first.
 func (h *SellerGuideHandler) UploadGuideVideo(ctx *gin.Context) {
+	if !h.clearNamespace(ctx, guideVideoNamespace) {
+		return
+	}
 	h.saveVideo(ctx, guideVideoNamespace, http.StatusCreated, "Guide video uploaded")
 }
 
 // ReplaceGuideVideo PUT /api/admin/guide-videos  (form: video file, name?)
 func (h *SellerGuideHandler) ReplaceGuideVideo(ctx *gin.Context) {
+	if !h.clearNamespace(ctx, guideVideoNamespace) {
+		return
+	}
 	h.saveVideo(ctx, guideVideoNamespace, http.StatusOK, "Guide video replaced")
 }
 
@@ -126,6 +136,26 @@ func (h *SellerGuideHandler) DeleteTrainingVideo(ctx *gin.Context) {
 }
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
+
+// clearNamespace deletes every object under the namespace. Returns false if it
+// failed and an error response was already written.
+func (h *SellerGuideHandler) clearNamespace(ctx *gin.Context, namespace string) bool {
+	keys, err := h.cloudService.ListObjects(ctx, namespace+"/")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to list existing videos", err, nil)
+		return false
+	}
+	for _, key := range keys {
+		if strings.HasSuffix(key, "/") {
+			continue
+		}
+		if err := h.cloudService.DeleteObject(ctx, key); err != nil {
+			response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to remove existing video", err, nil)
+			return false
+		}
+	}
+	return true
+}
 
 func (h *SellerGuideHandler) listVideos(ctx *gin.Context, namespace string) {
 	keys, err := h.cloudService.ListObjects(ctx, namespace+"/")
