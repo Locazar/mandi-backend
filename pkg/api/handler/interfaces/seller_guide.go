@@ -7,6 +7,7 @@ type SellerGuideHandler interface {
 	GetCategories(ctx *gin.Context)
 	GetShopPhotoTips(ctx *gin.Context)
 	GetPublicGuideVideos(ctx *gin.Context)
+	GetPublicTrainingVideos(ctx *gin.Context)
 	// Admin — guide videos
 	GetGuideVideos(ctx *gin.Context)
 	UploadGuideVideo(ctx *gin.Context)
