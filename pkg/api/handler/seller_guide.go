@@ -42,6 +42,11 @@ func (h *SellerGuideHandler) GetShopPhotoTips(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Shop photo tips retrieved", tutorials)
 }
 
+// GetPublicGuideVideos GET /api/seller-guide/videos — all guide videos, no auth (used by seller app)
+func (h *SellerGuideHandler) GetPublicGuideVideos(ctx *gin.Context) {
+	h.listVideos(ctx, guideVideoNamespace)
+}
+
 // GetCategories GET /api/seller-guide/categories
 func (h *SellerGuideHandler) GetCategories(ctx *gin.Context) {
 	categories := []map[string]interface{}{
