@@ -42,9 +42,29 @@ func (h *SellerGuideHandler) GetShopPhotoTips(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Shop photo tips retrieved", tutorials)
 }
 
-// GetPublicGuideVideos GET /api/seller-guide/videos — all guide videos, no auth (used by seller app)
+// GetPublicGuideVideos GET /api/seller-guide/videos — all guide and training videos, no auth (used by seller app)
 func (h *SellerGuideHandler) GetPublicGuideVideos(ctx *gin.Context) {
-	h.listVideos(ctx, guideVideoNamespace)
+	videos := make([]map[string]interface{}, 0)
+	for _, namespace := range []string{guideVideoNamespace, trainingVideoNamespace} {
+		keys, err := h.cloudService.ListObjects(ctx, namespace+"/")
+		if err != nil {
+			response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to list videos", err, nil)
+			return
+		}
+		for _, key := range keys {
+			name := filepath.Base(key)
+			if name == "" || name == "." || strings.HasSuffix(key, "/") {
+				continue
+			}
+			videos = append(videos, map[string]interface{}{
+				"name":      name,
+				"key":       key,
+				"type":      namespace,
+				"video_url": h.cloudService.PublicURL(key),
+			})
+		}
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Videos retrieved", videos)
 }
 
 // GetCategories GET /api/seller-guide/categories
