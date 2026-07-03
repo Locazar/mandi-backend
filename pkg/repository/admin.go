@@ -633,6 +633,56 @@ func (c *adminDatabase) GetAllShops(ctx context.Context, pagination request.Pagi
 	return shops, err
 }
 
+// SearchShops filters shops by phone, pincode, city, and/or radius (km) around a point.
+// Empty filters are ignored; all provided filters are ANDed together.
+func (c *adminDatabase) SearchShops(ctx context.Context, filter request.ShopSearch) (shops []domain.ShopDetails, err error) {
+	query := `SELECT sd.*, (EXISTS (SELECT 1 FROM shop_offers so WHERE so.shop_id = sd.id)) as has_offers FROM shop_details sd WHERE 1=1`
+	args := []interface{}{}
+	i := 1
+
+	if filter.Phone != "" {
+		query += fmt.Sprintf(" AND sd.phone ILIKE $%d", i)
+		args = append(args, "%"+filter.Phone+"%")
+		i++
+	}
+	if filter.Pincode != "" {
+		query += fmt.Sprintf(" AND sd.pincode = $%d", i)
+		args = append(args, filter.Pincode)
+		i++
+	}
+	if filter.City != "" {
+		query += fmt.Sprintf(" AND sd.city ILIKE $%d", i)
+		args = append(args, "%"+filter.City+"%")
+		i++
+	}
+	if filter.Search != "" {
+		query += fmt.Sprintf(" AND (sd.shop_name ILIKE $%d OR sd.owner_name ILIKE $%d)", i, i+1)
+		args = append(args, "%"+filter.Search+"%", "%"+filter.Search+"%")
+		i += 2
+	}
+	if filter.RadiusKm > 0 && filter.Latitude != 0 && filter.Longitude != 0 {
+		// Haversine distance in km
+		query += fmt.Sprintf(` AND sd.latitude != 0 AND sd.longitude != 0 AND (
+			6371 * acos(least(1.0,
+				cos(radians($%d)) * cos(radians(sd.latitude)) *
+				cos(radians(sd.longitude) - radians($%d)) +
+				sin(radians($%d)) * sin(radians(sd.latitude))
+			))
+		) <= $%d`, i, i+1, i+2, i+3)
+		args = append(args, filter.Latitude, filter.Longitude, filter.Latitude, filter.RadiusKm)
+		i += 4
+	}
+
+	query += fmt.Sprintf(" ORDER BY sd.created_at DESC LIMIT $%d", i)
+	args = append(args, filter.Limit)
+
+	err = c.DB.Raw(query, args...).Scan(&shops).Error
+	for j := range shops {
+		c.decryptShopPII(&shops[j])
+	}
+	return shops, err
+}
+
 func (c *adminDatabase) GetShopByID(ctx context.Context, shopID string) (shop domain.ShopDetails, err error) {
 	query := `SELECT sd.*, (EXISTS (SELECT 1 FROM shop_offers so WHERE so.shop_id = sd.id)) as has_offers FROM shop_details sd WHERE sd.id = $1`
 	err = c.DB.Raw(query, shopID).Scan(&shop).Error

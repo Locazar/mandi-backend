@@ -429,6 +429,13 @@ func (c *adminUseCase) CreateShop(ctx context.Context, shop domain.ShopDetails) 
 	return createdShop, nil
 }
 
+func (c *adminUseCase) SearchShops(ctx context.Context, filter request.ShopSearch) ([]domain.ShopDetails, error) {
+	if filter.Limit <= 0 || filter.Limit > 200 {
+		filter.Limit = 50
+	}
+	return c.adminRepo.SearchShops(ctx, filter)
+}
+
 func (c *adminUseCase) GetAllShops(ctx context.Context, pagination request.Pagination) (shops []domain.ShopDetails, err error) {
 	shops, err = c.adminRepo.GetAllShops(ctx, pagination)
 	if err != nil {

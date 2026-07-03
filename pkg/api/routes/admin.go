@@ -297,6 +297,7 @@ auth := api.Group("/auth")
 		{
 			shop.POST("/", adminHandler.CreateShop)
 			shop.GET("/", adminHandler.GetAllShops)
+			shop.GET("/search", adminHandler.SearchShops)
 			shop.GET("/:shop_id", adminHandler.GetShopByID)
 			shop.PUT("/", adminHandler.UpdateShop)
 			shop.PUT("/:shop_id", adminHandler.UploadShopById)

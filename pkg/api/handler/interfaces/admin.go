@@ -23,6 +23,7 @@ type AdminHandler interface {
 	//Shop Details
 	CreateShop(ctx *gin.Context)
 	GetAllShops(ctx *gin.Context)
+	SearchShops(ctx *gin.Context)
 	GetShopByID(ctx *gin.Context)
 	UpdateShop(ctx *gin.Context)
 	GetShopByOwnerID(ctx *gin.Context)

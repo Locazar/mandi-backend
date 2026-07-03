@@ -971,6 +971,43 @@ func (h *adminHandler) GetAllShops(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully got all shops", shops)
 }
 
+// SearchShops godoc
+//
+//	@summary		Search shops with filters
+//	@Security		BearerAuth
+//	@Description	API for admin to search shops by phone, pincode, city, name, or radius around a point
+//	@Id				SearchShops
+//	@Tags			Admin Shop
+//	@Param			phone		query	string	false	"Phone number (partial match)"
+//	@Param			pincode		query	string	false	"Pincode (exact match)"
+//	@Param			city		query	string	false	"City (partial match)"
+//	@Param			search		query	string	false	"Shop or owner name (partial match)"
+//	@Param			lat			query	number	false	"Latitude for radius filter"
+//	@Param			lng			query	number	false	"Longitude for radius filter"
+//	@Param			radius_km	query	number	false	"Radius in km around lat/lng"
+//	@Param			limit		query	int		false	"Max results (default 50, max 200)"
+//	@Router			/admin/shops/search [get]
+//	@Success		200	{object}	response.Response{}	"Successfully searched shops"
+//	@Failure		500	{object}	response.Response{}	"Failed to search shops"
+func (h *adminHandler) SearchShops(ctx *gin.Context) {
+	var filter request.ShopSearch
+	if err := ctx.ShouldBindQuery(&filter); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid search filters", err, nil)
+		return
+	}
+
+	shops, err := h.adminUseCase.SearchShops(ctx, filter)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to search shops", err, nil)
+		return
+	}
+
+	for i := range shops {
+		shops[i].Shop_Image_URL = cloud.ResolveURL(h.cloudService, shops[i].Shop_Image_URL)
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully searched shops", shops)
+}
+
 // GetShopByID godoc
 //
 //	@summary		Get shop by ID
