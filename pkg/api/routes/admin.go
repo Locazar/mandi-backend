@@ -79,6 +79,10 @@ auth := api.Group("/auth")
 	// 	})
 	// }
 
+	// Registered before the admin-only middleware: AuthenticateUser accepts
+	// both user and admin tokens, so sellers can also read advertisements.
+	api.GET("/advertisements/", middleware.AuthenticateUser(), adminHandler.GetAllAdvertisements)
+
 	api.Use(middleware.AuthenticateAdmin())
 	{
 		// Common routes
@@ -284,7 +288,6 @@ auth := api.Group("/auth")
 		advertisement := api.Group("/advertisements")
 		{
 			advertisement.POST("/", middleware.TrimSpaces(), adminHandler.CreateAdvertisement)
-			advertisement.GET("/", adminHandler.GetAllAdvertisements)
 			advertisement.PUT("/:advertisement_id", middleware.TrimSpaces(), adminHandler.UpdateAdvertisement)
 			advertisement.DELETE("/:advertisement_id", adminHandler.DeleteAdvertisement)
 		}
