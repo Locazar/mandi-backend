@@ -183,6 +183,8 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		usecase.NewMobileAuthUseCase,
 		handler.NewHandler,
 		wire.Bind(new(interfaces.OTPAuthRequestHandler), new(*handler.Handler)),
+		// ai service proxy
+		handler.NewAIHandler,
 
 		http.NewServerHTTP,
 	)
