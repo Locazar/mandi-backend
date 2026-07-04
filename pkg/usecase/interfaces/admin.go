@@ -39,6 +39,10 @@ type AdminUseCase interface {
 	GetAdvertisementRequestByID(ctx context.Context, requestID string) (domain.AdvertisementRequest, error)
 	UpdateAdvertisementRequest(ctx context.Context, req domain.AdvertisementRequest) (domain.AdvertisementRequest, error)
 	DeleteAdvertisementRequest(ctx context.Context, requestID string) error
+	GetAdvertisementRequestInvoice(ctx context.Context, requestID string) (domain.AdvertisementInvoice, error)
+	CreateAdvertisementPaymentOrder(ctx context.Context, adminID, requestID string) (orderID string, keyID string, amountMinor int64, err error)
+	VerifyAdvertisementPayment(ctx context.Context, adminID, orderID, paymentID, signature string) error
+	AdvertisementPaymentFailed(ctx context.Context, adminID, orderID string) error
 
 	CreateShop(ctx context.Context, shop domain.ShopDetails) (domain.ShopDetails, error)
 	GetAllShops(ctx context.Context, pagination request.Pagination) (shops []domain.ShopDetails, err error)

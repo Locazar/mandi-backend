@@ -205,6 +205,16 @@ const (
 	AdvertRequestStatusRejected AdvertisementRequestStatus = "rejected"
 )
 
+// AdvertRequestPaymentStatus tracks the payment lifecycle of an approved request.
+type AdvertRequestPaymentStatus string
+
+const (
+	AdvertPaymentUnpaid  AdvertRequestPaymentStatus = "unpaid"
+	AdvertPaymentPending AdvertRequestPaymentStatus = "pending" // order created, awaiting verification
+	AdvertPaymentPaid    AdvertRequestPaymentStatus = "paid"
+	AdvertPaymentFailed  AdvertRequestPaymentStatus = "failed"
+)
+
 // AdvertisementRequest is a seller-raised request to run an advertisement
 // for a date range at a quoted price plan.
 type AdvertisementRequest struct {
@@ -222,6 +232,27 @@ type AdvertisementRequest struct {
 	AdminComment string                     `json:"admin_comment" gorm:"type:text"`
 	CreatedAt    time.Time                  `json:"created_at" gorm:"not null;autoCreateTime"`
 	UpdatedAt    time.Time                  `json:"updated_at" gorm:"autoUpdateTime"`
+
+	// Payment tracking (populated once the request is approved and paid for).
+	PaymentStatus  AdvertRequestPaymentStatus `json:"payment_status" gorm:"size:20;not null;default:'unpaid'"`
+	PaymentOrderID string                     `json:"payment_order_id" gorm:"size:64"`
+	PaymentID      string                     `json:"payment_id" gorm:"size:64"`
+	PaidAt         *time.Time                 `json:"paid_at"`
+}
+
+// AdvertisementInvoice is the full charge breakdown for an approved request.
+// All amounts are in minor units (paise).
+type AdvertisementInvoice struct {
+	RequestID        string  `json:"request_id"`
+	PlanKey          string  `json:"plan_key"`
+	PlanName         string  `json:"plan_name"`
+	Days             int     `json:"days"`
+	RatePerDay       int64   `json:"rate_per_day"`
+	BaseMinor        int64   `json:"base_minor"`
+	PlatformFeeMinor int64   `json:"platform_fee_minor"`
+	GSTRatePercent   float64 `json:"gst_rate_percent"`
+	GSTMinor         int64   `json:"gst_minor"`
+	TotalMinor       int64   `json:"total_minor"`
 }
 
 // AdvertisementPricePlan is a quoted plan for a requested date range.

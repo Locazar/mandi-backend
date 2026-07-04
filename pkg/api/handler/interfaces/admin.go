@@ -27,6 +27,10 @@ type AdminHandler interface {
 	GetAdvertisementRequestByID(ctx *gin.Context)
 	UpdateAdvertisementRequest(ctx *gin.Context)
 	DeleteAdvertisementRequest(ctx *gin.Context)
+	GetAdvertisementRequestInvoice(ctx *gin.Context)
+	CreateAdvertisementPaymentOrder(ctx *gin.Context)
+	VerifyAdvertisementPayment(ctx *gin.Context)
+	AdvertisementPaymentFailed(ctx *gin.Context)
 
 	//Shop Details
 	CreateShop(ctx *gin.Context)
