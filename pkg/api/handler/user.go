@@ -14,17 +14,20 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
+	"github.com/rohit221990/mandi-backend/pkg/service/cloud"
 	usecaseInterface "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
 )
 
 type UserHandler struct {
-	userUseCase usecaseInterface.UserUseCase
+	userUseCase  usecaseInterface.UserUseCase
+	cloudService cloud.CloudService
 }
 
-func NewUserHandler(userUsecase usecaseInterface.UserUseCase) *UserHandler {
+func NewUserHandler(userUsecase usecaseInterface.UserUseCase, cloudService cloud.CloudService) *UserHandler {
 	return &UserHandler{
-		userUseCase: userUsecase,
+		userUseCase:  userUsecase,
+		cloudService: cloudService,
 	}
 }
 
@@ -651,6 +654,8 @@ func (c *UserHandler) SearchShopList(ctx *gin.Context) {
 		response.SuccessResponse(ctx, http.StatusNoContent, "No shops found", []interface{}{})
 		return
 	}
+
+	response.ResolveShopsImages(c.cloudService, shops)
 
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully found shops", shops)
 }
