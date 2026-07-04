@@ -1292,6 +1292,7 @@ func (h *ProductHandler) SearchProducts(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	response.ResolveProductItemsImages(h.cloudService, products)
 	c.JSON(http.StatusOK, gin.H{"products": products})
 }
 

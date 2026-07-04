@@ -66,7 +66,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	}
 	productRepository := repository.NewProductRepository(gormDB, elasticService)
 	userUseCase := usecase.NewUserUseCase(userRepository, cartRepository, productRepository, cloudService)
-	userHandler := handler.NewUserHandler(userUseCase)
+	userHandler := handler.NewUserHandler(userUseCase, cloudService)
 	cartUseCase := usecase.NewCartUseCase(cartRepository, productRepository)
 	cartHandler := handler.NewCartHandler(cartUseCase)
 	paymentRepository := repository.NewPaymentRepository(gormDB)
