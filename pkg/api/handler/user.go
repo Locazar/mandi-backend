@@ -505,6 +505,8 @@ func (c *UserHandler) GetSellerByRadius(ctx *gin.Context) {
 		return
 	}
 
+	response.ResolveShopsImages(c.cloudService, sellers)
+
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully found sellers in the given radius", sellers)
 }
 
@@ -548,6 +550,8 @@ func (c *UserHandler) GetSellerByPincode(ctx *gin.Context) {
 		response.SuccessResponse(ctx, http.StatusNoContent, "No sellers found in the given pincode", []interface{}{})
 		return
 	}
+
+	response.ResolveShopsImages(c.cloudService, sellers)
 
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully found sellers in the given pincode", sellers)
 }
@@ -697,6 +701,8 @@ func (c *UserHandler) GetProductItemsByDepartment(ctx *gin.Context) {
 		products = []response.ProductItems{}
 	}
 
+	response.ResolveProductItemsImages(c.cloudService, products)
+
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved product items by document", products)
 }
 
@@ -730,6 +736,8 @@ func (c *UserHandler) GetProductItemsByCategory(ctx *gin.Context) {
 	if products == nil {
 		products = []response.ProductItems{}
 	}
+
+	response.ResolveProductItemsImages(c.cloudService, products)
 
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved product items by category", products)
 }
@@ -765,6 +773,8 @@ func (c *UserHandler) GetProductItemsBySubCategory(ctx *gin.Context) {
 		products = []response.ProductItems{}
 	}
 
+	response.ResolveProductItemsImages(c.cloudService, products)
+
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved product items by sub-category", products)
 }
 
@@ -798,6 +808,8 @@ func (c *UserHandler) GetProductItemsByShop(ctx *gin.Context) {
 	if products == nil {
 		products = []response.ProductItems{}
 	}
+
+	response.ResolveProductItemsImages(c.cloudService, products)
 
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved product items by shop", products)
 }
