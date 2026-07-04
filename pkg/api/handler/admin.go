@@ -1013,6 +1013,118 @@ func (c *adminHandler) DeleteAdvertisementRequest(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Advertisement request deleted", nil)
 }
 
+// GetAdvertisementRequestInvoice godoc
+//
+//	@summary		Get invoice (GST + charges breakdown) for an approved request
+//	@Security		BearerAuth
+//	@Id				GetAdvertisementRequestInvoice
+//	@Tags			Advertisement Requests
+//	@Param			request_id	path	string	true	"Advertisement request ID"
+//	@Router			/admin/advertisement-requests/{request_id}/invoice [get]
+//	@Success		200	{object}	response.Response{}
+//	@Failure		400	{object}	response.Response{}
+func (c *adminHandler) GetAdvertisementRequestInvoice(ctx *gin.Context) {
+	invoice, err := c.adminUseCase.GetAdvertisementRequestInvoice(ctx, ctx.Param("request_id"))
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to get invoice", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Advertisement invoice", invoice)
+}
+
+// CreateAdvertisementPaymentOrder godoc
+//
+//	@summary		Create a Razorpay order for an approved advertisement request
+//	@Security		BearerAuth
+//	@Id				CreateAdvertisementPaymentOrder
+//	@Tags			Advertisement Requests
+//	@Param			request_id	path	string	true	"Advertisement request ID"
+//	@Router			/admin/advertisement-requests/{request_id}/create-order [post]
+//	@Success		200	{object}	response.Response{}
+//	@Failure		400	{object}	response.Response{}
+func (c *adminHandler) CreateAdvertisementPaymentOrder(ctx *gin.Context) {
+	adminID := c.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	if adminID == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "invalid token", nil, nil)
+		return
+	}
+
+	orderID, keyID, amount, err := c.adminUseCase.CreateAdvertisementPaymentOrder(ctx, adminID, ctx.Param("request_id"))
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to create payment order", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Payment order created", map[string]interface{}{
+		"order_id": orderID,
+		"key_id":   keyID,
+		"amount":   amount,
+		"currency": "INR",
+	})
+}
+
+// VerifyAdvertisementPayment godoc
+//
+//	@summary		Verify a Razorpay payment for an advertisement request
+//	@Security		BearerAuth
+//	@Id				VerifyAdvertisementPayment
+//	@Tags			Advertisement Requests
+//	@Router			/admin/advertisement-requests/verify-payment [post]
+//	@Success		200	{object}	response.Response{}
+//	@Failure		402	{object}	response.Response{}
+func (c *adminHandler) VerifyAdvertisementPayment(ctx *gin.Context) {
+	adminID := c.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	if adminID == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "invalid token", nil, nil)
+		return
+	}
+
+	var body struct {
+		OrderID   string `json:"razorpay_order_id" binding:"required"`
+		PaymentID string `json:"razorpay_payment_id" binding:"required"`
+		Signature string `json:"razorpay_signature" binding:"required"`
+	}
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+
+	if err := c.adminUseCase.VerifyAdvertisementPayment(ctx, adminID, body.OrderID, body.PaymentID, body.Signature); err != nil {
+		response.ErrorResponse(ctx, http.StatusPaymentRequired, "Payment verification failed", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Payment verified", map[string]string{"status": "success"})
+}
+
+// AdvertisementPaymentFailed godoc
+//
+//	@summary		Record a failed advertisement payment attempt
+//	@Security		BearerAuth
+//	@Id				AdvertisementPaymentFailed
+//	@Tags			Advertisement Requests
+//	@Router			/admin/advertisement-requests/payment-failed [post]
+//	@Success		200	{object}	response.Response{}
+func (c *adminHandler) AdvertisementPaymentFailed(ctx *gin.Context) {
+	adminID := c.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	if adminID == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "invalid token", nil, nil)
+		return
+	}
+
+	var body struct {
+		OrderID string `json:"order_id" binding:"required"`
+	}
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+
+	if err := c.adminUseCase.AdvertisementPaymentFailed(ctx, adminID, body.OrderID); err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to record payment failure", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Payment failure recorded", nil)
+}
+
 // GetActiveAdvertisements godoc
 //
 //	@summary		Get active advertisements (public)

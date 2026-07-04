@@ -595,6 +595,51 @@ func (c *adminDatabase) DeleteAdvertisementRequest(ctx context.Context, requestI
 	return nil
 }
 
+func (c *adminDatabase) SetAdvertisementRequestPaymentOrder(ctx context.Context, requestID, orderID string) error {
+	result := c.DB.WithContext(ctx).Exec(`UPDATE advertisement_requests
+		SET payment_order_id = $2, payment_status = 'pending', updated_at = NOW()
+		WHERE id = $1 AND payment_status <> 'paid'`, requestID, orderID)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+func (c *adminDatabase) GetAdvertisementRequestByPaymentOrderID(ctx context.Context, orderID string) (domain.AdvertisementRequest, error) {
+	var req domain.AdvertisementRequest
+	err := c.DB.WithContext(ctx).Raw(
+		`SELECT * FROM advertisement_requests WHERE payment_order_id = $1`, orderID,
+	).Scan(&req).Error
+	if err == nil && req.ID == "" {
+		return req, gorm.ErrRecordNotFound
+	}
+	return req, err
+}
+
+func (c *adminDatabase) MarkAdvertisementRequestPaid(ctx context.Context, requestID, paymentID string) error {
+	result := c.DB.WithContext(ctx).Exec(`UPDATE advertisement_requests
+		SET payment_status = 'paid', payment_id = $2, paid_at = NOW(), updated_at = NOW()
+		WHERE id = $1`, requestID, paymentID)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+func (c *adminDatabase) MarkAdvertisementRequestPaymentFailed(ctx context.Context, requestID string) error {
+	// Never downgrade a paid request.
+	result := c.DB.WithContext(ctx).Exec(`UPDATE advertisement_requests
+		SET payment_status = 'failed', updated_at = NOW()
+		WHERE id = $1 AND payment_status <> 'paid'`, requestID)
+	return result.Error
+}
+
 // Shop Details
 func (c *adminDatabase) CreateShop(ctx context.Context, shop domain.ShopDetails) (domain.ShopDetails, error) {
 	shop.ShopID = utils.GenerateShopID()

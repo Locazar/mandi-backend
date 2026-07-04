@@ -303,6 +303,12 @@ auth := api.Group("/auth")
 			advertisementRequest.GET("/:request_id", adminHandler.GetAdvertisementRequestByID)
 			advertisementRequest.PUT("/:request_id", middleware.TrimSpaces(), adminHandler.UpdateAdvertisementRequest)
 			advertisementRequest.DELETE("/:request_id", adminHandler.DeleteAdvertisementRequest)
+
+			// payment flow (seller pays for an approved request)
+			advertisementRequest.GET("/:request_id/invoice", adminHandler.GetAdvertisementRequestInvoice)
+			advertisementRequest.POST("/:request_id/create-order", adminHandler.CreateAdvertisementPaymentOrder)
+			advertisementRequest.POST("/verify-payment", adminHandler.VerifyAdvertisementPayment)
+			advertisementRequest.POST("/payment-failed", adminHandler.AdvertisementPaymentFailed)
 		}
 
 		// Shop details

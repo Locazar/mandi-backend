@@ -37,6 +37,10 @@ type AdminRepository interface {
 	GetAdvertisementRequestByID(ctx context.Context, requestID string) (domain.AdvertisementRequest, error)
 	UpdateAdvertisementRequest(ctx context.Context, req domain.AdvertisementRequest) (domain.AdvertisementRequest, error)
 	DeleteAdvertisementRequest(ctx context.Context, requestID string) error
+	SetAdvertisementRequestPaymentOrder(ctx context.Context, requestID, orderID string) error
+	GetAdvertisementRequestByPaymentOrderID(ctx context.Context, orderID string) (domain.AdvertisementRequest, error)
+	MarkAdvertisementRequestPaid(ctx context.Context, requestID, paymentID string) error
+	MarkAdvertisementRequestPaymentFailed(ctx context.Context, requestID string) error
 
 	//Shop Details
 	CreateShop(ctx context.Context, shop domain.ShopDetails) (domain.ShopDetails, error)
