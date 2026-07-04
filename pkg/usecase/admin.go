@@ -11,9 +11,16 @@ import (
 	"strings"
 	"time"
 
+	"crypto/hmac"
+	"crypto/sha256"
+	"crypto/subtle"
+	"encoding/hex"
+
 	"github.com/google/uuid"
+	"github.com/razorpay/razorpay-go"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
+	"github.com/rohit221990/mandi-backend/pkg/config"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	applogger "github.com/rohit221990/mandi-backend/pkg/logger"
 	"github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
@@ -35,9 +42,10 @@ type adminUseCase struct {
 	otpService        *otp.MobileOTPService
 	smsService        *sms.TwoFactorSMSService
 	skipOTPValidation bool
+	config            config.Config
 }
 
-func NewAdminUseCase(repo interfaces.AdminRepository, userRepo interfaces.UserRepository, authRepo interfaces.AuthRepository, optAuth otp.OtpAuth, tokenService token.TokenService, otpService *otp.MobileOTPService, smsService *sms.TwoFactorSMSService, skipOTPValidation bool) service.AdminUseCase {
+func NewAdminUseCase(repo interfaces.AdminRepository, userRepo interfaces.UserRepository, authRepo interfaces.AuthRepository, optAuth otp.OtpAuth, tokenService token.TokenService, otpService *otp.MobileOTPService, smsService *sms.TwoFactorSMSService, skipOTPValidation bool, cfg config.Config) service.AdminUseCase {
 
 	return &adminUseCase{
 		adminRepo:         repo,
@@ -48,6 +56,7 @@ func NewAdminUseCase(repo interfaces.AdminRepository, userRepo interfaces.UserRe
 		otpService:        otpService,
 		smsService:        smsService,
 		skipOTPValidation: skipOTPValidation,
+		config:            cfg,
 	}
 }
 
@@ -421,12 +430,256 @@ func (c *adminUseCase) GetActiveAdvertisementsFiltered(ctx context.Context, filt
 	return ads, nil
 }
 
+// Advertisement Requests (seller-raised)
+
+// advertisementRatePlans defines the quoted per-day rates (in paise) offered
+// to sellers. Price is always recomputed server-side from these rates.
+var advertisementRatePlans = []struct {
+	Key         string
+	Name        string
+	Description string
+	RatePerDay  int64
+}{
+	{Key: "high", Name: "Premium", Description: "Top banner slot with highest visibility", RatePerDay: 50000},
+	{Key: "medium", Name: "Standard", Description: "Regular rotation in the banner carousel", RatePerDay: 30000},
+	{Key: "low", Name: "Basic", Description: "Shown when premium slots are free", RatePerDay: 15000},
+}
+
+func advertisementDays(startDate, endDate time.Time) (int, error) {
+	if startDate.IsZero() || endDate.IsZero() {
+		return 0, fmt.Errorf("start_date and end_date are required")
+	}
+	if endDate.Before(startDate) {
+		return 0, fmt.Errorf("end_date must not be before start_date")
+	}
+	// Inclusive day count: same-day campaign = 1 day.
+	return int(endDate.Sub(startDate).Hours()/24) + 1, nil
+}
+
+func (c *adminUseCase) GetAdvertisementPricePlans(ctx context.Context, startDate, endDate time.Time) ([]domain.AdvertisementPricePlan, error) {
+	days, err := advertisementDays(startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+	plans := make([]domain.AdvertisementPricePlan, 0, len(advertisementRatePlans))
+	for _, p := range advertisementRatePlans {
+		plans = append(plans, domain.AdvertisementPricePlan{
+			PlanKey:     p.Key,
+			Name:        p.Name,
+			Description: p.Description,
+			Days:        days,
+			RatePerDay:  p.RatePerDay,
+			TotalMinor:  p.RatePerDay * int64(days),
+		})
+	}
+	return plans, nil
+}
+
+func (c *adminUseCase) CreateAdvertisementRequest(ctx context.Context, req domain.AdvertisementRequest) (domain.AdvertisementRequest, error) {
+	days, err := advertisementDays(req.StartDate, req.EndDate)
+	if err != nil {
+		return domain.AdvertisementRequest{}, err
+	}
+
+	// Recompute the price server-side from the selected plan; never trust the
+	// client-supplied amount.
+	var rate int64
+	for _, p := range advertisementRatePlans {
+		if p.Key == req.PlanKey {
+			rate = p.RatePerDay
+			break
+		}
+	}
+	if rate == 0 {
+		return domain.AdvertisementRequest{}, fmt.Errorf("invalid plan_key: %s", req.PlanKey)
+	}
+	req.PriceMinor = rate * int64(days)
+	req.Status = domain.AdvertRequestStatusPending
+
+	// Attach the seller's shop when one exists.
+	if req.ShopID == "" && req.AdminID != "" {
+		if shop, shopErr := c.adminRepo.GetShopByOwnerID(ctx, req.AdminID); shopErr == nil && shop.ID != "" {
+			req.ShopID = shop.ID
+		}
+	}
+
+	created, err := c.adminRepo.CreateAdvertisementRequest(ctx, req)
+	if err != nil {
+		return domain.AdvertisementRequest{}, fmt.Errorf("failed to create advertisement request: %v", err)
+	}
+	return created, nil
+}
+
+func (c *adminUseCase) GetAllAdvertisementRequests(ctx context.Context, pagination request.Pagination, adminID string) ([]domain.AdvertisementRequest, error) {
+	return c.adminRepo.GetAllAdvertisementRequests(ctx, pagination, adminID)
+}
+
+func (c *adminUseCase) GetAdvertisementRequestByID(ctx context.Context, requestID string) (domain.AdvertisementRequest, error) {
+	return c.adminRepo.GetAdvertisementRequestByID(ctx, requestID)
+}
+
+func (c *adminUseCase) UpdateAdvertisementRequest(ctx context.Context, req domain.AdvertisementRequest) (domain.AdvertisementRequest, error) {
+	if req.Status != domain.AdvertRequestStatusPending &&
+		req.Status != domain.AdvertRequestStatusApproved &&
+		req.Status != domain.AdvertRequestStatusRejected {
+		return domain.AdvertisementRequest{}, fmt.Errorf("invalid status: %s", req.Status)
+	}
+	return c.adminRepo.UpdateAdvertisementRequest(ctx, req)
+}
+
+func (c *adminUseCase) DeleteAdvertisementRequest(ctx context.Context, requestID string) error {
+	return c.adminRepo.DeleteAdvertisementRequest(ctx, requestID)
+}
+
+// Advertisement request payments
+
+const (
+	advertGSTRatePercent      = 18.0 // GST on advertising services
+	advertPlatformFeePercent  = 2.0  // platform/processing fee on the base amount
+	advertPaymentGraceMinutes = 30   // order validity window, mirrors subscriptions
+)
+
+// GetAdvertisementRequestInvoice returns the full charge breakdown (base,
+// platform fee, GST, total) for an approved request.
+func (c *adminUseCase) GetAdvertisementRequestInvoice(ctx context.Context, requestID string) (domain.AdvertisementInvoice, error) {
+	req, err := c.adminRepo.GetAdvertisementRequestByID(ctx, requestID)
+	if err != nil {
+		return domain.AdvertisementInvoice{}, err
+	}
+	if req.Status != domain.AdvertRequestStatusApproved {
+		return domain.AdvertisementInvoice{}, fmt.Errorf("invoice available only for approved requests (current status: %s)", req.Status)
+	}
+
+	days, err := advertisementDays(req.StartDate, req.EndDate)
+	if err != nil {
+		return domain.AdvertisementInvoice{}, err
+	}
+
+	planName := req.PlanKey
+	var ratePerDay int64
+	for _, p := range advertisementRatePlans {
+		if p.Key == req.PlanKey {
+			planName = p.Name
+			ratePerDay = p.RatePerDay
+			break
+		}
+	}
+
+	base := req.PriceMinor
+	platformFee := int64(float64(base) * advertPlatformFeePercent / 100)
+	gst := int64(float64(base+platformFee) * advertGSTRatePercent / 100)
+
+	return domain.AdvertisementInvoice{
+		RequestID:        req.ID,
+		PlanKey:          req.PlanKey,
+		PlanName:         planName,
+		Days:             days,
+		RatePerDay:       ratePerDay,
+		BaseMinor:        base,
+		PlatformFeeMinor: platformFee,
+		GSTRatePercent:   advertGSTRatePercent,
+		GSTMinor:         gst,
+		TotalMinor:       base + platformFee + gst,
+	}, nil
+}
+
+// CreateAdvertisementPaymentOrder creates a Razorpay order for the invoice
+// total of an approved, not-yet-paid request owned by adminID.
+func (c *adminUseCase) CreateAdvertisementPaymentOrder(ctx context.Context, adminID, requestID string) (orderID string, keyID string, amountMinor int64, err error) {
+	req, err := c.adminRepo.GetAdvertisementRequestByID(ctx, requestID)
+	if err != nil {
+		return "", "", 0, err
+	}
+	if req.AdminID != adminID {
+		return "", "", 0, fmt.Errorf("request does not belong to this seller")
+	}
+	if req.Status != domain.AdvertRequestStatusApproved {
+		return "", "", 0, fmt.Errorf("request is not approved yet")
+	}
+	if req.PaymentStatus == domain.AdvertPaymentPaid {
+		return "", "", 0, fmt.Errorf("request is already paid")
+	}
+
+	invoice, err := c.GetAdvertisementRequestInvoice(ctx, requestID)
+	if err != nil {
+		return "", "", 0, err
+	}
+
+	client := razorpay.NewClient(c.config.RazorPayKey, c.config.RazorPaySecret)
+	receipt := fmt.Sprintf("advr_%s_%d", req.ID[len(req.ID)-min(8, len(req.ID)):], time.Now().Unix())
+	rzpRes, err := client.Order.Create(map[string]interface{}{
+		"amount":   invoice.TotalMinor,
+		"currency": "INR",
+		"receipt":  receipt,
+	}, nil)
+	if err != nil {
+		return "", "", 0, fmt.Errorf("razorpay order create: %w", err)
+	}
+	rzpOrderID, _ := rzpRes["id"].(string)
+	if rzpOrderID == "" {
+		return "", "", 0, fmt.Errorf("razorpay returned empty order id")
+	}
+
+	if err := c.adminRepo.SetAdvertisementRequestPaymentOrder(ctx, req.ID, rzpOrderID); err != nil {
+		return "", "", 0, fmt.Errorf("persist payment order: %w", err)
+	}
+	return rzpOrderID, c.config.RazorPayKey, invoice.TotalMinor, nil
+}
+
+// VerifyAdvertisementPayment verifies the Razorpay signature and marks the
+// request paid. Idempotent for already-paid requests.
+func (c *adminUseCase) VerifyAdvertisementPayment(ctx context.Context, adminID, orderID, paymentID, signature string) error {
+	// HMAC-SHA256(order_id|payment_id, secret) must equal the signature.
+	mac := hmac.New(sha256.New, []byte(c.config.RazorPaySecret))
+	mac.Write([]byte(orderID + "|" + paymentID))
+	expected := hex.EncodeToString(mac.Sum(nil))
+	if subtle.ConstantTimeCompare([]byte(expected), []byte(signature)) != 1 {
+		return fmt.Errorf("invalid payment signature")
+	}
+
+	req, err := c.adminRepo.GetAdvertisementRequestByPaymentOrderID(ctx, orderID)
+	if err != nil {
+		return fmt.Errorf("payment order not found")
+	}
+	if req.AdminID != adminID {
+		return fmt.Errorf("payment order does not belong to this seller")
+	}
+	if req.PaymentStatus == domain.AdvertPaymentPaid {
+		return nil // idempotent
+	}
+	if time.Since(req.UpdatedAt) > advertPaymentGraceMinutes*time.Minute {
+		return fmt.Errorf("payment order expired, please retry")
+	}
+
+	return c.adminRepo.MarkAdvertisementRequestPaid(ctx, req.ID, paymentID)
+}
+
+// AdvertisementPaymentFailed records a failed payment attempt.
+func (c *adminUseCase) AdvertisementPaymentFailed(ctx context.Context, adminID, orderID string) error {
+	req, err := c.adminRepo.GetAdvertisementRequestByPaymentOrderID(ctx, orderID)
+	if err != nil {
+		return nil // unknown order — nothing to record
+	}
+	if req.AdminID != adminID {
+		return nil
+	}
+	log.Printf("[ADVERT_PAYMENT_FAILURE] admin_id=%s request_id=%s order_id=%s", adminID, req.ID, orderID)
+	return c.adminRepo.MarkAdvertisementRequestPaymentFailed(ctx, req.ID)
+}
+
 func (c *adminUseCase) CreateShop(ctx context.Context, shop domain.ShopDetails) (domain.ShopDetails, error) {
 	createdShop, err := c.adminRepo.CreateShop(ctx, shop)
 	if err != nil {
 		return domain.ShopDetails{}, fmt.Errorf("failed to create shop \nerror:%v", err.Error())
 	}
 	return createdShop, nil
+}
+
+func (c *adminUseCase) SearchShops(ctx context.Context, filter request.ShopSearch) ([]domain.ShopDetails, error) {
+	if filter.Limit <= 0 || filter.Limit > 200 {
+		filter.Limit = 50
+	}
+	return c.adminRepo.SearchShops(ctx, filter)
 }
 
 func (c *adminUseCase) GetAllShops(ctx context.Context, pagination request.Pagination) (shops []domain.ShopDetails, err error) {

@@ -811,6 +811,320 @@ func (c *adminHandler) DeleteAdvertisement(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Advertisement deleted successfully", nil)
 }
 
+// GetAdvertisementPricePlans godoc
+//
+//	@summary		Get advertisement price plans for a date range
+//	@Security		BearerAuth
+//	@Id				GetAdvertisementPricePlans
+//	@Tags			Advertisement Requests
+//	@Param			start_date	query	string	true	"Start date (YYYY-MM-DD)"
+//	@Param			end_date	query	string	true	"End date (YYYY-MM-DD)"
+//	@Router			/admin/advertisement-requests/pricing [get]
+//	@Success		200	{object}	response.Response{}
+//	@Failure		400	{object}	response.Response{}
+func (c *adminHandler) GetAdvertisementPricePlans(ctx *gin.Context) {
+	startDate, err := time.Parse("2006-01-02", ctx.Query("start_date"))
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "invalid start_date (want YYYY-MM-DD)", err, nil)
+		return
+	}
+	endDate, err := time.Parse("2006-01-02", ctx.Query("end_date"))
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "invalid end_date (want YYYY-MM-DD)", err, nil)
+		return
+	}
+
+	plans, err := c.adminUseCase.GetAdvertisementPricePlans(ctx, startDate, endDate)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to get price plans", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Advertisement price plans", plans)
+}
+
+// CreateAdvertisementRequest godoc
+//
+//	@summary		Create an advertisement request (seller)
+//	@Security		BearerAuth
+//	@Id				CreateAdvertisementRequest
+//	@Tags			Advertisement Requests
+//	@Router			/admin/advertisement-requests [post]
+//	@Success		201	{object}	response.Response{}
+//	@Failure		400	{object}	response.Response{}
+func (c *adminHandler) CreateAdvertisementRequest(ctx *gin.Context) {
+	var body struct {
+		Title     string `json:"title"`
+		Content   string `json:"content"`
+		StartDate string `json:"start_date" binding:"required"`
+		EndDate   string `json:"end_date" binding:"required"`
+		PlanKey   string `json:"plan_key" binding:"required"`
+	}
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+
+	startDate, err := time.Parse("2006-01-02", body.StartDate)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "invalid start_date (want YYYY-MM-DD)", err, nil)
+		return
+	}
+	endDate, err := time.Parse("2006-01-02", body.EndDate)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "invalid end_date (want YYYY-MM-DD)", err, nil)
+		return
+	}
+
+	adminID := c.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	if adminID == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "invalid token", nil, nil)
+		return
+	}
+
+	req := domain.AdvertisementRequest{
+		AdminID:   adminID,
+		Title:     body.Title,
+		Content:   body.Content,
+		StartDate: startDate,
+		EndDate:   endDate,
+		PlanKey:   body.PlanKey,
+	}
+	created, err := c.adminUseCase.CreateAdvertisementRequest(ctx, req)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to create advertisement request", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusCreated, "Advertisement request created", created)
+}
+
+// GetAllAdvertisementRequests godoc
+//
+//	@summary		List advertisement requests
+//	@Security		BearerAuth
+//	@Id				GetAllAdvertisementRequests
+//	@Tags			Advertisement Requests
+//	@Param			mine	query	bool	false	"Only the caller's own requests"
+//	@Router			/admin/advertisement-requests [get]
+//	@Success		200	{object}	response.Response{}
+//	@Failure		500	{object}	response.Response{}
+func (c *adminHandler) GetAllAdvertisementRequests(ctx *gin.Context) {
+	pagination := request.GetPagination(ctx)
+
+	// mine=true restricts the list to the caller's own requests (seller view);
+	// otherwise all requests are returned (admin portal view).
+	adminID := ""
+	if ctx.Query("mine") == "true" {
+		adminID = c.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	}
+
+	requests, err := c.adminUseCase.GetAllAdvertisementRequests(ctx, pagination, adminID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get advertisement requests", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Advertisement requests", requests)
+}
+
+// GetAdvertisementRequestByID godoc
+//
+//	@summary		Get one advertisement request
+//	@Security		BearerAuth
+//	@Id				GetAdvertisementRequestByID
+//	@Tags			Advertisement Requests
+//	@Param			request_id	path	string	true	"Advertisement request ID"
+//	@Router			/admin/advertisement-requests/{request_id} [get]
+//	@Success		200	{object}	response.Response{}
+//	@Failure		404	{object}	response.Response{}
+func (c *adminHandler) GetAdvertisementRequestByID(ctx *gin.Context) {
+	requestID := ctx.Param("request_id")
+	req, err := c.adminUseCase.GetAdvertisementRequestByID(ctx, requestID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusNotFound, "Advertisement request not found", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Advertisement request", req)
+}
+
+// UpdateAdvertisementRequest godoc
+//
+//	@summary		Update an advertisement request (status/comment or details)
+//	@Security		BearerAuth
+//	@Id				UpdateAdvertisementRequest
+//	@Tags			Advertisement Requests
+//	@Param			request_id	path	string	true	"Advertisement request ID"
+//	@Router			/admin/advertisement-requests/{request_id} [put]
+//	@Success		200	{object}	response.Response{}
+//	@Failure		400	{object}	response.Response{}
+func (c *adminHandler) UpdateAdvertisementRequest(ctx *gin.Context) {
+	requestID := ctx.Param("request_id")
+	existing, err := c.adminUseCase.GetAdvertisementRequestByID(ctx, requestID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusNotFound, "Advertisement request not found", err, nil)
+		return
+	}
+
+	var body struct {
+		Title        *string `json:"title"`
+		Content      *string `json:"content"`
+		Status       *string `json:"status"`
+		AdminComment *string `json:"admin_comment"`
+	}
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	if body.Title != nil {
+		existing.Title = *body.Title
+	}
+	if body.Content != nil {
+		existing.Content = *body.Content
+	}
+	if body.Status != nil {
+		existing.Status = domain.AdvertisementRequestStatus(*body.Status)
+	}
+	if body.AdminComment != nil {
+		existing.AdminComment = *body.AdminComment
+	}
+
+	updated, err := c.adminUseCase.UpdateAdvertisementRequest(ctx, existing)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to update advertisement request", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Advertisement request updated", updated)
+}
+
+// DeleteAdvertisementRequest godoc
+//
+//	@summary		Delete an advertisement request
+//	@Security		BearerAuth
+//	@Id				DeleteAdvertisementRequest
+//	@Tags			Advertisement Requests
+//	@Param			request_id	path	string	true	"Advertisement request ID"
+//	@Router			/admin/advertisement-requests/{request_id} [delete]
+//	@Success		200	{object}	response.Response{}
+//	@Failure		404	{object}	response.Response{}
+func (c *adminHandler) DeleteAdvertisementRequest(ctx *gin.Context) {
+	requestID := ctx.Param("request_id")
+	if err := c.adminUseCase.DeleteAdvertisementRequest(ctx, requestID); err != nil {
+		response.ErrorResponse(ctx, http.StatusNotFound, "Failed to delete advertisement request", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Advertisement request deleted", nil)
+}
+
+// GetAdvertisementRequestInvoice godoc
+//
+//	@summary		Get invoice (GST + charges breakdown) for an approved request
+//	@Security		BearerAuth
+//	@Id				GetAdvertisementRequestInvoice
+//	@Tags			Advertisement Requests
+//	@Param			request_id	path	string	true	"Advertisement request ID"
+//	@Router			/admin/advertisement-requests/{request_id}/invoice [get]
+//	@Success		200	{object}	response.Response{}
+//	@Failure		400	{object}	response.Response{}
+func (c *adminHandler) GetAdvertisementRequestInvoice(ctx *gin.Context) {
+	invoice, err := c.adminUseCase.GetAdvertisementRequestInvoice(ctx, ctx.Param("request_id"))
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to get invoice", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Advertisement invoice", invoice)
+}
+
+// CreateAdvertisementPaymentOrder godoc
+//
+//	@summary		Create a Razorpay order for an approved advertisement request
+//	@Security		BearerAuth
+//	@Id				CreateAdvertisementPaymentOrder
+//	@Tags			Advertisement Requests
+//	@Param			request_id	path	string	true	"Advertisement request ID"
+//	@Router			/admin/advertisement-requests/{request_id}/create-order [post]
+//	@Success		200	{object}	response.Response{}
+//	@Failure		400	{object}	response.Response{}
+func (c *adminHandler) CreateAdvertisementPaymentOrder(ctx *gin.Context) {
+	adminID := c.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	if adminID == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "invalid token", nil, nil)
+		return
+	}
+
+	orderID, keyID, amount, err := c.adminUseCase.CreateAdvertisementPaymentOrder(ctx, adminID, ctx.Param("request_id"))
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to create payment order", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Payment order created", map[string]interface{}{
+		"order_id": orderID,
+		"key_id":   keyID,
+		"amount":   amount,
+		"currency": "INR",
+	})
+}
+
+// VerifyAdvertisementPayment godoc
+//
+//	@summary		Verify a Razorpay payment for an advertisement request
+//	@Security		BearerAuth
+//	@Id				VerifyAdvertisementPayment
+//	@Tags			Advertisement Requests
+//	@Router			/admin/advertisement-requests/verify-payment [post]
+//	@Success		200	{object}	response.Response{}
+//	@Failure		402	{object}	response.Response{}
+func (c *adminHandler) VerifyAdvertisementPayment(ctx *gin.Context) {
+	adminID := c.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	if adminID == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "invalid token", nil, nil)
+		return
+	}
+
+	var body struct {
+		OrderID   string `json:"razorpay_order_id" binding:"required"`
+		PaymentID string `json:"razorpay_payment_id" binding:"required"`
+		Signature string `json:"razorpay_signature" binding:"required"`
+	}
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+
+	if err := c.adminUseCase.VerifyAdvertisementPayment(ctx, adminID, body.OrderID, body.PaymentID, body.Signature); err != nil {
+		response.ErrorResponse(ctx, http.StatusPaymentRequired, "Payment verification failed", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Payment verified", map[string]string{"status": "success"})
+}
+
+// AdvertisementPaymentFailed godoc
+//
+//	@summary		Record a failed advertisement payment attempt
+//	@Security		BearerAuth
+//	@Id				AdvertisementPaymentFailed
+//	@Tags			Advertisement Requests
+//	@Router			/admin/advertisement-requests/payment-failed [post]
+//	@Success		200	{object}	response.Response{}
+func (c *adminHandler) AdvertisementPaymentFailed(ctx *gin.Context) {
+	adminID := c.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	if adminID == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "invalid token", nil, nil)
+		return
+	}
+
+	var body struct {
+		OrderID string `json:"order_id" binding:"required"`
+	}
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+
+	if err := c.adminUseCase.AdvertisementPaymentFailed(ctx, adminID, body.OrderID); err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to record payment failure", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Payment failure recorded", nil)
+}
+
 // GetActiveAdvertisements godoc
 //
 //	@summary		Get active advertisements (public)
@@ -969,6 +1283,43 @@ func (h *adminHandler) GetAllShops(ctx *gin.Context) {
 		shops[i].Shop_Image_URL = cloud.ResolveURL(h.cloudService, shops[i].Shop_Image_URL)
 	}
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully got all shops", shops)
+}
+
+// SearchShops godoc
+//
+//	@summary		Search shops with filters
+//	@Security		BearerAuth
+//	@Description	API for admin to search shops by phone, pincode, city, name, or radius around a point
+//	@Id				SearchShops
+//	@Tags			Admin Shop
+//	@Param			phone		query	string	false	"Phone number (partial match)"
+//	@Param			pincode		query	string	false	"Pincode (exact match)"
+//	@Param			city		query	string	false	"City (partial match)"
+//	@Param			search		query	string	false	"Shop or owner name (partial match)"
+//	@Param			lat			query	number	false	"Latitude for radius filter"
+//	@Param			lng			query	number	false	"Longitude for radius filter"
+//	@Param			radius_km	query	number	false	"Radius in km around lat/lng"
+//	@Param			limit		query	int		false	"Max results (default 50, max 200)"
+//	@Router			/admin/shops/search [get]
+//	@Success		200	{object}	response.Response{}	"Successfully searched shops"
+//	@Failure		500	{object}	response.Response{}	"Failed to search shops"
+func (h *adminHandler) SearchShops(ctx *gin.Context) {
+	var filter request.ShopSearch
+	if err := ctx.ShouldBindQuery(&filter); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid search filters", err, nil)
+		return
+	}
+
+	shops, err := h.adminUseCase.SearchShops(ctx, filter)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to search shops", err, nil)
+		return
+	}
+
+	for i := range shops {
+		shops[i].Shop_Image_URL = cloud.ResolveURL(h.cloudService, shops[i].Shop_Image_URL)
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully searched shops", shops)
 }
 
 // GetShopByID godoc

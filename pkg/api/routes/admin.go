@@ -102,6 +102,8 @@ auth := api.Group("/auth")
 			platformUsers.POST("/", platformUserHandler.CreateAdmin)
 			platformUsers.PATCH("/:admin_id/role", platformUserHandler.UpdateAdminRole)
 			platformUsers.PATCH("/:admin_id/deactivate", platformUserHandler.DeactivateAdmin)
+			platformUsers.PUT("/:admin_id", platformUserHandler.UpdateAdmin)
+			platformUsers.DELETE("/:admin_id", platformUserHandler.DeleteAdmin)
 		}
 
 		//department
@@ -292,11 +294,29 @@ auth := api.Group("/auth")
 			advertisement.DELETE("/:advertisement_id", adminHandler.DeleteAdvertisement)
 		}
 
+		// advertisement requests (raised by sellers, reviewed by admins)
+		advertisementRequest := api.Group("/advertisement-requests")
+		{
+			advertisementRequest.GET("/pricing", adminHandler.GetAdvertisementPricePlans)
+			advertisementRequest.POST("/", middleware.TrimSpaces(), adminHandler.CreateAdvertisementRequest)
+			advertisementRequest.GET("/", adminHandler.GetAllAdvertisementRequests)
+			advertisementRequest.GET("/:request_id", adminHandler.GetAdvertisementRequestByID)
+			advertisementRequest.PUT("/:request_id", middleware.TrimSpaces(), adminHandler.UpdateAdvertisementRequest)
+			advertisementRequest.DELETE("/:request_id", adminHandler.DeleteAdvertisementRequest)
+
+			// payment flow (seller pays for an approved request)
+			advertisementRequest.GET("/:request_id/invoice", adminHandler.GetAdvertisementRequestInvoice)
+			advertisementRequest.POST("/:request_id/create-order", adminHandler.CreateAdvertisementPaymentOrder)
+			advertisementRequest.POST("/verify-payment", adminHandler.VerifyAdvertisementPayment)
+			advertisementRequest.POST("/payment-failed", adminHandler.AdvertisementPaymentFailed)
+		}
+
 		// Shop details
 		shop := api.Group("/shops")
 		{
 			shop.POST("/", adminHandler.CreateShop)
 			shop.GET("/", adminHandler.GetAllShops)
+			shop.GET("/search", adminHandler.SearchShops)
 			shop.GET("/:shop_id", adminHandler.GetShopByID)
 			shop.PUT("/", adminHandler.UpdateShop)
 			shop.PUT("/:shop_id", adminHandler.UploadShopById)

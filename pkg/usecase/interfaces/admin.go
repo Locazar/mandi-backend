@@ -2,6 +2,7 @@ package interfaces
 
 import (
 	"context"
+	"time"
 
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
@@ -30,8 +31,22 @@ type AdminUseCase interface {
 	GetActiveAdvertisementsFiltered(ctx context.Context, filter domain.AdvertisementFilter) ([]domain.Advertisement, error)
 	UpdateAdvertisement(ctx context.Context, ad domain.Advertisement) (domain.Advertisement, error)
 	DeleteAdvertisement(ctx context.Context, advertisementID string) error
+
+	// Advertisement Requests (seller-raised)
+	GetAdvertisementPricePlans(ctx context.Context, startDate, endDate time.Time) ([]domain.AdvertisementPricePlan, error)
+	CreateAdvertisementRequest(ctx context.Context, req domain.AdvertisementRequest) (domain.AdvertisementRequest, error)
+	GetAllAdvertisementRequests(ctx context.Context, pagination request.Pagination, adminID string) ([]domain.AdvertisementRequest, error)
+	GetAdvertisementRequestByID(ctx context.Context, requestID string) (domain.AdvertisementRequest, error)
+	UpdateAdvertisementRequest(ctx context.Context, req domain.AdvertisementRequest) (domain.AdvertisementRequest, error)
+	DeleteAdvertisementRequest(ctx context.Context, requestID string) error
+	GetAdvertisementRequestInvoice(ctx context.Context, requestID string) (domain.AdvertisementInvoice, error)
+	CreateAdvertisementPaymentOrder(ctx context.Context, adminID, requestID string) (orderID string, keyID string, amountMinor int64, err error)
+	VerifyAdvertisementPayment(ctx context.Context, adminID, orderID, paymentID, signature string) error
+	AdvertisementPaymentFailed(ctx context.Context, adminID, orderID string) error
+
 	CreateShop(ctx context.Context, shop domain.ShopDetails) (domain.ShopDetails, error)
 	GetAllShops(ctx context.Context, pagination request.Pagination) (shops []domain.ShopDetails, err error)
+	SearchShops(ctx context.Context, filter request.ShopSearch) ([]domain.ShopDetails, error)
 	GetAdminByID(ctx context.Context, adminID string) (domain.Admin, error)
 	GetShopByID(ctx context.Context, shopID string) (shop domain.ShopDetails, err error)
 	UpdateShop(ctx context.Context, shop map[string]interface{}, shopId string) (map[string]interface{}, error)

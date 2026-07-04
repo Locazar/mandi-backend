@@ -493,7 +493,7 @@ func (c *adminDatabase) GetActiveAdvertisementsFiltered(ctx context.Context, fil
 	} else if hasGeo {
 		query += fmt.Sprintf(`
 		  AND (
-		    (latitude = 0 AND longitude = 0)
+		    ((latitude = 0 AND longitude = 0) AND (pincode_targeted IS NULL OR pincode_targeted = ''))
 		    OR (latitude != 0 AND longitude != 0 AND (
 		      distance_km = 0
 		      OR (6371 * acos(
@@ -506,9 +506,12 @@ func (c *adminDatabase) GetActiveAdvertisementsFiltered(ctx context.Context, fil
 		args = append(args, filter.Latitude, filter.Longitude, filter.Latitude, filter.RadiusKM)
 		argIdx += 4
 	} else if hasPincode {
-		// Pincode-only: ads with no pincode targeted (NULL or '') are always included.
+		// Pincode-only: ads with no pincode AND no geo targeting are global and always included.
 		query += fmt.Sprintf(`
-		  AND (pincode_targeted IS NULL OR pincode_targeted = '' OR pincode_targeted = $%d)`, argIdx)
+		  AND (
+		    ((pincode_targeted IS NULL OR pincode_targeted = '') AND (latitude = 0 AND longitude = 0))
+		    OR pincode_targeted = $%d
+		  )`, argIdx)
 		args = append(args, filter.Pincode)
 		argIdx++
 	}
@@ -518,6 +521,123 @@ func (c *adminDatabase) GetActiveAdvertisementsFiltered(ctx context.Context, fil
 
 	err := c.DB.Raw(query, args...).Scan(&ads).Error
 	return ads, err
+}
+
+// Advertisement Requests (seller-raised)
+
+func (c *adminDatabase) CreateAdvertisementRequest(ctx context.Context, req domain.AdvertisementRequest) (domain.AdvertisementRequest, error) {
+	req.ID = domain.NewID(domain.PrefixAdvertRequest)
+	if req.Status == "" {
+		req.Status = domain.AdvertRequestStatusPending
+	}
+	query := `INSERT INTO advertisement_requests
+		(id, admin_id, shop_id, title, content, start_date, end_date, plan_key, price_minor, status, admin_comment, created_at, updated_at)
+		VALUES ($1,$2,$3,NULLIF($4,''),$5,$6,$7,$8,$9,$10,$11,NOW(),NOW())`
+	err := c.DB.WithContext(ctx).Exec(query,
+		req.ID, req.AdminID, req.ShopID, req.Title, req.Content,
+		req.StartDate, req.EndDate, req.PlanKey, req.PriceMinor,
+		req.Status, req.AdminComment,
+	).Error
+	return req, err
+}
+
+func (c *adminDatabase) GetAllAdvertisementRequests(ctx context.Context, pagination request.Pagination, adminID string) ([]domain.AdvertisementRequest, error) {
+	var requests []domain.AdvertisementRequest
+	query := `SELECT ar.*, COALESCE(sd.shop_name, '') AS shop_name
+		FROM advertisement_requests ar
+		LEFT JOIN shop_details sd ON sd.id = ar.shop_id
+		WHERE ($1 = '' OR ar.admin_id = $1)
+		ORDER BY ar.created_at DESC
+		LIMIT $2 OFFSET $3`
+	err := c.DB.WithContext(ctx).Raw(query, adminID, pagination.Limit, pagination.Offset).Scan(&requests).Error
+	return requests, err
+}
+
+func (c *adminDatabase) GetAdvertisementRequestByID(ctx context.Context, requestID string) (domain.AdvertisementRequest, error) {
+	var req domain.AdvertisementRequest
+	query := `SELECT ar.*, COALESCE(sd.shop_name, '') AS shop_name
+		FROM advertisement_requests ar
+		LEFT JOIN shop_details sd ON sd.id = ar.shop_id
+		WHERE ar.id = $1`
+	err := c.DB.WithContext(ctx).Raw(query, requestID).Scan(&req).Error
+	if err == nil && req.ID == "" {
+		return req, gorm.ErrRecordNotFound
+	}
+	return req, err
+}
+
+func (c *adminDatabase) UpdateAdvertisementRequest(ctx context.Context, req domain.AdvertisementRequest) (domain.AdvertisementRequest, error) {
+	query := `UPDATE advertisement_requests
+		SET title = $2, content = $3, start_date = $4, end_date = $5,
+		    plan_key = $6, price_minor = $7, status = $8, admin_comment = $9, updated_at = NOW()
+		WHERE id = $1`
+	result := c.DB.WithContext(ctx).Exec(query,
+		req.ID, req.Title, req.Content, req.StartDate, req.EndDate,
+		req.PlanKey, req.PriceMinor, req.Status, req.AdminComment,
+	)
+	if result.Error != nil {
+		return req, result.Error
+	}
+	if result.RowsAffected == 0 {
+		return req, gorm.ErrRecordNotFound
+	}
+	return c.GetAdvertisementRequestByID(ctx, req.ID)
+}
+
+func (c *adminDatabase) DeleteAdvertisementRequest(ctx context.Context, requestID string) error {
+	result := c.DB.WithContext(ctx).Exec(`DELETE FROM advertisement_requests WHERE id = $1`, requestID)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+func (c *adminDatabase) SetAdvertisementRequestPaymentOrder(ctx context.Context, requestID, orderID string) error {
+	result := c.DB.WithContext(ctx).Exec(`UPDATE advertisement_requests
+		SET payment_order_id = $2, payment_status = 'pending', updated_at = NOW()
+		WHERE id = $1 AND payment_status <> 'paid'`, requestID, orderID)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+func (c *adminDatabase) GetAdvertisementRequestByPaymentOrderID(ctx context.Context, orderID string) (domain.AdvertisementRequest, error) {
+	var req domain.AdvertisementRequest
+	err := c.DB.WithContext(ctx).Raw(
+		`SELECT * FROM advertisement_requests WHERE payment_order_id = $1`, orderID,
+	).Scan(&req).Error
+	if err == nil && req.ID == "" {
+		return req, gorm.ErrRecordNotFound
+	}
+	return req, err
+}
+
+func (c *adminDatabase) MarkAdvertisementRequestPaid(ctx context.Context, requestID, paymentID string) error {
+	result := c.DB.WithContext(ctx).Exec(`UPDATE advertisement_requests
+		SET payment_status = 'paid', payment_id = $2, paid_at = NOW(), updated_at = NOW()
+		WHERE id = $1`, requestID, paymentID)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+func (c *adminDatabase) MarkAdvertisementRequestPaymentFailed(ctx context.Context, requestID string) error {
+	// Never downgrade a paid request.
+	result := c.DB.WithContext(ctx).Exec(`UPDATE advertisement_requests
+		SET payment_status = 'failed', updated_at = NOW()
+		WHERE id = $1 AND payment_status <> 'paid'`, requestID)
+	return result.Error
 }
 
 // Shop Details
@@ -629,6 +749,56 @@ func (c *adminDatabase) GetAllShops(ctx context.Context, pagination request.Pagi
 	err = c.DB.Raw(query, limit, offset).Scan(&shops).Error
 	for i := range shops {
 		c.decryptShopPII(&shops[i])
+	}
+	return shops, err
+}
+
+// SearchShops filters shops by phone, pincode, city, and/or radius (km) around a point.
+// Empty filters are ignored; all provided filters are ANDed together.
+func (c *adminDatabase) SearchShops(ctx context.Context, filter request.ShopSearch) (shops []domain.ShopDetails, err error) {
+	query := `SELECT sd.*, (EXISTS (SELECT 1 FROM shop_offers so WHERE so.shop_id = sd.id)) as has_offers FROM shop_details sd WHERE 1=1`
+	args := []interface{}{}
+	i := 1
+
+	if filter.Phone != "" {
+		query += fmt.Sprintf(" AND sd.phone ILIKE $%d", i)
+		args = append(args, "%"+filter.Phone+"%")
+		i++
+	}
+	if filter.Pincode != "" {
+		query += fmt.Sprintf(" AND sd.pincode = $%d", i)
+		args = append(args, filter.Pincode)
+		i++
+	}
+	if filter.City != "" {
+		query += fmt.Sprintf(" AND sd.city ILIKE $%d", i)
+		args = append(args, "%"+filter.City+"%")
+		i++
+	}
+	if filter.Search != "" {
+		query += fmt.Sprintf(" AND (sd.shop_name ILIKE $%d OR sd.owner_name ILIKE $%d)", i, i+1)
+		args = append(args, "%"+filter.Search+"%", "%"+filter.Search+"%")
+		i += 2
+	}
+	if filter.RadiusKm > 0 && filter.Latitude != 0 && filter.Longitude != 0 {
+		// Haversine distance in km
+		query += fmt.Sprintf(` AND sd.latitude != 0 AND sd.longitude != 0 AND (
+			6371 * acos(least(1.0,
+				cos(radians($%d)) * cos(radians(sd.latitude)) *
+				cos(radians(sd.longitude) - radians($%d)) +
+				sin(radians($%d)) * sin(radians(sd.latitude))
+			))
+		) <= $%d`, i, i+1, i+2, i+3)
+		args = append(args, filter.Latitude, filter.Longitude, filter.Latitude, filter.RadiusKm)
+		i += 4
+	}
+
+	query += fmt.Sprintf(" ORDER BY sd.created_at DESC LIMIT $%d", i)
+	args = append(args, filter.Limit)
+
+	err = c.DB.Raw(query, args...).Scan(&shops).Error
+	for j := range shops {
+		c.decryptShopPII(&shops[j])
 	}
 	return shops, err
 }

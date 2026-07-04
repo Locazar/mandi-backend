@@ -10,6 +10,19 @@ type ShopVerification struct {
 	UpdatedAt                  time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }
 
+// ShopSearch filters for the admin shop search endpoint.
+// All fields are optional; provided filters are combined with AND.
+type ShopSearch struct {
+	Phone     string  `form:"phone"`
+	Pincode   string  `form:"pincode"`
+	City      string  `form:"city"`
+	Search    string  `form:"search"` // matches shop name or owner name
+	Latitude  float64 `form:"lat"`
+	Longitude float64 `form:"lng"`
+	RadiusKm  float64 `form:"radius_km"`
+	Limit     int     `form:"limit"`
+}
+
 type SetShopTimeRequest struct {
 	Status    bool   `json:"status"`
 	OpenTime  string `json:"open_time" binding:"required"`

@@ -31,9 +31,21 @@ type AdminRepository interface {
 	UpdateAdvertisement(ctx context.Context, ad domain.Advertisement) (domain.Advertisement, error)
 	DeleteAdvertisement(ctx context.Context, advertisementID string) error
 
+	// Advertisement Requests (seller-raised)
+	CreateAdvertisementRequest(ctx context.Context, req domain.AdvertisementRequest) (domain.AdvertisementRequest, error)
+	GetAllAdvertisementRequests(ctx context.Context, pagination request.Pagination, adminID string) ([]domain.AdvertisementRequest, error)
+	GetAdvertisementRequestByID(ctx context.Context, requestID string) (domain.AdvertisementRequest, error)
+	UpdateAdvertisementRequest(ctx context.Context, req domain.AdvertisementRequest) (domain.AdvertisementRequest, error)
+	DeleteAdvertisementRequest(ctx context.Context, requestID string) error
+	SetAdvertisementRequestPaymentOrder(ctx context.Context, requestID, orderID string) error
+	GetAdvertisementRequestByPaymentOrderID(ctx context.Context, orderID string) (domain.AdvertisementRequest, error)
+	MarkAdvertisementRequestPaid(ctx context.Context, requestID, paymentID string) error
+	MarkAdvertisementRequestPaymentFailed(ctx context.Context, requestID string) error
+
 	//Shop Details
 	CreateShop(ctx context.Context, shop domain.ShopDetails) (domain.ShopDetails, error)
 	GetAllShops(ctx context.Context, pagination request.Pagination) (shops []domain.ShopDetails, err error)
+	SearchShops(ctx context.Context, filter request.ShopSearch) ([]domain.ShopDetails, error)
 	GetShopByID(ctx context.Context, shopID string) (shop domain.ShopDetails, err error)
 	UpdateShop(ctx context.Context, shop map[string]interface{}, shopId string) (map[string]interface{}, error)
 	GetShopByOwnerID(ctx context.Context, ownerID string) (shop domain.ShopDetails, err error)

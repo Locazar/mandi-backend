@@ -11,5 +11,7 @@ import (
 type PlatformUserRepository interface {
 	ListAdmins(ctx context.Context, pagination request.Pagination) ([]domain.Admin, error)
 	UpdateAdminRole(ctx context.Context, adminID string, role domain.AdminRole) error
+	UpdateAdminDetails(ctx context.Context, adminID string, updates map[string]interface{}) error
 	DeactivateAdmin(ctx context.Context, adminID string) error
+	DeleteAdmin(ctx context.Context, adminID string) error
 }

@@ -50,7 +50,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	authUseCase := usecase.NewAuthUseCase(authRepository, tokenService, userRepository, adminRepository, otpAuth, mobileOTPService, twoFactorSMSService, cfg.SkipOTPValidation)
 	authHandler := handler.NewAuthHandler(authUseCase, cfg, tokenService)
 	middlewareMiddleware := middleware.NewMiddleware(tokenService)
-	adminUseCase := usecase.NewAdminUseCase(adminRepository, userRepository, authRepository, otpAuth, tokenService, mobileOTPService, twoFactorSMSService, cfg.SkipOTPValidation)
+	adminUseCase := usecase.NewAdminUseCase(adminRepository, userRepository, authRepository, otpAuth, tokenService, mobileOTPService, twoFactorSMSService, cfg.SkipOTPValidation, cfg)
 	shopTimeRepository := repository.NewShopTimeRepository(gormDB)
 	shopTimeUseCase := usecase.NewShopTimeUseCase(shopTimeRepository)
 	cloudService, err := cloud.NewObjectStorageService(cfg)
