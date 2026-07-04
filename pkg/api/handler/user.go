@@ -842,6 +842,8 @@ func (c *UserHandler) GetShopByID(ctx *gin.Context) {
 	shop.UserRating = socialSummary.UserRating
 	shop.UserReview = socialSummary.UserReview
 
+	shop.ResolveImages(c.cloudService)
+
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully got shop by ID", shop)
 
 }
