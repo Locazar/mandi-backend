@@ -2441,6 +2441,8 @@ func (p *ProductHandler) GetProductItemByID(ctx *gin.Context) {
 		// Log the error but don't fail the request
 	}
 
+	productItem.ResolveImages(p.cloudService)
+
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully get product item", productItem)
 }
 
