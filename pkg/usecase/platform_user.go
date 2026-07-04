@@ -78,6 +78,69 @@ func (u *platformUserUseCase) UpdateAdminRole(ctx context.Context, callerID, tar
 	return nil
 }
 
+func (u *platformUserUseCase) UpdateAdmin(ctx context.Context, callerID, targetID string, body domain.Admin) error {
+	caller, err := u.adminUC.GetAdminByID(ctx, callerID)
+	if err != nil {
+		return domain.NotFoundError("caller admin")
+	}
+	if caller.Role != domain.AdminRoleSuperAdmin {
+		return domain.ForbiddenError("only super admins can update platform users")
+	}
+
+	updates := map[string]interface{}{}
+	if body.FullName != "" {
+		updates["full_name"] = body.FullName
+	}
+	if body.Email != "" {
+		updates["email"] = body.Email
+	}
+	if body.Mobile != "" {
+		updates["mobile"] = body.Mobile
+	}
+	if body.Role != "" {
+		if callerID == targetID {
+			return domain.ForbiddenError("you cannot change your own role")
+		}
+		if !body.Role.IsValid() || body.Role == domain.AdminRoleSeller {
+			return domain.ValidationError("role", "invalid or disallowed role; seller accounts are managed separately")
+		}
+		updates["role"] = body.Role
+	}
+	if len(updates) == 0 {
+		return domain.ValidationError("body", "no updatable fields provided")
+	}
+
+	if err := u.repo.UpdateAdminDetails(ctx, targetID, updates); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return domain.NotFoundError("admin")
+		}
+		return err
+	}
+	return nil
+}
+
+func (u *platformUserUseCase) DeleteAdmin(ctx context.Context, callerID, targetID string) error {
+	if callerID == targetID {
+		return domain.ForbiddenError("you cannot delete your own account")
+	}
+
+	caller, err := u.adminUC.GetAdminByID(ctx, callerID)
+	if err != nil {
+		return domain.NotFoundError("caller admin")
+	}
+	if caller.Role != domain.AdminRoleSuperAdmin {
+		return domain.ForbiddenError("only super admins can delete accounts")
+	}
+
+	if err := u.repo.DeleteAdmin(ctx, targetID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return domain.NotFoundError("admin")
+		}
+		return err
+	}
+	return nil
+}
+
 func (u *platformUserUseCase) DeactivateAdmin(ctx context.Context, callerID, targetID string) error {
 	if callerID == targetID {
 		return domain.ForbiddenError("you cannot deactivate your own account")

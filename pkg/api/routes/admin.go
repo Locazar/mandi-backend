@@ -102,6 +102,8 @@ auth := api.Group("/auth")
 			platformUsers.POST("/", platformUserHandler.CreateAdmin)
 			platformUsers.PATCH("/:admin_id/role", platformUserHandler.UpdateAdminRole)
 			platformUsers.PATCH("/:admin_id/deactivate", platformUserHandler.DeactivateAdmin)
+			platformUsers.PUT("/:admin_id", platformUserHandler.UpdateAdmin)
+			platformUsers.DELETE("/:admin_id", platformUserHandler.DeleteAdmin)
 		}
 
 		//department
@@ -290,6 +292,17 @@ auth := api.Group("/auth")
 			advertisement.POST("/", middleware.TrimSpaces(), adminHandler.CreateAdvertisement)
 			advertisement.PUT("/:advertisement_id", middleware.TrimSpaces(), adminHandler.UpdateAdvertisement)
 			advertisement.DELETE("/:advertisement_id", adminHandler.DeleteAdvertisement)
+		}
+
+		// advertisement requests (raised by sellers, reviewed by admins)
+		advertisementRequest := api.Group("/advertisement-requests")
+		{
+			advertisementRequest.GET("/pricing", adminHandler.GetAdvertisementPricePlans)
+			advertisementRequest.POST("/", middleware.TrimSpaces(), adminHandler.CreateAdvertisementRequest)
+			advertisementRequest.GET("/", adminHandler.GetAllAdvertisementRequests)
+			advertisementRequest.GET("/:request_id", adminHandler.GetAdvertisementRequestByID)
+			advertisementRequest.PUT("/:request_id", middleware.TrimSpaces(), adminHandler.UpdateAdvertisementRequest)
+			advertisementRequest.DELETE("/:request_id", adminHandler.DeleteAdvertisementRequest)
 		}
 
 		// Shop details

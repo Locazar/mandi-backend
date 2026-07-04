@@ -85,6 +85,31 @@ func (h *platformUserHandler) UpdateAdminRole(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Role updated successfully")
 }
 
+func (h *platformUserHandler) UpdateAdmin(ctx *gin.Context) {
+	callerID := h.callerID(ctx)
+	targetID := ctx.Param("admin_id")
+	var body domain.Admin
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	if err := h.useCase.UpdateAdmin(ctx, callerID, targetID, body); err != nil {
+		h.handleAppErr(ctx, "Failed to update platform user", err)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Platform user updated successfully")
+}
+
+func (h *platformUserHandler) DeleteAdmin(ctx *gin.Context) {
+	callerID := h.callerID(ctx)
+	targetID := ctx.Param("admin_id")
+	if err := h.useCase.DeleteAdmin(ctx, callerID, targetID); err != nil {
+		h.handleAppErr(ctx, "Failed to delete platform user", err)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Platform user deleted successfully")
+}
+
 func (h *platformUserHandler) DeactivateAdmin(ctx *gin.Context) {
 	callerID := h.callerID(ctx)
 	targetID := ctx.Param("admin_id")

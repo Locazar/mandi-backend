@@ -196,6 +196,44 @@ type Advertisement struct {
 	CategoryID   string                `json:"category_id" gorm:"type:varchar(32);default:null"`
 }
 
+// AdvertisementRequestStatus is the review state of a seller's ad request.
+type AdvertisementRequestStatus string
+
+const (
+	AdvertRequestStatusPending  AdvertisementRequestStatus = "pending"
+	AdvertRequestStatusApproved AdvertisementRequestStatus = "approved"
+	AdvertRequestStatusRejected AdvertisementRequestStatus = "rejected"
+)
+
+// AdvertisementRequest is a seller-raised request to run an advertisement
+// for a date range at a quoted price plan.
+type AdvertisementRequest struct {
+	ID           string                     `json:"id" gorm:"primaryKey;type:varchar(32)"`
+	AdminID      string                     `json:"admin_id" gorm:"type:varchar(32);index;not null"`
+	ShopID       string                     `json:"shop_id" gorm:"type:varchar(32);index"`
+	ShopName     string                     `json:"shop_name" gorm:"-"`
+	Title        string                     `json:"title" gorm:"size:100"`
+	Content      string                     `json:"content" gorm:"type:text"`
+	StartDate    time.Time                  `json:"start_date" gorm:"not null"`
+	EndDate      time.Time                  `json:"end_date" gorm:"not null"`
+	PlanKey      string                     `json:"plan_key" gorm:"size:20;not null"`
+	PriceMinor   int64                      `json:"price_minor" gorm:"not null"`
+	Status       AdvertisementRequestStatus `json:"status" gorm:"size:20;not null;default:'pending'"`
+	AdminComment string                     `json:"admin_comment" gorm:"type:text"`
+	CreatedAt    time.Time                  `json:"created_at" gorm:"not null;autoCreateTime"`
+	UpdatedAt    time.Time                  `json:"updated_at" gorm:"autoUpdateTime"`
+}
+
+// AdvertisementPricePlan is a quoted plan for a requested date range.
+type AdvertisementPricePlan struct {
+	PlanKey      string `json:"plan_key"`      // high | medium | low
+	Name         string `json:"name"`          // display name
+	Description  string `json:"description"`   // what the plan includes
+	Days         int    `json:"days"`          // number of days in the range
+	RatePerDay   int64  `json:"rate_per_day"`  // minor units (paise)
+	TotalMinor   int64  `json:"total_minor"`   // minor units (paise)
+}
+
 // AdvertisementFilter holds query-time filter parameters for admin list.
 type AdvertisementFilter struct {
 	// existing app-facing fields

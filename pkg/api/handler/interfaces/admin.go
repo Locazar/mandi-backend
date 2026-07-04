@@ -20,6 +20,14 @@ type AdminHandler interface {
 	UpdateAdvertisement(ctx *gin.Context)
 	DeleteAdvertisement(ctx *gin.Context)
 
+	// Advertisement Requests (seller-raised)
+	GetAdvertisementPricePlans(ctx *gin.Context)
+	CreateAdvertisementRequest(ctx *gin.Context)
+	GetAllAdvertisementRequests(ctx *gin.Context)
+	GetAdvertisementRequestByID(ctx *gin.Context)
+	UpdateAdvertisementRequest(ctx *gin.Context)
+	DeleteAdvertisementRequest(ctx *gin.Context)
+
 	//Shop Details
 	CreateShop(ctx *gin.Context)
 	GetAllShops(ctx *gin.Context)
