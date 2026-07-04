@@ -421,6 +421,107 @@ func (c *adminUseCase) GetActiveAdvertisementsFiltered(ctx context.Context, filt
 	return ads, nil
 }
 
+// Advertisement Requests (seller-raised)
+
+// advertisementRatePlans defines the quoted per-day rates (in paise) offered
+// to sellers. Price is always recomputed server-side from these rates.
+var advertisementRatePlans = []struct {
+	Key         string
+	Name        string
+	Description string
+	RatePerDay  int64
+}{
+	{Key: "high", Name: "Premium", Description: "Top banner slot with highest visibility", RatePerDay: 50000},
+	{Key: "medium", Name: "Standard", Description: "Regular rotation in the banner carousel", RatePerDay: 30000},
+	{Key: "low", Name: "Basic", Description: "Shown when premium slots are free", RatePerDay: 15000},
+}
+
+func advertisementDays(startDate, endDate time.Time) (int, error) {
+	if startDate.IsZero() || endDate.IsZero() {
+		return 0, fmt.Errorf("start_date and end_date are required")
+	}
+	if endDate.Before(startDate) {
+		return 0, fmt.Errorf("end_date must not be before start_date")
+	}
+	// Inclusive day count: same-day campaign = 1 day.
+	return int(endDate.Sub(startDate).Hours()/24) + 1, nil
+}
+
+func (c *adminUseCase) GetAdvertisementPricePlans(ctx context.Context, startDate, endDate time.Time) ([]domain.AdvertisementPricePlan, error) {
+	days, err := advertisementDays(startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+	plans := make([]domain.AdvertisementPricePlan, 0, len(advertisementRatePlans))
+	for _, p := range advertisementRatePlans {
+		plans = append(plans, domain.AdvertisementPricePlan{
+			PlanKey:     p.Key,
+			Name:        p.Name,
+			Description: p.Description,
+			Days:        days,
+			RatePerDay:  p.RatePerDay,
+			TotalMinor:  p.RatePerDay * int64(days),
+		})
+	}
+	return plans, nil
+}
+
+func (c *adminUseCase) CreateAdvertisementRequest(ctx context.Context, req domain.AdvertisementRequest) (domain.AdvertisementRequest, error) {
+	days, err := advertisementDays(req.StartDate, req.EndDate)
+	if err != nil {
+		return domain.AdvertisementRequest{}, err
+	}
+
+	// Recompute the price server-side from the selected plan; never trust the
+	// client-supplied amount.
+	var rate int64
+	for _, p := range advertisementRatePlans {
+		if p.Key == req.PlanKey {
+			rate = p.RatePerDay
+			break
+		}
+	}
+	if rate == 0 {
+		return domain.AdvertisementRequest{}, fmt.Errorf("invalid plan_key: %s", req.PlanKey)
+	}
+	req.PriceMinor = rate * int64(days)
+	req.Status = domain.AdvertRequestStatusPending
+
+	// Attach the seller's shop when one exists.
+	if req.ShopID == "" && req.AdminID != "" {
+		if shop, shopErr := c.adminRepo.GetShopByOwnerID(ctx, req.AdminID); shopErr == nil && shop.ID != "" {
+			req.ShopID = shop.ID
+		}
+	}
+
+	created, err := c.adminRepo.CreateAdvertisementRequest(ctx, req)
+	if err != nil {
+		return domain.AdvertisementRequest{}, fmt.Errorf("failed to create advertisement request: %v", err)
+	}
+	return created, nil
+}
+
+func (c *adminUseCase) GetAllAdvertisementRequests(ctx context.Context, pagination request.Pagination, adminID string) ([]domain.AdvertisementRequest, error) {
+	return c.adminRepo.GetAllAdvertisementRequests(ctx, pagination, adminID)
+}
+
+func (c *adminUseCase) GetAdvertisementRequestByID(ctx context.Context, requestID string) (domain.AdvertisementRequest, error) {
+	return c.adminRepo.GetAdvertisementRequestByID(ctx, requestID)
+}
+
+func (c *adminUseCase) UpdateAdvertisementRequest(ctx context.Context, req domain.AdvertisementRequest) (domain.AdvertisementRequest, error) {
+	if req.Status != domain.AdvertRequestStatusPending &&
+		req.Status != domain.AdvertRequestStatusApproved &&
+		req.Status != domain.AdvertRequestStatusRejected {
+		return domain.AdvertisementRequest{}, fmt.Errorf("invalid status: %s", req.Status)
+	}
+	return c.adminRepo.UpdateAdvertisementRequest(ctx, req)
+}
+
+func (c *adminUseCase) DeleteAdvertisementRequest(ctx context.Context, requestID string) error {
+	return c.adminRepo.DeleteAdvertisementRequest(ctx, requestID)
+}
+
 func (c *adminUseCase) CreateShop(ctx context.Context, shop domain.ShopDetails) (domain.ShopDetails, error) {
 	createdShop, err := c.adminRepo.CreateShop(ctx, shop)
 	if err != nil {

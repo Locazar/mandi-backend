@@ -493,7 +493,7 @@ func (c *adminDatabase) GetActiveAdvertisementsFiltered(ctx context.Context, fil
 	} else if hasGeo {
 		query += fmt.Sprintf(`
 		  AND (
-		    (latitude = 0 AND longitude = 0)
+		    ((latitude = 0 AND longitude = 0) AND (pincode_targeted IS NULL OR pincode_targeted = ''))
 		    OR (latitude != 0 AND longitude != 0 AND (
 		      distance_km = 0
 		      OR (6371 * acos(
@@ -506,9 +506,12 @@ func (c *adminDatabase) GetActiveAdvertisementsFiltered(ctx context.Context, fil
 		args = append(args, filter.Latitude, filter.Longitude, filter.Latitude, filter.RadiusKM)
 		argIdx += 4
 	} else if hasPincode {
-		// Pincode-only: ads with no pincode targeted (NULL or '') are always included.
+		// Pincode-only: ads with no pincode AND no geo targeting are global and always included.
 		query += fmt.Sprintf(`
-		  AND (pincode_targeted IS NULL OR pincode_targeted = '' OR pincode_targeted = $%d)`, argIdx)
+		  AND (
+		    ((pincode_targeted IS NULL OR pincode_targeted = '') AND (latitude = 0 AND longitude = 0))
+		    OR pincode_targeted = $%d
+		  )`, argIdx)
 		args = append(args, filter.Pincode)
 		argIdx++
 	}
@@ -518,6 +521,78 @@ func (c *adminDatabase) GetActiveAdvertisementsFiltered(ctx context.Context, fil
 
 	err := c.DB.Raw(query, args...).Scan(&ads).Error
 	return ads, err
+}
+
+// Advertisement Requests (seller-raised)
+
+func (c *adminDatabase) CreateAdvertisementRequest(ctx context.Context, req domain.AdvertisementRequest) (domain.AdvertisementRequest, error) {
+	req.ID = domain.NewID(domain.PrefixAdvertRequest)
+	if req.Status == "" {
+		req.Status = domain.AdvertRequestStatusPending
+	}
+	query := `INSERT INTO advertisement_requests
+		(id, admin_id, shop_id, title, content, start_date, end_date, plan_key, price_minor, status, admin_comment, created_at, updated_at)
+		VALUES ($1,$2,$3,NULLIF($4,''),$5,$6,$7,$8,$9,$10,$11,NOW(),NOW())`
+	err := c.DB.WithContext(ctx).Exec(query,
+		req.ID, req.AdminID, req.ShopID, req.Title, req.Content,
+		req.StartDate, req.EndDate, req.PlanKey, req.PriceMinor,
+		req.Status, req.AdminComment,
+	).Error
+	return req, err
+}
+
+func (c *adminDatabase) GetAllAdvertisementRequests(ctx context.Context, pagination request.Pagination, adminID string) ([]domain.AdvertisementRequest, error) {
+	var requests []domain.AdvertisementRequest
+	query := `SELECT ar.*, COALESCE(sd.shop_name, '') AS shop_name
+		FROM advertisement_requests ar
+		LEFT JOIN shop_details sd ON sd.id = ar.shop_id
+		WHERE ($1 = '' OR ar.admin_id = $1)
+		ORDER BY ar.created_at DESC
+		LIMIT $2 OFFSET $3`
+	err := c.DB.WithContext(ctx).Raw(query, adminID, pagination.Limit, pagination.Offset).Scan(&requests).Error
+	return requests, err
+}
+
+func (c *adminDatabase) GetAdvertisementRequestByID(ctx context.Context, requestID string) (domain.AdvertisementRequest, error) {
+	var req domain.AdvertisementRequest
+	query := `SELECT ar.*, COALESCE(sd.shop_name, '') AS shop_name
+		FROM advertisement_requests ar
+		LEFT JOIN shop_details sd ON sd.id = ar.shop_id
+		WHERE ar.id = $1`
+	err := c.DB.WithContext(ctx).Raw(query, requestID).Scan(&req).Error
+	if err == nil && req.ID == "" {
+		return req, gorm.ErrRecordNotFound
+	}
+	return req, err
+}
+
+func (c *adminDatabase) UpdateAdvertisementRequest(ctx context.Context, req domain.AdvertisementRequest) (domain.AdvertisementRequest, error) {
+	query := `UPDATE advertisement_requests
+		SET title = $2, content = $3, start_date = $4, end_date = $5,
+		    plan_key = $6, price_minor = $7, status = $8, admin_comment = $9, updated_at = NOW()
+		WHERE id = $1`
+	result := c.DB.WithContext(ctx).Exec(query,
+		req.ID, req.Title, req.Content, req.StartDate, req.EndDate,
+		req.PlanKey, req.PriceMinor, req.Status, req.AdminComment,
+	)
+	if result.Error != nil {
+		return req, result.Error
+	}
+	if result.RowsAffected == 0 {
+		return req, gorm.ErrRecordNotFound
+	}
+	return c.GetAdvertisementRequestByID(ctx, req.ID)
+}
+
+func (c *adminDatabase) DeleteAdvertisementRequest(ctx context.Context, requestID string) error {
+	result := c.DB.WithContext(ctx).Exec(`DELETE FROM advertisement_requests WHERE id = $1`, requestID)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // Shop Details

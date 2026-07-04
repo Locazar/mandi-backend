@@ -1931,11 +1931,7 @@ func (c *productDatabase) IncrementProductItemViewCount(ctx context.Context, pro
 		SET viewed_at = CURRENT_TIMESTAMP
 		WHERE product_item_id = $1
 		  AND shop_id = $2
-		  AND (
-			  admin_id = to_jsonb($3::text)
-			  OR admin_id->>'id' = $3
-			  OR admin_id#>>'{}' = $3
-		  )`
+		  AND admin_id = $3`
 	result := c.DB.Exec(updateQuery, productItemID, shopID, adminID)
 	if result.Error != nil {
 		return result.Error

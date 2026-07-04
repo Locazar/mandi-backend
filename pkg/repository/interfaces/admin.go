@@ -31,6 +31,13 @@ type AdminRepository interface {
 	UpdateAdvertisement(ctx context.Context, ad domain.Advertisement) (domain.Advertisement, error)
 	DeleteAdvertisement(ctx context.Context, advertisementID string) error
 
+	// Advertisement Requests (seller-raised)
+	CreateAdvertisementRequest(ctx context.Context, req domain.AdvertisementRequest) (domain.AdvertisementRequest, error)
+	GetAllAdvertisementRequests(ctx context.Context, pagination request.Pagination, adminID string) ([]domain.AdvertisementRequest, error)
+	GetAdvertisementRequestByID(ctx context.Context, requestID string) (domain.AdvertisementRequest, error)
+	UpdateAdvertisementRequest(ctx context.Context, req domain.AdvertisementRequest) (domain.AdvertisementRequest, error)
+	DeleteAdvertisementRequest(ctx context.Context, requestID string) error
+
 	//Shop Details
 	CreateShop(ctx context.Context, shop domain.ShopDetails) (domain.ShopDetails, error)
 	GetAllShops(ctx context.Context, pagination request.Pagination) (shops []domain.ShopDetails, err error)
