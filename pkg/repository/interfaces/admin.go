@@ -51,6 +51,18 @@ type AdminRepository interface {
 	GetAdvertisementPricingConfig(ctx context.Context) (domain.AdvertisementPricingConfig, error)
 	UpdateAdvertisementPricingConfig(ctx context.Context, cfg domain.AdvertisementPricingConfig) (domain.AdvertisementPricingConfig, error)
 
+	// Feature flags
+	ListFeatureFlags(ctx context.Context) ([]domain.FeatureFlag, error)
+	CreateFeatureFlag(ctx context.Context, flag domain.FeatureFlag) (domain.FeatureFlag, error)
+	UpdateFeatureFlag(ctx context.Context, flag domain.FeatureFlag) (domain.FeatureFlag, error)
+	DeleteFeatureFlag(ctx context.Context, flagID string) error
+
+	// Subscription plans (admin panel)
+	ListSubscriptionPlans(ctx context.Context) ([]domain.SubscriptionPlan, error)
+	CreateSubscriptionPlan(ctx context.Context, plan domain.SubscriptionPlan) (domain.SubscriptionPlan, error)
+	UpdateSubscriptionPlan(ctx context.Context, plan domain.SubscriptionPlan) (domain.SubscriptionPlan, error)
+	DeleteSubscriptionPlan(ctx context.Context, planID string) error
+
 	//Shop Details
 	CreateShop(ctx context.Context, shop domain.ShopDetails) (domain.ShopDetails, error)
 	GetAllShops(ctx context.Context, pagination request.Pagination) (shops []domain.ShopDetails, err error)

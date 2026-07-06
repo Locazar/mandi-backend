@@ -716,6 +716,110 @@ func (c *adminDatabase) GetAdvertisementPricingConfig(ctx context.Context) (doma
 	return cfg, err
 }
 
+// Feature flags
+
+func (c *adminDatabase) ListFeatureFlags(ctx context.Context) ([]domain.FeatureFlag, error) {
+	var flags []domain.FeatureFlag
+	err := c.DB.WithContext(ctx).Raw(
+		`SELECT * FROM feature_flags ORDER BY flag_key ASC`,
+	).Scan(&flags).Error
+	return flags, err
+}
+
+func (c *adminDatabase) CreateFeatureFlag(ctx context.Context, flag domain.FeatureFlag) (domain.FeatureFlag, error) {
+	flag.ID = domain.NewID(domain.PrefixFeatureFlag)
+	err := c.DB.WithContext(ctx).Exec(`INSERT INTO feature_flags
+		(id, flag_key, enabled, description, created_at, updated_at)
+		VALUES ($1,$2,$3,$4,NOW(),NOW())`,
+		flag.ID, flag.FlagKey, flag.Enabled, flag.Description,
+	).Error
+	return flag, err
+}
+
+func (c *adminDatabase) UpdateFeatureFlag(ctx context.Context, flag domain.FeatureFlag) (domain.FeatureFlag, error) {
+	result := c.DB.WithContext(ctx).Exec(`UPDATE feature_flags
+		SET flag_key = $2, enabled = $3, description = $4, updated_at = NOW()
+		WHERE id = $1`,
+		flag.ID, flag.FlagKey, flag.Enabled, flag.Description,
+	)
+	if result.Error != nil {
+		return flag, result.Error
+	}
+	if result.RowsAffected == 0 {
+		return flag, gorm.ErrRecordNotFound
+	}
+	return flag, nil
+}
+
+func (c *adminDatabase) DeleteFeatureFlag(ctx context.Context, flagID string) error {
+	result := c.DB.WithContext(ctx).Exec(`DELETE FROM feature_flags WHERE id = $1`, flagID)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+// Subscription plans (admin panel)
+
+func (c *adminDatabase) ListSubscriptionPlans(ctx context.Context) ([]domain.SubscriptionPlan, error) {
+	var plans []domain.SubscriptionPlan
+	err := c.DB.WithContext(ctx).Raw(
+		`SELECT * FROM subscription_plans ORDER BY duration_days ASC, name ASC`,
+	).Scan(&plans).Error
+	return plans, err
+}
+
+func (c *adminDatabase) CreateSubscriptionPlan(ctx context.Context, plan domain.SubscriptionPlan) (domain.SubscriptionPlan, error) {
+	plan.ID = domain.NewID(domain.PrefixSubscPlan)
+	if plan.PriceMonthly.Currency == "" {
+		plan.PriceMonthly.Currency = "INR"
+	}
+	err := c.DB.WithContext(ctx).Exec(`INSERT INTO subscription_plans
+		(id, name, price_monthly_amount_minor, price_monthly_currency, duration_days, is_active)
+		VALUES ($1,$2,$3,$4,$5,$6)`,
+		plan.ID, plan.Name, plan.PriceMonthly.AmountMinor, plan.PriceMonthly.Currency,
+		plan.DurationDays, plan.IsActive,
+	).Error
+	return plan, err
+}
+
+func (c *adminDatabase) UpdateSubscriptionPlan(ctx context.Context, plan domain.SubscriptionPlan) (domain.SubscriptionPlan, error) {
+	if plan.PriceMonthly.Currency == "" {
+		plan.PriceMonthly.Currency = "INR"
+	}
+	result := c.DB.WithContext(ctx).Exec(`UPDATE subscription_plans
+		SET name = $2, price_monthly_amount_minor = $3, price_monthly_currency = $4,
+		    duration_days = $5, is_active = $6
+		WHERE id = $1`,
+		plan.ID, plan.Name, plan.PriceMonthly.AmountMinor, plan.PriceMonthly.Currency,
+		plan.DurationDays, plan.IsActive,
+	)
+	if result.Error != nil {
+		return plan, result.Error
+	}
+	if result.RowsAffected == 0 {
+		return plan, gorm.ErrRecordNotFound
+	}
+	return plan, nil
+}
+
+func (c *adminDatabase) DeleteSubscriptionPlan(ctx context.Context, planID string) error {
+	// subscription_orders / user_subscriptions reference plans with
+	// ON DELETE RESTRICT, so plans with history cannot be deleted — the FK
+	// error is surfaced to the caller (deactivate instead).
+	result := c.DB.WithContext(ctx).Exec(`DELETE FROM subscription_plans WHERE id = $1`, planID)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
 func (c *adminDatabase) UpdateAdvertisementPricingConfig(ctx context.Context, cfg domain.AdvertisementPricingConfig) (domain.AdvertisementPricingConfig, error) {
 	// Upsert the singleton row.
 	err := c.DB.WithContext(ctx).Exec(`INSERT INTO advertisement_pricing_config

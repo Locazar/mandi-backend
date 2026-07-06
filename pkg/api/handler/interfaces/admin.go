@@ -39,6 +39,19 @@ type AdminHandler interface {
 	DeleteAdvertisementPlan(ctx *gin.Context)
 	UpdateAdvertisementPricingConfig(ctx *gin.Context)
 
+	// Feature flags
+	GetFeatureFlagsObject(ctx *gin.Context)
+	ListFeatureFlags(ctx *gin.Context)
+	CreateFeatureFlag(ctx *gin.Context)
+	UpdateFeatureFlag(ctx *gin.Context)
+	DeleteFeatureFlag(ctx *gin.Context)
+
+	// Subscription plans (admin panel)
+	ListSubscriptionPlans(ctx *gin.Context)
+	CreateSubscriptionPlan(ctx *gin.Context)
+	UpdateSubscriptionPlan(ctx *gin.Context)
+	DeleteSubscriptionPlan(ctx *gin.Context)
+
 	//Shop Details
 	CreateShop(ctx *gin.Context)
 	GetAllShops(ctx *gin.Context)
