@@ -51,6 +51,7 @@ const (
 	PrefixTransaction     IDPrefix = "txn"
 	PrefixAdvertisement   IDPrefix = "adv"
 	PrefixAdvertRequest   IDPrefix = "advr"
+	PrefixAdvertPlan      IDPrefix = "advp"
 	PrefixNotification    IDPrefix = "ntf"
 	PrefixDeviceToken     IDPrefix = "ndt"
 	PrefixShop            IDPrefix = "shp"
@@ -97,7 +98,7 @@ var allPrefixes = []IDPrefix{
 	PrefixCart, PrefixCartItem, PrefixOrder, PrefixOrderLine, PrefixOrderReturn,
 	PrefixFeedback, PrefixOffer, PrefixOfferCategory, PrefixOfferProduct,
 	PrefixCoupon, PrefixCouponUses, PrefixWallet, PrefixTransaction,
-	PrefixAdvertisement, PrefixAdvertRequest, PrefixNotification, PrefixDeviceToken, PrefixShop,
+	PrefixAdvertisement, PrefixAdvertRequest, PrefixAdvertPlan, PrefixNotification, PrefixDeviceToken, PrefixShop,
 	PrefixShopOffer, PrefixShopDepartment, PrefixShopTime, PrefixShopSocial,
 	PrefixPaymentMethod, PrefixAlert, PrefixAlertAction, PrefixAlertTemplate,
 	PrefixSellerAlertLog, PrefixPromotion, PrefixPromotionType, PrefixPromotionCat,

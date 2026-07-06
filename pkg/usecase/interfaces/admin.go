@@ -44,6 +44,14 @@ type AdminUseCase interface {
 	VerifyAdvertisementPayment(ctx context.Context, adminID, orderID, paymentID, signature string) error
 	AdvertisementPaymentFailed(ctx context.Context, adminID, orderID string) error
 
+	// Advertisement pricing management (admin panel)
+	ListAdvertisementPlanConfigs(ctx context.Context) ([]domain.AdvertisementPlanConfig, error)
+	CreateAdvertisementPlanConfig(ctx context.Context, plan domain.AdvertisementPlanConfig) (domain.AdvertisementPlanConfig, error)
+	UpdateAdvertisementPlanConfig(ctx context.Context, plan domain.AdvertisementPlanConfig) (domain.AdvertisementPlanConfig, error)
+	DeleteAdvertisementPlanConfig(ctx context.Context, planID string) error
+	GetAdvertisementPricingConfig(ctx context.Context) (domain.AdvertisementPricingConfig, error)
+	UpdateAdvertisementPricingConfig(ctx context.Context, cfg domain.AdvertisementPricingConfig) (domain.AdvertisementPricingConfig, error)
+
 	CreateShop(ctx context.Context, shop domain.ShopDetails) (domain.ShopDetails, error)
 	GetAllShops(ctx context.Context, pagination request.Pagination) (shops []domain.ShopDetails, err error)
 	SearchShops(ctx context.Context, filter request.ShopSearch) ([]domain.ShopDetails, error)

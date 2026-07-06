@@ -1125,6 +1125,121 @@ func (c *adminHandler) AdvertisementPaymentFailed(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Payment failure recorded", nil)
 }
 
+// GetAdvertisementPricing godoc
+//
+//	@summary		Get advertisement pricing configuration (plans + charges)
+//	@Security		BearerAuth
+//	@Id				GetAdvertisementPricing
+//	@Tags			Advertisement Pricing
+//	@Router			/admin/advertisement-pricing [get]
+//	@Success		200	{object}	response.Response{}
+func (c *adminHandler) GetAdvertisementPricing(ctx *gin.Context) {
+	plans, err := c.adminUseCase.ListAdvertisementPlanConfigs(ctx)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to load price plans", err, nil)
+		return
+	}
+	cfg, err := c.adminUseCase.GetAdvertisementPricingConfig(ctx)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to load pricing config", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Advertisement pricing", map[string]interface{}{
+		"plans":  plans,
+		"config": cfg,
+	})
+}
+
+// CreateAdvertisementPlan godoc
+//
+//	@summary		Create an advertisement price plan
+//	@Security		BearerAuth
+//	@Id				CreateAdvertisementPlan
+//	@Tags			Advertisement Pricing
+//	@Router			/admin/advertisement-pricing/plans [post]
+//	@Success		201	{object}	response.Response{}
+//	@Failure		400	{object}	response.Response{}
+func (c *adminHandler) CreateAdvertisementPlan(ctx *gin.Context) {
+	var body domain.AdvertisementPlanConfig
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	body.ID = ""
+	created, err := c.adminUseCase.CreateAdvertisementPlanConfig(ctx, body)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to create price plan", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusCreated, "Price plan created", created)
+}
+
+// UpdateAdvertisementPlan godoc
+//
+//	@summary		Update an advertisement price plan
+//	@Security		BearerAuth
+//	@Id				UpdateAdvertisementPlan
+//	@Tags			Advertisement Pricing
+//	@Param			plan_id	path	string	true	"Plan ID"
+//	@Router			/admin/advertisement-pricing/plans/{plan_id} [put]
+//	@Success		200	{object}	response.Response{}
+//	@Failure		400	{object}	response.Response{}
+func (c *adminHandler) UpdateAdvertisementPlan(ctx *gin.Context) {
+	var body domain.AdvertisementPlanConfig
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	body.ID = ctx.Param("plan_id")
+	updated, err := c.adminUseCase.UpdateAdvertisementPlanConfig(ctx, body)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to update price plan", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Price plan updated", updated)
+}
+
+// DeleteAdvertisementPlan godoc
+//
+//	@summary		Delete an advertisement price plan
+//	@Security		BearerAuth
+//	@Id				DeleteAdvertisementPlan
+//	@Tags			Advertisement Pricing
+//	@Param			plan_id	path	string	true	"Plan ID"
+//	@Router			/admin/advertisement-pricing/plans/{plan_id} [delete]
+//	@Success		200	{object}	response.Response{}
+//	@Failure		404	{object}	response.Response{}
+func (c *adminHandler) DeleteAdvertisementPlan(ctx *gin.Context) {
+	if err := c.adminUseCase.DeleteAdvertisementPlanConfig(ctx, ctx.Param("plan_id")); err != nil {
+		response.ErrorResponse(ctx, http.StatusNotFound, "Failed to delete price plan", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Price plan deleted", nil)
+}
+
+// UpdateAdvertisementPricingConfig godoc
+//
+//	@summary		Update GST/platform-fee percentages
+//	@Security		BearerAuth
+//	@Id				UpdateAdvertisementPricingConfig
+//	@Tags			Advertisement Pricing
+//	@Router			/admin/advertisement-pricing/config [put]
+//	@Success		200	{object}	response.Response{}
+//	@Failure		400	{object}	response.Response{}
+func (c *adminHandler) UpdateAdvertisementPricingConfig(ctx *gin.Context) {
+	var body domain.AdvertisementPricingConfig
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	updated, err := c.adminUseCase.UpdateAdvertisementPricingConfig(ctx, body)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to update pricing config", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Pricing config updated", updated)
+}
+
 // GetActiveAdvertisements godoc
 //
 //	@summary		Get active advertisements (public)

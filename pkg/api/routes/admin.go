@@ -311,6 +311,16 @@ auth := api.Group("/auth")
 			advertisementRequest.POST("/payment-failed", adminHandler.AdvertisementPaymentFailed)
 		}
 
+		// advertisement pricing configuration (managed from the admin panel)
+		advertisementPricing := api.Group("/advertisement-pricing")
+		{
+			advertisementPricing.GET("", adminHandler.GetAdvertisementPricing)
+			advertisementPricing.POST("/plans", middleware.TrimSpaces(), adminHandler.CreateAdvertisementPlan)
+			advertisementPricing.PUT("/plans/:plan_id", middleware.TrimSpaces(), adminHandler.UpdateAdvertisementPlan)
+			advertisementPricing.DELETE("/plans/:plan_id", adminHandler.DeleteAdvertisementPlan)
+			advertisementPricing.PUT("/config", adminHandler.UpdateAdvertisementPricingConfig)
+		}
+
 		// Shop details
 		shop := api.Group("/shops")
 		{
