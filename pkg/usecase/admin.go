@@ -432,19 +432,6 @@ func (c *adminUseCase) GetActiveAdvertisementsFiltered(ctx context.Context, filt
 
 // Advertisement Requests (seller-raised)
 
-// advertisementRatePlans defines the quoted per-day rates (in paise) offered
-// to sellers. Price is always recomputed server-side from these rates.
-var advertisementRatePlans = []struct {
-	Key         string
-	Name        string
-	Description string
-	RatePerDay  int64
-}{
-	{Key: "high", Name: "Premium", Description: "Top banner slot with highest visibility", RatePerDay: 50000},
-	{Key: "medium", Name: "Standard", Description: "Regular rotation in the banner carousel", RatePerDay: 30000},
-	{Key: "low", Name: "Basic", Description: "Shown when premium slots are free", RatePerDay: 15000},
-}
-
 func advertisementDays(startDate, endDate time.Time) (int, error) {
 	if startDate.IsZero() || endDate.IsZero() {
 		return 0, fmt.Errorf("start_date and end_date are required")
@@ -461,15 +448,19 @@ func (c *adminUseCase) GetAdvertisementPricePlans(ctx context.Context, startDate
 	if err != nil {
 		return nil, err
 	}
-	plans := make([]domain.AdvertisementPricePlan, 0, len(advertisementRatePlans))
-	for _, p := range advertisementRatePlans {
+	configured, err := c.adminRepo.ListAdvertisementPlans(ctx, true)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load price plans: %v", err)
+	}
+	plans := make([]domain.AdvertisementPricePlan, 0, len(configured))
+	for _, p := range configured {
 		plans = append(plans, domain.AdvertisementPricePlan{
-			PlanKey:     p.Key,
+			PlanKey:     p.PlanKey,
 			Name:        p.Name,
 			Description: p.Description,
 			Days:        days,
-			RatePerDay:  p.RatePerDay,
-			TotalMinor:  p.RatePerDay * int64(days),
+			RatePerDay:  p.RatePerDayMinor,
+			TotalMinor:  p.RatePerDayMinor * int64(days),
 		})
 	}
 	return plans, nil
@@ -481,19 +472,13 @@ func (c *adminUseCase) CreateAdvertisementRequest(ctx context.Context, req domai
 		return domain.AdvertisementRequest{}, err
 	}
 
-	// Recompute the price server-side from the selected plan; never trust the
-	// client-supplied amount.
-	var rate int64
-	for _, p := range advertisementRatePlans {
-		if p.Key == req.PlanKey {
-			rate = p.RatePerDay
-			break
-		}
-	}
-	if rate == 0 {
+	// Recompute the price server-side from the configured plan; never trust
+	// the client-supplied amount.
+	plan, err := c.adminRepo.GetAdvertisementPlanByKey(ctx, req.PlanKey)
+	if err != nil || !plan.IsActive || plan.RatePerDayMinor <= 0 {
 		return domain.AdvertisementRequest{}, fmt.Errorf("invalid plan_key: %s", req.PlanKey)
 	}
-	req.PriceMinor = rate * int64(days)
+	req.PriceMinor = plan.RatePerDayMinor * int64(days)
 	req.Status = domain.AdvertRequestStatusPending
 
 	// Attach the seller's shop when one exists.
@@ -533,14 +518,21 @@ func (c *adminUseCase) DeleteAdvertisementRequest(ctx context.Context, requestID
 
 // Advertisement request payments
 
-const (
-	advertGSTRatePercent      = 18.0 // GST on advertising services
-	advertPlatformFeePercent  = 2.0  // platform/processing fee on the base amount
-	advertPaymentGraceMinutes = 30   // order validity window, mirrors subscriptions
-)
+const advertPaymentGraceMinutes = 30 // order validity window, mirrors subscriptions
+
+// advertisementPricingConfig returns the admin-configured charge percentages,
+// falling back to sane defaults if the config row is missing.
+func (c *adminUseCase) advertisementPricingConfig(ctx context.Context) domain.AdvertisementPricingConfig {
+	cfg, err := c.adminRepo.GetAdvertisementPricingConfig(ctx)
+	if err != nil {
+		return domain.AdvertisementPricingConfig{GSTRatePercent: 18, PlatformFeePercent: 2}
+	}
+	return cfg
+}
 
 // GetAdvertisementRequestInvoice returns the full charge breakdown (base,
-// platform fee, GST, total) for an approved request.
+// platform fee, GST, total) for an approved request. All rates come from the
+// admin-managed pricing configuration — nothing is hardcoded.
 func (c *adminUseCase) GetAdvertisementRequestInvoice(ctx context.Context, requestID string) (domain.AdvertisementInvoice, error) {
 	req, err := c.adminRepo.GetAdvertisementRequestByID(ctx, requestID)
 	if err != nil {
@@ -555,19 +547,22 @@ func (c *adminUseCase) GetAdvertisementRequestInvoice(ctx context.Context, reque
 		return domain.AdvertisementInvoice{}, err
 	}
 
+	// The base amount is the price locked in at request time; the plan lookup
+	// only decorates the invoice with the display name and per-day rate.
 	planName := req.PlanKey
 	var ratePerDay int64
-	for _, p := range advertisementRatePlans {
-		if p.Key == req.PlanKey {
-			planName = p.Name
-			ratePerDay = p.RatePerDay
-			break
-		}
+	if plan, planErr := c.adminRepo.GetAdvertisementPlanByKey(ctx, req.PlanKey); planErr == nil {
+		planName = plan.Name
+		ratePerDay = plan.RatePerDayMinor
+	} else if days > 0 {
+		ratePerDay = req.PriceMinor / int64(days)
 	}
 
+	pricing := c.advertisementPricingConfig(ctx)
+
 	base := req.PriceMinor
-	platformFee := int64(float64(base) * advertPlatformFeePercent / 100)
-	gst := int64(float64(base+platformFee) * advertGSTRatePercent / 100)
+	platformFee := int64(float64(base) * pricing.PlatformFeePercent / 100)
+	gst := int64(float64(base+platformFee) * pricing.GSTRatePercent / 100)
 
 	return domain.AdvertisementInvoice{
 		RequestID:        req.ID,
@@ -577,10 +572,64 @@ func (c *adminUseCase) GetAdvertisementRequestInvoice(ctx context.Context, reque
 		RatePerDay:       ratePerDay,
 		BaseMinor:        base,
 		PlatformFeeMinor: platformFee,
-		GSTRatePercent:   advertGSTRatePercent,
+		GSTRatePercent:   pricing.GSTRatePercent,
 		GSTMinor:         gst,
 		TotalMinor:       base + platformFee + gst,
 	}, nil
+}
+
+// Advertisement pricing management (admin panel)
+
+func (c *adminUseCase) ListAdvertisementPlanConfigs(ctx context.Context) ([]domain.AdvertisementPlanConfig, error) {
+	return c.adminRepo.ListAdvertisementPlans(ctx, false)
+}
+
+func validateAdvertisementPlan(plan domain.AdvertisementPlanConfig) error {
+	if strings.TrimSpace(plan.PlanKey) == "" {
+		return fmt.Errorf("plan_key is required")
+	}
+	if strings.TrimSpace(plan.Name) == "" {
+		return fmt.Errorf("name is required")
+	}
+	if plan.RatePerDayMinor <= 0 {
+		return fmt.Errorf("rate_per_day_minor must be greater than zero")
+	}
+	return nil
+}
+
+func (c *adminUseCase) CreateAdvertisementPlanConfig(ctx context.Context, plan domain.AdvertisementPlanConfig) (domain.AdvertisementPlanConfig, error) {
+	if err := validateAdvertisementPlan(plan); err != nil {
+		return domain.AdvertisementPlanConfig{}, err
+	}
+	return c.adminRepo.CreateAdvertisementPlan(ctx, plan)
+}
+
+func (c *adminUseCase) UpdateAdvertisementPlanConfig(ctx context.Context, plan domain.AdvertisementPlanConfig) (domain.AdvertisementPlanConfig, error) {
+	if plan.ID == "" {
+		return domain.AdvertisementPlanConfig{}, fmt.Errorf("plan id is required")
+	}
+	if err := validateAdvertisementPlan(plan); err != nil {
+		return domain.AdvertisementPlanConfig{}, err
+	}
+	return c.adminRepo.UpdateAdvertisementPlan(ctx, plan)
+}
+
+func (c *adminUseCase) DeleteAdvertisementPlanConfig(ctx context.Context, planID string) error {
+	return c.adminRepo.DeleteAdvertisementPlan(ctx, planID)
+}
+
+func (c *adminUseCase) GetAdvertisementPricingConfig(ctx context.Context) (domain.AdvertisementPricingConfig, error) {
+	return c.advertisementPricingConfig(ctx), nil
+}
+
+func (c *adminUseCase) UpdateAdvertisementPricingConfig(ctx context.Context, cfg domain.AdvertisementPricingConfig) (domain.AdvertisementPricingConfig, error) {
+	if cfg.GSTRatePercent < 0 || cfg.GSTRatePercent > 100 {
+		return domain.AdvertisementPricingConfig{}, fmt.Errorf("gst_rate_percent must be between 0 and 100")
+	}
+	if cfg.PlatformFeePercent < 0 || cfg.PlatformFeePercent > 100 {
+		return domain.AdvertisementPricingConfig{}, fmt.Errorf("platform_fee_percent must be between 0 and 100")
+	}
+	return c.adminRepo.UpdateAdvertisementPricingConfig(ctx, cfg)
 }
 
 // CreateAdvertisementPaymentOrder creates a Razorpay order for the invoice

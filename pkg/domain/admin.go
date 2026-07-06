@@ -255,6 +255,29 @@ type AdvertisementInvoice struct {
 	TotalMinor       int64   `json:"total_minor"`
 }
 
+// AdvertisementPlanConfig is an admin-managed price plan stored in the DB.
+// Sellers see only active plans; rates are in minor units (paise).
+type AdvertisementPlanConfig struct {
+	ID              string    `json:"id" gorm:"primaryKey;type:varchar(32)"`
+	PlanKey         string    `json:"plan_key" gorm:"size:20;uniqueIndex;not null"`
+	Name            string    `json:"name" gorm:"size:100;not null"`
+	Description     string    `json:"description" gorm:"type:text"`
+	RatePerDayMinor int64     `json:"rate_per_day_minor" gorm:"not null"`
+	SortOrder       int       `json:"sort_order" gorm:"not null;default:0"`
+	IsActive        bool      `json:"is_active" gorm:"not null;default:true"`
+	CreatedAt       time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt       time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+}
+
+// AdvertisementPricingConfig is the admin-managed singleton holding the
+// tax/fee percentages applied on top of the base plan price.
+type AdvertisementPricingConfig struct {
+	ID                 string    `json:"id" gorm:"primaryKey;type:varchar(32)"`
+	GSTRatePercent     float64   `json:"gst_rate_percent" gorm:"type:numeric(5,2);not null"`
+	PlatformFeePercent float64   `json:"platform_fee_percent" gorm:"type:numeric(5,2);not null"`
+	UpdatedAt          time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+}
+
 // AdvertisementPricePlan is a quoted plan for a requested date range.
 type AdvertisementPricePlan struct {
 	PlanKey      string `json:"plan_key"`      // high | medium | low

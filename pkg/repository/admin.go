@@ -640,6 +640,99 @@ func (c *adminDatabase) MarkAdvertisementRequestPaymentFailed(ctx context.Contex
 	return result.Error
 }
 
+// Advertisement pricing configuration (admin-managed)
+
+func (c *adminDatabase) ListAdvertisementPlans(ctx context.Context, activeOnly bool) ([]domain.AdvertisementPlanConfig, error) {
+	var plans []domain.AdvertisementPlanConfig
+	query := `SELECT * FROM advertisement_price_plans`
+	if activeOnly {
+		query += ` WHERE is_active = TRUE`
+	}
+	query += ` ORDER BY sort_order ASC, created_at ASC`
+	err := c.DB.WithContext(ctx).Raw(query).Scan(&plans).Error
+	return plans, err
+}
+
+func (c *adminDatabase) GetAdvertisementPlanByKey(ctx context.Context, planKey string) (domain.AdvertisementPlanConfig, error) {
+	var plan domain.AdvertisementPlanConfig
+	err := c.DB.WithContext(ctx).Raw(
+		`SELECT * FROM advertisement_price_plans WHERE plan_key = $1`, planKey,
+	).Scan(&plan).Error
+	if err == nil && plan.ID == "" {
+		return plan, gorm.ErrRecordNotFound
+	}
+	return plan, err
+}
+
+func (c *adminDatabase) CreateAdvertisementPlan(ctx context.Context, plan domain.AdvertisementPlanConfig) (domain.AdvertisementPlanConfig, error) {
+	plan.ID = domain.NewID(domain.PrefixAdvertPlan)
+	err := c.DB.WithContext(ctx).Exec(`INSERT INTO advertisement_price_plans
+		(id, plan_key, name, description, rate_per_day_minor, sort_order, is_active, created_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,NOW(),NOW())`,
+		plan.ID, plan.PlanKey, plan.Name, plan.Description,
+		plan.RatePerDayMinor, plan.SortOrder, plan.IsActive,
+	).Error
+	return plan, err
+}
+
+func (c *adminDatabase) UpdateAdvertisementPlan(ctx context.Context, plan domain.AdvertisementPlanConfig) (domain.AdvertisementPlanConfig, error) {
+	result := c.DB.WithContext(ctx).Exec(`UPDATE advertisement_price_plans
+		SET plan_key = $2, name = $3, description = $4, rate_per_day_minor = $5,
+		    sort_order = $6, is_active = $7, updated_at = NOW()
+		WHERE id = $1`,
+		plan.ID, plan.PlanKey, plan.Name, plan.Description,
+		plan.RatePerDayMinor, plan.SortOrder, plan.IsActive,
+	)
+	if result.Error != nil {
+		return plan, result.Error
+	}
+	if result.RowsAffected == 0 {
+		return plan, gorm.ErrRecordNotFound
+	}
+	return plan, nil
+}
+
+func (c *adminDatabase) DeleteAdvertisementPlan(ctx context.Context, planID string) error {
+	result := c.DB.WithContext(ctx).Exec(
+		`DELETE FROM advertisement_price_plans WHERE id = $1`, planID,
+	)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+func (c *adminDatabase) GetAdvertisementPricingConfig(ctx context.Context) (domain.AdvertisementPricingConfig, error) {
+	var cfg domain.AdvertisementPricingConfig
+	err := c.DB.WithContext(ctx).Raw(
+		`SELECT * FROM advertisement_pricing_config ORDER BY id LIMIT 1`,
+	).Scan(&cfg).Error
+	if err == nil && cfg.ID == "" {
+		return cfg, gorm.ErrRecordNotFound
+	}
+	return cfg, err
+}
+
+func (c *adminDatabase) UpdateAdvertisementPricingConfig(ctx context.Context, cfg domain.AdvertisementPricingConfig) (domain.AdvertisementPricingConfig, error) {
+	// Upsert the singleton row.
+	err := c.DB.WithContext(ctx).Exec(`INSERT INTO advertisement_pricing_config
+		(id, gst_rate_percent, platform_fee_percent, updated_at)
+		VALUES ('advcfg_default', $1, $2, NOW())
+		ON CONFLICT (id) DO UPDATE
+		SET gst_rate_percent = EXCLUDED.gst_rate_percent,
+		    platform_fee_percent = EXCLUDED.platform_fee_percent,
+		    updated_at = NOW()`,
+		cfg.GSTRatePercent, cfg.PlatformFeePercent,
+	).Error
+	if err != nil {
+		return cfg, err
+	}
+	return c.GetAdvertisementPricingConfig(ctx)
+}
+
 // Shop Details
 func (c *adminDatabase) CreateShop(ctx context.Context, shop domain.ShopDetails) (domain.ShopDetails, error) {
 	shop.ShopID = utils.GenerateShopID()

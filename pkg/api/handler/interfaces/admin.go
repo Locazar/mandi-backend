@@ -32,6 +32,13 @@ type AdminHandler interface {
 	VerifyAdvertisementPayment(ctx *gin.Context)
 	AdvertisementPaymentFailed(ctx *gin.Context)
 
+	// Advertisement pricing management (admin panel)
+	GetAdvertisementPricing(ctx *gin.Context)
+	CreateAdvertisementPlan(ctx *gin.Context)
+	UpdateAdvertisementPlan(ctx *gin.Context)
+	DeleteAdvertisementPlan(ctx *gin.Context)
+	UpdateAdvertisementPricingConfig(ctx *gin.Context)
+
 	//Shop Details
 	CreateShop(ctx *gin.Context)
 	GetAllShops(ctx *gin.Context)

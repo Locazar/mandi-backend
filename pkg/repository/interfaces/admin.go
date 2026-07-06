@@ -42,6 +42,15 @@ type AdminRepository interface {
 	MarkAdvertisementRequestPaid(ctx context.Context, requestID, paymentID string) error
 	MarkAdvertisementRequestPaymentFailed(ctx context.Context, requestID string) error
 
+	// Advertisement pricing configuration (admin-managed)
+	ListAdvertisementPlans(ctx context.Context, activeOnly bool) ([]domain.AdvertisementPlanConfig, error)
+	GetAdvertisementPlanByKey(ctx context.Context, planKey string) (domain.AdvertisementPlanConfig, error)
+	CreateAdvertisementPlan(ctx context.Context, plan domain.AdvertisementPlanConfig) (domain.AdvertisementPlanConfig, error)
+	UpdateAdvertisementPlan(ctx context.Context, plan domain.AdvertisementPlanConfig) (domain.AdvertisementPlanConfig, error)
+	DeleteAdvertisementPlan(ctx context.Context, planID string) error
+	GetAdvertisementPricingConfig(ctx context.Context) (domain.AdvertisementPricingConfig, error)
+	UpdateAdvertisementPricingConfig(ctx context.Context, cfg domain.AdvertisementPricingConfig) (domain.AdvertisementPricingConfig, error)
+
 	//Shop Details
 	CreateShop(ctx context.Context, shop domain.ShopDetails) (domain.ShopDetails, error)
 	GetAllShops(ctx context.Context, pagination request.Pagination) (shops []domain.ShopDetails, err error)
