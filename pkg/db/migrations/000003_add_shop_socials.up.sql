@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS shop_socials (
     is_liked    BOOLEAN      NOT NULL DEFAULT FALSE,
     rating      INTEGER      NOT NULL DEFAULT 0,
     review      TEXT         NOT NULL DEFAULT '',
+    comments    TEXT         NOT NULL DEFAULT '',
     created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     updated_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );

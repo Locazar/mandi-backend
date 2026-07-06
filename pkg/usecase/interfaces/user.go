@@ -49,6 +49,8 @@ type UserUseCase interface {
 	GetShopAverageRating(ctx context.Context, shopID string) (float64, error)
 	GetShopRatingDistribution(ctx context.Context, shopID string) ([]domain.ShopRatingDistribution, error)
 	ReviewShop(ctx context.Context, userID string, shopID string, review string) error
+	SaveShopFeedback(ctx context.Context, userID string, shopID string, rating *uint, review *string, comments *string) error
 	GetUserShopReview(ctx context.Context, userID string, shopID string) (string, error)
 	GetAllShopReviews(ctx context.Context, shopID string) ([]domain.ShopSocial, error)
+	GetAllShopComments(ctx context.Context, shopID string) ([]domain.ShopSocial, error)
 }

@@ -2,8 +2,8 @@ package handler
 
 import (
 	"errors"
-	"net/http"
 	"fmt"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
@@ -525,4 +525,167 @@ func (c *UserHandler) GetLikedShops(ctx *gin.Context) {
 		shops = []response.Shop{}
 	}
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully got liked shops", shops)
+}
+
+// SaveShopRatingAndReview godoc
+//
+//	@Summary		Create or update shop rating and review in a single API call (User)
+//	@Security		BearerAuth
+//	@Id				SaveShopRatingAndReview
+//	@Tags			User Feedback
+//	@Accept			json
+//	@Param			shop_id	path	int										true	"Shop ID"
+//	@Param			input	body	request.ShopRatingAndReviewRequest	true	"Rating and Review payload (all fields optional)"
+//	@Router			/social/feedback/shop/{shop_id} [post]
+//	@Success		200	{object}	response.Response{}	"Successfully saved rating and review"
+//	@Failure		400	{object}	response.Response{}	"Invalid input"
+//	@Failure		500	{object}	response.Response{}	"Failed to save rating and review"
+func (c *UserHandler) SaveShopRatingAndReview(ctx *gin.Context) {
+	shopID, err := parseShopID(ctx)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid shop ID", err, nil)
+		return
+	}
+
+	var body request.ShopRatingAndReviewRequest
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid request body", err, nil)
+		return
+	}
+
+	// Validate that at least one field is provided
+	if body.Rating == nil && body.Review == nil && body.Comments == nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "At least one of rating, review, or comments must be provided", errors.New("no data provided"), nil)
+		return
+	}
+
+	userID := utils.GetUserIdFromContext(ctx)
+
+	// Get customer ID from request or use user ID
+	customerID := userID
+	if body.CustomerID != nil && *body.CustomerID != "" {
+		customerID = *body.CustomerID
+	}
+
+	if err := c.userUseCase.SaveShopFeedback(ctx, customerID, shopID, body.Rating, body.Review, body.Comments); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to save feedback", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully saved feedback", gin.H{
+		"shop_id":     shopID,
+		"customer_id": customerID,
+		"rating":      body.Rating,
+		"review":      body.Review,
+		"comments":    body.Comments,
+	})
+}
+
+// GetShopFeedback godoc
+//
+//	@Summary		Get combined feedback (rating and review) for a shop (User)
+//	@Security		BearerAuth
+//	@Id				GetShopFeedback
+//	@Tags			User Feedback
+//	@Param			shop_id	path	int	true	"Shop ID"
+//	@Router			/social/feedback/shop/{shop_id} [get]
+//	@Success		200	{object}	response.Response{}	"Successfully got shop feedback"
+//	@Failure		400	{object}	response.Response{}	"Invalid shop ID"
+//	@Failure		500	{object}	response.Response{}	"Failed to get feedback"
+func (c *UserHandler) GetShopFeedback(ctx *gin.Context) {
+	shopID, err := parseShopID(ctx)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid shop ID", err, nil)
+		return
+	}
+
+	// Get ratings
+	ratings, err := c.userUseCase.GetAllShopRatings(ctx, shopID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get ratings", err, nil)
+		return
+	}
+
+	// Get reviews
+	reviews, err := c.userUseCase.GetAllShopReviews(ctx, shopID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get reviews", err, nil)
+		return
+	}
+
+	// Get comments
+	comments, err := c.userUseCase.GetAllShopComments(ctx, shopID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get comments", err, nil)
+		return
+	}
+
+	if ratings == nil {
+		ratings = []domain.ShopSocial{}
+	}
+	if reviews == nil {
+		reviews = []domain.ShopSocial{}
+	}
+	if comments == nil {
+		comments = []domain.ShopSocial{}
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully got shop feedback", gin.H{
+		"shop_id":  shopID,
+		"ratings":  ratings,
+		"reviews":  reviews,
+		"comments": comments,
+	})
+}
+
+// GetShopFeedbackSummary godoc
+//
+//	@Summary		Get feedback summary for a shop (average rating and count) (User)
+//	@Security		BearerAuth
+//	@Id				GetShopFeedbackSummary
+//	@Tags			User Feedback
+//	@Param			shop_id	path	int	true	"Shop ID"
+//	@Router			/social/feedback/shop/{shop_id}/summary [get]
+//	@Success		200	{object}	response.Response{}	"Successfully got feedback summary"
+//	@Failure		400	{object}	response.Response{}	"Invalid shop ID"
+//	@Failure		500	{object}	response.Response{}	"Failed to get feedback summary"
+func (c *UserHandler) GetShopFeedbackSummary(ctx *gin.Context) {
+	shopID, err := parseShopID(ctx)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid shop ID", err, nil)
+		return
+	}
+
+	// Get average rating
+	avgRating, err := c.userUseCase.GetShopAverageRating(ctx, shopID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get average rating", err, nil)
+		return
+	}
+
+	// Get rating distribution
+	distribution, err := c.userUseCase.GetShopRatingDistribution(ctx, shopID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get rating distribution", err, nil)
+		return
+	}
+
+	// Get reviews count
+	reviews, err := c.userUseCase.GetAllShopReviews(ctx, shopID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get reviews", err, nil)
+		return
+	}
+
+	reviewCount := 0
+	if reviews != nil {
+		reviewCount = len(reviews)
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully got feedback summary", gin.H{
+		"shop_id":             shopID,
+		"average_rating":      avgRating,
+		"rating_distribution": distribution,
+		"total_reviews":       reviewCount,
+	})
 }
