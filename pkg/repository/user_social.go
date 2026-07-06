@@ -30,7 +30,12 @@ func (c *userDatabase) getShopAdminID(ctx context.Context, shopID string) (strin
 func (c *userDatabase) ensureShopSocialTable() error {
 	if c.DB.Migrator().HasTable(&domain.ShopSocial{}) {
 		if !c.DB.Migrator().HasColumn(&domain.ShopSocial{}, "is_liked") {
-			return c.DB.Migrator().AddColumn(&domain.ShopSocial{}, "is_liked")
+			if err := c.DB.Migrator().AddColumn(&domain.ShopSocial{}, "is_liked"); err != nil {
+				return err
+			}
+		}
+		if !c.DB.Migrator().HasColumn(&domain.ShopSocial{}, "comments") {
+			return c.DB.Migrator().AddColumn(&domain.ShopSocial{}, "comments")
 		}
 		return nil
 	}
@@ -238,6 +243,28 @@ func (c *userDatabase) ReviewShop(ctx context.Context, userID string, shopID str
 	return c.upsertUserShopSocial(ctx, userID, shopID, func(s *domain.ShopSocial) {
 		s.Review = review
 	})
+}
+
+func (c *userDatabase) SaveShopFeedback(ctx context.Context, userID string, shopID string, rating *uint, review *string, comments *string) error {
+	return c.upsertUserShopSocial(ctx, userID, shopID, func(s *domain.ShopSocial) {
+		if rating != nil {
+			s.Rating = *rating
+		}
+		if review != nil {
+			s.Review = strings.TrimSpace(*review)
+		}
+		if comments != nil {
+			s.Comments = strings.TrimSpace(*comments)
+		}
+	})
+}
+
+func (c *userDatabase) GetAllShopComments(ctx context.Context, shopID string) ([]domain.ShopSocial, error) {
+	var comments []domain.ShopSocial
+	err := c.DB.WithContext(ctx).
+		Raw("SELECT * FROM shop_socials WHERE shop_id = ? AND comments IS NOT NULL AND comments <> '' ORDER BY updated_at DESC", shopID).
+		Scan(&comments).Error
+	return comments, err
 }
 
 func (c *userDatabase) GetUserShopReview(ctx context.Context, userID string, shopID string) (string, error) {

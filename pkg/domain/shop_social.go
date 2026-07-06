@@ -13,6 +13,7 @@ type ShopSocial struct {
 	IsLiked    bool      `json:"is_liked" gorm:"type:boolean;default:false"`
 	Rating     uint      `json:"rating" gorm:"type:int;default:0"` // 1-5 stars
 	Review     string    `json:"review" gorm:"type:text"`
+	Comments   string    `json:"comments" gorm:"type:text"`
 	CreatedAt  time.Time `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt  time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }

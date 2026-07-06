@@ -38,6 +38,12 @@ type UserHandler interface {
 	ReviewShop(ctx *gin.Context)
 	GetUserShopReview(ctx *gin.Context)
 	GetAllShopReviews(ctx *gin.Context)
+	
+	// Unified endpoint for rating and review
+	SaveShopRatingAndReview(ctx *gin.Context)
+	GetShopFeedback(ctx *gin.Context)
+	GetShopFeedbackSummary(ctx *gin.Context)
+	
 	LikeShop(ctx *gin.Context)
 	UnlikeShop(ctx *gin.Context)
 	IsLikedShop(ctx *gin.Context)
