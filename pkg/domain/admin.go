@@ -255,6 +255,16 @@ type AdvertisementInvoice struct {
 	TotalMinor       int64   `json:"total_minor"`
 }
 
+// FeatureFlag is an admin-managed on/off switch for a client-side feature.
+type FeatureFlag struct {
+	ID          string    `json:"id" gorm:"primaryKey;type:varchar(32)"`
+	FlagKey     string    `json:"flag_key" gorm:"size:64;uniqueIndex;not null"`
+	Enabled     bool      `json:"enabled" gorm:"not null;default:false"`
+	Description string    `json:"description" gorm:"type:text"`
+	CreatedAt   time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt   time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+}
+
 // AdvertisementPlanConfig is an admin-managed price plan stored in the DB.
 // Sellers see only active plans; rates are in minor units (paise).
 type AdvertisementPlanConfig struct {

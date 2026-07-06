@@ -321,6 +321,24 @@ auth := api.Group("/auth")
 			advertisementPricing.PUT("/config", adminHandler.UpdateAdvertisementPricingConfig)
 		}
 
+		// feature flags (managed from the admin panel; clients read /api/feature-flags)
+		featureFlags := api.Group("/feature-flags")
+		{
+			featureFlags.GET("/", adminHandler.ListFeatureFlags)
+			featureFlags.POST("/", middleware.TrimSpaces(), adminHandler.CreateFeatureFlag)
+			featureFlags.PUT("/:flag_id", middleware.TrimSpaces(), adminHandler.UpdateFeatureFlag)
+			featureFlags.DELETE("/:flag_id", adminHandler.DeleteFeatureFlag)
+		}
+
+		// subscription plans (managed from the admin panel)
+		subscriptionPlans := api.Group("/subscription-plans")
+		{
+			subscriptionPlans.GET("/", adminHandler.ListSubscriptionPlans)
+			subscriptionPlans.POST("/", middleware.TrimSpaces(), adminHandler.CreateSubscriptionPlan)
+			subscriptionPlans.PUT("/:plan_id", middleware.TrimSpaces(), adminHandler.UpdateSubscriptionPlan)
+			subscriptionPlans.DELETE("/:plan_id", adminHandler.DeleteSubscriptionPlan)
+		}
+
 		// Shop details
 		shop := api.Group("/shops")
 		{

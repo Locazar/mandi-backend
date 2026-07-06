@@ -632,6 +632,89 @@ func (c *adminUseCase) UpdateAdvertisementPricingConfig(ctx context.Context, cfg
 	return c.adminRepo.UpdateAdvertisementPricingConfig(ctx, cfg)
 }
 
+// Feature flags
+
+// GetFeatureFlagsObject returns all flags as a key→enabled map, the shape
+// clients consume: {"advertisement": false, ...}.
+func (c *adminUseCase) GetFeatureFlagsObject(ctx context.Context) (map[string]bool, error) {
+	flags, err := c.adminRepo.ListFeatureFlags(ctx)
+	if err != nil {
+		return nil, err
+	}
+	obj := make(map[string]bool, len(flags))
+	for _, f := range flags {
+		obj[f.FlagKey] = f.Enabled
+	}
+	return obj, nil
+}
+
+func (c *adminUseCase) ListFeatureFlags(ctx context.Context) ([]domain.FeatureFlag, error) {
+	return c.adminRepo.ListFeatureFlags(ctx)
+}
+
+func (c *adminUseCase) CreateFeatureFlag(ctx context.Context, flag domain.FeatureFlag) (domain.FeatureFlag, error) {
+	flag.FlagKey = strings.TrimSpace(strings.ToLower(flag.FlagKey))
+	if flag.FlagKey == "" {
+		return domain.FeatureFlag{}, fmt.Errorf("flag_key is required")
+	}
+	return c.adminRepo.CreateFeatureFlag(ctx, flag)
+}
+
+func (c *adminUseCase) UpdateFeatureFlag(ctx context.Context, flag domain.FeatureFlag) (domain.FeatureFlag, error) {
+	if flag.ID == "" {
+		return domain.FeatureFlag{}, fmt.Errorf("flag id is required")
+	}
+	flag.FlagKey = strings.TrimSpace(strings.ToLower(flag.FlagKey))
+	if flag.FlagKey == "" {
+		return domain.FeatureFlag{}, fmt.Errorf("flag_key is required")
+	}
+	return c.adminRepo.UpdateFeatureFlag(ctx, flag)
+}
+
+func (c *adminUseCase) DeleteFeatureFlag(ctx context.Context, flagID string) error {
+	return c.adminRepo.DeleteFeatureFlag(ctx, flagID)
+}
+
+// Subscription plans (admin panel)
+
+func validateSubscriptionPlan(plan domain.SubscriptionPlan) error {
+	if strings.TrimSpace(plan.Name) == "" {
+		return fmt.Errorf("name is required")
+	}
+	if plan.PriceMonthly.AmountMinor < 0 {
+		return fmt.Errorf("price must not be negative")
+	}
+	if plan.DurationDays == 0 {
+		return fmt.Errorf("duration_days must be greater than zero")
+	}
+	return nil
+}
+
+func (c *adminUseCase) ListSubscriptionPlans(ctx context.Context) ([]domain.SubscriptionPlan, error) {
+	return c.adminRepo.ListSubscriptionPlans(ctx)
+}
+
+func (c *adminUseCase) CreateSubscriptionPlan(ctx context.Context, plan domain.SubscriptionPlan) (domain.SubscriptionPlan, error) {
+	if err := validateSubscriptionPlan(plan); err != nil {
+		return domain.SubscriptionPlan{}, err
+	}
+	return c.adminRepo.CreateSubscriptionPlan(ctx, plan)
+}
+
+func (c *adminUseCase) UpdateSubscriptionPlan(ctx context.Context, plan domain.SubscriptionPlan) (domain.SubscriptionPlan, error) {
+	if plan.ID == "" {
+		return domain.SubscriptionPlan{}, fmt.Errorf("plan id is required")
+	}
+	if err := validateSubscriptionPlan(plan); err != nil {
+		return domain.SubscriptionPlan{}, err
+	}
+	return c.adminRepo.UpdateSubscriptionPlan(ctx, plan)
+}
+
+func (c *adminUseCase) DeleteSubscriptionPlan(ctx context.Context, planID string) error {
+	return c.adminRepo.DeleteSubscriptionPlan(ctx, planID)
+}
+
 // CreateAdvertisementPaymentOrder creates a Razorpay order for the invoice
 // total of an approved, not-yet-paid request owned by adminID.
 func (c *adminUseCase) CreateAdvertisementPaymentOrder(ctx context.Context, adminID, requestID string) (orderID string, keyID string, amountMinor int64, err error) {

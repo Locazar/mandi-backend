@@ -1240,6 +1240,193 @@ func (c *adminHandler) UpdateAdvertisementPricingConfig(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Pricing config updated", updated)
 }
 
+// GetFeatureFlagsObject godoc
+//
+//	@summary		Get feature flags as a key→enabled object (clients)
+//	@Id				GetFeatureFlagsObject
+//	@Tags			Feature Flags
+//	@Router			/feature-flags [get]
+//	@Success		200	{object}	response.Response{}
+func (c *adminHandler) GetFeatureFlagsObject(ctx *gin.Context) {
+	flags, err := c.adminUseCase.GetFeatureFlagsObject(ctx)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get feature flags", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Feature flags", map[string]interface{}{
+		"featureFlag": flags,
+	})
+}
+
+// ListFeatureFlags godoc
+//
+//	@summary		List feature flags with metadata (admin panel)
+//	@Security		BearerAuth
+//	@Id				ListFeatureFlags
+//	@Tags			Feature Flags
+//	@Router			/admin/feature-flags [get]
+//	@Success		200	{object}	response.Response{}
+func (c *adminHandler) ListFeatureFlags(ctx *gin.Context) {
+	flags, err := c.adminUseCase.ListFeatureFlags(ctx)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to list feature flags", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Feature flags", flags)
+}
+
+// CreateFeatureFlag godoc
+//
+//	@summary		Create a feature flag
+//	@Security		BearerAuth
+//	@Id				CreateFeatureFlag
+//	@Tags			Feature Flags
+//	@Router			/admin/feature-flags [post]
+//	@Success		201	{object}	response.Response{}
+//	@Failure		400	{object}	response.Response{}
+func (c *adminHandler) CreateFeatureFlag(ctx *gin.Context) {
+	var body domain.FeatureFlag
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	body.ID = ""
+	created, err := c.adminUseCase.CreateFeatureFlag(ctx, body)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to create feature flag", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusCreated, "Feature flag created", created)
+}
+
+// UpdateFeatureFlag godoc
+//
+//	@summary		Update a feature flag
+//	@Security		BearerAuth
+//	@Id				UpdateFeatureFlag
+//	@Tags			Feature Flags
+//	@Param			flag_id	path	string	true	"Feature flag ID"
+//	@Router			/admin/feature-flags/{flag_id} [put]
+//	@Success		200	{object}	response.Response{}
+//	@Failure		400	{object}	response.Response{}
+func (c *adminHandler) UpdateFeatureFlag(ctx *gin.Context) {
+	var body domain.FeatureFlag
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	body.ID = ctx.Param("flag_id")
+	updated, err := c.adminUseCase.UpdateFeatureFlag(ctx, body)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to update feature flag", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Feature flag updated", updated)
+}
+
+// DeleteFeatureFlag godoc
+//
+//	@summary		Delete a feature flag
+//	@Security		BearerAuth
+//	@Id				DeleteFeatureFlag
+//	@Tags			Feature Flags
+//	@Param			flag_id	path	string	true	"Feature flag ID"
+//	@Router			/admin/feature-flags/{flag_id} [delete]
+//	@Success		200	{object}	response.Response{}
+//	@Failure		404	{object}	response.Response{}
+func (c *adminHandler) DeleteFeatureFlag(ctx *gin.Context) {
+	if err := c.adminUseCase.DeleteFeatureFlag(ctx, ctx.Param("flag_id")); err != nil {
+		response.ErrorResponse(ctx, http.StatusNotFound, "Failed to delete feature flag", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Feature flag deleted", nil)
+}
+
+// ListSubscriptionPlans godoc
+//
+//	@summary		List subscription plans (admin panel)
+//	@Security		BearerAuth
+//	@Id				ListSubscriptionPlans
+//	@Tags			Subscription Plans
+//	@Router			/admin/subscription-plans [get]
+//	@Success		200	{object}	response.Response{}
+func (c *adminHandler) ListSubscriptionPlans(ctx *gin.Context) {
+	plans, err := c.adminUseCase.ListSubscriptionPlans(ctx)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to list subscription plans", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Subscription plans", plans)
+}
+
+// CreateSubscriptionPlan godoc
+//
+//	@summary		Create a subscription plan
+//	@Security		BearerAuth
+//	@Id				CreateSubscriptionPlan
+//	@Tags			Subscription Plans
+//	@Router			/admin/subscription-plans [post]
+//	@Success		201	{object}	response.Response{}
+//	@Failure		400	{object}	response.Response{}
+func (c *adminHandler) CreateSubscriptionPlan(ctx *gin.Context) {
+	var body domain.SubscriptionPlan
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	body.ID = ""
+	created, err := c.adminUseCase.CreateSubscriptionPlan(ctx, body)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to create subscription plan", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusCreated, "Subscription plan created", created)
+}
+
+// UpdateSubscriptionPlan godoc
+//
+//	@summary		Update a subscription plan
+//	@Security		BearerAuth
+//	@Id				UpdateSubscriptionPlan
+//	@Tags			Subscription Plans
+//	@Param			plan_id	path	string	true	"Plan ID"
+//	@Router			/admin/subscription-plans/{plan_id} [put]
+//	@Success		200	{object}	response.Response{}
+//	@Failure		400	{object}	response.Response{}
+func (c *adminHandler) UpdateSubscriptionPlan(ctx *gin.Context) {
+	var body domain.SubscriptionPlan
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	body.ID = ctx.Param("plan_id")
+	updated, err := c.adminUseCase.UpdateSubscriptionPlan(ctx, body)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to update subscription plan", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Subscription plan updated", updated)
+}
+
+// DeleteSubscriptionPlan godoc
+//
+//	@summary		Delete a subscription plan (fails if referenced by orders; deactivate instead)
+//	@Security		BearerAuth
+//	@Id				DeleteSubscriptionPlan
+//	@Tags			Subscription Plans
+//	@Param			plan_id	path	string	true	"Plan ID"
+//	@Router			/admin/subscription-plans/{plan_id} [delete]
+//	@Success		200	{object}	response.Response{}
+//	@Failure		400	{object}	response.Response{}
+func (c *adminHandler) DeleteSubscriptionPlan(ctx *gin.Context) {
+	if err := c.adminUseCase.DeleteSubscriptionPlan(ctx, ctx.Param("plan_id")); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest,
+			"Failed to delete subscription plan (plans already purchased cannot be deleted — deactivate it instead)", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Subscription plan deleted", nil)
+}
+
 // GetActiveAdvertisements godoc
 //
 //	@summary		Get active advertisements (public)
