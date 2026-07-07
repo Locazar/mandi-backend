@@ -15,7 +15,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/interfaces"
-	"gorm.io/gorm"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
@@ -23,6 +22,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/service/token"
 	usecaseInterface "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
+	"gorm.io/gorm"
 )
 
 type adminHandler struct {
@@ -1340,6 +1340,102 @@ func (c *adminHandler) DeleteFeatureFlag(ctx *gin.Context) {
 		return
 	}
 	response.SuccessResponse(ctx, http.StatusOK, "Feature flag deleted", nil)
+}
+
+// ListAppConfigs godoc
+//
+//	@summary		List app configs
+//	@Security		BearerAuth
+//	@Id				ListAppConfigs
+//	@Tags			App Configs
+//	@Router			/admin/app-configs [get]
+//	@Success		200	{object}	response.Response{}
+func (c *adminHandler) ListAppConfigs(ctx *gin.Context) {
+	cfgs, err := c.adminUseCase.ListAppConfigs(ctx)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to list app configs", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "App configs", cfgs)
+}
+
+// GetAppConfigByKey godoc
+//
+//	@summary		Get app config by key
+//	@Security		BearerAuth
+//	@Id				GetAppConfigByKey
+//	@Tags			App Configs
+//	@Router			/admin/app-configs/{config_key} [get]
+//	@Success		200	{object}	response.Response{}
+func (c *adminHandler) GetAppConfigByKey(ctx *gin.Context) {
+	cfg, err := c.adminUseCase.GetAppConfigByKey(ctx, ctx.Param("config_key"))
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusNotFound, "App config not found", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "App config", cfg)
+}
+
+// CreateAppConfig godoc
+//
+//	@summary		Create app config
+//	@Security		BearerAuth
+//	@Id				CreateAppConfig
+//	@Tags			App Configs
+//	@Router			/admin/app-configs [post]
+//	@Success		201	{object}	response.Response{}
+func (c *adminHandler) CreateAppConfig(ctx *gin.Context) {
+	var body domain.AppConfig
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	body.ID = ""
+	created, err := c.adminUseCase.CreateAppConfig(ctx, body)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to create app config", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusCreated, "App config created", created)
+}
+
+// UpdateAppConfig godoc
+//
+//	@summary		Update app config
+//	@Security		BearerAuth
+//	@Id				UpdateAppConfig
+//	@Tags			App Configs
+//	@Router			/admin/app-configs/{config_id} [put]
+//	@Success		200	{object}	response.Response{}
+func (c *adminHandler) UpdateAppConfig(ctx *gin.Context) {
+	var body domain.AppConfig
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	body.ID = ctx.Param("config_id")
+	updated, err := c.adminUseCase.UpdateAppConfig(ctx, body)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to update app config", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "App config updated", updated)
+}
+
+// DeleteAppConfig godoc
+//
+//	@summary		Delete app config
+//	@Security		BearerAuth
+//	@Id				DeleteAppConfig
+//	@Tags			App Configs
+//	@Router			/admin/app-configs/{config_id} [delete]
+//	@Success		200	{object}	response.Response{}
+func (c *adminHandler) DeleteAppConfig(ctx *gin.Context) {
+	if err := c.adminUseCase.DeleteAppConfig(ctx, ctx.Param("config_id")); err != nil {
+		response.ErrorResponse(ctx, http.StatusNotFound, "Failed to delete app config", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "App config deleted", nil)
 }
 
 // ListSubscriptionPlans godoc

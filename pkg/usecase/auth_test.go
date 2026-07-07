@@ -83,6 +83,14 @@ func (u *userRepoAdapter) IsTrialUsed(ctx context.Context, userID string) (bool,
 	return false, nil
 }
 
+func (u *userRepoAdapter) GetAllShopComments(ctx context.Context, shopID string) ([]domain.ShopSocial, error) {
+	return nil, nil
+}
+
+func (u *userRepoAdapter) SaveShopFeedback(ctx context.Context, userID string, shopID string, rating *uint, review *string, comments *string) error {
+	return nil
+}
+
 func TestUserLogin(t *testing.T) {
 
 	tests := []struct {

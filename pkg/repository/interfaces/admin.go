@@ -57,6 +57,13 @@ type AdminRepository interface {
 	UpdateFeatureFlag(ctx context.Context, flag domain.FeatureFlag) (domain.FeatureFlag, error)
 	DeleteFeatureFlag(ctx context.Context, flagID string) error
 
+	// App configs
+	ListAppConfigs(ctx context.Context) ([]domain.AppConfig, error)
+	GetAppConfigByKey(ctx context.Context, configKey string) (domain.AppConfig, error)
+	CreateAppConfig(ctx context.Context, cfg domain.AppConfig) (domain.AppConfig, error)
+	UpdateAppConfig(ctx context.Context, cfg domain.AppConfig) (domain.AppConfig, error)
+	DeleteAppConfig(ctx context.Context, configID string) error
+
 	// Subscription plans (admin panel)
 	ListSubscriptionPlans(ctx context.Context) ([]domain.SubscriptionPlan, error)
 	CreateSubscriptionPlan(ctx context.Context, plan domain.SubscriptionPlan) (domain.SubscriptionPlan, error)

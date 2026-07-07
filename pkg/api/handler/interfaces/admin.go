@@ -46,6 +46,13 @@ type AdminHandler interface {
 	UpdateFeatureFlag(ctx *gin.Context)
 	DeleteFeatureFlag(ctx *gin.Context)
 
+	// App configs
+	ListAppConfigs(ctx *gin.Context)
+	GetAppConfigByKey(ctx *gin.Context)
+	CreateAppConfig(ctx *gin.Context)
+	UpdateAppConfig(ctx *gin.Context)
+	DeleteAppConfig(ctx *gin.Context)
+
 	// Subscription plans (admin panel)
 	ListSubscriptionPlans(ctx *gin.Context)
 	CreateSubscriptionPlan(ctx *gin.Context)

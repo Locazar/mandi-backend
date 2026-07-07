@@ -1,0 +1,9 @@
+CREATE TABLE IF NOT EXISTS app_configs (
+    id VARCHAR(32) PRIMARY KEY,
+    config_key VARCHAR(64) NOT NULL UNIQUE,
+    value TEXT NOT NULL,
+    description TEXT,
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);

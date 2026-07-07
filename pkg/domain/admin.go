@@ -265,6 +265,17 @@ type FeatureFlag struct {
 	UpdatedAt   time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }
 
+// AppConfig is an admin-managed key/value setting stored in the database.
+type AppConfig struct {
+	ID          string    `json:"id" gorm:"primaryKey;type:varchar(32)"`
+	ConfigKey   string    `json:"config_key" gorm:"size:64;uniqueIndex;not null"`
+	Value       string    `json:"value" gorm:"type:text;not null"`
+	Description string    `json:"description" gorm:"type:text"`
+	Enabled     bool      `json:"enabled" gorm:"not null;default:true"`
+	CreatedAt   time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt   time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+}
+
 // AdvertisementPlanConfig is an admin-managed price plan stored in the DB.
 // Sellers see only active plans; rates are in minor units (paise).
 type AdvertisementPlanConfig struct {
