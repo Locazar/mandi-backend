@@ -35,6 +35,11 @@ type Config struct {
 	RazorPaySecret        string `mapstructure:"RAZOR_PAY_SECRET"`
 	RazorPayWebhookSecret string `mapstructure:"RAZORPAY_WEBHOOK_SECRET"`
 
+	// GSTPercentBasisPoints is the current GST rate applied to subscription
+	// prices, in basis points (1800 = 18.00%). Prices are GST-inclusive; this
+	// rate is snapshotted onto each order at creation. Defaults to 1800.
+	GSTPercentBasisPoints int `mapstructure:"GST_PERCENT_BASIS_POINTS"`
+
 	StripSecretKey      string `mapstructure:"STRIPE_SECRET"`
 	StripPublishKey     string `mapstructure:"STRIPE_PUBLISH_KEY"`
 	StripeWebhookSecret string `mapstructure:"STRIPE_WEBHOOK"`
@@ -124,8 +129,9 @@ var envsNames = []string{
 	"DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD", "DB_PORT", "DB_SSL_ROOT_CERT", // database
 	"ADMIN_AUTH_KEY", "USER_AUTH_KEY", // token auth
 	"AUTH_TOKEN", "ACCOUNT_SID", "SERVICE_SID", // twilio
-	"TWO_FACTOR_API_KEY", // 2factor.in sms otp
+	"TWO_FACTOR_API_KEY",                                           // 2factor.in sms otp
 	"RAZOR_PAY_KEY", "RAZOR_PAY_SECRET", "RAZORPAY_WEBHOOK_SECRET", // razor pay
+	"GST_PERCENT_BASIS_POINTS",                              // gst rate applied to subscriptions (basis points)
 	"STRIPE_SECRET", "STRIPE_PUBLISH_KEY", "STRIPE_WEBHOOK", // stripe
 	"GOAUTH_CLIENT_ID", "GOAUTH_CLIENT_SECRET", "GOAUTH_CALL_BACK_URL", //goath
 	"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_REGION", "AWS_BUCKET_NAME", // legacy aws fallback
@@ -173,6 +179,7 @@ func LoadConfig() (config Config, err error) {
 	viper.SetConfigFile(".env")
 	viper.SetConfigType("env")
 
+	viper.SetDefault("GST_PERCENT_BASIS_POINTS", 1800)
 	viper.SetDefault("security.http_port", ":3000")
 	viper.SetDefault("security.https_port", ":3443")
 	viper.SetDefault("security.tls_min_version", "1.2")

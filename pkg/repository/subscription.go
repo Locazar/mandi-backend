@@ -100,6 +100,20 @@ func (r *subscriptionDatabase) DeactivateTrialSubscription(ctx context.Context, 
 		Update("is_active", false).Error
 }
 
+// SumGSTCollected totals the GST snapshot of paid orders in [from, to].
+// Amounts are stored in minor units; the returned Money is in INR.
+func (r *subscriptionDatabase) SumGSTCollected(ctx context.Context, from, to time.Time) (domain.Money, error) {
+	var total int64
+	err := r.db.Model(&domain.SubscriptionOrder{}).
+		Where("status = ? AND paid_at BETWEEN ? AND ?", domain.SubStatusPaid, from, to).
+		Select("COALESCE(SUM(gst_amount_amount_minor), 0)").
+		Scan(&total).Error
+	if err != nil {
+		return domain.Money{}, err
+	}
+	return domain.INR(total), nil
+}
+
 func (r *subscriptionDatabase) Transaction(fn func(repo interfaces.SubscriptionRepository) error) error {
 	trx := r.db.Begin()
 	repo := &subscriptionDatabase{db: trx}

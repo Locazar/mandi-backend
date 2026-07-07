@@ -23,15 +23,21 @@ type SubscriptionPlan struct {
 }
 
 type SubscriptionOrder struct {
-	ID                string     `json:"id" gorm:"primaryKey;type:varchar(32)"`
-	UserID            string     `json:"user_id" gorm:"type:varchar(32);not null;index"`
-	PlanID            string     `json:"plan_id" gorm:"type:varchar(32);not null"`
-	Price             Money      `json:"price" gorm:"embedded;embeddedPrefix:price_"`
-	RazorpayOrderID   string     `json:"razorpay_order_id" gorm:"uniqueIndex;not null"`
-	RazorpayPaymentID *string    `json:"razorpay_payment_id" gorm:"uniqueIndex"`
-	Status            SubscriptionStatus `json:"status" gorm:"not null;default:'created'"`
-	CreatedAt         time.Time  `json:"created_at" gorm:"autoCreateTime"`
-	PaidAt            *time.Time `json:"paid_at"`
+	ID     string `json:"id" gorm:"primaryKey;type:varchar(32)"`
+	UserID string `json:"user_id" gorm:"type:varchar(32);not null;index"`
+	PlanID string `json:"plan_id" gorm:"type:varchar(32);not null"`
+	Price  Money  `json:"price" gorm:"embedded;embeddedPrefix:price_"`
+	// GST is included in Price (prices are tax-inclusive). GSTRateBasisPoints is
+	// the rate in effect when the order was created (1800 = 18.00%), snapshotted
+	// so historical "GST collected" reporting stays correct across yearly rate
+	// changes. GSTAmount is the GST portion of Price, computed once at creation.
+	GSTRateBasisPoints int                `json:"gst_rate_basis_points" gorm:"not null;default:0"`
+	GSTAmount          Money              `json:"gst_amount" gorm:"embedded;embeddedPrefix:gst_amount_"`
+	RazorpayOrderID    string             `json:"razorpay_order_id" gorm:"uniqueIndex;not null"`
+	RazorpayPaymentID  *string            `json:"razorpay_payment_id" gorm:"uniqueIndex"`
+	Status             SubscriptionStatus `json:"status" gorm:"not null;default:'created'"`
+	CreatedAt          time.Time          `json:"created_at" gorm:"autoCreateTime"`
+	PaidAt             *time.Time         `json:"paid_at"`
 }
 
 type UserSubscription struct {
