@@ -330,6 +330,16 @@ auth := api.Group("/auth")
 			featureFlags.DELETE("/:flag_id", adminHandler.DeleteFeatureFlag)
 		}
 
+		// app configs (managed from the admin panel)
+		appConfigs := api.Group("/app-configs")
+		{
+			appConfigs.GET("/", adminHandler.ListAppConfigs)
+			appConfigs.GET("/:config_key", adminHandler.GetAppConfigByKey)
+			appConfigs.POST("/", middleware.TrimSpaces(), adminHandler.CreateAppConfig)
+			appConfigs.PUT("/:config_id", middleware.TrimSpaces(), adminHandler.UpdateAppConfig)
+			appConfigs.DELETE("/:config_id", adminHandler.DeleteAppConfig)
+		}
+
 		// subscription plans (managed from the admin panel)
 		subscriptionPlans := api.Group("/subscription-plans")
 		{

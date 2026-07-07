@@ -3,8 +3,8 @@ package repository
 import (
 	"context"
 	"errors"
-	"log"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -753,6 +753,63 @@ func (c *adminDatabase) UpdateFeatureFlag(ctx context.Context, flag domain.Featu
 
 func (c *adminDatabase) DeleteFeatureFlag(ctx context.Context, flagID string) error {
 	result := c.DB.WithContext(ctx).Exec(`DELETE FROM feature_flags WHERE id = $1`, flagID)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+// App configs
+
+func (c *adminDatabase) ListAppConfigs(ctx context.Context) ([]domain.AppConfig, error) {
+	var cfgs []domain.AppConfig
+	err := c.DB.WithContext(ctx).Raw(
+		`SELECT * FROM app_configs ORDER BY config_key ASC`,
+	).Scan(&cfgs).Error
+	return cfgs, err
+}
+
+func (c *adminDatabase) GetAppConfigByKey(ctx context.Context, configKey string) (domain.AppConfig, error) {
+	var cfg domain.AppConfig
+	err := c.DB.WithContext(ctx).Raw(
+		`SELECT * FROM app_configs WHERE config_key = $1`, configKey,
+	).Scan(&cfg).Error
+	if err == nil && cfg.ID == "" {
+		return cfg, gorm.ErrRecordNotFound
+	}
+	return cfg, err
+}
+
+func (c *adminDatabase) CreateAppConfig(ctx context.Context, cfg domain.AppConfig) (domain.AppConfig, error) {
+	cfg.ID = domain.NewID(domain.PrefixAppConfig)
+	err := c.DB.WithContext(ctx).Exec(`INSERT INTO app_configs
+		(id, config_key, value, description, enabled, created_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,NOW(),NOW())`,
+		cfg.ID, cfg.ConfigKey, cfg.Value, cfg.Description, cfg.Enabled,
+	).Error
+	return cfg, err
+}
+
+func (c *adminDatabase) UpdateAppConfig(ctx context.Context, cfg domain.AppConfig) (domain.AppConfig, error) {
+	result := c.DB.WithContext(ctx).Exec(`UPDATE app_configs
+		SET config_key = $2, value = $3, description = $4, enabled = $5, updated_at = NOW()
+		WHERE id = $1`,
+		cfg.ID, cfg.ConfigKey, cfg.Value, cfg.Description, cfg.Enabled,
+	)
+	if result.Error != nil {
+		return cfg, result.Error
+	}
+	if result.RowsAffected == 0 {
+		return cfg, gorm.ErrRecordNotFound
+	}
+	return cfg, nil
+}
+
+func (c *adminDatabase) DeleteAppConfig(ctx context.Context, configID string) error {
+	result := c.DB.WithContext(ctx).Exec(`DELETE FROM app_configs WHERE id = $1`, configID)
 	if result.Error != nil {
 		return result.Error
 	}

@@ -675,6 +675,57 @@ func (c *adminUseCase) DeleteFeatureFlag(ctx context.Context, flagID string) err
 	return c.adminRepo.DeleteFeatureFlag(ctx, flagID)
 }
 
+// App configs
+
+func normalizeAppConfigKey(key string) string {
+	key = strings.TrimSpace(strings.ToLower(key))
+	key = strings.ReplaceAll(key, " ", "_")
+	key = strings.ReplaceAll(key, "-", "_")
+	return key
+}
+
+func validateAppConfig(cfg domain.AppConfig) error {
+	cfg.ConfigKey = normalizeAppConfigKey(cfg.ConfigKey)
+	if cfg.ConfigKey == "" {
+		return fmt.Errorf("config_key is required")
+	}
+	if cfg.Value == "" {
+		return fmt.Errorf("value is required")
+	}
+	return nil
+}
+
+func (c *adminUseCase) ListAppConfigs(ctx context.Context) ([]domain.AppConfig, error) {
+	return c.adminRepo.ListAppConfigs(ctx)
+}
+
+func (c *adminUseCase) GetAppConfigByKey(ctx context.Context, configKey string) (domain.AppConfig, error) {
+	return c.adminRepo.GetAppConfigByKey(ctx, normalizeAppConfigKey(configKey))
+}
+
+func (c *adminUseCase) CreateAppConfig(ctx context.Context, cfg domain.AppConfig) (domain.AppConfig, error) {
+	if err := validateAppConfig(cfg); err != nil {
+		return domain.AppConfig{}, err
+	}
+	cfg.ConfigKey = normalizeAppConfigKey(cfg.ConfigKey)
+	return c.adminRepo.CreateAppConfig(ctx, cfg)
+}
+
+func (c *adminUseCase) UpdateAppConfig(ctx context.Context, cfg domain.AppConfig) (domain.AppConfig, error) {
+	if cfg.ID == "" {
+		return domain.AppConfig{}, fmt.Errorf("config id is required")
+	}
+	if err := validateAppConfig(cfg); err != nil {
+		return domain.AppConfig{}, err
+	}
+	cfg.ConfigKey = normalizeAppConfigKey(cfg.ConfigKey)
+	return c.adminRepo.UpdateAppConfig(ctx, cfg)
+}
+
+func (c *adminUseCase) DeleteAppConfig(ctx context.Context, configID string) error {
+	return c.adminRepo.DeleteAppConfig(ctx, configID)
+}
+
 // Subscription plans (admin panel)
 
 func validateSubscriptionPlan(plan domain.SubscriptionPlan) error {
