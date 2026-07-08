@@ -5,6 +5,14 @@ service cloud.firestore {
 
     match /enquiry/{docId} {
       allow read, write: if request.auth != null;
+
+      // Chat messages live in a SUBCOLLECTION under each enquiry document.
+      // Rules do not cascade — without this nested match the messages path
+      // falls through to the global deny and every send fails.
+      match /inquiry_messages/{messageId} {
+        allow read, create, update: if true;
+        allow delete: if false;
+      }
     }
 
     match /inquiry_messages/{docId} {
