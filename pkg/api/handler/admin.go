@@ -2707,3 +2707,69 @@ func (a *adminHandler) GetDashboardStats(ctx *gin.Context) {
 	}
 	response.SuccessResponse(ctx, http.StatusOK, "dashboard stats fetched", stats)
 }
+
+// notificationImageNamespace is the object-storage prefix under which images
+// uploaded for use in push notifications (welcome banners, frames, etc.) are kept.
+const notificationImageNamespace = "notifications"
+
+// UploadNotificationImage godoc
+//
+//	@Summary		Upload an image for use in push notifications
+//	@Security		BearerAuth
+//	@Id				UploadNotificationImage
+//	@Tags			Notification
+//	@Accept			mpfd
+//	@Produce		json
+//	@Param			photo	formData	file	true	"Image to upload"
+//	@Router			/admin/notifications/images [post]
+//	@Success		201	{object}	response.Response{}	"Image uploaded"
+//	@Failure		400	{object}	response.Response{}	"Invalid input"
+//	@Failure		500	{object}	response.Response{}	"Upload failed"
+func (a *adminHandler) UploadNotificationImage(ctx *gin.Context) {
+	fh, err := ctx.FormFile("photo")
+	if err != nil || fh == nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "photo file is required", err, nil)
+		return
+	}
+
+	objectKey, uploadErr := a.cloudService.SaveFile(ctx, fh, cloud.SaveOptions{
+		Namespace:  notificationImageNamespace,
+		Visibility: cloud.VisibilityPublic,
+	})
+	if uploadErr != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to upload image", uploadErr, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusCreated, "Image uploaded", gin.H{
+		"object_key": objectKey,
+		"url":        a.cloudService.PublicURL(objectKey),
+	})
+}
+
+// ListNotificationImages godoc
+//
+//	@Summary		List previously uploaded notification images
+//	@Security		BearerAuth
+//	@Id				ListNotificationImages
+//	@Tags			Notification
+//	@Produce		json
+//	@Router			/admin/notifications/images [get]
+//	@Success		200	{object}	response.Response{}	"Images fetched"
+//	@Failure		500	{object}	response.Response{}	"Failed to list images"
+func (a *adminHandler) ListNotificationImages(ctx *gin.Context) {
+	keys, err := a.cloudService.ListObjects(ctx, notificationImageNamespace+"/")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to list images", err, nil)
+		return
+	}
+
+	images := make([]gin.H, 0, len(keys))
+	for _, key := range keys {
+		images = append(images, gin.H{
+			"object_key": key,
+			"url":        a.cloudService.PublicURL(key),
+		})
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Images fetched", images)
+}
