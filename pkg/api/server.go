@@ -112,6 +112,8 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 	engine.StaticFS("/uploads/offers", http.Dir("./uploads/offers"))
 	// Bundled assets — not user uploads.
 	engine.StaticFS("/uploads/promotions", http.Dir("./uploads/promotions"))
+	// Locazar brand icon used as the default image in push notifications.
+	engine.StaticFile("/uploads/locazar_icon.png", "./uploads/locazar_icon.png")
 
 	// Admin portal pages (no auth on the HTML itself; JS sends Bearer token)
 	engine.GET("/admin/videos", func(c *gin.Context) {
