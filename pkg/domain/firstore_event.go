@@ -60,6 +60,7 @@ type NotificationPayload struct {
 	Timestamp     string   // Update timestamp
 	ActionURL     string   // Deep-link URL for the app
 	ProductID     string   // Product ID linked to this enquiry
+	ProductName   string   // Product name for notification copy
 	ImageURL      string   // Product image URL for rich notification display
 }
 

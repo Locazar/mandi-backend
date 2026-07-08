@@ -255,6 +255,82 @@ type AdvertisementInvoice struct {
 	TotalMinor       int64   `json:"total_minor"`
 }
 
+// FeatureFlag is an admin-managed on/off switch for a client-side feature.
+type FeatureFlag struct {
+	ID          string    `json:"id" gorm:"primaryKey;type:varchar(32)"`
+	FlagKey     string    `json:"flag_key" gorm:"size:64;uniqueIndex;not null"`
+	Enabled     bool      `json:"enabled" gorm:"not null;default:false"`
+	Description string    `json:"description" gorm:"type:text"`
+	CreatedAt   time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt   time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+}
+
+// HelpSettings holds the singleton support-contact configuration shown on the
+// Help & Support screen in client apps (seller app, and future customer app).
+type HelpSettings struct {
+	ID             string    `json:"id" gorm:"primaryKey;type:varchar(32)"`
+	SupportPhone   string    `json:"support_phone" gorm:"size:20"`
+	SupportEmail   string    `json:"support_email" gorm:"size:120"`
+	WhatsAppNumber string    `json:"whatsapp_number" gorm:"size:20"`
+	SupportHours   string    `json:"support_hours" gorm:"size:120"`
+	AboutText      string    `json:"about_text" gorm:"type:text"`
+	CreatedAt      time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt      time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+}
+
+// HelpFAQ is a single admin-managed frequently-asked-question entry shown on
+// the Help & Support screen. SortOrder controls display order (ascending).
+type HelpFAQ struct {
+	ID        string    `json:"id" gorm:"primaryKey;type:varchar(32)"`
+	Question  string    `json:"question" gorm:"type:text;not null"`
+	Answer    string    `json:"answer" gorm:"type:text;not null"`
+	SortOrder int       `json:"sort_order" gorm:"not null;default:0"`
+	IsActive  bool      `json:"is_active" gorm:"not null;default:true"`
+	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+}
+
+// HelpCenter bundles contact settings + active FAQs for the single public
+// read endpoint consumed by client apps.
+type HelpCenter struct {
+	Settings HelpSettings `json:"settings"`
+	FAQs     []HelpFAQ    `json:"faqs"`
+}
+
+// AppConfig is an admin-managed key/value setting stored in the database.
+type AppConfig struct {
+	ID          string    `json:"id" gorm:"primaryKey;type:varchar(32)"`
+	ConfigKey   string    `json:"config_key" gorm:"size:64;uniqueIndex;not null"`
+	Value       string    `json:"value" gorm:"type:text;not null"`
+	Description string    `json:"description" gorm:"type:text"`
+	Enabled     bool      `json:"enabled" gorm:"not null;default:true"`
+	CreatedAt   time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt   time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+}
+
+// AdvertisementPlanConfig is an admin-managed price plan stored in the DB.
+// Sellers see only active plans; rates are in minor units (paise).
+type AdvertisementPlanConfig struct {
+	ID              string    `json:"id" gorm:"primaryKey;type:varchar(32)"`
+	PlanKey         string    `json:"plan_key" gorm:"size:20;uniqueIndex;not null"`
+	Name            string    `json:"name" gorm:"size:100;not null"`
+	Description     string    `json:"description" gorm:"type:text"`
+	RatePerDayMinor int64     `json:"rate_per_day_minor" gorm:"not null"`
+	SortOrder       int       `json:"sort_order" gorm:"not null;default:0"`
+	IsActive        bool      `json:"is_active" gorm:"not null;default:true"`
+	CreatedAt       time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt       time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+}
+
+// AdvertisementPricingConfig is the admin-managed singleton holding the
+// tax/fee percentages applied on top of the base plan price.
+type AdvertisementPricingConfig struct {
+	ID                 string    `json:"id" gorm:"primaryKey;type:varchar(32)"`
+	GSTRatePercent     float64   `json:"gst_rate_percent" gorm:"type:numeric(5,2);not null"`
+	PlatformFeePercent float64   `json:"platform_fee_percent" gorm:"type:numeric(5,2);not null"`
+	UpdatedAt          time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+}
+
 // AdvertisementPricePlan is a quoted plan for a requested date range.
 type AdvertisementPricePlan struct {
 	PlanKey      string `json:"plan_key"`      // high | medium | low

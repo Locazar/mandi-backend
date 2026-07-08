@@ -533,14 +533,21 @@ func (c *adminUseCase) DeleteAdvertisementRequest(ctx context.Context, requestID
 
 // Advertisement request payments
 
-const (
-	advertGSTRatePercent      = 18.0 // GST on advertising services
-	advertPlatformFeePercent  = 2.0  // platform/processing fee on the base amount
-	advertPaymentGraceMinutes = 30   // order validity window, mirrors subscriptions
-)
+const advertPaymentGraceMinutes = 30 // order validity window, mirrors subscriptions
+
+// advertisementPricingConfig returns the admin-configured charge percentages,
+// falling back to sane defaults if the config row is missing.
+func (c *adminUseCase) advertisementPricingConfig(ctx context.Context) domain.AdvertisementPricingConfig {
+	cfg, err := c.adminRepo.GetAdvertisementPricingConfig(ctx)
+	if err != nil {
+		return domain.AdvertisementPricingConfig{GSTRatePercent: 18, PlatformFeePercent: 2}
+	}
+	return cfg
+}
 
 // GetAdvertisementRequestInvoice returns the full charge breakdown (base,
-// platform fee, GST, total) for an approved request.
+// platform fee, GST, total) for an approved request. All rates come from the
+// admin-managed pricing configuration — nothing is hardcoded.
 func (c *adminUseCase) GetAdvertisementRequestInvoice(ctx context.Context, requestID string) (domain.AdvertisementInvoice, error) {
 	req, err := c.adminRepo.GetAdvertisementRequestByID(ctx, requestID)
 	if err != nil {
@@ -555,19 +562,22 @@ func (c *adminUseCase) GetAdvertisementRequestInvoice(ctx context.Context, reque
 		return domain.AdvertisementInvoice{}, err
 	}
 
+	// The base amount is the price locked in at request time; the plan lookup
+	// only decorates the invoice with the display name and per-day rate.
 	planName := req.PlanKey
 	var ratePerDay int64
-	for _, p := range advertisementRatePlans {
-		if p.Key == req.PlanKey {
-			planName = p.Name
-			ratePerDay = p.RatePerDay
-			break
-		}
+	if plan, planErr := c.adminRepo.GetAdvertisementPlanByKey(ctx, req.PlanKey); planErr == nil {
+		planName = plan.Name
+		ratePerDay = plan.RatePerDayMinor
+	} else if days > 0 {
+		ratePerDay = req.PriceMinor / int64(days)
 	}
 
+	pricing := c.advertisementPricingConfig(ctx)
+
 	base := req.PriceMinor
-	platformFee := int64(float64(base) * advertPlatformFeePercent / 100)
-	gst := int64(float64(base+platformFee) * advertGSTRatePercent / 100)
+	platformFee := int64(float64(base) * pricing.PlatformFeePercent / 100)
+	gst := int64(float64(base+platformFee) * pricing.GSTRatePercent / 100)
 
 	return domain.AdvertisementInvoice{
 		RequestID:        req.ID,
@@ -577,10 +587,276 @@ func (c *adminUseCase) GetAdvertisementRequestInvoice(ctx context.Context, reque
 		RatePerDay:       ratePerDay,
 		BaseMinor:        base,
 		PlatformFeeMinor: platformFee,
-		GSTRatePercent:   advertGSTRatePercent,
+		GSTRatePercent:   pricing.GSTRatePercent,
 		GSTMinor:         gst,
 		TotalMinor:       base + platformFee + gst,
 	}, nil
+}
+
+// Advertisement pricing management (admin panel)
+
+func (c *adminUseCase) ListAdvertisementPlanConfigs(ctx context.Context) ([]domain.AdvertisementPlanConfig, error) {
+	return c.adminRepo.ListAdvertisementPlans(ctx, false)
+}
+
+func validateAdvertisementPlan(plan domain.AdvertisementPlanConfig) error {
+	if strings.TrimSpace(plan.PlanKey) == "" {
+		return fmt.Errorf("plan_key is required")
+	}
+	if strings.TrimSpace(plan.Name) == "" {
+		return fmt.Errorf("name is required")
+	}
+	if plan.RatePerDayMinor <= 0 {
+		return fmt.Errorf("rate_per_day_minor must be greater than zero")
+	}
+	return nil
+}
+
+func (c *adminUseCase) CreateAdvertisementPlanConfig(ctx context.Context, plan domain.AdvertisementPlanConfig) (domain.AdvertisementPlanConfig, error) {
+	if err := validateAdvertisementPlan(plan); err != nil {
+		return domain.AdvertisementPlanConfig{}, err
+	}
+	return c.adminRepo.CreateAdvertisementPlan(ctx, plan)
+}
+
+func (c *adminUseCase) UpdateAdvertisementPlanConfig(ctx context.Context, plan domain.AdvertisementPlanConfig) (domain.AdvertisementPlanConfig, error) {
+	if plan.ID == "" {
+		return domain.AdvertisementPlanConfig{}, fmt.Errorf("plan id is required")
+	}
+	if err := validateAdvertisementPlan(plan); err != nil {
+		return domain.AdvertisementPlanConfig{}, err
+	}
+	return c.adminRepo.UpdateAdvertisementPlan(ctx, plan)
+}
+
+func (c *adminUseCase) DeleteAdvertisementPlanConfig(ctx context.Context, planID string) error {
+	return c.adminRepo.DeleteAdvertisementPlan(ctx, planID)
+}
+
+func (c *adminUseCase) GetAdvertisementPricingConfig(ctx context.Context) (domain.AdvertisementPricingConfig, error) {
+	return c.advertisementPricingConfig(ctx), nil
+}
+
+func (c *adminUseCase) UpdateAdvertisementPricingConfig(ctx context.Context, cfg domain.AdvertisementPricingConfig) (domain.AdvertisementPricingConfig, error) {
+	if cfg.GSTRatePercent < 0 || cfg.GSTRatePercent > 100 {
+		return domain.AdvertisementPricingConfig{}, fmt.Errorf("gst_rate_percent must be between 0 and 100")
+	}
+	if cfg.PlatformFeePercent < 0 || cfg.PlatformFeePercent > 100 {
+		return domain.AdvertisementPricingConfig{}, fmt.Errorf("platform_fee_percent must be between 0 and 100")
+	}
+	return c.adminRepo.UpdateAdvertisementPricingConfig(ctx, cfg)
+}
+
+// Feature flags
+
+// GetFeatureFlagsObject returns all flags as a key→enabled map, the shape
+// clients consume: {"advertisement": false, ...}.
+func (c *adminUseCase) GetFeatureFlagsObject(ctx context.Context) (map[string]bool, error) {
+	flags, err := c.adminRepo.ListFeatureFlags(ctx)
+	if err != nil {
+		return nil, err
+	}
+	obj := make(map[string]bool, len(flags))
+	for _, f := range flags {
+		obj[f.FlagKey] = f.Enabled
+	}
+	return obj, nil
+}
+
+func (c *adminUseCase) ListFeatureFlags(ctx context.Context) ([]domain.FeatureFlag, error) {
+	return c.adminRepo.ListFeatureFlags(ctx)
+}
+
+func (c *adminUseCase) CreateFeatureFlag(ctx context.Context, flag domain.FeatureFlag) (domain.FeatureFlag, error) {
+	flag.FlagKey = strings.TrimSpace(strings.ToLower(flag.FlagKey))
+	if flag.FlagKey == "" {
+		return domain.FeatureFlag{}, fmt.Errorf("flag_key is required")
+	}
+	return c.adminRepo.CreateFeatureFlag(ctx, flag)
+}
+
+func (c *adminUseCase) UpdateFeatureFlag(ctx context.Context, flag domain.FeatureFlag) (domain.FeatureFlag, error) {
+	if flag.ID == "" {
+		return domain.FeatureFlag{}, fmt.Errorf("flag id is required")
+	}
+	flag.FlagKey = strings.TrimSpace(strings.ToLower(flag.FlagKey))
+	if flag.FlagKey == "" {
+		return domain.FeatureFlag{}, fmt.Errorf("flag_key is required")
+	}
+	return c.adminRepo.UpdateFeatureFlag(ctx, flag)
+}
+
+func (c *adminUseCase) DeleteFeatureFlag(ctx context.Context, flagID string) error {
+	return c.adminRepo.DeleteFeatureFlag(ctx, flagID)
+}
+
+// App configs
+
+func normalizeAppConfigKey(key string) string {
+	key = strings.TrimSpace(strings.ToLower(key))
+	key = strings.ReplaceAll(key, " ", "_")
+	key = strings.ReplaceAll(key, "-", "_")
+	return key
+}
+
+func validateAppConfig(cfg domain.AppConfig) error {
+	cfg.ConfigKey = normalizeAppConfigKey(cfg.ConfigKey)
+	if cfg.ConfigKey == "" {
+		return fmt.Errorf("config_key is required")
+	}
+	if cfg.Value == "" {
+		return fmt.Errorf("value is required")
+	}
+	return nil
+}
+
+func (c *adminUseCase) ListAppConfigs(ctx context.Context) ([]domain.AppConfig, error) {
+	return c.adminRepo.ListAppConfigs(ctx)
+}
+
+func (c *adminUseCase) GetAppConfigByKey(ctx context.Context, configKey string) (domain.AppConfig, error) {
+	return c.adminRepo.GetAppConfigByKey(ctx, normalizeAppConfigKey(configKey))
+}
+
+func (c *adminUseCase) CreateAppConfig(ctx context.Context, cfg domain.AppConfig) (domain.AppConfig, error) {
+	if err := validateAppConfig(cfg); err != nil {
+		return domain.AppConfig{}, err
+	}
+	cfg.ConfigKey = normalizeAppConfigKey(cfg.ConfigKey)
+	return c.adminRepo.CreateAppConfig(ctx, cfg)
+}
+
+func (c *adminUseCase) UpdateAppConfig(ctx context.Context, cfg domain.AppConfig) (domain.AppConfig, error) {
+	if cfg.ID == "" {
+		return domain.AppConfig{}, fmt.Errorf("config id is required")
+	}
+	if err := validateAppConfig(cfg); err != nil {
+		return domain.AppConfig{}, err
+	}
+	cfg.ConfigKey = normalizeAppConfigKey(cfg.ConfigKey)
+	return c.adminRepo.UpdateAppConfig(ctx, cfg)
+}
+
+func (c *adminUseCase) DeleteAppConfig(ctx context.Context, configID string) error {
+	return c.adminRepo.DeleteAppConfig(ctx, configID)
+}
+
+// Help center (contact settings + FAQs)
+
+func validateHelpSettings(s domain.HelpSettings) error {
+	if strings.TrimSpace(s.SupportPhone) == "" &&
+		strings.TrimSpace(s.SupportEmail) == "" &&
+		strings.TrimSpace(s.WhatsAppNumber) == "" {
+		return fmt.Errorf("at least one contact method (support_phone, support_email, or whatsapp_number) is required")
+	}
+	if s.SupportEmail != "" && !strings.Contains(s.SupportEmail, "@") {
+		return fmt.Errorf("support_email is not a valid email address")
+	}
+	return nil
+}
+
+func validateHelpFAQ(f domain.HelpFAQ) error {
+	if strings.TrimSpace(f.Question) == "" {
+		return fmt.Errorf("question is required")
+	}
+	if strings.TrimSpace(f.Answer) == "" {
+		return fmt.Errorf("answer is required")
+	}
+	return nil
+}
+
+func (c *adminUseCase) GetHelpSettings(ctx context.Context) (domain.HelpSettings, error) {
+	return c.adminRepo.GetHelpSettings(ctx)
+}
+
+func (c *adminUseCase) UpdateHelpSettings(ctx context.Context, settings domain.HelpSettings) (domain.HelpSettings, error) {
+	if err := validateHelpSettings(settings); err != nil {
+		return domain.HelpSettings{}, err
+	}
+	return c.adminRepo.UpsertHelpSettings(ctx, settings)
+}
+
+func (c *adminUseCase) ListHelpFAQs(ctx context.Context) ([]domain.HelpFAQ, error) {
+	return c.adminRepo.ListHelpFAQs(ctx)
+}
+
+func (c *adminUseCase) CreateHelpFAQ(ctx context.Context, faq domain.HelpFAQ) (domain.HelpFAQ, error) {
+	if err := validateHelpFAQ(faq); err != nil {
+		return domain.HelpFAQ{}, err
+	}
+	return c.adminRepo.CreateHelpFAQ(ctx, faq)
+}
+
+func (c *adminUseCase) UpdateHelpFAQ(ctx context.Context, faq domain.HelpFAQ) (domain.HelpFAQ, error) {
+	if faq.ID == "" {
+		return domain.HelpFAQ{}, fmt.Errorf("faq id is required")
+	}
+	if err := validateHelpFAQ(faq); err != nil {
+		return domain.HelpFAQ{}, err
+	}
+	return c.adminRepo.UpdateHelpFAQ(ctx, faq)
+}
+
+func (c *adminUseCase) DeleteHelpFAQ(ctx context.Context, faqID string) error {
+	return c.adminRepo.DeleteHelpFAQ(ctx, faqID)
+}
+
+// GetHelpCenter bundles contact settings + only ACTIVE FAQs for the single
+// public read endpoint consumed by client apps (seller app today; customer
+// app can reuse the same endpoint later).
+func (c *adminUseCase) GetHelpCenter(ctx context.Context) (domain.HelpCenter, error) {
+	settings, err := c.adminRepo.GetHelpSettings(ctx)
+	if err != nil {
+		return domain.HelpCenter{}, err
+	}
+	faqs, err := c.adminRepo.ListActiveHelpFAQs(ctx)
+	if err != nil {
+		return domain.HelpCenter{}, err
+	}
+	if faqs == nil {
+		faqs = []domain.HelpFAQ{}
+	}
+	return domain.HelpCenter{Settings: settings, FAQs: faqs}, nil
+}
+
+// Subscription plans (admin panel)
+
+func validateSubscriptionPlan(plan domain.SubscriptionPlan) error {
+	if strings.TrimSpace(plan.Name) == "" {
+		return fmt.Errorf("name is required")
+	}
+	if plan.PriceMonthly.AmountMinor < 0 {
+		return fmt.Errorf("price must not be negative")
+	}
+	if plan.DurationDays == 0 {
+		return fmt.Errorf("duration_days must be greater than zero")
+	}
+	return nil
+}
+
+func (c *adminUseCase) ListSubscriptionPlans(ctx context.Context) ([]domain.SubscriptionPlan, error) {
+	return c.adminRepo.ListSubscriptionPlans(ctx)
+}
+
+func (c *adminUseCase) CreateSubscriptionPlan(ctx context.Context, plan domain.SubscriptionPlan) (domain.SubscriptionPlan, error) {
+	if err := validateSubscriptionPlan(plan); err != nil {
+		return domain.SubscriptionPlan{}, err
+	}
+	return c.adminRepo.CreateSubscriptionPlan(ctx, plan)
+}
+
+func (c *adminUseCase) UpdateSubscriptionPlan(ctx context.Context, plan domain.SubscriptionPlan) (domain.SubscriptionPlan, error) {
+	if plan.ID == "" {
+		return domain.SubscriptionPlan{}, fmt.Errorf("plan id is required")
+	}
+	if err := validateSubscriptionPlan(plan); err != nil {
+		return domain.SubscriptionPlan{}, err
+	}
+	return c.adminRepo.UpdateSubscriptionPlan(ctx, plan)
+}
+
+func (c *adminUseCase) DeleteSubscriptionPlan(ctx context.Context, planID string) error {
+	return c.adminRepo.DeleteSubscriptionPlan(ctx, planID)
 }
 
 // CreateAdvertisementPaymentOrder creates a Razorpay order for the invoice

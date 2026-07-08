@@ -15,7 +15,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/interfaces"
-	"gorm.io/gorm"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
@@ -23,6 +22,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/service/token"
 	usecaseInterface "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
+	"gorm.io/gorm"
 )
 
 type adminHandler struct {
@@ -1123,6 +1123,538 @@ func (c *adminHandler) AdvertisementPaymentFailed(ctx *gin.Context) {
 		return
 	}
 	response.SuccessResponse(ctx, http.StatusOK, "Payment failure recorded", nil)
+}
+
+// GetAdvertisementPricing godoc
+//
+//	@summary		Get advertisement pricing configuration (plans + charges)
+//	@Security		BearerAuth
+//	@Id				GetAdvertisementPricing
+//	@Tags			Advertisement Pricing
+//	@Router			/admin/advertisement-pricing [get]
+//	@Success		200	{object}	response.Response{}
+func (c *adminHandler) GetAdvertisementPricing(ctx *gin.Context) {
+	plans, err := c.adminUseCase.ListAdvertisementPlanConfigs(ctx)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to load price plans", err, nil)
+		return
+	}
+	cfg, err := c.adminUseCase.GetAdvertisementPricingConfig(ctx)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to load pricing config", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Advertisement pricing", map[string]interface{}{
+		"plans":  plans,
+		"config": cfg,
+	})
+}
+
+// CreateAdvertisementPlan godoc
+//
+//	@summary		Create an advertisement price plan
+//	@Security		BearerAuth
+//	@Id				CreateAdvertisementPlan
+//	@Tags			Advertisement Pricing
+//	@Router			/admin/advertisement-pricing/plans [post]
+//	@Success		201	{object}	response.Response{}
+//	@Failure		400	{object}	response.Response{}
+func (c *adminHandler) CreateAdvertisementPlan(ctx *gin.Context) {
+	var body domain.AdvertisementPlanConfig
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	body.ID = ""
+	created, err := c.adminUseCase.CreateAdvertisementPlanConfig(ctx, body)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to create price plan", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusCreated, "Price plan created", created)
+}
+
+// UpdateAdvertisementPlan godoc
+//
+//	@summary		Update an advertisement price plan
+//	@Security		BearerAuth
+//	@Id				UpdateAdvertisementPlan
+//	@Tags			Advertisement Pricing
+//	@Param			plan_id	path	string	true	"Plan ID"
+//	@Router			/admin/advertisement-pricing/plans/{plan_id} [put]
+//	@Success		200	{object}	response.Response{}
+//	@Failure		400	{object}	response.Response{}
+func (c *adminHandler) UpdateAdvertisementPlan(ctx *gin.Context) {
+	var body domain.AdvertisementPlanConfig
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	body.ID = ctx.Param("plan_id")
+	updated, err := c.adminUseCase.UpdateAdvertisementPlanConfig(ctx, body)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to update price plan", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Price plan updated", updated)
+}
+
+// DeleteAdvertisementPlan godoc
+//
+//	@summary		Delete an advertisement price plan
+//	@Security		BearerAuth
+//	@Id				DeleteAdvertisementPlan
+//	@Tags			Advertisement Pricing
+//	@Param			plan_id	path	string	true	"Plan ID"
+//	@Router			/admin/advertisement-pricing/plans/{plan_id} [delete]
+//	@Success		200	{object}	response.Response{}
+//	@Failure		404	{object}	response.Response{}
+func (c *adminHandler) DeleteAdvertisementPlan(ctx *gin.Context) {
+	if err := c.adminUseCase.DeleteAdvertisementPlanConfig(ctx, ctx.Param("plan_id")); err != nil {
+		response.ErrorResponse(ctx, http.StatusNotFound, "Failed to delete price plan", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Price plan deleted", nil)
+}
+
+// UpdateAdvertisementPricingConfig godoc
+//
+//	@summary		Update GST/platform-fee percentages
+//	@Security		BearerAuth
+//	@Id				UpdateAdvertisementPricingConfig
+//	@Tags			Advertisement Pricing
+//	@Router			/admin/advertisement-pricing/config [put]
+//	@Success		200	{object}	response.Response{}
+//	@Failure		400	{object}	response.Response{}
+func (c *adminHandler) UpdateAdvertisementPricingConfig(ctx *gin.Context) {
+	var body domain.AdvertisementPricingConfig
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	updated, err := c.adminUseCase.UpdateAdvertisementPricingConfig(ctx, body)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to update pricing config", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Pricing config updated", updated)
+}
+
+// GetFeatureFlagsObject godoc
+//
+//	@summary		Get feature flags as a key→enabled object (clients)
+//	@Id				GetFeatureFlagsObject
+//	@Tags			Feature Flags
+//	@Router			/feature-flags [get]
+//	@Success		200	{object}	response.Response{}
+func (c *adminHandler) GetFeatureFlagsObject(ctx *gin.Context) {
+	flags, err := c.adminUseCase.GetFeatureFlagsObject(ctx)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get feature flags", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Feature flags", map[string]interface{}{
+		"featureFlag": flags,
+	})
+}
+
+// ListFeatureFlags godoc
+//
+//	@summary		List feature flags with metadata (admin panel)
+//	@Security		BearerAuth
+//	@Id				ListFeatureFlags
+//	@Tags			Feature Flags
+//	@Router			/admin/feature-flags [get]
+//	@Success		200	{object}	response.Response{}
+func (c *adminHandler) ListFeatureFlags(ctx *gin.Context) {
+	flags, err := c.adminUseCase.ListFeatureFlags(ctx)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to list feature flags", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Feature flags", flags)
+}
+
+// CreateFeatureFlag godoc
+//
+//	@summary		Create a feature flag
+//	@Security		BearerAuth
+//	@Id				CreateFeatureFlag
+//	@Tags			Feature Flags
+//	@Router			/admin/feature-flags [post]
+//	@Success		201	{object}	response.Response{}
+//	@Failure		400	{object}	response.Response{}
+func (c *adminHandler) CreateFeatureFlag(ctx *gin.Context) {
+	var body domain.FeatureFlag
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	body.ID = ""
+	created, err := c.adminUseCase.CreateFeatureFlag(ctx, body)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to create feature flag", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusCreated, "Feature flag created", created)
+}
+
+// UpdateFeatureFlag godoc
+//
+//	@summary		Update a feature flag
+//	@Security		BearerAuth
+//	@Id				UpdateFeatureFlag
+//	@Tags			Feature Flags
+//	@Param			flag_id	path	string	true	"Feature flag ID"
+//	@Router			/admin/feature-flags/{flag_id} [put]
+//	@Success		200	{object}	response.Response{}
+//	@Failure		400	{object}	response.Response{}
+func (c *adminHandler) UpdateFeatureFlag(ctx *gin.Context) {
+	var body domain.FeatureFlag
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	body.ID = ctx.Param("flag_id")
+	updated, err := c.adminUseCase.UpdateFeatureFlag(ctx, body)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to update feature flag", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Feature flag updated", updated)
+}
+
+// DeleteFeatureFlag godoc
+//
+//	@summary		Delete a feature flag
+//	@Security		BearerAuth
+//	@Id				DeleteFeatureFlag
+//	@Tags			Feature Flags
+//	@Param			flag_id	path	string	true	"Feature flag ID"
+//	@Router			/admin/feature-flags/{flag_id} [delete]
+//	@Success		200	{object}	response.Response{}
+//	@Failure		404	{object}	response.Response{}
+func (c *adminHandler) DeleteFeatureFlag(ctx *gin.Context) {
+	if err := c.adminUseCase.DeleteFeatureFlag(ctx, ctx.Param("flag_id")); err != nil {
+		response.ErrorResponse(ctx, http.StatusNotFound, "Failed to delete feature flag", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Feature flag deleted", nil)
+}
+
+// ListAppConfigs godoc
+//
+//	@summary		List app configs
+//	@Security		BearerAuth
+//	@Id				ListAppConfigs
+//	@Tags			App Configs
+//	@Router			/admin/app-configs [get]
+//	@Success		200	{object}	response.Response{}
+func (c *adminHandler) ListAppConfigs(ctx *gin.Context) {
+	cfgs, err := c.adminUseCase.ListAppConfigs(ctx)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to list app configs", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "App configs", cfgs)
+}
+
+// GetAppConfigByKey godoc
+//
+//	@summary		Get app config by key
+//	@Security		BearerAuth
+//	@Id				GetAppConfigByKey
+//	@Tags			App Configs
+//	@Router			/admin/app-configs/{config_key} [get]
+//	@Success		200	{object}	response.Response{}
+func (c *adminHandler) GetAppConfigByKey(ctx *gin.Context) {
+	cfg, err := c.adminUseCase.GetAppConfigByKey(ctx, ctx.Param("config_key"))
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusNotFound, "App config not found", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "App config", cfg)
+}
+
+// CreateAppConfig godoc
+//
+//	@summary		Create app config
+//	@Security		BearerAuth
+//	@Id				CreateAppConfig
+//	@Tags			App Configs
+//	@Router			/admin/app-configs [post]
+//	@Success		201	{object}	response.Response{}
+func (c *adminHandler) CreateAppConfig(ctx *gin.Context) {
+	var body domain.AppConfig
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	body.ID = ""
+	created, err := c.adminUseCase.CreateAppConfig(ctx, body)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to create app config", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusCreated, "App config created", created)
+}
+
+// UpdateAppConfig godoc
+//
+//	@summary		Update app config
+//	@Security		BearerAuth
+//	@Id				UpdateAppConfig
+//	@Tags			App Configs
+//	@Router			/admin/app-configs/{config_id} [put]
+//	@Success		200	{object}	response.Response{}
+func (c *adminHandler) UpdateAppConfig(ctx *gin.Context) {
+	var body domain.AppConfig
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	body.ID = ctx.Param("config_id")
+	updated, err := c.adminUseCase.UpdateAppConfig(ctx, body)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to update app config", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "App config updated", updated)
+}
+
+// DeleteAppConfig godoc
+//
+//	@summary		Delete app config
+//	@Security		BearerAuth
+//	@Id				DeleteAppConfig
+//	@Tags			App Configs
+//	@Router			/admin/app-configs/{config_id} [delete]
+//	@Success		200	{object}	response.Response{}
+func (c *adminHandler) DeleteAppConfig(ctx *gin.Context) {
+	if err := c.adminUseCase.DeleteAppConfig(ctx, ctx.Param("config_id")); err != nil {
+		response.ErrorResponse(ctx, http.StatusNotFound, "Failed to delete app config", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "App config deleted", nil)
+}
+
+// GetHelpSettings godoc
+//
+//	@summary		Get help center contact settings (admin panel)
+//	@Security		BearerAuth
+//	@Id				GetHelpSettings
+//	@Tags			Help Center
+//	@Router			/admin/help/settings [get]
+//	@Success		200	{object}	response.Response{}
+func (c *adminHandler) GetHelpSettings(ctx *gin.Context) {
+	settings, err := c.adminUseCase.GetHelpSettings(ctx)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get help settings", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Help settings", settings)
+}
+
+// UpdateHelpSettings godoc
+//
+//	@summary		Update help center contact settings (admin panel)
+//	@Security		BearerAuth
+//	@Id				UpdateHelpSettings
+//	@Tags			Help Center
+//	@Router			/admin/help/settings [put]
+//	@Success		200	{object}	response.Response{}
+func (c *adminHandler) UpdateHelpSettings(ctx *gin.Context) {
+	var body domain.HelpSettings
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	updated, err := c.adminUseCase.UpdateHelpSettings(ctx, body)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to update help settings", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Help settings updated", updated)
+}
+
+// ListHelpFAQs godoc
+//
+//	@summary		List all FAQs, including inactive (admin panel)
+//	@Security		BearerAuth
+//	@Id				ListHelpFAQs
+//	@Tags			Help Center
+//	@Router			/admin/help/faqs [get]
+//	@Success		200	{object}	response.Response{}
+func (c *adminHandler) ListHelpFAQs(ctx *gin.Context) {
+	faqs, err := c.adminUseCase.ListHelpFAQs(ctx)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to list FAQs", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Help FAQs", faqs)
+}
+
+// CreateHelpFAQ godoc
+//
+//	@summary		Create a help FAQ (admin panel)
+//	@Security		BearerAuth
+//	@Id				CreateHelpFAQ
+//	@Tags			Help Center
+//	@Router			/admin/help/faqs [post]
+//	@Success		201	{object}	response.Response{}
+func (c *adminHandler) CreateHelpFAQ(ctx *gin.Context) {
+	var body domain.HelpFAQ
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	body.ID = ""
+	created, err := c.adminUseCase.CreateHelpFAQ(ctx, body)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to create FAQ", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusCreated, "FAQ created", created)
+}
+
+// UpdateHelpFAQ godoc
+//
+//	@summary		Update a help FAQ (admin panel)
+//	@Security		BearerAuth
+//	@Id				UpdateHelpFAQ
+//	@Tags			Help Center
+//	@Router			/admin/help/faqs/{faq_id} [put]
+//	@Success		200	{object}	response.Response{}
+func (c *adminHandler) UpdateHelpFAQ(ctx *gin.Context) {
+	var body domain.HelpFAQ
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	body.ID = ctx.Param("faq_id")
+	updated, err := c.adminUseCase.UpdateHelpFAQ(ctx, body)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to update FAQ", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "FAQ updated", updated)
+}
+
+// DeleteHelpFAQ godoc
+//
+//	@summary		Delete a help FAQ (admin panel)
+//	@Security		BearerAuth
+//	@Id				DeleteHelpFAQ
+//	@Tags			Help Center
+//	@Router			/admin/help/faqs/{faq_id} [delete]
+//	@Success		200	{object}	response.Response{}
+func (c *adminHandler) DeleteHelpFAQ(ctx *gin.Context) {
+	if err := c.adminUseCase.DeleteHelpFAQ(ctx, ctx.Param("faq_id")); err != nil {
+		response.ErrorResponse(ctx, http.StatusNotFound, "Failed to delete FAQ", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "FAQ deleted", nil)
+}
+
+// GetHelpCenter godoc
+//
+//	@summary		Get combined help center content (public — no auth)
+//	@Id				GetHelpCenter
+//	@Tags			Help Center
+//	@Router			/help [get]
+//	@Success		200	{object}	response.Response{}
+func (c *adminHandler) GetHelpCenter(ctx *gin.Context) {
+	helpCenter, err := c.adminUseCase.GetHelpCenter(ctx)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get help center", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Help center", helpCenter)
+}
+
+// ListSubscriptionPlans godoc
+//
+//	@summary		List subscription plans (admin panel)
+//	@Security		BearerAuth
+//	@Id				ListSubscriptionPlans
+//	@Tags			Subscription Plans
+//	@Router			/admin/subscription-plans [get]
+//	@Success		200	{object}	response.Response{}
+func (c *adminHandler) ListSubscriptionPlans(ctx *gin.Context) {
+	plans, err := c.adminUseCase.ListSubscriptionPlans(ctx)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to list subscription plans", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Subscription plans", plans)
+}
+
+// CreateSubscriptionPlan godoc
+//
+//	@summary		Create a subscription plan
+//	@Security		BearerAuth
+//	@Id				CreateSubscriptionPlan
+//	@Tags			Subscription Plans
+//	@Router			/admin/subscription-plans [post]
+//	@Success		201	{object}	response.Response{}
+//	@Failure		400	{object}	response.Response{}
+func (c *adminHandler) CreateSubscriptionPlan(ctx *gin.Context) {
+	var body domain.SubscriptionPlan
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	body.ID = ""
+	created, err := c.adminUseCase.CreateSubscriptionPlan(ctx, body)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to create subscription plan", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusCreated, "Subscription plan created", created)
+}
+
+// UpdateSubscriptionPlan godoc
+//
+//	@summary		Update a subscription plan
+//	@Security		BearerAuth
+//	@Id				UpdateSubscriptionPlan
+//	@Tags			Subscription Plans
+//	@Param			plan_id	path	string	true	"Plan ID"
+//	@Router			/admin/subscription-plans/{plan_id} [put]
+//	@Success		200	{object}	response.Response{}
+//	@Failure		400	{object}	response.Response{}
+func (c *adminHandler) UpdateSubscriptionPlan(ctx *gin.Context) {
+	var body domain.SubscriptionPlan
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	body.ID = ctx.Param("plan_id")
+	updated, err := c.adminUseCase.UpdateSubscriptionPlan(ctx, body)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to update subscription plan", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Subscription plan updated", updated)
+}
+
+// DeleteSubscriptionPlan godoc
+//
+//	@summary		Delete a subscription plan (fails if referenced by orders; deactivate instead)
+//	@Security		BearerAuth
+//	@Id				DeleteSubscriptionPlan
+//	@Tags			Subscription Plans
+//	@Param			plan_id	path	string	true	"Plan ID"
+//	@Router			/admin/subscription-plans/{plan_id} [delete]
+//	@Success		200	{object}	response.Response{}
+//	@Failure		400	{object}	response.Response{}
+func (c *adminHandler) DeleteSubscriptionPlan(ctx *gin.Context) {
+	if err := c.adminUseCase.DeleteSubscriptionPlan(ctx, ctx.Param("plan_id")); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest,
+			"Failed to delete subscription plan (plans already purchased cannot be deleted — deactivate it instead)", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Subscription plan deleted", nil)
 }
 
 // GetActiveAdvertisements godoc

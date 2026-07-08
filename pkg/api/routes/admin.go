@@ -311,6 +311,55 @@ auth := api.Group("/auth")
 			advertisementRequest.POST("/payment-failed", adminHandler.AdvertisementPaymentFailed)
 		}
 
+		// advertisement pricing configuration (managed from the admin panel)
+		advertisementPricing := api.Group("/advertisement-pricing")
+		{
+			advertisementPricing.GET("", adminHandler.GetAdvertisementPricing)
+			advertisementPricing.POST("/plans", middleware.TrimSpaces(), adminHandler.CreateAdvertisementPlan)
+			advertisementPricing.PUT("/plans/:plan_id", middleware.TrimSpaces(), adminHandler.UpdateAdvertisementPlan)
+			advertisementPricing.DELETE("/plans/:plan_id", adminHandler.DeleteAdvertisementPlan)
+			advertisementPricing.PUT("/config", adminHandler.UpdateAdvertisementPricingConfig)
+		}
+
+		// feature flags (managed from the admin panel; clients read /api/feature-flags)
+		featureFlags := api.Group("/feature-flags")
+		{
+			featureFlags.GET("/", adminHandler.ListFeatureFlags)
+			featureFlags.POST("/", middleware.TrimSpaces(), adminHandler.CreateFeatureFlag)
+			featureFlags.PUT("/:flag_id", middleware.TrimSpaces(), adminHandler.UpdateFeatureFlag)
+			featureFlags.DELETE("/:flag_id", adminHandler.DeleteFeatureFlag)
+		}
+
+		// app configs (managed from the admin panel)
+		appConfigs := api.Group("/app-configs")
+		{
+			appConfigs.GET("/", adminHandler.ListAppConfigs)
+			appConfigs.GET("/:config_key", adminHandler.GetAppConfigByKey)
+			appConfigs.POST("/", middleware.TrimSpaces(), adminHandler.CreateAppConfig)
+			appConfigs.PUT("/:config_id", middleware.TrimSpaces(), adminHandler.UpdateAppConfig)
+			appConfigs.DELETE("/:config_id", adminHandler.DeleteAppConfig)
+		}
+
+		// help center — contact settings + FAQs (managed from the admin panel)
+		help := api.Group("/help")
+		{
+			help.GET("/settings", adminHandler.GetHelpSettings)
+			help.PUT("/settings", middleware.TrimSpaces(), adminHandler.UpdateHelpSettings)
+			help.GET("/faqs", adminHandler.ListHelpFAQs)
+			help.POST("/faqs", middleware.TrimSpaces(), adminHandler.CreateHelpFAQ)
+			help.PUT("/faqs/:faq_id", middleware.TrimSpaces(), adminHandler.UpdateHelpFAQ)
+			help.DELETE("/faqs/:faq_id", adminHandler.DeleteHelpFAQ)
+		}
+
+		// subscription plans (managed from the admin panel)
+		subscriptionPlans := api.Group("/subscription-plans")
+		{
+			subscriptionPlans.GET("/", adminHandler.ListSubscriptionPlans)
+			subscriptionPlans.POST("/", middleware.TrimSpaces(), adminHandler.CreateSubscriptionPlan)
+			subscriptionPlans.PUT("/:plan_id", middleware.TrimSpaces(), adminHandler.UpdateSubscriptionPlan)
+			subscriptionPlans.DELETE("/:plan_id", adminHandler.DeleteSubscriptionPlan)
+		}
+
 		// Shop details
 		shop := api.Group("/shops")
 		{

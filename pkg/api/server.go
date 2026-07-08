@@ -133,6 +133,14 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 	engine.GET("/api/advertisements/active", adminHandler.GetActiveAdvertisements)
 	engine.GET("/api/advertisements/active/filter", adminHandler.GetActiveAdvertisementsFiltered)
 
+	// Feature flags object — read by mobile apps on launch to gate features
+	engine.GET("/api/feature-flags", adminHandler.GetFeatureFlagsObject)
+	// App configs — read by clients without admin auth
+	engine.GET("/api/app-configs", adminHandler.ListAppConfigs)
+	engine.GET("/api/app-configs/:config_key", adminHandler.GetAppConfigByKey)
+	// Help center (support contact details + FAQs) — read by clients without admin auth
+	engine.GET("/api/help", adminHandler.GetHelpCenter)
+
 	// log registered routes for debug
 	for _, route := range engine.Routes() {
 		log.Printf("GIN route registered: %s %s -> %s", route.Method, route.Path, route.Handler)

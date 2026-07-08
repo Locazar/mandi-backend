@@ -182,10 +182,15 @@ func (s *FCMPushService) SendToOwnerViaFirestore(
 		return nil
 	}
 
+	imageURL := strings.TrimSpace(data["image_url"])
+	if imageURL == "" {
+		imageURL = strings.TrimSpace(data["product_image_url"])
+	}
+
 	// Send and collect invalid tokens for cleanup.
 	msg := &messaging.MulticastMessage{
 		Tokens:       tokens,
-		Notification: &messaging.Notification{Title: title, Body: body},
+		Notification: &messaging.Notification{Title: title, Body: body, ImageURL: imageURL},
 		Data:         data,
 		Android: &messaging.AndroidConfig{
 			Priority: "high",
@@ -194,15 +199,25 @@ func (s *FCMPushService) SendToOwnerViaFirestore(
 				Title:       title,
 				Body:        body,
 				ClickAction: "FLUTTER_NOTIFICATION_CLICK",
+				ImageURL:    imageURL,
 				Sound:       "default",
 			},
 		},
 		APNS: &messaging.APNSConfig{
+			FCMOptions: &messaging.APNSFCMOptions{ImageURL: imageURL},
 			Payload: &messaging.APNSPayload{
 				Aps: &messaging.Aps{
-					Alert: &messaging.ApsAlert{Title: title, Body: body},
-					Sound: "default",
+					Alert:          &messaging.ApsAlert{Title: title, Body: body},
+					MutableContent: true,
+					Sound:          "default",
 				},
+			},
+		},
+		Webpush: &messaging.WebpushConfig{
+			Notification: &messaging.WebpushNotification{
+				Title: title,
+				Body:  body,
+				Image: imageURL,
 			},
 		},
 	}
