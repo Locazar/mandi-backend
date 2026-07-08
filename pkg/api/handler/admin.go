@@ -1438,6 +1438,140 @@ func (c *adminHandler) DeleteAppConfig(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "App config deleted", nil)
 }
 
+// GetHelpSettings godoc
+//
+//	@summary		Get help center contact settings (admin panel)
+//	@Security		BearerAuth
+//	@Id				GetHelpSettings
+//	@Tags			Help Center
+//	@Router			/admin/help/settings [get]
+//	@Success		200	{object}	response.Response{}
+func (c *adminHandler) GetHelpSettings(ctx *gin.Context) {
+	settings, err := c.adminUseCase.GetHelpSettings(ctx)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get help settings", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Help settings", settings)
+}
+
+// UpdateHelpSettings godoc
+//
+//	@summary		Update help center contact settings (admin panel)
+//	@Security		BearerAuth
+//	@Id				UpdateHelpSettings
+//	@Tags			Help Center
+//	@Router			/admin/help/settings [put]
+//	@Success		200	{object}	response.Response{}
+func (c *adminHandler) UpdateHelpSettings(ctx *gin.Context) {
+	var body domain.HelpSettings
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	updated, err := c.adminUseCase.UpdateHelpSettings(ctx, body)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to update help settings", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Help settings updated", updated)
+}
+
+// ListHelpFAQs godoc
+//
+//	@summary		List all FAQs, including inactive (admin panel)
+//	@Security		BearerAuth
+//	@Id				ListHelpFAQs
+//	@Tags			Help Center
+//	@Router			/admin/help/faqs [get]
+//	@Success		200	{object}	response.Response{}
+func (c *adminHandler) ListHelpFAQs(ctx *gin.Context) {
+	faqs, err := c.adminUseCase.ListHelpFAQs(ctx)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to list FAQs", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Help FAQs", faqs)
+}
+
+// CreateHelpFAQ godoc
+//
+//	@summary		Create a help FAQ (admin panel)
+//	@Security		BearerAuth
+//	@Id				CreateHelpFAQ
+//	@Tags			Help Center
+//	@Router			/admin/help/faqs [post]
+//	@Success		201	{object}	response.Response{}
+func (c *adminHandler) CreateHelpFAQ(ctx *gin.Context) {
+	var body domain.HelpFAQ
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	body.ID = ""
+	created, err := c.adminUseCase.CreateHelpFAQ(ctx, body)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to create FAQ", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusCreated, "FAQ created", created)
+}
+
+// UpdateHelpFAQ godoc
+//
+//	@summary		Update a help FAQ (admin panel)
+//	@Security		BearerAuth
+//	@Id				UpdateHelpFAQ
+//	@Tags			Help Center
+//	@Router			/admin/help/faqs/{faq_id} [put]
+//	@Success		200	{object}	response.Response{}
+func (c *adminHandler) UpdateHelpFAQ(ctx *gin.Context) {
+	var body domain.HelpFAQ
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	body.ID = ctx.Param("faq_id")
+	updated, err := c.adminUseCase.UpdateHelpFAQ(ctx, body)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to update FAQ", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "FAQ updated", updated)
+}
+
+// DeleteHelpFAQ godoc
+//
+//	@summary		Delete a help FAQ (admin panel)
+//	@Security		BearerAuth
+//	@Id				DeleteHelpFAQ
+//	@Tags			Help Center
+//	@Router			/admin/help/faqs/{faq_id} [delete]
+//	@Success		200	{object}	response.Response{}
+func (c *adminHandler) DeleteHelpFAQ(ctx *gin.Context) {
+	if err := c.adminUseCase.DeleteHelpFAQ(ctx, ctx.Param("faq_id")); err != nil {
+		response.ErrorResponse(ctx, http.StatusNotFound, "Failed to delete FAQ", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "FAQ deleted", nil)
+}
+
+// GetHelpCenter godoc
+//
+//	@summary		Get combined help center content (public — no auth)
+//	@Id				GetHelpCenter
+//	@Tags			Help Center
+//	@Router			/help [get]
+//	@Success		200	{object}	response.Response{}
+func (c *adminHandler) GetHelpCenter(ctx *gin.Context) {
+	helpCenter, err := c.adminUseCase.GetHelpCenter(ctx)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get help center", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Help center", helpCenter)
+}
+
 // ListSubscriptionPlans godoc
 //
 //	@summary		List subscription plans (admin panel)

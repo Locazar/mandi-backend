@@ -265,6 +265,38 @@ type FeatureFlag struct {
 	UpdatedAt   time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }
 
+// HelpSettings holds the singleton support-contact configuration shown on the
+// Help & Support screen in client apps (seller app, and future customer app).
+type HelpSettings struct {
+	ID             string    `json:"id" gorm:"primaryKey;type:varchar(32)"`
+	SupportPhone   string    `json:"support_phone" gorm:"size:20"`
+	SupportEmail   string    `json:"support_email" gorm:"size:120"`
+	WhatsAppNumber string    `json:"whatsapp_number" gorm:"size:20"`
+	SupportHours   string    `json:"support_hours" gorm:"size:120"`
+	AboutText      string    `json:"about_text" gorm:"type:text"`
+	CreatedAt      time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt      time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+}
+
+// HelpFAQ is a single admin-managed frequently-asked-question entry shown on
+// the Help & Support screen. SortOrder controls display order (ascending).
+type HelpFAQ struct {
+	ID        string    `json:"id" gorm:"primaryKey;type:varchar(32)"`
+	Question  string    `json:"question" gorm:"type:text;not null"`
+	Answer    string    `json:"answer" gorm:"type:text;not null"`
+	SortOrder int       `json:"sort_order" gorm:"not null;default:0"`
+	IsActive  bool      `json:"is_active" gorm:"not null;default:true"`
+	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+}
+
+// HelpCenter bundles contact settings + active FAQs for the single public
+// read endpoint consumed by client apps.
+type HelpCenter struct {
+	Settings HelpSettings `json:"settings"`
+	FAQs     []HelpFAQ    `json:"faqs"`
+}
+
 // AppConfig is an admin-managed key/value setting stored in the database.
 type AppConfig struct {
 	ID          string    `json:"id" gorm:"primaryKey;type:varchar(32)"`

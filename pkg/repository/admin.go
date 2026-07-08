@@ -819,6 +819,91 @@ func (c *adminDatabase) DeleteAppConfig(ctx context.Context, configID string) er
 	return nil
 }
 
+// Help center (contact settings + FAQs)
+
+// helpSettingsSingletonID is the fixed row ID for help_settings — there is
+// only ever one row, so create/update both target this ID (upsert).
+const helpSettingsSingletonID = "help_settings"
+
+func (c *adminDatabase) GetHelpSettings(ctx context.Context) (domain.HelpSettings, error) {
+	var s domain.HelpSettings
+	// Scan on zero rows leaves s zero-valued without an error — treated as
+	// "not configured yet" defaults by the caller, so no seeded row is needed.
+	err := c.DB.WithContext(ctx).Raw(
+		`SELECT * FROM help_settings WHERE id = $1`, helpSettingsSingletonID,
+	).Scan(&s).Error
+	return s, err
+}
+
+func (c *adminDatabase) UpsertHelpSettings(ctx context.Context, s domain.HelpSettings) (domain.HelpSettings, error) {
+	s.ID = helpSettingsSingletonID
+	err := c.DB.WithContext(ctx).Exec(`INSERT INTO help_settings
+		(id, support_phone, support_email, whatsapp_number, support_hours, about_text, created_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,$6,NOW(),NOW())
+		ON CONFLICT (id) DO UPDATE SET
+			support_phone = EXCLUDED.support_phone,
+			support_email = EXCLUDED.support_email,
+			whatsapp_number = EXCLUDED.whatsapp_number,
+			support_hours = EXCLUDED.support_hours,
+			about_text = EXCLUDED.about_text,
+			updated_at = NOW()`,
+		s.ID, s.SupportPhone, s.SupportEmail, s.WhatsAppNumber, s.SupportHours, s.AboutText,
+	).Error
+	return s, err
+}
+
+func (c *adminDatabase) ListHelpFAQs(ctx context.Context) ([]domain.HelpFAQ, error) {
+	var faqs []domain.HelpFAQ
+	err := c.DB.WithContext(ctx).Raw(
+		`SELECT * FROM help_faqs ORDER BY sort_order ASC, created_at ASC`,
+	).Scan(&faqs).Error
+	return faqs, err
+}
+
+func (c *adminDatabase) ListActiveHelpFAQs(ctx context.Context) ([]domain.HelpFAQ, error) {
+	var faqs []domain.HelpFAQ
+	err := c.DB.WithContext(ctx).Raw(
+		`SELECT * FROM help_faqs WHERE is_active = TRUE ORDER BY sort_order ASC, created_at ASC`,
+	).Scan(&faqs).Error
+	return faqs, err
+}
+
+func (c *adminDatabase) CreateHelpFAQ(ctx context.Context, f domain.HelpFAQ) (domain.HelpFAQ, error) {
+	f.ID = domain.NewID(domain.PrefixHelpFAQ)
+	err := c.DB.WithContext(ctx).Exec(`INSERT INTO help_faqs
+		(id, question, answer, sort_order, is_active, created_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,NOW(),NOW())`,
+		f.ID, f.Question, f.Answer, f.SortOrder, f.IsActive,
+	).Error
+	return f, err
+}
+
+func (c *adminDatabase) UpdateHelpFAQ(ctx context.Context, f domain.HelpFAQ) (domain.HelpFAQ, error) {
+	result := c.DB.WithContext(ctx).Exec(`UPDATE help_faqs
+		SET question = $2, answer = $3, sort_order = $4, is_active = $5, updated_at = NOW()
+		WHERE id = $1`,
+		f.ID, f.Question, f.Answer, f.SortOrder, f.IsActive,
+	)
+	if result.Error != nil {
+		return f, result.Error
+	}
+	if result.RowsAffected == 0 {
+		return f, gorm.ErrRecordNotFound
+	}
+	return f, nil
+}
+
+func (c *adminDatabase) DeleteHelpFAQ(ctx context.Context, faqID string) error {
+	result := c.DB.WithContext(ctx).Exec(`DELETE FROM help_faqs WHERE id = $1`, faqID)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
 // Subscription plans (admin panel)
 
 func (c *adminDatabase) ListSubscriptionPlans(ctx context.Context) ([]domain.SubscriptionPlan, error) {

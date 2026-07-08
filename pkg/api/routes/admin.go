@@ -340,6 +340,17 @@ auth := api.Group("/auth")
 			appConfigs.DELETE("/:config_id", adminHandler.DeleteAppConfig)
 		}
 
+		// help center — contact settings + FAQs (managed from the admin panel)
+		help := api.Group("/help")
+		{
+			help.GET("/settings", adminHandler.GetHelpSettings)
+			help.PUT("/settings", middleware.TrimSpaces(), adminHandler.UpdateHelpSettings)
+			help.GET("/faqs", adminHandler.ListHelpFAQs)
+			help.POST("/faqs", middleware.TrimSpaces(), adminHandler.CreateHelpFAQ)
+			help.PUT("/faqs/:faq_id", middleware.TrimSpaces(), adminHandler.UpdateHelpFAQ)
+			help.DELETE("/faqs/:faq_id", adminHandler.DeleteHelpFAQ)
+		}
+
 		// subscription plans (managed from the admin panel)
 		subscriptionPlans := api.Group("/subscription-plans")
 		{
