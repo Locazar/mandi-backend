@@ -144,6 +144,9 @@ func (s *FCMPushService) SendToTokens(
 	}
 
 	log.Printf("INFO: FCM sent %d/%d successfully", resp.SuccessCount, len(tokens))
+	if resp.SuccessCount == 0 {
+		return fmt.Errorf("FCM multicast send: all %d token(s) failed, e.g. %v", len(tokens), resp.Responses[0].Error)
+	}
 	return nil
 }
 

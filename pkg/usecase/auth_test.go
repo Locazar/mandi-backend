@@ -195,7 +195,7 @@ func TestUserLogin(t *testing.T) {
 			userMockRepo := mockrepo.NewMockUserRepository(ctl)
 			test.buildStub(userMockRepo, test.input)
 
-			authUseCase := NewAuthUseCase(nil, nil, &userRepoAdapter{userMockRepo}, nil, nil, nil, nil)
+			authUseCase := NewAuthUseCase(nil, nil, &userRepoAdapter{userMockRepo}, nil, nil, nil, nil, false)
 			actualOutput, actualError := authUseCase.UserLogin(context.Background(), test.input)
 
 			if test.expectedError != nil {
@@ -305,7 +305,7 @@ func TestGenerateRefreshToken(t *testing.T) {
 			test.buildStubAuthRepo(mockAuthRepo)
 			test.buildStubTokenService(mockTokenAuth)
 
-			authUseCase := NewAuthUseCase(mockAuthRepo, mockTokenAuth, nil, nil, nil, nil, nil)
+			authUseCase := NewAuthUseCase(mockAuthRepo, mockTokenAuth, nil, nil, nil, nil, nil, false)
 			tokenString, err := authUseCase.GenerateRefreshToken(context.Background(), test.inputField)
 
 			test.checkOutput(t, tokenString, err)
@@ -405,7 +405,7 @@ func TestVerifyAndGetRefreshTokenSession(t *testing.T) {
 			authMockRepo := mockrepo.NewMockAuthRepository(ctl)
 			tokenService := mockservice.NewMockTokenService(ctl)
 
-			authUseCase := NewAuthUseCase(authMockRepo, tokenService, nil, nil, nil, nil, nil)
+			authUseCase := NewAuthUseCase(authMockRepo, tokenService, nil, nil, nil, nil, nil, false)
 
 			test.buildStub(authMockRepo, tokenService)
 
