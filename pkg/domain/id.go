@@ -101,7 +101,7 @@ var allPrefixes = []IDPrefix{
 	PrefixCart, PrefixCartItem, PrefixOrder, PrefixOrderLine, PrefixOrderReturn,
 	PrefixFeedback, PrefixOffer, PrefixOfferCategory, PrefixOfferProduct,
 	PrefixCoupon, PrefixCouponUses, PrefixWallet, PrefixTransaction,
-	PrefixAdvertisement, PrefixAdvertRequest, PrefixAdvertPlan, PrefixFeatureFlag, PrefixAppConfig, PrefixHelpFAQ, PrefixNotification, PrefixDeviceToken, PrefixShop,
+	PrefixAdvertisement, PrefixAdvertRequest, PrefixNotification, PrefixDeviceToken, PrefixShop,
 	PrefixShopOffer, PrefixShopDepartment, PrefixShopTime, PrefixShopSocial,
 	PrefixPaymentMethod, PrefixAlert, PrefixAlertAction, PrefixAlertTemplate,
 	PrefixSellerAlertLog, PrefixPromotion, PrefixPromotionType, PrefixPromotionCat,

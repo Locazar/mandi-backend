@@ -66,7 +66,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	}
 	productRepository := repository.NewProductRepository(gormDB, elasticService)
 	userUseCase := usecase.NewUserUseCase(userRepository, cartRepository, productRepository, cloudService)
-	userHandler := handler.NewUserHandler(userUseCase)
+	userHandler := handler.NewUserHandler(userUseCase, cloudService)
 	cartUseCase := usecase.NewCartUseCase(cartRepository, productRepository)
 	cartHandler := handler.NewCartHandler(cartUseCase)
 	paymentRepository := repository.NewPaymentRepository(gormDB)
@@ -133,7 +133,8 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	mobileAuthRepository := repository.NewMobileAuthRepository(sqlDB)
 	mobileAuthUseCase := usecase.NewMobileAuthUseCase(mobileAuthRepository, mobileOTPService, twoFactorSMSService, tokenService, cfg.SkipOTPValidation)
 	mobileAuthHandler := handler.NewHandler(mobileAuthUseCase)
-	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler, jobHandler, jobCategoryHandler, platformUserHandler, mobileAuthHandler)
+	aiHandler := handler.NewAIHandler(client)
+	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler, jobHandler, jobCategoryHandler, platformUserHandler, mobileAuthHandler, aiHandler)
 	return serverHTTP, nil
 }
 

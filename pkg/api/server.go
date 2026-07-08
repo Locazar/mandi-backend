@@ -22,7 +22,7 @@ type ServerHTTP struct {
 	Engine *gin.Engine
 }
 
-// @title						E-commerce Application Backend API
+// @title						Mandi-backend API
 // @description				Backend API built with Golang using Clean Code architecture. \nGithub: [https://github.com/rohit221990/mandi-backend].
 //
 // @contact.name				For API Support
@@ -57,6 +57,7 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 	jobCategoryHandler *handler.JobCategoryHandler,
 	platformUserHandler handlerInterface.PlatformUserHandler,
 	mobileAuthHandler handlerInterface.OTPAuthRequestHandler,
+	aiHandler *handler.AIHandler,
 ) *ServerHTTP {
 
 	engine := gin.New()
@@ -72,7 +73,6 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 
 	// swagger docs
 	engine.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
-
 
 	// Handle icon requests with fallback
 	engine.GET("/uploads/icon/*filepath", func(c *gin.Context) {
@@ -127,6 +127,7 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler, promotionHandler, fcmTokenHandler, notificationHandler, alertHandler, uiHandler, alertTemplateHandler,
 		jobHandler, jobCategoryHandler, platformUserHandler, mobileAuthHandler, sellerGuideHandler)
 	routes.UIRoutes(engine.Group("/api/web"), middleware, uiHandler)
+	routes.AIRoutes(engine.Group("/api"), aiHandler)
 
 	// Public advertisement endpoints — no auth required (used by mobile app)
 	engine.GET("/api/advertisements/active", adminHandler.GetActiveAdvertisements)

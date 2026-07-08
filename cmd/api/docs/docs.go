@@ -4538,6 +4538,50 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/shops/business-document/upload": {
+            "post": {
+                "tags": [
+                    "Admin Shop"
+                ],
+                "summary": "api for admin to upload a business document",
+                "operationId": "UploadBusinessDocument",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "Business Document",
+                        "name": "document",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully uploaded business document",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "failed to upload business document",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/shops/owner/{owner_id}": {
             "get": {
                 "security": [
@@ -4977,6 +5021,315 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/ai/compare-images": {
+            "post": {
+                "description": "Determines whether two images (referenced by server-readable paths) belong to the same product category.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "AI Service"
+                ],
+                "summary": "Compare two product images by category",
+                "operationId": "AICompareImages",
+                "parameters": [
+                    {
+                        "description": "Two image paths",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.AICompareImagesRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Image comparison completed",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "502": {
+                        "description": "AI service call failed",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/ai/detect-objects": {
+            "post": {
+                "description": "Detects objects (label/category/color/material/brand/confidence) in a base64-encoded JPEG. Set detect_all=false to return only the most prominent object.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "AI Service"
+                ],
+                "summary": "Detect objects in an image",
+                "operationId": "AIDetectObjects",
+                "parameters": [
+                    {
+                        "description": "Base64 image and detect_all flag",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.AIDetectObjectsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Object detection completed",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "502": {
+                        "description": "AI service call failed",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/ai/embed": {
+            "post": {
+                "description": "Generates an embedding vector for a single text for semantic search.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "AI Service"
+                ],
+                "summary": "Generate a text embedding",
+                "operationId": "AIGenerateEmbedding",
+                "parameters": [
+                    {
+                        "description": "Text to embed",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.AIEmbedRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Embedding generated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "502": {
+                        "description": "AI service call failed",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/ai/embed-batch": {
+            "post": {
+                "description": "Generates embedding vectors for multiple texts in a single call.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "AI Service"
+                ],
+                "summary": "Generate batch text embeddings",
+                "operationId": "AIGenerateEmbeddings",
+                "parameters": [
+                    {
+                        "description": "Texts to embed",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.AIEmbedBatchRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Embeddings generated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "502": {
+                        "description": "AI service call failed",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/ai/health": {
+            "get": {
+                "description": "Proxies to the ai-service health endpoint to report whether it is reachable.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "AI Service"
+                ],
+                "summary": "AI service health check",
+                "operationId": "AIHealthCheck",
+                "responses": {
+                    "200": {
+                        "description": "AI service is healthy",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "503": {
+                        "description": "AI service is unreachable",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/ai/validate-product": {
+            "post": {
+                "description": "Checks whether a product image (referenced by a server-readable path) matches the given category. Returns valid/confidence/reason.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "AI Service"
+                ],
+                "summary": "Validate a product image against a category",
+                "operationId": "AIValidateProduct",
+                "parameters": [
+                    {
+                        "description": "Image path and category",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.AIValidateProductRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Product validation completed",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "502": {
+                        "description": "AI service call failed",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/ai/verify-image": {
+            "post": {
+                "description": "Checks whether a base64-encoded JPEG satisfies a free-text condition prompt. Returns matches/confidence/reason.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "AI Service"
+                ],
+                "summary": "Verify an image against a prompt",
+                "operationId": "AIVerifyImage",
+                "parameters": [
+                    {
+                        "description": "Base64 image and condition prompt",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.AIVerifyImageRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Image verification completed",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "502": {
+                        "description": "AI service call failed",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -10287,6 +10640,9 @@ const docTemplate = `{
                 "profile_image_url": {
                     "type": "string"
                 },
+                "role": {
+                    "$ref": "#/definitions/domain.AdminRole"
+                },
                 "start_date": {
                     "type": "string"
                 },
@@ -10306,6 +10662,23 @@ const docTemplate = `{
                     "type": "boolean"
                 }
             }
+        },
+        "domain.AdminRole": {
+            "type": "string",
+            "enum": [
+                "super_admin",
+                "support_staff",
+                "catalog_manager",
+                "marketing_manager",
+                "seller"
+            ],
+            "x-enum-varnames": [
+                "AdminRoleSuperAdmin",
+                "AdminRoleSupportStaff",
+                "AdminRoleCatalogManager",
+                "AdminRoleMarketingManager",
+                "AdminRoleSeller"
+            ]
         },
         "domain.AdminStatus": {
             "type": "string",
@@ -10755,6 +11128,91 @@ const docTemplate = `{
                 },
                 "verification_status": {
                     "type": "boolean"
+                }
+            }
+        },
+        "request.AICompareImagesRequest": {
+            "type": "object",
+            "required": [
+                "image_path1",
+                "image_path2"
+            ],
+            "properties": {
+                "image_path1": {
+                    "type": "string"
+                },
+                "image_path2": {
+                    "type": "string"
+                }
+            }
+        },
+        "request.AIDetectObjectsRequest": {
+            "type": "object",
+            "required": [
+                "image_base64"
+            ],
+            "properties": {
+                "detect_all": {
+                    "type": "boolean"
+                },
+                "image_base64": {
+                    "type": "string"
+                }
+            }
+        },
+        "request.AIEmbedBatchRequest": {
+            "type": "object",
+            "required": [
+                "texts"
+            ],
+            "properties": {
+                "texts": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "request.AIEmbedRequest": {
+            "type": "object",
+            "required": [
+                "text"
+            ],
+            "properties": {
+                "text": {
+                    "type": "string"
+                }
+            }
+        },
+        "request.AIValidateProductRequest": {
+            "type": "object",
+            "required": [
+                "category",
+                "image_path"
+            ],
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "image_path": {
+                    "type": "string"
+                }
+            }
+        },
+        "request.AIVerifyImageRequest": {
+            "type": "object",
+            "required": [
+                "image_base64",
+                "prompt"
+            ],
+            "properties": {
+                "image_base64": {
+                    "type": "string"
+                },
+                "prompt": {
+                    "type": "string"
                 }
             }
         },
@@ -12172,6 +12630,9 @@ const docTemplate = `{
                 "department_id": {
                     "type": "string"
                 },
+                "description": {
+                    "type": "string"
+                },
                 "discount_rate": {
                     "type": "integer"
                 },
@@ -12181,6 +12642,12 @@ const docTemplate = `{
                 "dynamic_fields": {
                     "type": "object",
                     "additionalProperties": true
+                },
+                "highlights": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "main_category_name": {
                     "type": "string"
@@ -12407,7 +12874,7 @@ var SwaggerInfo = &swag.Spec{
 	Host:             "",
 	BasePath:         "/api",
 	Schemes:          []string{},
-	Title:            "E-commerce Application Backend API",
+	Title:            "Mandi-backend API",
 	Description:      "Backend API built with Golang using Clean Code architecture. \\nGithub: [https://github.com/rohit221990/mandi-backend].",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,

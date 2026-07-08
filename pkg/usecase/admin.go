@@ -432,6 +432,19 @@ func (c *adminUseCase) GetActiveAdvertisementsFiltered(ctx context.Context, filt
 
 // Advertisement Requests (seller-raised)
 
+// advertisementRatePlans defines the quoted per-day rates (in paise) offered
+// to sellers. Price is always recomputed server-side from these rates.
+var advertisementRatePlans = []struct {
+	Key         string
+	Name        string
+	Description string
+	RatePerDay  int64
+}{
+	{Key: "high", Name: "Premium", Description: "Top banner slot with highest visibility", RatePerDay: 50000},
+	{Key: "medium", Name: "Standard", Description: "Regular rotation in the banner carousel", RatePerDay: 30000},
+	{Key: "low", Name: "Basic", Description: "Shown when premium slots are free", RatePerDay: 15000},
+}
+
 func advertisementDays(startDate, endDate time.Time) (int, error) {
 	if startDate.IsZero() || endDate.IsZero() {
 		return 0, fmt.Errorf("start_date and end_date are required")
@@ -448,19 +461,15 @@ func (c *adminUseCase) GetAdvertisementPricePlans(ctx context.Context, startDate
 	if err != nil {
 		return nil, err
 	}
-	configured, err := c.adminRepo.ListAdvertisementPlans(ctx, true)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load price plans: %v", err)
-	}
-	plans := make([]domain.AdvertisementPricePlan, 0, len(configured))
-	for _, p := range configured {
+	plans := make([]domain.AdvertisementPricePlan, 0, len(advertisementRatePlans))
+	for _, p := range advertisementRatePlans {
 		plans = append(plans, domain.AdvertisementPricePlan{
-			PlanKey:     p.PlanKey,
+			PlanKey:     p.Key,
 			Name:        p.Name,
 			Description: p.Description,
 			Days:        days,
-			RatePerDay:  p.RatePerDayMinor,
-			TotalMinor:  p.RatePerDayMinor * int64(days),
+			RatePerDay:  p.RatePerDay,
+			TotalMinor:  p.RatePerDay * int64(days),
 		})
 	}
 	return plans, nil
@@ -472,13 +481,19 @@ func (c *adminUseCase) CreateAdvertisementRequest(ctx context.Context, req domai
 		return domain.AdvertisementRequest{}, err
 	}
 
-	// Recompute the price server-side from the configured plan; never trust
-	// the client-supplied amount.
-	plan, err := c.adminRepo.GetAdvertisementPlanByKey(ctx, req.PlanKey)
-	if err != nil || !plan.IsActive || plan.RatePerDayMinor <= 0 {
+	// Recompute the price server-side from the selected plan; never trust the
+	// client-supplied amount.
+	var rate int64
+	for _, p := range advertisementRatePlans {
+		if p.Key == req.PlanKey {
+			rate = p.RatePerDay
+			break
+		}
+	}
+	if rate == 0 {
 		return domain.AdvertisementRequest{}, fmt.Errorf("invalid plan_key: %s", req.PlanKey)
 	}
-	req.PriceMinor = plan.RatePerDayMinor * int64(days)
+	req.PriceMinor = rate * int64(days)
 	req.Status = domain.AdvertRequestStatusPending
 
 	// Attach the seller's shop when one exists.
