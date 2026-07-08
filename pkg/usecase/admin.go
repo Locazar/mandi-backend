@@ -726,6 +726,84 @@ func (c *adminUseCase) DeleteAppConfig(ctx context.Context, configID string) err
 	return c.adminRepo.DeleteAppConfig(ctx, configID)
 }
 
+// Help center (contact settings + FAQs)
+
+func validateHelpSettings(s domain.HelpSettings) error {
+	if strings.TrimSpace(s.SupportPhone) == "" &&
+		strings.TrimSpace(s.SupportEmail) == "" &&
+		strings.TrimSpace(s.WhatsAppNumber) == "" {
+		return fmt.Errorf("at least one contact method (support_phone, support_email, or whatsapp_number) is required")
+	}
+	if s.SupportEmail != "" && !strings.Contains(s.SupportEmail, "@") {
+		return fmt.Errorf("support_email is not a valid email address")
+	}
+	return nil
+}
+
+func validateHelpFAQ(f domain.HelpFAQ) error {
+	if strings.TrimSpace(f.Question) == "" {
+		return fmt.Errorf("question is required")
+	}
+	if strings.TrimSpace(f.Answer) == "" {
+		return fmt.Errorf("answer is required")
+	}
+	return nil
+}
+
+func (c *adminUseCase) GetHelpSettings(ctx context.Context) (domain.HelpSettings, error) {
+	return c.adminRepo.GetHelpSettings(ctx)
+}
+
+func (c *adminUseCase) UpdateHelpSettings(ctx context.Context, settings domain.HelpSettings) (domain.HelpSettings, error) {
+	if err := validateHelpSettings(settings); err != nil {
+		return domain.HelpSettings{}, err
+	}
+	return c.adminRepo.UpsertHelpSettings(ctx, settings)
+}
+
+func (c *adminUseCase) ListHelpFAQs(ctx context.Context) ([]domain.HelpFAQ, error) {
+	return c.adminRepo.ListHelpFAQs(ctx)
+}
+
+func (c *adminUseCase) CreateHelpFAQ(ctx context.Context, faq domain.HelpFAQ) (domain.HelpFAQ, error) {
+	if err := validateHelpFAQ(faq); err != nil {
+		return domain.HelpFAQ{}, err
+	}
+	return c.adminRepo.CreateHelpFAQ(ctx, faq)
+}
+
+func (c *adminUseCase) UpdateHelpFAQ(ctx context.Context, faq domain.HelpFAQ) (domain.HelpFAQ, error) {
+	if faq.ID == "" {
+		return domain.HelpFAQ{}, fmt.Errorf("faq id is required")
+	}
+	if err := validateHelpFAQ(faq); err != nil {
+		return domain.HelpFAQ{}, err
+	}
+	return c.adminRepo.UpdateHelpFAQ(ctx, faq)
+}
+
+func (c *adminUseCase) DeleteHelpFAQ(ctx context.Context, faqID string) error {
+	return c.adminRepo.DeleteHelpFAQ(ctx, faqID)
+}
+
+// GetHelpCenter bundles contact settings + only ACTIVE FAQs for the single
+// public read endpoint consumed by client apps (seller app today; customer
+// app can reuse the same endpoint later).
+func (c *adminUseCase) GetHelpCenter(ctx context.Context) (domain.HelpCenter, error) {
+	settings, err := c.adminRepo.GetHelpSettings(ctx)
+	if err != nil {
+		return domain.HelpCenter{}, err
+	}
+	faqs, err := c.adminRepo.ListActiveHelpFAQs(ctx)
+	if err != nil {
+		return domain.HelpCenter{}, err
+	}
+	if faqs == nil {
+		faqs = []domain.HelpFAQ{}
+	}
+	return domain.HelpCenter{Settings: settings, FAQs: faqs}, nil
+}
+
 // Subscription plans (admin panel)
 
 func validateSubscriptionPlan(plan domain.SubscriptionPlan) error {

@@ -66,6 +66,15 @@ type AdminUseCase interface {
 	UpdateAppConfig(ctx context.Context, cfg domain.AppConfig) (domain.AppConfig, error)
 	DeleteAppConfig(ctx context.Context, configID string) error
 
+	// Help center (contact settings + FAQs)
+	GetHelpSettings(ctx context.Context) (domain.HelpSettings, error)
+	UpdateHelpSettings(ctx context.Context, settings domain.HelpSettings) (domain.HelpSettings, error)
+	ListHelpFAQs(ctx context.Context) ([]domain.HelpFAQ, error)
+	CreateHelpFAQ(ctx context.Context, faq domain.HelpFAQ) (domain.HelpFAQ, error)
+	UpdateHelpFAQ(ctx context.Context, faq domain.HelpFAQ) (domain.HelpFAQ, error)
+	DeleteHelpFAQ(ctx context.Context, faqID string) error
+	GetHelpCenter(ctx context.Context) (domain.HelpCenter, error)
+
 	// Subscription plans (admin panel)
 	ListSubscriptionPlans(ctx context.Context) ([]domain.SubscriptionPlan, error)
 	CreateSubscriptionPlan(ctx context.Context, plan domain.SubscriptionPlan) (domain.SubscriptionPlan, error)

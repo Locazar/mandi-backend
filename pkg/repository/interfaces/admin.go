@@ -64,6 +64,15 @@ type AdminRepository interface {
 	UpdateAppConfig(ctx context.Context, cfg domain.AppConfig) (domain.AppConfig, error)
 	DeleteAppConfig(ctx context.Context, configID string) error
 
+	// Help center (contact settings + FAQs)
+	GetHelpSettings(ctx context.Context) (domain.HelpSettings, error)
+	UpsertHelpSettings(ctx context.Context, settings domain.HelpSettings) (domain.HelpSettings, error)
+	ListHelpFAQs(ctx context.Context) ([]domain.HelpFAQ, error)
+	ListActiveHelpFAQs(ctx context.Context) ([]domain.HelpFAQ, error)
+	CreateHelpFAQ(ctx context.Context, faq domain.HelpFAQ) (domain.HelpFAQ, error)
+	UpdateHelpFAQ(ctx context.Context, faq domain.HelpFAQ) (domain.HelpFAQ, error)
+	DeleteHelpFAQ(ctx context.Context, faqID string) error
+
 	// Subscription plans (admin panel)
 	ListSubscriptionPlans(ctx context.Context) ([]domain.SubscriptionPlan, error)
 	CreateSubscriptionPlan(ctx context.Context, plan domain.SubscriptionPlan) (domain.SubscriptionPlan, error)

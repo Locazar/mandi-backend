@@ -137,6 +137,8 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 	// App configs — read by clients without admin auth
 	engine.GET("/api/app-configs", adminHandler.ListAppConfigs)
 	engine.GET("/api/app-configs/:config_key", adminHandler.GetAppConfigByKey)
+	// Help center (support contact details + FAQs) — read by clients without admin auth
+	engine.GET("/api/help", adminHandler.GetHelpCenter)
 
 	// log registered routes for debug
 	for _, route := range engine.Routes() {

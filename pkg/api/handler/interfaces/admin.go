@@ -53,6 +53,15 @@ type AdminHandler interface {
 	UpdateAppConfig(ctx *gin.Context)
 	DeleteAppConfig(ctx *gin.Context)
 
+	// Help center (contact settings + FAQs)
+	GetHelpSettings(ctx *gin.Context)
+	UpdateHelpSettings(ctx *gin.Context)
+	ListHelpFAQs(ctx *gin.Context)
+	CreateHelpFAQ(ctx *gin.Context)
+	UpdateHelpFAQ(ctx *gin.Context)
+	DeleteHelpFAQ(ctx *gin.Context)
+	GetHelpCenter(ctx *gin.Context)
+
 	// Subscription plans (admin panel)
 	ListSubscriptionPlans(ctx *gin.Context)
 	CreateSubscriptionPlan(ctx *gin.Context)
