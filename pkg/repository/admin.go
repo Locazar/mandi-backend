@@ -450,11 +450,11 @@ func (c *adminDatabase) GetActiveAdvertisementsFiltered(ctx context.Context, fil
 	// - '' / NULL  ads → everyone
 	// So: seller app sees seller + customer + empty; customer app sees customer + empty.
 	if filter.AppType == domain.AdvertisementAudienceSeller {
-		// Seller app: show only seller-targeted ads.
-		query += " AND audience = 'seller'"
+		// Seller app: show seller-targeted, customer-targeted (default/general), and untargeted ads.
+		query += " AND (audience = 'seller' OR audience = 'customer' OR audience IS NULL OR audience = '')"
 	} else if filter.AppType == domain.AdvertisementAudienceCustomer {
-		// Customer app: show only customer-targeted ads.
-		query += " AND audience = 'customer'"
+		// Customer app: show customer-targeted and untargeted ads.
+		query += " AND (audience = 'customer' OR audience IS NULL OR audience = '')"
 	}
 	// If AppType is empty, no audience filter applied — return all.
 
