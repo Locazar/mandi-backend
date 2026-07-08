@@ -58,6 +58,34 @@ func TestMoneyString(t *testing.T) {
 	}
 }
 
+func TestMoneyInclusiveTaxPortion(t *testing.T) {
+	cases := []struct {
+		name  string
+		price Money
+		bps   int
+		want  int64
+	}{
+		// 39900 * 1800 / 11800 = 6086.44 -> 6086
+		{"18pct on 399", INR(39900), 1800, 6086},
+		// 115000 * 1800 / 11800 = 17542.37 -> 17542
+		{"18pct on 1150", INR(115000), 1800, 17542},
+		{"zero amount", INR(0), 1800, 0},
+		{"zero rate", INR(39900), 0, 0},
+		{"negative rate", INR(39900), -5, 0},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := tc.price.InclusiveTaxPortion(tc.bps)
+			if got.AmountMinor != tc.want {
+				t.Fatalf("InclusiveTaxPortion(%d) on %v = %d, want %d", tc.bps, tc.price, got.AmountMinor, tc.want)
+			}
+			if got.Currency != tc.price.Currency {
+				t.Fatalf("currency = %q, want %q", got.Currency, tc.price.Currency)
+			}
+		})
+	}
+}
+
 func TestMoneyHelpers(t *testing.T) {
 	if !INR(0).IsZero() {
 		t.Fatal("INR(0).IsZero() should be true")

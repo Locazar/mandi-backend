@@ -2,6 +2,7 @@ package interfaces
 
 import (
 	"context"
+	"time"
 
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 )
@@ -17,5 +18,8 @@ type SubscriptionRepository interface {
 	FindActiveSubscriptionByUserID(ctx context.Context, userID string) (domain.UserSubscription, error)
 	ActivateSubscription(ctx context.Context, sub domain.UserSubscription) error
 	DeactivateTrialSubscription(ctx context.Context, userID string) error
+	// SumGSTCollected returns the total GST collected from paid subscription
+	// orders whose paid_at falls within [from, to].
+	SumGSTCollected(ctx context.Context, from, to time.Time) (domain.Money, error)
 	Transaction(fn func(repo SubscriptionRepository) error) error
 }

@@ -106,12 +106,17 @@ func (uc *subscriptionPaymentUseCase) CreateSubscriptionOrder(ctx context.Contex
 	rzpOrderID, _ := rzpRes["id"].(string)
 
 	// 6. Persist subscription order
+	// GST is included in the price; snapshot the current rate and the computed
+	// GST portion so historical reporting is unaffected by future rate changes.
+	gstRate := uc.config.GSTPercentBasisPoints
 	subOrder := domain.SubscriptionOrder{
-		UserID:          userID,
-		PlanID:          plan.ID,
-		Price:           plan.PriceMonthly,
-		RazorpayOrderID: rzpOrderID,
-		Status:          domain.SubStatusCreated,
+		UserID:             userID,
+		PlanID:             plan.ID,
+		Price:              plan.PriceMonthly,
+		GSTRateBasisPoints: gstRate,
+		GSTAmount:          plan.PriceMonthly.InclusiveTaxPortion(gstRate),
+		RazorpayOrderID:    rzpOrderID,
+		Status:             domain.SubStatusCreated,
 	}
 
 	subOrder, err = uc.subRepo.CreateSubscriptionOrder(ctx, subOrder)
@@ -121,11 +126,13 @@ func (uc *subscriptionPaymentUseCase) CreateSubscriptionOrder(ctx context.Contex
 
 	// 7. Return checkout data
 	return response.SubscriptionOrderResponse{
-		OrderID:     rzpOrderID,
-		KeyID:       uc.config.RazorPayKey,
-		Amount:      uint(amountPaise),
-		Currency:    "INR",
-		ShopOrderID: subOrder.ID,
+		OrderID:            rzpOrderID,
+		KeyID:              uc.config.RazorPayKey,
+		Amount:             uint(amountPaise),
+		Currency:           "INR",
+		ShopOrderID:        subOrder.ID,
+		GSTRateBasisPoints: subOrder.GSTRateBasisPoints,
+		GSTAmount:          uint(subOrder.GSTAmount.AmountMinor),
 		Prefill: response.SubscriptionPrefill{
 			Email:   user.Email,
 			Contact: user.Phone,

@@ -45,6 +45,22 @@ func (m Money) Sub(other Money) (Money, error) {
 	return Money{AmountMinor: m.AmountMinor - other.AmountMinor, Currency: m.Currency}, nil
 }
 
+// InclusiveTaxPortion returns the tax already contained in a tax-inclusive
+// amount, given a rate in basis points (1800 = 18.00%). Because the amount is
+// tax-inclusive, the tax component is amount * rate / (100% + rate); with the
+// rate in basis points that is amount * rate / (10000 + rate). The result is
+// rounded to the nearest minor unit and carries the same currency.
+//
+// A non-positive rate yields a zero amount (no tax).
+func (m Money) InclusiveTaxPortion(rateBasisPoints int) Money {
+	if rateBasisPoints <= 0 {
+		return Money{AmountMinor: 0, Currency: m.Currency}
+	}
+	denom := int64(10000) + int64(rateBasisPoints)
+	tax := (m.AmountMinor*int64(rateBasisPoints) + denom/2) / denom
+	return Money{AmountMinor: tax, Currency: m.Currency}
+}
+
 // IsZero reports whether the amount is exactly zero.
 func (m Money) IsZero() bool { return m.AmountMinor == 0 }
 

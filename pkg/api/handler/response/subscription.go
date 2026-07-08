@@ -6,12 +6,16 @@ type SubscriptionPrefill struct {
 }
 
 type SubscriptionOrderResponse struct {
-	OrderID     string              `json:"order_id"`
-	KeyID       string              `json:"key_id"`
-	Amount      uint                `json:"amount"`
-	Currency    string              `json:"currency"`
-	ShopOrderID string              `json:"shop_order_id"`
-	Prefill     SubscriptionPrefill `json:"prefill"`
+	OrderID     string `json:"order_id"`
+	KeyID       string `json:"key_id"`
+	Amount      uint   `json:"amount"`
+	Currency    string `json:"currency"`
+	ShopOrderID string `json:"shop_order_id"`
+	// GSTRateBasisPoints is the GST rate applied to this order (1800 = 18.00%),
+	// and GSTAmount is the GST portion already included in Amount (minor units).
+	GSTRateBasisPoints int                 `json:"gst_rate_basis_points"`
+	GSTAmount          uint                `json:"gst_amount"`
+	Prefill            SubscriptionPrefill `json:"prefill"`
 }
 
 type SubscriptionVerificationResponse struct {
