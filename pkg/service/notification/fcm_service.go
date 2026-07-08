@@ -862,6 +862,12 @@ func (s *Service) buildMulticastMessage(tokens []string, payload *domain.Notific
 		data["image_url"] = imageURL
 		data["product_image_url"] = imageURL
 	}
+	if payload.ProductID != "" {
+		data["product_id"] = payload.ProductID
+	}
+	if payload.ProductName != "" {
+		data["product_name"] = payload.ProductName
+	}
 	msg := &messaging.MulticastMessage{
 		Tokens: tokens,
 		Data:   data,

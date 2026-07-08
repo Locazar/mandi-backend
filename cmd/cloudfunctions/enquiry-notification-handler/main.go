@@ -218,13 +218,18 @@ func ProcessEnquiryCreate(ctx context.Context, ce cloudevents.Event) error {
 	}
 
 	// ── Build seller notification copy ───────────────────────────────────────
+	productName := firstFieldValue(fields, "productName", "product_name", "itemName", "item_name")
+	quantity := firstFieldValue(fields, "askQuantity", "ask_quantity", "quantity")
+
 	title := "New Enquiry Received"
 	body := "A buyer has sent a new enquiry. Tap to review and respond."
-	for _, key := range []string{"askQuantity", "ask_quantity", "quantity"} {
-		if qty := firstFieldValue(fields, key); qty != "" {
-			body = fmt.Sprintf("A buyer is enquiring for quantity %s. Tap to respond.", qty)
-			break
-		}
+	switch {
+	case productName != "" && quantity != "":
+		body = fmt.Sprintf("A buyer is enquiring about \"%s\" (quantity %s). Tap to respond.", productName, quantity)
+	case productName != "":
+		body = fmt.Sprintf("A buyer is enquiring about \"%s\". Tap to respond.", productName)
+	case quantity != "":
+		body = fmt.Sprintf("A buyer is enquiring for quantity %s. Tap to respond.", quantity)
 	}
 
 	data := map[string]string{
@@ -238,6 +243,9 @@ func ProcessEnquiryCreate(ctx context.Context, ce cloudevents.Event) error {
 	}
 	if buyerID != "" {
 		data["buyer_id"] = buyerID
+	}
+	if productName != "" {
+		data["product_name"] = productName
 	}
 
 	// ── Attach product image for rich notification ────────────────────────────

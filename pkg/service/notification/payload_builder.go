@@ -38,6 +38,7 @@ func (pb *PayloadBuilder) BuildPayload(
 	payload.SellerID = firstNonEmptyField(event.NewFields, "sellerId", "seller_id", "shopId", "shop_id")
 	payload.AssignedTo = firstNonEmptyField(event.NewFields, "assignedTo", "assigned_to")
 	payload.ProductID = firstNonEmptyField(event.NewFields, "productId", "product_id", "itemId", "item_id")
+	payload.ProductName = firstNonEmptyField(event.NewFields, "productName", "product_name", "itemName", "item_name")
 	// Read image URL directly from the enquiry document if present — avoids an extra Firestore round-trip.
 	payload.ImageURL = firstNonEmptyField(event.NewFields, "imageUrl", "image_url", "productImageUrl", "product_image_url", "imageURL", "thumbnailUrl", "thumbnail_url")
 
@@ -121,6 +122,10 @@ func (pb *PayloadBuilder) buildStatusNotification(change domain.FieldChange, fie
 	enquiryRef := "this enquiry"
 	if enquiryID := firstNonEmptyField(fields, "queryId", "enquiryId", "id"); enquiryID != "" {
 		enquiryRef = fmt.Sprintf("enquiry #%s", enquiryID)
+	}
+	// Prefer the product name — far more meaningful to the reader than an ID.
+	if productName := firstNonEmptyField(fields, "productName", "product_name", "itemName", "item_name"); productName != "" {
+		enquiryRef = fmt.Sprintf("the enquiry for \"%s\"", productName)
 	}
 
 	formatPrice := func(v interface{}) string {
