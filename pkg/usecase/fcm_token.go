@@ -86,9 +86,16 @@ func (u *fcmTokenUseCase) SaveFcmToken(fcmToken domain.FcmToken) (domain.FcmToke
 
 	ctx := context.Background()
 
-	// 1. Sync to Firestore so the Firestore watcher can deliver push notifications.
-	if syncErr := u.fcmPush.SaveTokenToFirestore(ctx, ownerType+"s", ownerID, saved.Token, saved.Platform); syncErr != nil {
-		log.Printf("WARN [SaveFcmToken]: Firestore sync failed for %s %s: %v", ownerType, ownerID, syncErr)
+	// 1. Sync to Firestore so the Firestore watcher / Cloud Function can deliver
+	//    push notifications. Enquiry documents reference sellers by SHOP id
+	//    (shp_...), so seller tokens must live under sellers/{shopID} — the
+	//    admin id (adm_...) would never be looked up.
+	firestoreOwnerID := ownerID
+	if ownerType == "seller" && shopID != "" {
+		firestoreOwnerID = shopID
+	}
+	if syncErr := u.fcmPush.SaveTokenToFirestore(ctx, ownerType+"s", firestoreOwnerID, saved.Token, saved.Platform); syncErr != nil {
+		log.Printf("WARN [SaveFcmToken]: Firestore sync failed for %s %s: %v", ownerType, firestoreOwnerID, syncErr)
 	}
 
 	// 2. Upsert into notification_device_tokens so SendPushNotification finds the
