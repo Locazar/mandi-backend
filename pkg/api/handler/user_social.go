@@ -160,6 +160,7 @@ func (c *UserHandler) GetFollowedShops(ctx *gin.Context) {
 	if shops == nil {
 		shops = []response.Shop{}
 	}
+	response.ResolveShopsImages(c.cloudService, shops)
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully got followed shops", shops)
 }
 
@@ -188,6 +189,8 @@ func (c *UserHandler) GetMyFollowedShops(ctx *gin.Context) {
 	if shops == nil {
 		shops = []response.Shop{}
 	}
+
+	response.ResolveShopsImages(c.cloudService, shops)
 
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully got followed shops", shops)
 }
@@ -524,6 +527,7 @@ func (c *UserHandler) GetLikedShops(ctx *gin.Context) {
 	if shops == nil {
 		shops = []response.Shop{}
 	}
+	response.ResolveShopsImages(c.cloudService, shops)
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully got liked shops", shops)
 }
 

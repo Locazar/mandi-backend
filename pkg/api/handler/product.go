@@ -1402,6 +1402,7 @@ func (h *ProductHandler) GetProductsByCategory(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	response.ResolveProductsImages(h.cloudService, products)
 	c.JSON(http.StatusOK, gin.H{"products": products})
 
 }
@@ -1459,6 +1460,7 @@ func (h *ProductHandler) GetProductsByBrand(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	response.ResolveProductsImages(h.cloudService, products)
 	c.JSON(http.StatusOK, gin.H{"products": products})
 
 }
@@ -1479,6 +1481,7 @@ func (h *ProductHandler) GetCategoryFilters(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	response.ResolveCategoriesImages(h.cloudService, categories)
 	c.JSON(http.StatusOK, gin.H{"categories": categories})
 
 }
@@ -1553,6 +1556,7 @@ func (h *ProductHandler) GetProductsByLocation(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	response.ResolveProductsImages(h.cloudService, products)
 	c.JSON(http.StatusOK, gin.H{"products": products})
 
 }
@@ -1788,6 +1792,7 @@ func (h *ProductHandler) GetNearbyProductsByPincode(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
+		response.ResolveProductItemsImages(h.cloudService, products)
 		c.JSON(http.StatusOK, gin.H{"products": products})
 		return
 	} else if pincode != "" {
@@ -1796,6 +1801,7 @@ func (h *ProductHandler) GetNearbyProductsByPincode(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
+		response.ResolveProductItemsImages(h.cloudService, products)
 		c.JSON(http.StatusOK, gin.H{"products": products})
 		return
 	} else {
@@ -1865,6 +1871,7 @@ func (h *ProductHandler) GetProductsByRadius(c *gin.Context) {
 		return
 	}
 
+	response.ResolveProductItemsImages(h.cloudService, products)
 	c.JSON(http.StatusOK, gin.H{"products": products})
 
 }
@@ -2653,6 +2660,8 @@ func (p *ProductHandler) GetProductItemsByOfferID(ctx *gin.Context) {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get product items by offer ID", err, nil)
 		return
 	}
+
+	response.ResolveProductItemsImages(p.cloudService, products)
 
 	ctx.JSON(http.StatusOK, response.Response{
 		Status:  true,

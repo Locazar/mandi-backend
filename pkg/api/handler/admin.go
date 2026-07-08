@@ -2568,6 +2568,8 @@ func (a *ProductHandler) GetAllSubCategories(ctx *gin.Context) {
 		return
 	}
 
+	response.ResolveSubCategoriesImages(a.cloudService, subCategories)
+
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved all sub-categories", subCategories)
 }
 
