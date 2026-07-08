@@ -3,8 +3,8 @@ package repository
 import (
 	"context"
 	"errors"
-	"log"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -638,6 +638,345 @@ func (c *adminDatabase) MarkAdvertisementRequestPaymentFailed(ctx context.Contex
 		SET payment_status = 'failed', updated_at = NOW()
 		WHERE id = $1 AND payment_status <> 'paid'`, requestID)
 	return result.Error
+}
+
+// Advertisement pricing configuration (admin-managed)
+
+func (c *adminDatabase) ListAdvertisementPlans(ctx context.Context, activeOnly bool) ([]domain.AdvertisementPlanConfig, error) {
+	var plans []domain.AdvertisementPlanConfig
+	query := `SELECT * FROM advertisement_price_plans`
+	if activeOnly {
+		query += ` WHERE is_active = TRUE`
+	}
+	query += ` ORDER BY sort_order ASC, created_at ASC`
+	err := c.DB.WithContext(ctx).Raw(query).Scan(&plans).Error
+	return plans, err
+}
+
+func (c *adminDatabase) GetAdvertisementPlanByKey(ctx context.Context, planKey string) (domain.AdvertisementPlanConfig, error) {
+	var plan domain.AdvertisementPlanConfig
+	err := c.DB.WithContext(ctx).Raw(
+		`SELECT * FROM advertisement_price_plans WHERE plan_key = $1`, planKey,
+	).Scan(&plan).Error
+	if err == nil && plan.ID == "" {
+		return plan, gorm.ErrRecordNotFound
+	}
+	return plan, err
+}
+
+func (c *adminDatabase) CreateAdvertisementPlan(ctx context.Context, plan domain.AdvertisementPlanConfig) (domain.AdvertisementPlanConfig, error) {
+	plan.ID = domain.NewID(domain.PrefixAdvertPlan)
+	err := c.DB.WithContext(ctx).Exec(`INSERT INTO advertisement_price_plans
+		(id, plan_key, name, description, rate_per_day_minor, sort_order, is_active, created_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,NOW(),NOW())`,
+		plan.ID, plan.PlanKey, plan.Name, plan.Description,
+		plan.RatePerDayMinor, plan.SortOrder, plan.IsActive,
+	).Error
+	return plan, err
+}
+
+func (c *adminDatabase) UpdateAdvertisementPlan(ctx context.Context, plan domain.AdvertisementPlanConfig) (domain.AdvertisementPlanConfig, error) {
+	result := c.DB.WithContext(ctx).Exec(`UPDATE advertisement_price_plans
+		SET plan_key = $2, name = $3, description = $4, rate_per_day_minor = $5,
+		    sort_order = $6, is_active = $7, updated_at = NOW()
+		WHERE id = $1`,
+		plan.ID, plan.PlanKey, plan.Name, plan.Description,
+		plan.RatePerDayMinor, plan.SortOrder, plan.IsActive,
+	)
+	if result.Error != nil {
+		return plan, result.Error
+	}
+	if result.RowsAffected == 0 {
+		return plan, gorm.ErrRecordNotFound
+	}
+	return plan, nil
+}
+
+func (c *adminDatabase) DeleteAdvertisementPlan(ctx context.Context, planID string) error {
+	result := c.DB.WithContext(ctx).Exec(
+		`DELETE FROM advertisement_price_plans WHERE id = $1`, planID,
+	)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+func (c *adminDatabase) GetAdvertisementPricingConfig(ctx context.Context) (domain.AdvertisementPricingConfig, error) {
+	var cfg domain.AdvertisementPricingConfig
+	err := c.DB.WithContext(ctx).Raw(
+		`SELECT * FROM advertisement_pricing_config ORDER BY id LIMIT 1`,
+	).Scan(&cfg).Error
+	if err == nil && cfg.ID == "" {
+		return cfg, gorm.ErrRecordNotFound
+	}
+	return cfg, err
+}
+
+// Feature flags
+
+func (c *adminDatabase) ListFeatureFlags(ctx context.Context) ([]domain.FeatureFlag, error) {
+	var flags []domain.FeatureFlag
+	err := c.DB.WithContext(ctx).Raw(
+		`SELECT * FROM feature_flags ORDER BY flag_key ASC`,
+	).Scan(&flags).Error
+	return flags, err
+}
+
+func (c *adminDatabase) CreateFeatureFlag(ctx context.Context, flag domain.FeatureFlag) (domain.FeatureFlag, error) {
+	flag.ID = domain.NewID(domain.PrefixFeatureFlag)
+	err := c.DB.WithContext(ctx).Exec(`INSERT INTO feature_flags
+		(id, flag_key, enabled, description, created_at, updated_at)
+		VALUES ($1,$2,$3,$4,NOW(),NOW())`,
+		flag.ID, flag.FlagKey, flag.Enabled, flag.Description,
+	).Error
+	return flag, err
+}
+
+func (c *adminDatabase) UpdateFeatureFlag(ctx context.Context, flag domain.FeatureFlag) (domain.FeatureFlag, error) {
+	result := c.DB.WithContext(ctx).Exec(`UPDATE feature_flags
+		SET flag_key = $2, enabled = $3, description = $4, updated_at = NOW()
+		WHERE id = $1`,
+		flag.ID, flag.FlagKey, flag.Enabled, flag.Description,
+	)
+	if result.Error != nil {
+		return flag, result.Error
+	}
+	if result.RowsAffected == 0 {
+		return flag, gorm.ErrRecordNotFound
+	}
+	return flag, nil
+}
+
+func (c *adminDatabase) DeleteFeatureFlag(ctx context.Context, flagID string) error {
+	result := c.DB.WithContext(ctx).Exec(`DELETE FROM feature_flags WHERE id = $1`, flagID)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+// App configs
+
+func (c *adminDatabase) ListAppConfigs(ctx context.Context) ([]domain.AppConfig, error) {
+	var cfgs []domain.AppConfig
+	err := c.DB.WithContext(ctx).Raw(
+		`SELECT * FROM app_configs ORDER BY config_key ASC`,
+	).Scan(&cfgs).Error
+	return cfgs, err
+}
+
+func (c *adminDatabase) GetAppConfigByKey(ctx context.Context, configKey string) (domain.AppConfig, error) {
+	var cfg domain.AppConfig
+	err := c.DB.WithContext(ctx).Raw(
+		`SELECT * FROM app_configs WHERE config_key = $1`, configKey,
+	).Scan(&cfg).Error
+	if err == nil && cfg.ID == "" {
+		return cfg, gorm.ErrRecordNotFound
+	}
+	return cfg, err
+}
+
+func (c *adminDatabase) CreateAppConfig(ctx context.Context, cfg domain.AppConfig) (domain.AppConfig, error) {
+	cfg.ID = domain.NewID(domain.PrefixAppConfig)
+	err := c.DB.WithContext(ctx).Exec(`INSERT INTO app_configs
+		(id, config_key, value, description, enabled, created_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,NOW(),NOW())`,
+		cfg.ID, cfg.ConfigKey, cfg.Value, cfg.Description, cfg.Enabled,
+	).Error
+	return cfg, err
+}
+
+func (c *adminDatabase) UpdateAppConfig(ctx context.Context, cfg domain.AppConfig) (domain.AppConfig, error) {
+	result := c.DB.WithContext(ctx).Exec(`UPDATE app_configs
+		SET config_key = $2, value = $3, description = $4, enabled = $5, updated_at = NOW()
+		WHERE id = $1`,
+		cfg.ID, cfg.ConfigKey, cfg.Value, cfg.Description, cfg.Enabled,
+	)
+	if result.Error != nil {
+		return cfg, result.Error
+	}
+	if result.RowsAffected == 0 {
+		return cfg, gorm.ErrRecordNotFound
+	}
+	return cfg, nil
+}
+
+func (c *adminDatabase) DeleteAppConfig(ctx context.Context, configID string) error {
+	result := c.DB.WithContext(ctx).Exec(`DELETE FROM app_configs WHERE id = $1`, configID)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+// Help center (contact settings + FAQs)
+
+// helpSettingsSingletonID is the fixed row ID for help_settings — there is
+// only ever one row, so create/update both target this ID (upsert).
+const helpSettingsSingletonID = "help_settings"
+
+func (c *adminDatabase) GetHelpSettings(ctx context.Context) (domain.HelpSettings, error) {
+	var s domain.HelpSettings
+	// Scan on zero rows leaves s zero-valued without an error — treated as
+	// "not configured yet" defaults by the caller, so no seeded row is needed.
+	err := c.DB.WithContext(ctx).Raw(
+		`SELECT * FROM help_settings WHERE id = $1`, helpSettingsSingletonID,
+	).Scan(&s).Error
+	return s, err
+}
+
+func (c *adminDatabase) UpsertHelpSettings(ctx context.Context, s domain.HelpSettings) (domain.HelpSettings, error) {
+	s.ID = helpSettingsSingletonID
+	err := c.DB.WithContext(ctx).Exec(`INSERT INTO help_settings
+		(id, support_phone, support_email, whatsapp_number, support_hours, about_text, created_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,$6,NOW(),NOW())
+		ON CONFLICT (id) DO UPDATE SET
+			support_phone = EXCLUDED.support_phone,
+			support_email = EXCLUDED.support_email,
+			whatsapp_number = EXCLUDED.whatsapp_number,
+			support_hours = EXCLUDED.support_hours,
+			about_text = EXCLUDED.about_text,
+			updated_at = NOW()`,
+		s.ID, s.SupportPhone, s.SupportEmail, s.WhatsAppNumber, s.SupportHours, s.AboutText,
+	).Error
+	return s, err
+}
+
+func (c *adminDatabase) ListHelpFAQs(ctx context.Context) ([]domain.HelpFAQ, error) {
+	var faqs []domain.HelpFAQ
+	err := c.DB.WithContext(ctx).Raw(
+		`SELECT * FROM help_faqs ORDER BY sort_order ASC, created_at ASC`,
+	).Scan(&faqs).Error
+	return faqs, err
+}
+
+func (c *adminDatabase) ListActiveHelpFAQs(ctx context.Context) ([]domain.HelpFAQ, error) {
+	var faqs []domain.HelpFAQ
+	err := c.DB.WithContext(ctx).Raw(
+		`SELECT * FROM help_faqs WHERE is_active = TRUE ORDER BY sort_order ASC, created_at ASC`,
+	).Scan(&faqs).Error
+	return faqs, err
+}
+
+func (c *adminDatabase) CreateHelpFAQ(ctx context.Context, f domain.HelpFAQ) (domain.HelpFAQ, error) {
+	f.ID = domain.NewID(domain.PrefixHelpFAQ)
+	err := c.DB.WithContext(ctx).Exec(`INSERT INTO help_faqs
+		(id, question, answer, sort_order, is_active, created_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,NOW(),NOW())`,
+		f.ID, f.Question, f.Answer, f.SortOrder, f.IsActive,
+	).Error
+	return f, err
+}
+
+func (c *adminDatabase) UpdateHelpFAQ(ctx context.Context, f domain.HelpFAQ) (domain.HelpFAQ, error) {
+	result := c.DB.WithContext(ctx).Exec(`UPDATE help_faqs
+		SET question = $2, answer = $3, sort_order = $4, is_active = $5, updated_at = NOW()
+		WHERE id = $1`,
+		f.ID, f.Question, f.Answer, f.SortOrder, f.IsActive,
+	)
+	if result.Error != nil {
+		return f, result.Error
+	}
+	if result.RowsAffected == 0 {
+		return f, gorm.ErrRecordNotFound
+	}
+	return f, nil
+}
+
+func (c *adminDatabase) DeleteHelpFAQ(ctx context.Context, faqID string) error {
+	result := c.DB.WithContext(ctx).Exec(`DELETE FROM help_faqs WHERE id = $1`, faqID)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+// Subscription plans (admin panel)
+
+func (c *adminDatabase) ListSubscriptionPlans(ctx context.Context) ([]domain.SubscriptionPlan, error) {
+	var plans []domain.SubscriptionPlan
+	err := c.DB.WithContext(ctx).Raw(
+		`SELECT * FROM subscription_plans ORDER BY duration_days ASC, name ASC`,
+	).Scan(&plans).Error
+	return plans, err
+}
+
+func (c *adminDatabase) CreateSubscriptionPlan(ctx context.Context, plan domain.SubscriptionPlan) (domain.SubscriptionPlan, error) {
+	plan.ID = domain.NewID(domain.PrefixSubscPlan)
+	if plan.PriceMonthly.Currency == "" {
+		plan.PriceMonthly.Currency = "INR"
+	}
+	err := c.DB.WithContext(ctx).Exec(`INSERT INTO subscription_plans
+		(id, name, price_monthly_amount_minor, price_monthly_currency, duration_days, is_active)
+		VALUES ($1,$2,$3,$4,$5,$6)`,
+		plan.ID, plan.Name, plan.PriceMonthly.AmountMinor, plan.PriceMonthly.Currency,
+		plan.DurationDays, plan.IsActive,
+	).Error
+	return plan, err
+}
+
+func (c *adminDatabase) UpdateSubscriptionPlan(ctx context.Context, plan domain.SubscriptionPlan) (domain.SubscriptionPlan, error) {
+	if plan.PriceMonthly.Currency == "" {
+		plan.PriceMonthly.Currency = "INR"
+	}
+	result := c.DB.WithContext(ctx).Exec(`UPDATE subscription_plans
+		SET name = $2, price_monthly_amount_minor = $3, price_monthly_currency = $4,
+		    duration_days = $5, is_active = $6
+		WHERE id = $1`,
+		plan.ID, plan.Name, plan.PriceMonthly.AmountMinor, plan.PriceMonthly.Currency,
+		plan.DurationDays, plan.IsActive,
+	)
+	if result.Error != nil {
+		return plan, result.Error
+	}
+	if result.RowsAffected == 0 {
+		return plan, gorm.ErrRecordNotFound
+	}
+	return plan, nil
+}
+
+func (c *adminDatabase) DeleteSubscriptionPlan(ctx context.Context, planID string) error {
+	// subscription_orders / user_subscriptions reference plans with
+	// ON DELETE RESTRICT, so plans with history cannot be deleted — the FK
+	// error is surfaced to the caller (deactivate instead).
+	result := c.DB.WithContext(ctx).Exec(`DELETE FROM subscription_plans WHERE id = $1`, planID)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+func (c *adminDatabase) UpdateAdvertisementPricingConfig(ctx context.Context, cfg domain.AdvertisementPricingConfig) (domain.AdvertisementPricingConfig, error) {
+	// Upsert the singleton row.
+	err := c.DB.WithContext(ctx).Exec(`INSERT INTO advertisement_pricing_config
+		(id, gst_rate_percent, platform_fee_percent, updated_at)
+		VALUES ('advcfg_default', $1, $2, NOW())
+		ON CONFLICT (id) DO UPDATE
+		SET gst_rate_percent = EXCLUDED.gst_rate_percent,
+		    platform_fee_percent = EXCLUDED.platform_fee_percent,
+		    updated_at = NOW()`,
+		cfg.GSTRatePercent, cfg.PlatformFeePercent,
+	).Error
+	if err != nil {
+		return cfg, err
+	}
+	return c.GetAdvertisementPricingConfig(ctx)
 }
 
 // Shop Details

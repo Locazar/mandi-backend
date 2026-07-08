@@ -708,6 +708,7 @@ CREATE TABLE IF NOT EXISTS shop_socials (
     rating      INT         NOT NULL DEFAULT 0
         CHECK (rating BETWEEN 0 AND 5),
     review      TEXT,
+    comments    TEXT         NOT NULL DEFAULT '',
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

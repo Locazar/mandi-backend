@@ -44,6 +44,43 @@ type AdminUseCase interface {
 	VerifyAdvertisementPayment(ctx context.Context, adminID, orderID, paymentID, signature string) error
 	AdvertisementPaymentFailed(ctx context.Context, adminID, orderID string) error
 
+	// Advertisement pricing management (admin panel)
+	ListAdvertisementPlanConfigs(ctx context.Context) ([]domain.AdvertisementPlanConfig, error)
+	CreateAdvertisementPlanConfig(ctx context.Context, plan domain.AdvertisementPlanConfig) (domain.AdvertisementPlanConfig, error)
+	UpdateAdvertisementPlanConfig(ctx context.Context, plan domain.AdvertisementPlanConfig) (domain.AdvertisementPlanConfig, error)
+	DeleteAdvertisementPlanConfig(ctx context.Context, planID string) error
+	GetAdvertisementPricingConfig(ctx context.Context) (domain.AdvertisementPricingConfig, error)
+	UpdateAdvertisementPricingConfig(ctx context.Context, cfg domain.AdvertisementPricingConfig) (domain.AdvertisementPricingConfig, error)
+
+	// Feature flags
+	GetFeatureFlagsObject(ctx context.Context) (map[string]bool, error)
+	ListFeatureFlags(ctx context.Context) ([]domain.FeatureFlag, error)
+	CreateFeatureFlag(ctx context.Context, flag domain.FeatureFlag) (domain.FeatureFlag, error)
+	UpdateFeatureFlag(ctx context.Context, flag domain.FeatureFlag) (domain.FeatureFlag, error)
+	DeleteFeatureFlag(ctx context.Context, flagID string) error
+
+	// App configs
+	ListAppConfigs(ctx context.Context) ([]domain.AppConfig, error)
+	GetAppConfigByKey(ctx context.Context, configKey string) (domain.AppConfig, error)
+	CreateAppConfig(ctx context.Context, cfg domain.AppConfig) (domain.AppConfig, error)
+	UpdateAppConfig(ctx context.Context, cfg domain.AppConfig) (domain.AppConfig, error)
+	DeleteAppConfig(ctx context.Context, configID string) error
+
+	// Help center (contact settings + FAQs)
+	GetHelpSettings(ctx context.Context) (domain.HelpSettings, error)
+	UpdateHelpSettings(ctx context.Context, settings domain.HelpSettings) (domain.HelpSettings, error)
+	ListHelpFAQs(ctx context.Context) ([]domain.HelpFAQ, error)
+	CreateHelpFAQ(ctx context.Context, faq domain.HelpFAQ) (domain.HelpFAQ, error)
+	UpdateHelpFAQ(ctx context.Context, faq domain.HelpFAQ) (domain.HelpFAQ, error)
+	DeleteHelpFAQ(ctx context.Context, faqID string) error
+	GetHelpCenter(ctx context.Context) (domain.HelpCenter, error)
+
+	// Subscription plans (admin panel)
+	ListSubscriptionPlans(ctx context.Context) ([]domain.SubscriptionPlan, error)
+	CreateSubscriptionPlan(ctx context.Context, plan domain.SubscriptionPlan) (domain.SubscriptionPlan, error)
+	UpdateSubscriptionPlan(ctx context.Context, plan domain.SubscriptionPlan) (domain.SubscriptionPlan, error)
+	DeleteSubscriptionPlan(ctx context.Context, planID string) error
+
 	CreateShop(ctx context.Context, shop domain.ShopDetails) (domain.ShopDetails, error)
 	GetAllShops(ctx context.Context, pagination request.Pagination) (shops []domain.ShopDetails, err error)
 	SearchShops(ctx context.Context, filter request.ShopSearch) ([]domain.ShopDetails, error)

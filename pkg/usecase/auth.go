@@ -40,7 +40,12 @@ type authUseCase struct {
 func NewAuthUseCase(authRepo interfaces.AuthRepository, tokenService token.TokenService,
 	userRepo interfaces.UserRepository, adminRepo interfaces.AdminRepository,
 	optAuth otp.OtpAuth, otpService *otp.MobileOTPService, smsService *sms.TwoFactorSMSService,
-	skipOTPValidation bool) service.AuthUseCase {
+	skipOTPValidation ...bool) service.AuthUseCase {
+
+	skipValidation := false
+	if len(skipOTPValidation) > 0 {
+		skipValidation = skipOTPValidation[0]
+	}
 
 	return &authUseCase{
 		userRepo:          userRepo,
@@ -50,7 +55,7 @@ func NewAuthUseCase(authRepo interfaces.AuthRepository, tokenService token.Token
 		optAuth:           optAuth,
 		otpService:        otpService,
 		smsService:        smsService,
-		skipOTPValidation: skipOTPValidation,
+		skipOTPValidation: skipValidation,
 	}
 }
 

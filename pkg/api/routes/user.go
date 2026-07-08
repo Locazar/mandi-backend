@@ -201,14 +201,24 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 				follow.GET("/shop/:shop_id", userHandler.GetFollowers) // backward compat - get list of shops the user is following
 			}
 
+			// Unified endpoint for creating/updating shop rating and review together
+			// Payload: rating (number, optional), review (text, optional), comments (text, optional), shop_id, customer_id
+			feedback := social.Group("/feedback")
+			{
+				feedback.POST("/shop/:shop_id", userHandler.SaveShopRatingAndReview)    // Create rating and review in single call
+				feedback.PUT("/shop/:shop_id", userHandler.SaveShopRatingAndReview)     // Update rating and review
+				feedback.PATCH("/shop/:shop_id", userHandler.SaveShopRatingAndReview)   // Update rating and review
+				feedback.GET("/shop/:shop_id", userHandler.GetShopFeedback)             // Get rating and review
+				feedback.GET("/shop/:shop_id/summary", userHandler.GetShopFeedbackSummary)
+			}
+
+			// Legacy endpoints for backward compatibility
 			rating := social.Group("/rating")
 			{
 				rating.POST("/shop/:shop_id", userHandler.RateShop)
 				rating.GET("/shop/:shop_id", userHandler.GetAllShopRatings)
-				//UPDATE
-				rating.PUT("/shop/:shop_id", userHandler.RateShop)   // backward compat - same endpoint for create/update
-				rating.PATCH("/shop/:shop_id", userHandler.RateShop) // backward compat - same endpoint for create/update
-				// rating.DELETE("/shop/:shop_id", userHandler.DeleteShopRating)
+				rating.PUT("/shop/:shop_id", userHandler.RateShop)   // backward compat
+				rating.PATCH("/shop/:shop_id", userHandler.RateShop) // backward compat
 				rating.GET("/shop/:shop_id/average-rating", userHandler.GetShopAverageRating)
 				rating.GET("/shop/:shop_id/rating-distribution", userHandler.GetShopRatingDistribution)
 			}
@@ -217,12 +227,9 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 			{
 				review.POST("/shop/:shop_id", userHandler.ReviewShop)
 				review.GET("/shop/:shop_id", userHandler.GetUserShopReview)
-				//UPDATE
 				review.PUT("/shop/:shop_id", userHandler.ReviewShop)
 				review.PATCH("/shop/:shop_id", userHandler.ReviewShop)
-				// review.DELETE("/shop/:shop_id", userHandler.DeleteShopReview)
-				review.GET("/shop/:shop_id/reviews", userHandler.GetAllShopReviews) // backward compat
-				// review.GET("/shop/:shop_id/average-rating", userHandler.GetShopAverageRating) // can be derived from ratings endpoint
+				review.GET("/shop/:shop_id/reviews", userHandler.GetAllShopReviews)
 			}
 
 			like := social.Group("/like")

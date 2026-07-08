@@ -76,12 +76,40 @@ func (c *userUserCase) ReviewShop(ctx context.Context, userID string, shopID str
 	return c.userRepo.ReviewShop(ctx, userID, shopID, review)
 }
 
+func (c *userUserCase) SaveShopFeedback(ctx context.Context, userID string, shopID string, rating *uint, review *string, comments *string) error {
+	if rating != nil && (*rating < 1 || *rating > 5) {
+		return fmt.Errorf("rating should be between 1 and 5")
+	}
+
+	if review != nil {
+		trimmed := strings.TrimSpace(*review)
+		if trimmed == "" {
+			return fmt.Errorf("review cannot be empty")
+		}
+		review = &trimmed
+	}
+
+	if comments != nil {
+		trimmed := strings.TrimSpace(*comments)
+		if trimmed == "" {
+			return fmt.Errorf("comments cannot be empty")
+		}
+		comments = &trimmed
+	}
+
+	return c.userRepo.SaveShopFeedback(ctx, userID, shopID, rating, review, comments)
+}
+
 func (c *userUserCase) GetUserShopReview(ctx context.Context, userID string, shopID string) (string, error) {
 	return c.userRepo.GetUserShopReview(ctx, userID, shopID)
 }
 
 func (c *userUserCase) GetAllShopReviews(ctx context.Context, shopID string) ([]domain.ShopSocial, error) {
 	return c.userRepo.GetAllShopReviews(ctx, shopID)
+}
+
+func (c *userUserCase) GetAllShopComments(ctx context.Context, shopID string) ([]domain.ShopSocial, error) {
+	return c.userRepo.GetAllShopComments(ctx, shopID)
 }
 
 func (c *userUserCase) GetShopSocialDetails(ctx context.Context, shopID string, userID string) (domain.ShopSocialSummary, error) {

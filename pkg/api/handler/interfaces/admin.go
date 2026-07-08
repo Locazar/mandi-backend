@@ -32,6 +32,42 @@ type AdminHandler interface {
 	VerifyAdvertisementPayment(ctx *gin.Context)
 	AdvertisementPaymentFailed(ctx *gin.Context)
 
+	// Advertisement pricing management (admin panel)
+	GetAdvertisementPricing(ctx *gin.Context)
+	CreateAdvertisementPlan(ctx *gin.Context)
+	UpdateAdvertisementPlan(ctx *gin.Context)
+	DeleteAdvertisementPlan(ctx *gin.Context)
+	UpdateAdvertisementPricingConfig(ctx *gin.Context)
+
+	// Feature flags
+	GetFeatureFlagsObject(ctx *gin.Context)
+	ListFeatureFlags(ctx *gin.Context)
+	CreateFeatureFlag(ctx *gin.Context)
+	UpdateFeatureFlag(ctx *gin.Context)
+	DeleteFeatureFlag(ctx *gin.Context)
+
+	// App configs
+	ListAppConfigs(ctx *gin.Context)
+	GetAppConfigByKey(ctx *gin.Context)
+	CreateAppConfig(ctx *gin.Context)
+	UpdateAppConfig(ctx *gin.Context)
+	DeleteAppConfig(ctx *gin.Context)
+
+	// Help center (contact settings + FAQs)
+	GetHelpSettings(ctx *gin.Context)
+	UpdateHelpSettings(ctx *gin.Context)
+	ListHelpFAQs(ctx *gin.Context)
+	CreateHelpFAQ(ctx *gin.Context)
+	UpdateHelpFAQ(ctx *gin.Context)
+	DeleteHelpFAQ(ctx *gin.Context)
+	GetHelpCenter(ctx *gin.Context)
+
+	// Subscription plans (admin panel)
+	ListSubscriptionPlans(ctx *gin.Context)
+	CreateSubscriptionPlan(ctx *gin.Context)
+	UpdateSubscriptionPlan(ctx *gin.Context)
+	DeleteSubscriptionPlan(ctx *gin.Context)
+
 	//Shop Details
 	CreateShop(ctx *gin.Context)
 	GetAllShops(ctx *gin.Context)
