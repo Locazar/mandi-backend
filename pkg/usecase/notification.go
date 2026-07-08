@@ -223,8 +223,12 @@ func (uc *notificationUseCase) SendPushNotification(ctx context.Context, req req
 
 	// Primary path: tokens from Postgres
 	tokens, pgErr := uc.notificationRepo.GetActiveTokensByOwner(ctx, req.OwnerID, req.OwnerType)
+	var pgSendErr error
 	if pgErr == nil && len(tokens) > 0 {
-		return uc.fcmPush.SendToTokens(ctx, tokens, req.Title, req.Body, data)
+		pgSendErr = uc.fcmPush.SendToTokens(ctx, tokens, req.Title, req.Body, data)
+		if pgSendErr == nil {
+			return nil
+		}
 	}
 
 	// Fallback: tokens from Firestore (populated by Cloud Functions or other services)
@@ -242,6 +246,9 @@ func (uc *notificationUseCase) SendPushNotification(ctx context.Context, req req
 	// Both paths errored — combine the messages.
 	if pgErr != nil {
 		return fmt.Errorf("failed to send push notification: postgres: %v; firestore: %v", pgErr, fsErr)
+	}
+	if pgSendErr != nil {
+		return fmt.Errorf("failed to send push notification: postgres tokens: %v; firestore: %v", pgSendErr, fsErr)
 	}
 	return fsErr
 }
