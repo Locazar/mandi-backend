@@ -20,6 +20,10 @@ type AdminHandler interface {
 	UpdateAdvertisement(ctx *gin.Context)
 	DeleteAdvertisement(ctx *gin.Context)
 
+	// Notification image library (welcome banners/frames used by the push composer)
+	UploadNotificationImage(ctx *gin.Context)
+	ListNotificationImages(ctx *gin.Context)
+
 	// Advertisement Requests (seller-raised)
 	GetAdvertisementPricePlans(ctx *gin.Context)
 	CreateAdvertisementRequest(ctx *gin.Context)

@@ -399,6 +399,8 @@ auth := api.Group("/auth")
 		{
 			notification.GET("/sendToUsersInRadius", adminHandler.SendNotificationToUsersInRadius)
 			notification.POST("/push", notificationHandler.SendPushNotification)
+			notification.POST("/images", adminHandler.UploadNotificationImage)
+			notification.GET("/images", adminHandler.ListNotificationImages)
 		}
 
 		// Promotion Categories and Types
