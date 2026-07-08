@@ -34,6 +34,11 @@ type ProductItem struct {
 	RetainedImages    []string               `json:"retained_images"`
 }
 
+// UpdateProductItemStock toggles the in-stock / out-of-stock status of a product item.
+type UpdateProductItemStock struct {
+	Stock *bool `json:"stock" binding:"required"`
+}
+
 type Variation struct {
 	Names []string `json:"variation_names" binding:"required,dive,min=1"`
 }

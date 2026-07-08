@@ -197,9 +197,13 @@ func (c *adminUseCase) issueOtpSession(ctx context.Context, adminID, phone strin
 		return "", utils.PrependMessageToError(err, "failed to save otp session")
 	}
 
-	// Send the OTP via the 2factor.in SMS API
-	if err = c.smsService.SendOTPSMS(phone, generatedOTP); err != nil {
-		return "", utils.PrependMessageToError(err, "failed to send otp")
+	// Send the OTP via the 2factor.in SMS API (skipped when SKIP_OTP_VALIDATION=true)
+	if !c.skipOTPValidation {
+		if err = c.smsService.SendOTPSMS(phone, generatedOTP); err != nil {
+			return "", utils.PrependMessageToError(err, "failed to send otp")
+		}
+	} else {
+		log.Printf("[SendOTP admin] skipOTPValidation=true, not sending SMS, otp=%s phone=%s", generatedOTP, phone)
 	}
 
 	applogger.L().Info("OTP session issued", zap.String("event", applogger.EventSecurityOTPSent), zap.String("otp_id", otpID), zap.String("admin_id", adminID))

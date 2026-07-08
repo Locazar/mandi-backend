@@ -2586,6 +2586,36 @@ func (p *ProductHandler) UpdateProductItem(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully updated product item", nil)
 }
 
+// UpdateProductItemStock godoc
+//
+//	@Summary		Update product item stock status
+//	@Description	Toggle a product item's in-stock / out-of-stock status.
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			product_item_id	path		string							true	"Product Item ID"
+//	@Param			body			body		request.UpdateProductItemStock	true	"Stock status"
+//	@Success		200				{object}	response.Response{}				"Successfully updated stock status"
+//	@Failure		400				{object}	response.Response{}				"Invalid request"
+//	@Failure		500				{object}	response.Response{}				"Failed to update stock status"
+//	@Router			/admin/items/{product_item_id}/stock [patch]
+func (p *ProductHandler) UpdateProductItemStock(ctx *gin.Context) {
+	productItemID := ctx.Param("product_item_id")
+
+	var body request.UpdateProductItemStock
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid request body", err, nil)
+		return
+	}
+
+	if err := p.productUseCase.UpdateProductItemStock(ctx, productItemID, *body.Stock); err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to update stock status", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully updated stock status", nil)
+}
+
 // FindProductItemFilters godoc
 //
 //	@Summary		Find product item filters

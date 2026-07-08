@@ -322,6 +322,15 @@ func (c *productUseCase) UpdateProductItem(ctx context.Context, productItemID st
 	return nil
 }
 
+// UpdateProductItemStock flips the in-stock / out-of-stock boolean for a product item.
+func (c *productUseCase) UpdateProductItemStock(ctx context.Context, productItemID string, inStock bool) error {
+	err := c.productRepo.UpdateProductItemStock(ctx, productItemID, inStock)
+	if err != nil {
+		return utils.PrependMessageToError(err, "failed to update product item stock")
+	}
+	return nil
+}
+
 // step 1 : get product_id and and all variation id as function parameter
 // step 2 : initialize an map for storing product item id and its count(map[uint]int)
 // step 3 : loop through the variation option ids
