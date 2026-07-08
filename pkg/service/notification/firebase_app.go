@@ -89,3 +89,10 @@ func sharedFirestoreClient(ctx context.Context) (*firestore.Client, error) {
 	}
 	return app.Firestore(ctx)
 }
+
+// SharedFirestoreClient exposes the shared Firestore client for auxiliary
+// commands (e.g. cmd/fcmbackfill) that need direct Firestore access with the
+// same credential resolution as the API server.
+func SharedFirestoreClient(ctx context.Context) (*firestore.Client, error) {
+	return sharedFirestoreClient(ctx)
+}
