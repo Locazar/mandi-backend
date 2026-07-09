@@ -24,6 +24,10 @@ type AdminHandler interface {
 	UploadNotificationImage(ctx *gin.Context)
 	ListNotificationImages(ctx *gin.Context)
 
+	// Global app config (single structured config used by client apps)
+	GetGlobalConfig(ctx *gin.Context)
+	UpdateGlobalConfig(ctx *gin.Context)
+
 	// Advertisement Requests (seller-raised)
 	GetAdvertisementPricePlans(ctx *gin.Context)
 	CreateAdvertisementRequest(ctx *gin.Context)

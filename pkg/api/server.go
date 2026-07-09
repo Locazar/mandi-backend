@@ -140,6 +140,10 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 	// App configs — read by clients without admin auth
 	engine.GET("/api/app-configs", adminHandler.ListAppConfigs)
 	engine.GET("/api/app-configs/:config_key", adminHandler.GetAppConfigByKey)
+	// Structured global config (CDN, feature flags, HTTP, image upload) — read by
+	// mobile apps on launch (RemoteConfigService). Same data as /api/admin/config;
+	// this route just skips the admin-auth requirement for client reads.
+	engine.GET("/api/app-config", adminHandler.GetGlobalConfig)
 	// Help center (support contact details + FAQs) — read by clients without admin auth
 	engine.GET("/api/help", adminHandler.GetHelpCenter)
 
