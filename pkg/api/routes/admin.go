@@ -340,6 +340,10 @@ auth := api.Group("/auth")
 			appConfigs.DELETE("/:config_id", adminHandler.DeleteAppConfig)
 		}
 
+		// Global structured app config (CDN, feature flags, HTTP, image upload, AI) — single JSON blob
+		api.GET("/config", adminHandler.GetGlobalConfig)
+		api.PUT("/config", middleware.TrimSpaces(), adminHandler.UpdateGlobalConfig)
+
 		// help center — contact settings + FAQs (managed from the admin panel)
 		help := api.Group("/help")
 		{

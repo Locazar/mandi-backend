@@ -308,6 +308,85 @@ type AppConfig struct {
 	UpdatedAt   time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }
 
+// globalAppConfigKey is the fixed app_configs.config_key under which the
+// single structured GlobalAppConfig JSON blob is stored (see GET/PUT /api/admin/config).
+const GlobalAppConfigKey = "global_app_config"
+
+// GlobalAppConfig is the structured, admin-editable configuration that drives
+// client app behavior (CDN URLs, feature flags, HTTP timeouts, etc.) without
+// requiring a new app release. Stored as a single JSON blob in the app_configs
+// table under GlobalAppConfigKey.
+type GlobalAppConfig struct {
+	ImageBaseURL     string `json:"imageBaseUrl"`
+	ShopDeepLinkBase string `json:"shopDeepLinkBase"`
+	AppDownloadURL   string `json:"appDownloadUrl"`
+
+	// JSON key is "features" (not "featureFlags") to match the seller-app's
+	// already-shipped RemoteConfigService contract (GET /api/app-config).
+	FeatureFlags struct {
+		ShowProductItemOffers     bool `json:"showProductItemOffers"`
+		ShowOfferBadgesOnProducts bool `json:"showOfferBadgesOnProducts"`
+	} `json:"features"`
+
+	// JSON key is "links" (not "social") to match RemoteConfigService.
+	Social struct {
+		Instagram      string `json:"instagram"`
+		Facebook       string `json:"facebook"`
+		SupportEmail   string `json:"supportEmail"`
+		PrivacyPolicy  string `json:"privacyPolicy"`
+		TermsOfService string `json:"termsOfService"`
+	} `json:"links"`
+
+	// Field names match RemoteConfigService.httpConfig exactly.
+	Http struct {
+		TimeoutSeconds       int `json:"timeoutSeconds"`
+		UploadTimeoutSeconds int `json:"uploadTimeoutSeconds"`
+		MaxRetryAttempts     int `json:"maxRetryAttempts"`
+		RetryDelaySeconds    int `json:"retryDelaySeconds"`
+	} `json:"http"`
+
+	ImageUpload struct {
+		MaxWidthPx  int `json:"maxWidthPx"`
+		MaxHeightPx int `json:"maxHeightPx"`
+		Quality     int `json:"quality"`
+	} `json:"imageUpload"`
+
+	// OpenAI is server-side only (never shipped to client apps) but is
+	// admin-editable here so it can change without a backend redeploy.
+	OpenAI struct {
+		Model     string `json:"model"`
+		ImageSize string `json:"imageSize"`
+	} `json:"openai"`
+}
+
+// DefaultGlobalAppConfig mirrors the values currently hardcoded in the seller
+// app's AppConfig (lib/core/config/app_config.dart), used as the fallback
+// when no global_app_config row exists yet.
+func DefaultGlobalAppConfig() GlobalAppConfig {
+	cfg := GlobalAppConfig{
+		ImageBaseURL:     "https://innoida.utho.io/locazar-dev",
+		ShopDeepLinkBase: "https://locazar.com/shop",
+		AppDownloadURL:   "https://locazar.app",
+	}
+	cfg.FeatureFlags.ShowProductItemOffers = false
+	cfg.FeatureFlags.ShowOfferBadgesOnProducts = false
+	cfg.Social.Instagram = "https://www.instagram.com/official_locazar"
+	cfg.Social.Facebook = "https://www.facebook.com/profile.php?id=61586142238127"
+	cfg.Social.SupportEmail = "support@locazar.co.in"
+	cfg.Social.PrivacyPolicy = "https://locazar.co.in/privacy-policy"
+	cfg.Social.TermsOfService = "https://locazar.co.in/terms-of-service"
+	cfg.Http.TimeoutSeconds = 15
+	cfg.Http.UploadTimeoutSeconds = 60
+	cfg.Http.MaxRetryAttempts = 3
+	cfg.Http.RetryDelaySeconds = 2
+	cfg.ImageUpload.MaxWidthPx = 1024
+	cfg.ImageUpload.MaxHeightPx = 1024
+	cfg.ImageUpload.Quality = 85
+	cfg.OpenAI.Model = "gpt-image-1"
+	cfg.OpenAI.ImageSize = "1024x1024"
+	return cfg
+}
+
 // AdvertisementPlanConfig is an admin-managed price plan stored in the DB.
 // Sellers see only active plans; rates are in minor units (paise).
 type AdvertisementPlanConfig struct {

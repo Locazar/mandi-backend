@@ -1438,6 +1438,45 @@ func (c *adminHandler) DeleteAppConfig(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "App config deleted", nil)
 }
 
+// GetGlobalConfig godoc
+//
+//	@summary		Get the structured global app config (CDN, feature flags, HTTP, image upload, AI)
+//	@Security		BearerAuth
+//	@Id				GetGlobalConfig
+//	@Tags			App Configs
+//	@Router			/admin/config [get]
+//	@Success		200	{object}	response.Response{}
+func (c *adminHandler) GetGlobalConfig(ctx *gin.Context) {
+	cfg, err := c.adminUseCase.GetGlobalConfig(ctx)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to fetch config", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Config fetched", cfg)
+}
+
+// UpdateGlobalConfig godoc
+//
+//	@summary		Update the structured global app config
+//	@Security		BearerAuth
+//	@Id				UpdateGlobalConfig
+//	@Tags			App Configs
+//	@Router			/admin/config [put]
+//	@Success		200	{object}	response.Response{}
+func (c *adminHandler) UpdateGlobalConfig(ctx *gin.Context) {
+	var body domain.GlobalAppConfig
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	updated, err := c.adminUseCase.UpdateGlobalConfig(ctx, body)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to update config", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Config updated", updated)
+}
+
 // GetHelpSettings godoc
 //
 //	@summary		Get help center contact settings (admin panel)

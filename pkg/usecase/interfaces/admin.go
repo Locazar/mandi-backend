@@ -66,6 +66,10 @@ type AdminUseCase interface {
 	UpdateAppConfig(ctx context.Context, cfg domain.AppConfig) (domain.AppConfig, error)
 	DeleteAppConfig(ctx context.Context, configID string) error
 
+	// Global app config (single structured config used by client apps)
+	GetGlobalConfig(ctx context.Context) (domain.GlobalAppConfig, error)
+	UpdateGlobalConfig(ctx context.Context, cfg domain.GlobalAppConfig) (domain.GlobalAppConfig, error)
+
 	// Help center (contact settings + FAQs)
 	GetHelpSettings(ctx context.Context) (domain.HelpSettings, error)
 	UpdateHelpSettings(ctx context.Context, settings domain.HelpSettings) (domain.HelpSettings, error)

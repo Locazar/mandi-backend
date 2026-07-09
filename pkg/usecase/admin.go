@@ -741,6 +741,51 @@ func (c *adminUseCase) DeleteAppConfig(ctx context.Context, configID string) err
 	return c.adminRepo.DeleteAppConfig(ctx, configID)
 }
 
+// GetGlobalConfig returns the structured, admin-editable app config used by
+// client apps. Falls back to DefaultGlobalAppConfig when nothing has been
+// saved yet, so the portal always has something sensible to show.
+func (c *adminUseCase) GetGlobalConfig(ctx context.Context) (domain.GlobalAppConfig, error) {
+	row, err := c.adminRepo.GetAppConfigByKey(ctx, domain.GlobalAppConfigKey)
+	if err != nil {
+		return domain.DefaultGlobalAppConfig(), nil
+	}
+	var cfg domain.GlobalAppConfig
+	if err := json.Unmarshal([]byte(row.Value), &cfg); err != nil {
+		return domain.DefaultGlobalAppConfig(), fmt.Errorf("stored global config is corrupt: %w", err)
+	}
+	return cfg, nil
+}
+
+// UpdateGlobalConfig persists the full structured config as a single JSON
+// blob, creating the underlying app_configs row on first save.
+func (c *adminUseCase) UpdateGlobalConfig(ctx context.Context, cfg domain.GlobalAppConfig) (domain.GlobalAppConfig, error) {
+	encoded, err := json.Marshal(cfg)
+	if err != nil {
+		return domain.GlobalAppConfig{}, fmt.Errorf("failed to encode config: %w", err)
+	}
+
+	row := domain.AppConfig{
+		ConfigKey:   domain.GlobalAppConfigKey,
+		Value:       string(encoded),
+		Description: "Global app config (CDN, feature flags, HTTP, image upload, AI) — managed via admin-portal Config page",
+		Enabled:     true,
+	}
+
+	existing, err := c.adminRepo.GetAppConfigByKey(ctx, domain.GlobalAppConfigKey)
+	if err != nil {
+		if _, err := c.adminRepo.CreateAppConfig(ctx, row); err != nil {
+			return domain.GlobalAppConfig{}, err
+		}
+		return cfg, nil
+	}
+
+	row.ID = existing.ID
+	if _, err := c.adminRepo.UpdateAppConfig(ctx, row); err != nil {
+		return domain.GlobalAppConfig{}, err
+	}
+	return cfg, nil
+}
+
 // Help center (contact settings + FAQs)
 
 func validateHelpSettings(s domain.HelpSettings) error {
