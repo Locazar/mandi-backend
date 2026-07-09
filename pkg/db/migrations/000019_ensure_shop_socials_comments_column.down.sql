@@ -1,0 +1,3 @@
+-- No-op: this migration only self-heals a column that other migrations
+-- already own the definition of (000001_baseline / 000003_add_shop_socials).
+-- Dropping it here would undo those, not just this fix.
