@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -60,8 +61,14 @@ func NewAuthUseCase(authRepo interfaces.AuthRepository, tokenService token.Token
 }
 
 const (
-	AccessTokenDuration  = time.Hour * 24 * 7
-	RefreshTokenDuration = time.Hour * 24 * 7
+	// 30-day session, shared by both customer/user and seller/admin logins
+	// (pkg/usecase/admin.go uses the same constants). Access and refresh
+	// share the same duration today rather than the stricter
+	// short-access/long-refresh split some APIs use, since none of the
+	// client apps currently proactively rotate the access token mid-session
+	// — they only call the renew-access-token endpoint after a 401.
+	AccessTokenDuration  = time.Hour * 24 * 30
+	RefreshTokenDuration = time.Hour * 24 * 30
 )
 
 func (c *authUseCase) UserLogin(ctx context.Context, loginDetails request.Login) (string, error) {
@@ -103,6 +110,27 @@ func (c *authUseCase) UserLogin(ctx context.Context, loginDetails request.Login)
 	return user.ID, nil
 }
 
+// createUserByPhone creates a minimal phone-only user account. Safe under
+// concurrent requests for the same new phone number: if two requests race
+// on the INSERT, the loser recovers by re-fetching the winner's row rather
+// than erroring out.
+func (c *authUseCase) createUserByPhone(ctx context.Context, phone string) (domain.User, error) {
+	newUserID, err := c.userRepo.SaveUser(ctx, domain.User{Phone: phone})
+	if err == nil {
+		return domain.User{ID: newUserID, Phone: phone}, nil
+	}
+
+	if strings.Contains(err.Error(), "unique constraint") ||
+		strings.Contains(err.Error(), "duplicate key") {
+		recovered, findErr := c.userRepo.FindUserByPhoneNumber(ctx, phone)
+		if findErr == nil && recovered.ID != "" {
+			return recovered, nil
+		}
+	}
+
+	return domain.User{}, fmt.Errorf("failed to create user account \nerror:%v", err.Error())
+}
+
 func (c *authUseCase) UserLoginOtpSend(ctx context.Context, loginDetails request.OTPLogin) (string, error) {
 
 	var (
@@ -114,18 +142,31 @@ func (c *authUseCase) UserLoginOtpSend(ctx context.Context, loginDetails request
 
 	case loginDetails.Email != "":
 		user, err = c.userRepo.FindUserByEmail(ctx, loginDetails.Email)
+		if err != nil {
+			return "", fmt.Errorf("can't find the user \nerror:%v", err.Error())
+		}
+		if user.ID == "" {
+			return "", ErrUserNotExist
+		}
 	case loginDetails.Phone != "":
 		user, err = c.userRepo.FindUserByPhoneNumber(ctx, loginDetails.Phone)
+		if err != nil {
+			return "", fmt.Errorf("can't find the user \nerror:%v", err.Error())
+		}
+		if user.ID == "" {
+			// No account yet for this phone number — sign-in doubles as
+			// signup here, mirroring the seller app's
+			// findOrCreateAdminByMobile pattern: any phone number that
+			// requests an OTP gets a minimal account created on the fly.
+			// These phone-only accounts authenticate via OTP, never a
+			// password (SaveUser stores an empty password placeholder).
+			user, err = c.createUserByPhone(ctx, loginDetails.Phone)
+			if err != nil {
+				return "", err
+			}
+		}
 	default:
 		return "", ErrEmptyLoginCredentials
-	}
-
-	if err != nil {
-		return "", fmt.Errorf("can't find the user \nerror:%v", err.Error())
-	}
-
-	if user.ID == "" {
-		return "", ErrUserNotExist
 	}
 
 	if user.BlockStatus {
