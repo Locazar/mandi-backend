@@ -702,6 +702,12 @@ func (c *productDatabase) UpdateProductItem(ctx context.Context, productItemID s
 	return nil
 }
 
+// UpdateProductItemStock flips the in-stock / out-of-stock boolean for a single product item.
+func (c *productDatabase) UpdateProductItemStock(ctx context.Context, productItemID string, inStock bool) error {
+	query := `UPDATE product_items SET stock = $1, updated_at = $2 WHERE id = $3`
+	return c.DB.Exec(query, inStock, time.Now(), productItemID).Error
+}
+
 // for get all products items for a product filtered by admin_id and additional filters
 func (c *productDatabase) FindAllProductItems(ctx context.Context, adminID string, keyword string, categoryID *string, brandID *string, locationID *string, offer string, sortby string, pagination *request.Pagination, filterByShopID string) (productItems []response.ProductItems, err error) {
 	var ids []string

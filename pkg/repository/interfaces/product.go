@@ -62,6 +62,7 @@ type ProductRepository interface {
 	SaveProductConfiguration(ctx context.Context, productItemID, variationOptionID string) error
 	SaveProductItem(ctx context.Context, productItem request.ProductItem, adminID string, shopID string) (productItemID string, err error)
 	UpdateProductItem(ctx context.Context, productItemID string, productItem request.ProductItem) error
+	UpdateProductItemStock(ctx context.Context, productItemID string, inStock bool) error
 	// product item image
 	FindAllProductItemImages(ctx context.Context, productItemID string) (images []string, err error)
 	SaveProductItemImage(ctx context.Context, productItemId string, image domain.ProductItemImage) error

@@ -208,6 +208,7 @@ auth := api.Group("/auth")
 			productItem.GET("/:product_item_id", productHandler.GetProductItemByID)
 			productItem.DELETE("/:product_item_id", productHandler.DeleteProductItem)
 			productItem.PUT("/:product_item_id", productHandler.UpdateProductItem)
+			productItem.PATCH("/:product_item_id/stock", productHandler.UpdateProductItemStock)
 			// productItem.GET("/lowViewproductitems", productHandler.FindLowViewProductItems)
 
 			productView := productItem.Group("/:product_item_id/view")

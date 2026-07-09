@@ -156,9 +156,13 @@ func (c *authUseCase) UserLoginOtpSend(ctx context.Context, loginDetails request
 		return "", fmt.Errorf("failed to save otp session \nerror:%v", err.Error())
 	}
 
-	// Send the OTP via the 2factor.in SMS API
-	if err := c.smsService.SendOTPSMS(user.Phone, generatedOTP); err != nil {
-		return "", fmt.Errorf("failed to send otp \nerror:%v", err.Error())
+	// Send the OTP via the 2factor.in SMS API (skipped when SKIP_OTP_VALIDATION=true)
+	if !c.skipOTPValidation {
+		if err := c.smsService.SendOTPSMS(user.Phone, generatedOTP); err != nil {
+			return "", fmt.Errorf("failed to send otp \nerror:%v", err.Error())
+		}
+	} else {
+		log.Printf("[SendOTP user] skipOTPValidation=true, not sending SMS, otp=%s phone=%s", generatedOTP, user.Phone)
 	}
 
 	return otpID, nil
