@@ -360,13 +360,13 @@ func (c *adminUseCase) GetFullSalesReport(ctx context.Context, requestData reque
 	return salesReport, nil
 }
 
-func (c *adminUseCase) VerifyShop(ctx context.Context, verify request.ShopVerification, adminId string) error {
+func (c *adminUseCase) VerifyShop(ctx context.Context, verify request.ShopVerification) error {
 	VerificationStatus := false
 	if verify.Photo_Shop_Verification && verify.Business_Doc_Verification &&
 		verify.Identity_Doc_Verification && verify.Address_Proof_Verification {
 		VerificationStatus = true
 	}
-	err := c.adminRepo.VerifyShop(ctx, verify, adminId, VerificationStatus)
+	err := c.adminRepo.VerifyShop(ctx, verify, VerificationStatus)
 
 	if err != nil {
 		return fmt.Errorf("failed to update shop verification status \nerror:%v", err.Error())
