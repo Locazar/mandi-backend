@@ -603,42 +603,23 @@ func (c *UserHandler) GetShopFeedback(ctx *gin.Context) {
 		return
 	}
 
-	// Get ratings
-	ratings, err := c.userUseCase.GetAllShopRatings(ctx, shopID)
+	// Each shop_socials row is a single upserted record per user+shop
+	// combining rating, review, and comments together — not three separate
+	// entities — so this is one query, not three, and the same row is never
+	// duplicated across separate rating/review/comment arrays.
+	feedback, err := c.userUseCase.GetShopFeedbackList(ctx, shopID)
 	if err != nil {
-		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get ratings", err, nil)
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get feedback", err, nil)
 		return
 	}
 
-	// Get reviews
-	reviews, err := c.userUseCase.GetAllShopReviews(ctx, shopID)
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get reviews", err, nil)
-		return
-	}
-
-	// Get comments
-	comments, err := c.userUseCase.GetAllShopComments(ctx, shopID)
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get comments", err, nil)
-		return
-	}
-
-	if ratings == nil {
-		ratings = []domain.ShopSocial{}
-	}
-	if reviews == nil {
-		reviews = []domain.ShopSocial{}
-	}
-	if comments == nil {
-		comments = []domain.ShopSocial{}
+	if feedback == nil {
+		feedback = []domain.ShopSocial{}
 	}
 
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully got shop feedback", gin.H{
 		"shop_id":  shopID,
-		"ratings":  ratings,
-		"reviews":  reviews,
-		"comments": comments,
+		"feedback": feedback,
 	})
 }
 

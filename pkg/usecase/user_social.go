@@ -112,6 +112,10 @@ func (c *userUserCase) GetAllShopComments(ctx context.Context, shopID string) ([
 	return c.userRepo.GetAllShopComments(ctx, shopID)
 }
 
+func (c *userUserCase) GetShopFeedbackList(ctx context.Context, shopID string) ([]domain.ShopSocial, error) {
+	return c.userRepo.GetShopFeedbackList(ctx, shopID)
+}
+
 func (c *userUserCase) GetShopSocialDetails(ctx context.Context, shopID string, userID string) (domain.ShopSocialSummary, error) {
 	details, err := c.userRepo.GetShopSocialDetails(ctx, shopID, userID)
 	if err != nil {

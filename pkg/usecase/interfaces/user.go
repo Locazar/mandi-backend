@@ -53,4 +53,5 @@ type UserUseCase interface {
 	GetUserShopReview(ctx context.Context, userID string, shopID string) (string, error)
 	GetAllShopReviews(ctx context.Context, shopID string) ([]domain.ShopSocial, error)
 	GetAllShopComments(ctx context.Context, shopID string) ([]domain.ShopSocial, error)
+	GetShopFeedbackList(ctx context.Context, shopID string) ([]domain.ShopSocial, error)
 }

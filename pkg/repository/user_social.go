@@ -259,6 +259,23 @@ func (c *userDatabase) SaveShopFeedback(ctx context.Context, userID string, shop
 	})
 }
 
+// GetShopFeedbackList returns each shop_socials row for shopID at most once —
+// a row is a single upserted record per user+shop combining rating, review,
+// and comments together, not three separate entities, so this replaces
+// querying GetAllShopRatings/GetAllShopReviews/GetAllShopComments separately
+// and returning the same rows three times.
+func (c *userDatabase) GetShopFeedbackList(ctx context.Context, shopID string) ([]domain.ShopSocial, error) {
+	var feedback []domain.ShopSocial
+	err := c.DB.WithContext(ctx).
+		Raw(`SELECT * FROM shop_socials WHERE shop_id = ? AND (
+			rating > 0
+			OR (review IS NOT NULL AND review <> '')
+			OR (comments IS NOT NULL AND comments <> '')
+		) ORDER BY updated_at DESC`, shopID).
+		Scan(&feedback).Error
+	return feedback, err
+}
+
 func (c *userDatabase) GetAllShopComments(ctx context.Context, shopID string) ([]domain.ShopSocial, error) {
 	var comments []domain.ShopSocial
 	err := c.DB.WithContext(ctx).
