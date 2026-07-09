@@ -3,6 +3,7 @@ package request
 import "time"
 
 type ShopVerification struct {
+	ShopId                     string    `json:"shop_id" binding:"required"`
 	Photo_Shop_Verification    bool      `json:"photo_shop_verification" gorm:"type:text;" binding:"omitempty"`
 	Business_Doc_Verification  bool      `json:"business_doc_verification" gorm:"type:text;" binding:"omitempty"`
 	Identity_Doc_Verification  bool      `json:"identity_doc_verification" gorm:"type:text;" binding:"omitempty"`

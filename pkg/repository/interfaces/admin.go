@@ -21,7 +21,7 @@ type AdminRepository interface {
 
 	//stock side
 	FindStockBySKU(ctx context.Context, sku string) (stock response.Stock, err error)
-	VerifyShop(ctx context.Context, shopVerification request.ShopVerification, adminId string, verificationStatus bool) error
+	VerifyShop(ctx context.Context, shopVerification request.ShopVerification, verificationStatus bool) error
 	// Advertisement Management
 	CreateAdvertisement(ctx context.Context, ad domain.Advertisement) (domain.Advertisement, error)
 	GetAllAdvertisements(ctx context.Context, pagination request.Pagination, filter domain.AdvertisementFilter) (ads []domain.Advertisement, err error)

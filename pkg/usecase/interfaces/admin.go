@@ -21,7 +21,7 @@ type AdminUseCase interface {
 	BlockOrUnBlockUser(ctx context.Context, blockDetails request.BlockUser) error
 
 	GetFullSalesReport(ctx context.Context, requestData request.SalesReport) (salesReport []response.SalesReport, err error)
-	VerifyShop(ctx context.Context, verify request.ShopVerification, adminId string) error
+	VerifyShop(ctx context.Context, verify request.ShopVerification) error
 	GetVerificationStatus(ctx context.Context, adminId string) (domain.Admin, domain.ShopVerification, error)
 
 	CreateAdvertisement(ctx context.Context, ad domain.Advertisement) (domain.Advertisement, error)

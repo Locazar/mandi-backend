@@ -438,15 +438,13 @@ func (c *adminHandler) GetFullSalesReport(ctx *gin.Context) {
 func (c *adminHandler) VerifyShop(ctx *gin.Context) {
 
 	var body request.ShopVerification
-	tokenString := ctx.GetHeader("Authorization")
-	adminId := c.adminUseCase.DecodeTokenData(tokenString)
 
 	if err := ctx.ShouldBindJSON(&body); err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, body)
 		return
 	}
 
-	err := c.adminUseCase.VerifyShop(ctx, body, adminId)
+	err := c.adminUseCase.VerifyShop(ctx, body)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to update shop verification status", err, nil)
 		return

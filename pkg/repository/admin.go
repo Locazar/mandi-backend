@@ -251,45 +251,26 @@ func (c *adminDatabase) FindStockBySKU(ctx context.Context, sku string) (stock r
 	return stock, err
 }
 
-func (c *adminDatabase) VerifyShop(ctx context.Context, shopVerification request.ShopVerification, adminId string, verificationStatus bool) error {
-	// Get shop Id and shop name using admin Id and Insert the table firsttime and next time just update the status
-	var verificationStatusValue bool
-	query := `SELECT id, shop_name, document_type FROM shop_details WHERE admin_id = $1`
-	var shopID *string
-	var shopName *string
-	var Document_Type *string
-	err := c.DB.Raw(query, adminId).Scan(&struct {
-		ShopID        *string `gorm:"column:id"`
-		ShopName      *string `gorm:"column:shop_name"`
-		Document_Type *string `gorm:"column:document_type"`
-	}{shopID, shopName, Document_Type}).Error
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		return fmt.Errorf("failed to fetch shop details for admin %s: %v", adminId, err)
+func (c *adminDatabase) VerifyShop(ctx context.Context, shopVerification request.ShopVerification, verificationStatus bool) error {
+	// The shop_details row already exists from onboarding — verification
+	// updates it by its own id, not by the calling admin's id (the caller
+	// is the platform admin performing verification, not the shop owner).
+	updateQuery := `UPDATE shop_details SET
+	shop_verification_status = $1,
+	photo_shop_verification = $2,
+	business_doc_verification = $3,
+	identity_doc_verification = $4,
+	address_proof_verification = $5,
+	updated_at = $6
+	WHERE id = $7`
+	result := c.DB.Exec(updateQuery, verificationStatus, shopVerification.Photo_Shop_Verification, shopVerification.Business_Doc_Verification, shopVerification.Identity_Doc_Verification, shopVerification.Address_Proof_Verification, time.Now(), shopVerification.ShopId)
+	if result.Error != nil {
+		return fmt.Errorf("failed to update shop details for shop %s: %v", shopVerification.ShopId, result.Error)
 	}
-
-	// Check if Document_Type is nil before dereferencing
-	if Document_Type != nil && *Document_Type != "manual" {
-		verificationStatusValue = verificationStatus
-	} else {
-		// If Document_Type is nil or "manual", use the provided verificationStatus
-		verificationStatusValue = verificationStatus
-	}
-
-	insertQuery := `INSERT INTO shop_details (id, admin_id, shop_verification_status, photo_shop_verification, business_doc_verification, identity_doc_verification, address_proof_verification, updated_at, created_at)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-	ON CONFLICT (admin_id) DO UPDATE SET
-	shop_verification_status = EXCLUDED.shop_verification_status,
-	photo_shop_verification = EXCLUDED.photo_shop_verification,
-	business_doc_verification = EXCLUDED.business_doc_verification,
-	identity_doc_verification = EXCLUDED.identity_doc_verification,
-	address_proof_verification = EXCLUDED.address_proof_verification,
-	updated_at = EXCLUDED.updated_at`
-	err = c.DB.Exec(insertQuery, domain.NewID(domain.PrefixShop), adminId, verificationStatusValue, shopVerification.Photo_Shop_Verification, shopVerification.Business_Doc_Verification, shopVerification.Identity_Doc_Verification, shopVerification.Address_Proof_Verification, time.Now(), time.Now()).Error
-	if err != nil {
-		return fmt.Errorf("failed to upsert shop details for admin %s: %v", adminId, err)
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("shop not found: %s", shopVerification.ShopId)
 	}
 	return nil
-
 }
 
 func (c *adminDatabase) CreateAdvertisement(ctx context.Context, ad domain.Advertisement) (domain.Advertisement, error) {
