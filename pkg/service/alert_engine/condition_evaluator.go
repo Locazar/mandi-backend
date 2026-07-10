@@ -229,6 +229,7 @@ func (r *DBDrivenAlertRule) Evaluate(ctx context.Context, sellerID string, data 
 
 	// Build alert from template
 	alert := &domain.Alert{
+		ID:          r.Template.Key,
 		SellerID:    data.AdminID,
 		Key:         r.Template.Key,
 		Title:       r.Template.Title,
