@@ -237,6 +237,7 @@ func (r *DBDrivenAlertRule) Evaluate(ctx context.Context, sellerID string, data 
 		Type:        domain.AlertType(r.Template.Type),
 		Priority:    r.Template.Priority,
 		IsActive:    r.Template.IsActive,
+		Content:     string(r.Template.ContentSchema),
 	}
 
 	// Parse actions from template JSON

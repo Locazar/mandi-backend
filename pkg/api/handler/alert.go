@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -63,11 +64,21 @@ func (h *AlertHandler) GetSellerAlerts(ctx *gin.Context) {
 	// Convert to response format
 	alertResponses := make([]map[string]interface{}, 0)
 	for _, alert := range alerts {
+		// alert.Content stores the template's content_schema as a raw JSON
+		// string; decode it so the client receives a JSON object (matching
+		// the AlertContent shape) instead of an escaped string.
+		var content interface{}
+		if alert.Content != "" {
+			if err := json.Unmarshal([]byte(alert.Content), &content); err != nil {
+				content = nil
+			}
+		}
+
 		alertResp := map[string]interface{}{
 			"id":          alert.ID,
 			"key":         alert.Key,
 			"title":       alert.Title,
-			"content":     alert.Content,
+			"content":     content,
 			"description": alert.Description,
 			"type":        alert.Type,
 			"priority":    alert.Priority,
