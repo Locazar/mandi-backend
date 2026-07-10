@@ -83,6 +83,24 @@ auth := api.Group("/auth")
 	// both user and admin tokens, so sellers can also read advertisements.
 	api.GET("/advertisements/", middleware.AuthenticateUser(), adminHandler.GetAllAdvertisements)
 
+	// Seller-facing alert routes: registered with AuthenticateUser (not
+	// AuthenticateAdmin) so seller tokens can fetch/dismiss their own alerts
+	// and read seller-facing flow/template content.
+	sellerAlerts := api.Group("/alerts", middleware.AuthenticateUser())
+	{
+		sellerAlerts.GET("", alertHandler.GetSellerAlerts)
+		sellerAlerts.GET("/", alertHandler.GetSellerAlerts)
+		sellerAlerts.POST("/:key/dismiss", alertHandler.DismissAlert)
+
+		sellerFlows := sellerAlerts.Group("/flows")
+		{
+			sellerFlows.GET("", alertTemplateHandler.GetFlows)
+			sellerFlows.GET("/:key", alertTemplateHandler.GetFlow)
+			sellerFlows.POST("/:key/step/:step_number/complete", alertTemplateHandler.CompleteStep)
+		}
+		sellerAlerts.GET("/templates/:key", alertTemplateHandler.GetTemplateForSeller)
+	}
+
 	api.Use(middleware.AuthenticateAdmin())
 	{
 		// Common routes
@@ -448,25 +466,6 @@ auth := api.Group("/auth")
 		{
 			fcm.POST("/token", fcmTokenHandler.SaveFcmToken)
 			fcm.DELETE("/token", fcmTokenHandler.UnregisterFcmToken)
-		}
-
-		alerts := api.Group("/alerts")
-		{
-			// GET /api/v1/seller/alerts - Get all alerts for seller
-			alerts.GET("", alertHandler.GetSellerAlerts)
-			alerts.GET("/", alertHandler.GetSellerAlerts)
-
-			// POST /api/v1/seller/alerts/:key/dismiss - Dismiss an alert
-			alerts.POST("/:key/dismiss", alertHandler.DismissAlert)
-
-			// Seller-facing flow/template endpoints
-			flows := alerts.Group("/flows")
-			{
-				flows.GET("", alertTemplateHandler.GetFlows)
-				flows.GET("/:key", alertTemplateHandler.GetFlow)
-				flows.POST("/:key/step/:step_number/complete", alertTemplateHandler.CompleteStep)
-			}
-			alerts.GET("/templates/:key", alertTemplateHandler.GetTemplateForSeller)
 		}
 
 		// Alert template admin CRUD
