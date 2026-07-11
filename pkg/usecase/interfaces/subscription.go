@@ -10,4 +10,5 @@ type SubscriptionUseCase interface {
 	GetSubscriptionStatus(ctx context.Context, userID string) (response.SubscriptionStatusResponse, error)
 	StartTrial(ctx context.Context, userID string) (response.SubscriptionStatusResponse, error)
 	GetPaidPlans(ctx context.Context) ([]response.SubscriptionPlanResponse, error)
+	GetBillingHistory(ctx context.Context, userID string) (response.BillingHistoryResponse, error)
 }

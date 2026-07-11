@@ -15,6 +15,7 @@ type SubscriptionRepository interface {
 	FindSubscriptionPlanByID(ctx context.Context, planID string) (domain.SubscriptionPlan, error)
 	FindSubscriptionPlanByName(ctx context.Context, name string) (domain.SubscriptionPlan, error)
 	FindPaidSubscriptionPlans(ctx context.Context) ([]domain.SubscriptionPlan, error)
+	FindPaidOrdersByUserID(ctx context.Context, userID string) ([]domain.BillingOrder, error)
 	FindActiveSubscriptionByUserID(ctx context.Context, userID string) (domain.UserSubscription, error)
 	ActivateSubscription(ctx context.Context, sub domain.UserSubscription) error
 	DeactivateTrialSubscription(ctx context.Context, userID string) error

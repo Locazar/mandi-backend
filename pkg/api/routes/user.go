@@ -407,6 +407,7 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 			subscription.GET("/status", subscriptionHandler.GetSubscriptionStatus)
 			subscription.POST("/start-trial", subscriptionHandler.StartTrial)
 			subscription.GET("/plans", subscriptionHandler.GetPaidPlans)
+			subscription.GET("/billing-history", subscriptionHandler.GetBillingHistory)
 		}
 	}
 }

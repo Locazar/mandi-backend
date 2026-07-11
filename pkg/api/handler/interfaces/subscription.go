@@ -6,4 +6,5 @@ type SubscriptionHandler interface {
 	GetSubscriptionStatus(ctx *gin.Context)
 	StartTrial(ctx *gin.Context)
 	GetPaidPlans(ctx *gin.Context)
+	GetBillingHistory(ctx *gin.Context)
 }

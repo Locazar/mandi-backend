@@ -90,6 +90,24 @@ func (r *subscriptionDatabase) FindPaidSubscriptionPlans(ctx context.Context) ([
 	return paidPlans, nil
 }
 
+// FindPaidOrdersByUserID returns the user's paid subscription orders joined to
+// their plan name, ordered most-recent-paid first. The selected columns include
+// the per-order GST snapshot (gst_rate_basis_points, gst_amount_*).
+func (r *subscriptionDatabase) FindPaidOrdersByUserID(ctx context.Context, userID string) ([]domain.BillingOrder, error) {
+	var orders []domain.BillingOrder
+	err := r.db.WithContext(ctx).
+		Model(&domain.SubscriptionOrder{}).
+		Select("subscription_orders.*, subscription_plans.name AS plan_name").
+		Joins("LEFT JOIN subscription_plans ON subscription_plans.id = subscription_orders.plan_id").
+		Where("subscription_orders.user_id = ? AND subscription_orders.status = ?", userID, domain.SubStatusPaid).
+		Order("subscription_orders.paid_at DESC").
+		Scan(&orders).Error
+	if err != nil {
+		return nil, err
+	}
+	return orders, nil
+}
+
 func (r *subscriptionDatabase) ActivateSubscription(ctx context.Context, sub domain.UserSubscription) error {
 	return r.db.Create(&sub).Error
 }
