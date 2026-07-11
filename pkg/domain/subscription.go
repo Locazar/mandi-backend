@@ -40,6 +40,14 @@ type SubscriptionOrder struct {
 	PaidAt             *time.Time         `json:"paid_at"`
 }
 
+// BillingOrder is a read model for billing history: a SubscriptionOrder joined
+// to its SubscriptionPlan for the plan name. Not a persisted table. The embedded
+// SubscriptionOrder carries the per-order GSTRateBasisPoints and GSTAmount.
+type BillingOrder struct {
+	SubscriptionOrder
+	PlanName string `gorm:"column:plan_name"`
+}
+
 type UserSubscription struct {
 	ID                  string    `json:"id" gorm:"primaryKey;type:varchar(32)"`
 	UserID              string    `json:"user_id" gorm:"type:varchar(32);not null;index"`

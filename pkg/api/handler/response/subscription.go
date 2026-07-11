@@ -39,3 +39,31 @@ type SubscriptionPlanResponse struct {
 	PriceMonthly uint   `json:"price_monthly"`
 	DurationDays uint   `json:"duration_days"`
 }
+
+// BillingPaymentResponse is one paid subscription payment in the billing
+// history. Amounts are in minor units (paise). GST is already included in
+// AmountMinor (prices are tax-inclusive); GSTRateBasisPoints and GSTAmount are
+// the values snapshotted on the order when it was created (1800 = 18.00%).
+type BillingPaymentResponse struct {
+	ID                 string  `json:"id"`
+	PlanName           string  `json:"plan_name"`
+	AmountMinor        int64   `json:"amount_minor"`
+	Currency           string  `json:"currency"`
+	BaseAmountMinor    int64   `json:"base_amount_minor"`
+	GSTAmount          int64   `json:"gst_amount"`
+	GSTRateBasisPoints int     `json:"gst_rate_basis_points"`
+	GSTInclusive       bool    `json:"gst_inclusive"`
+	Status             string  `json:"status"`
+	RazorpayPaymentID  *string `json:"razorpay_payment_id"`
+	RazorpayOrderID    string  `json:"razorpay_order_id"`
+	PaidAt             string  `json:"paid_at"`
+}
+
+// BillingHistoryResponse is the payload for GET /subscriptions/billing-history.
+// Each payment carries its own GSTRateBasisPoints (rates are snapshotted per
+// order), so there is no single top-level rate.
+type BillingHistoryResponse struct {
+	GSTInclusive bool                     `json:"gst_inclusive"`
+	LastPayment  *BillingPaymentResponse  `json:"last_payment"`
+	Payments     []BillingPaymentResponse `json:"payments"`
+}

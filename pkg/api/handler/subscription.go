@@ -82,3 +82,25 @@ func (h *subscriptionHandler) GetPaidPlans(ctx *gin.Context) {
 
 	response.SuccessResponse(ctx, http.StatusOK, "Subscription plans", result)
 }
+
+// GetBillingHistory godoc
+//
+//	@Summary		Get billing history (User)
+//	@Security		BearerAuth
+//	@Description	Returns the authenticated user's paid subscription payments (most recent first) with per-order GST-inclusive split
+//	@Tags			User Subscription
+//	@Id				GetBillingHistory
+//	@Router			/subscriptions/billing-history [get]
+//	@Success		200	{object}	response.Response{}	"Billing history"
+//	@Failure		500	{object}	response.Response{}	"Failed to get billing history"
+func (h *subscriptionHandler) GetBillingHistory(ctx *gin.Context) {
+	userID := utils.GetUserIdFromContext(ctx)
+
+	result, err := h.subscriptionUseCase.GetBillingHistory(ctx, userID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get billing history", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved billing history", result)
+}

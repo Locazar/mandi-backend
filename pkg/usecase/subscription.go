@@ -153,3 +153,50 @@ func (uc *subscriptionUseCase) GetPaidPlans(ctx context.Context) ([]response.Sub
 	}
 	return result, nil
 }
+
+// GetBillingHistory returns the user's paid subscription payments (most recent
+// first). GST is read from the per-order snapshot stored on each order
+// (gst_rate_basis_points + gst_amount), so historical rates stay accurate.
+func (uc *subscriptionUseCase) GetBillingHistory(ctx context.Context, userID string) (response.BillingHistoryResponse, error) {
+	orders, err := uc.subRepo.FindPaidOrdersByUserID(ctx, userID)
+	if err != nil {
+		return response.BillingHistoryResponse{}, err
+	}
+
+	payments := make([]response.BillingPaymentResponse, 0, len(orders))
+	for _, o := range orders {
+		amountMinor := o.Price.AmountMinor
+		gstAmountMinor := o.GSTAmount.AmountMinor
+		baseAmountMinor := amountMinor - gstAmountMinor
+
+		paidAt := ""
+		if o.PaidAt != nil {
+			paidAt = o.PaidAt.UTC().Format(time.RFC3339)
+		}
+
+		payments = append(payments, response.BillingPaymentResponse{
+			ID:                 o.ID,
+			PlanName:           o.PlanName,
+			AmountMinor:        amountMinor,
+			Currency:           o.Price.Currency,
+			BaseAmountMinor:    baseAmountMinor,
+			GSTAmount:          gstAmountMinor,
+			GSTRateBasisPoints: o.GSTRateBasisPoints,
+			GSTInclusive:       true,
+			Status:             string(o.Status),
+			RazorpayPaymentID:  o.RazorpayPaymentID,
+			RazorpayOrderID:    o.RazorpayOrderID,
+			PaidAt:             paidAt,
+		})
+	}
+
+	resp := response.BillingHistoryResponse{
+		GSTInclusive: true,
+		LastPayment:  nil,
+		Payments:     payments,
+	}
+	if len(payments) > 0 {
+		resp.LastPayment = &payments[0]
+	}
+	return resp, nil
+}
