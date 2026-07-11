@@ -106,6 +106,23 @@ type AdminUseCase interface {
 	UserLogout(ctx context.Context, adminId string) error
 	GetShopSocialDetails(ctx context.Context, shopID string) ([]domain.ShopSocial, error)
 	GetDashboardStats(ctx context.Context) (domain.DashboardStats, error)
+
+	// Subscription GST configuration (admin-managed rate applied to
+	// subscription checkout — see subscriptionPaymentUseCase.CreateSubscriptionOrder).
+	GetSubscriptionGSTConfig(ctx context.Context) (domain.SubscriptionGSTConfig, error)
+	UpdateSubscriptionGSTConfig(ctx context.Context, cfg domain.SubscriptionGSTConfig) (domain.SubscriptionGSTConfig, error)
+
+	// Sales Executive referral program (CRUD + attach lookup).
+	FindAdminByReferralCouponID(ctx context.Context, referralCouponID string) (domain.Admin, error)
+	CreateShopReferral(ctx context.Context, callerID string, body domain.ShopReferral) (domain.ShopReferral, error)
+	ListShopReferrals(ctx context.Context, callerID string, pagination request.Pagination) ([]domain.ShopReferral, error)
+	GetShopReferral(ctx context.Context, callerID, referralID string) (domain.ShopReferral, error)
+	UpdateShopReferral(ctx context.Context, callerID, referralID string, body domain.ShopReferral) error
+	DeleteShopReferral(ctx context.Context, callerID, referralID string) error
+	// ListShopsForSalesExecutive returns the shops attached to the given
+	// platform user. A Sales Executive may pass their own ID; only a super
+	// admin may pass someone else's.
+	ListShopsForSalesExecutive(ctx context.Context, callerID, platformUserID string, pagination request.Pagination) ([]domain.ShopReferral, error)
 }
 
 // GetCategory(ctx context.Context) (helper.Category, any)

@@ -20,7 +20,7 @@ func NewPlatformUserRepository(db *gorm.DB) interfaces.PlatformUserRepository {
 func (r *platformUserRepository) ListAdmins(ctx context.Context, pagination request.Pagination) ([]domain.Admin, error) {
 	var admins []domain.Admin
 	err := r.db.WithContext(ctx).
-		Select("id, user_name, full_name, email, mobile, profile_image_url, status, role, created_at, updated_at").
+		Select("id, user_name, full_name, email, mobile, profile_image_url, status, role, referral_coupon_id, created_at, updated_at").
 		Where("role <> ?", domain.AdminRoleSeller).
 		Order("created_at DESC").
 		Offset(int(pagination.Offset)).

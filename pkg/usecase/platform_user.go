@@ -41,6 +41,17 @@ func (u *platformUserUseCase) CreateAdmin(ctx context.Context, callerID string, 
 	if caller.Role != domain.AdminRoleSuperAdmin {
 		return "", domain.ForbiddenError("only super admins can create platform users")
 	}
+
+	if body.ReferralCouponID != "" {
+		existing, err := u.adminUC.FindAdminByReferralCouponID(ctx, body.ReferralCouponID)
+		if err != nil {
+			return "", domain.InternalError("failed to validate referral coupon ID", err)
+		}
+		if existing.ID != "" {
+			return "", domain.ConflictError("referral coupon ID already in use", "another platform user already holds this referral coupon ID")
+		}
+	}
+
 	otpID, err := u.adminUC.SignUp(ctx, body)
 	if err != nil {
 		if strings.Contains(err.Error(), "already exists") {

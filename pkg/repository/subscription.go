@@ -132,6 +132,24 @@ func (r *subscriptionDatabase) SumGSTCollected(ctx context.Context, from, to tim
 	return domain.INR(total), nil
 }
 
+// GetGSTRateBasisPoints reads the admin-configured subscription GST rate
+// from the same singleton row AdminRepository.GetSubscriptionGSTConfig
+// manages (see admin-portal Settings). Defaults to 1800 (18%) — the
+// previous hardcoded value — if the row doesn't exist yet.
+func (r *subscriptionDatabase) GetGSTRateBasisPoints(ctx context.Context) (int, error) {
+	var cfg domain.SubscriptionGSTConfig
+	err := r.db.WithContext(ctx).Raw(
+		`SELECT * FROM subscription_gst_config ORDER BY id LIMIT 1`,
+	).Scan(&cfg).Error
+	if err != nil {
+		return 0, err
+	}
+	if cfg.ID == "" {
+		return 1800, nil
+	}
+	return cfg.GSTRateBasisPoints, nil
+}
+
 func (r *subscriptionDatabase) Transaction(fn func(repo interfaces.SubscriptionRepository) error) error {
 	trx := r.db.Begin()
 	repo := &subscriptionDatabase{db: trx}

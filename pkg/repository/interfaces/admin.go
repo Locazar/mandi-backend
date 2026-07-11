@@ -99,4 +99,22 @@ type AdminRepository interface {
 	DeleteRefreshSessionByUserID(ctx context.Context, adminId string) error
 	GetShopSocialDetails(ctx context.Context, shopID string) ([]domain.ShopSocial, error)
 	GetDashboardStats(ctx context.Context) (domain.DashboardStats, error)
+
+	// Subscription GST configuration (admin-managed rate; see also
+	// SubscriptionRepository.GetGSTRateBasisPoints, which reads the same
+	// singleton row at charge time).
+	GetSubscriptionGSTConfig(ctx context.Context) (domain.SubscriptionGSTConfig, error)
+	UpdateSubscriptionGSTConfig(ctx context.Context, cfg domain.SubscriptionGSTConfig) (domain.SubscriptionGSTConfig, error)
+
+	// Sales Executive referral program: attaches a shop to the platform
+	// user (Sales Executive) whose referral coupon ID the seller entered
+	// during onboarding.
+	FindAdminByReferralCouponID(ctx context.Context, referralCouponID string) (domain.Admin, error)
+	CreateShopReferral(ctx context.Context, referral domain.ShopReferral) (domain.ShopReferral, error)
+	GetShopReferralByID(ctx context.Context, referralID string) (domain.ShopReferral, error)
+	GetShopReferralByShopID(ctx context.Context, shopID string) (domain.ShopReferral, error)
+	ListShopReferrals(ctx context.Context, pagination request.Pagination) ([]domain.ShopReferral, error)
+	ListShopReferralsByPlatformUser(ctx context.Context, platformUserID string, pagination request.Pagination) ([]domain.ShopReferral, error)
+	UpdateShopReferral(ctx context.Context, referralID string, updates map[string]interface{}) error
+	DeleteShopReferral(ctx context.Context, referralID string) error
 }

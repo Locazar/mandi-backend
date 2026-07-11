@@ -48,6 +48,15 @@ type ShopDetails struct {
 	Offers    []Offer `json:"offers" gorm:"many2many:shop_offers;"`
 	HasOffers bool    `json:"has_offers" gorm:"column:has_offers"`
 
+	// ReferralCouponID (input-only, not persisted here) is the optional
+	// referral code the seller enters on the final onboarding step. A match
+	// against an Admin.ReferralCouponID creates a ShopReferral row instead
+	// of a shop_details column, so re-submits never need to mutate this
+	// table. ReferralStatus (output-only) reports the outcome back to the
+	// client: "attached" or "invalid"; empty when no code was submitted.
+	ReferralCouponID string `json:"referral_coupon_id,omitempty" gorm:"-" binding:"omitempty"`
+	ReferralStatus   string `json:"referral_status,omitempty" gorm:"-"`
+
 	CreatedAt time.Time      `json:"created_at" gorm:";autoCreateTime"`
 	UpdatedAt time.Time      `json:"updated_at" gorm:"autoUpdateTime"`
 	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`

@@ -108,7 +108,13 @@ func (uc *subscriptionPaymentUseCase) CreateSubscriptionOrder(ctx context.Contex
 	// 6. Persist subscription order
 	// GST is included in the price; snapshot the current rate and the computed
 	// GST portion so historical reporting is unaffected by future rate changes.
-	gstRate := uc.config.GSTPercentBasisPoints
+	// Rate is admin-configurable at runtime (see AdminRepository.
+	// GetSubscriptionGSTConfig / admin-portal Settings) rather than fixed via
+	// env var, so it's read fresh per order instead of from uc.config.
+	gstRate, err := uc.subRepo.GetGSTRateBasisPoints(ctx)
+	if err != nil {
+		return response.SubscriptionOrderResponse{}, fmt.Errorf("failed to load GST rate: %w", err)
+	}
 	subOrder := domain.SubscriptionOrder{
 		UserID:             userID,
 		PlanID:             plan.ID,

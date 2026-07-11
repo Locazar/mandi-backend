@@ -122,6 +122,23 @@ auth := api.Group("/auth")
 			platformUsers.PATCH("/:admin_id/deactivate", platformUserHandler.DeactivateAdmin)
 			platformUsers.PUT("/:admin_id", platformUserHandler.UpdateAdmin)
 			platformUsers.DELETE("/:admin_id", platformUserHandler.DeleteAdmin)
+
+			// Sales Executive: shops attached to this platform user via
+			// referral coupon. Self-serve (a Sales Executive viewing their
+			// own attachments) or super-admin viewing any executive's.
+			platformUsers.GET("/:admin_id/shops", adminHandler.ListShopsForSalesExecutive)
+		}
+
+		// Sales Executive referral program — CRUD over the shop<->platform
+		// user attachments created automatically when a seller enters a
+		// valid referral coupon ID during shop onboarding (see CreateShop).
+		referrals := api.Group("/referrals")
+		{
+			referrals.GET("/", adminHandler.ListShopReferrals)
+			referrals.POST("/", adminHandler.CreateShopReferral)
+			referrals.GET("/:referral_id", adminHandler.GetShopReferral)
+			referrals.PUT("/:referral_id", adminHandler.UpdateShopReferral)
+			referrals.DELETE("/:referral_id", adminHandler.DeleteShopReferral)
 		}
 
 		//department
@@ -381,6 +398,13 @@ auth := api.Group("/auth")
 			subscriptionPlans.POST("/", middleware.TrimSpaces(), adminHandler.CreateSubscriptionPlan)
 			subscriptionPlans.PUT("/:plan_id", middleware.TrimSpaces(), adminHandler.UpdateSubscriptionPlan)
 			subscriptionPlans.DELETE("/:plan_id", adminHandler.DeleteSubscriptionPlan)
+		}
+
+		// Subscription pricing — GST rate applied at checkout (admin panel)
+		subscriptionPricing := api.Group("/subscription-pricing")
+		{
+			subscriptionPricing.GET("/gst", adminHandler.GetSubscriptionGSTConfig)
+			subscriptionPricing.PUT("/gst", middleware.TrimSpaces(), adminHandler.UpdateSubscriptionGSTConfig)
 		}
 
 		// Shop details

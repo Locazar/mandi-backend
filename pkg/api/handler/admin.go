@@ -2810,3 +2810,218 @@ func (a *adminHandler) ListNotificationImages(ctx *gin.Context) {
 	}
 	response.SuccessResponse(ctx, http.StatusOK, "Images fetched", images)
 }
+
+// ── Subscription GST configuration ─────────────────────────────────────────
+
+// subscriptionGSTResponse mirrors the rate in both representations so the
+// admin-portal UI can work in friendly percent while the backend keeps the
+// basis-points precision used by SubscriptionOrder snapshots.
+type subscriptionGSTResponse struct {
+	GSTRateBasisPoints int     `json:"gst_rate_basis_points"`
+	GSTRatePercent     float64 `json:"gst_rate_percent"`
+}
+
+// GetSubscriptionGSTConfig godoc
+//
+//	@summary		Get the current subscription GST rate
+//	@Security		BearerAuth
+//	@Id				GetSubscriptionGSTConfig
+//	@Tags			Subscription Pricing
+//	@Router			/admin/subscription-pricing/gst [get]
+//	@Success		200	{object}	response.Response{}
+func (a *adminHandler) GetSubscriptionGSTConfig(ctx *gin.Context) {
+	cfg, err := a.adminUseCase.GetSubscriptionGSTConfig(ctx)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to load GST config", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Subscription GST config", subscriptionGSTResponse{
+		GSTRateBasisPoints: cfg.GSTRateBasisPoints,
+		GSTRatePercent:     float64(cfg.GSTRateBasisPoints) / 100,
+	})
+}
+
+// UpdateSubscriptionGSTConfig godoc
+//
+//	@summary		Update the subscription GST rate
+//	@Description	Accepts either gst_rate_percent (e.g. 18) or gst_rate_basis_points (e.g. 1800); percent wins if both are sent. Only affects subscriptions purchased after the change — existing orders keep their snapshotted rate.
+//	@Security		BearerAuth
+//	@Id				UpdateSubscriptionGSTConfig
+//	@Tags			Subscription Pricing
+//	@Router			/admin/subscription-pricing/gst [put]
+//	@Success		200	{object}	response.Response{}
+//	@Failure		400	{object}	response.Response{}
+func (a *adminHandler) UpdateSubscriptionGSTConfig(ctx *gin.Context) {
+	var body struct {
+		GSTRatePercent     *float64 `json:"gst_rate_percent"`
+		GSTRateBasisPoints *int     `json:"gst_rate_basis_points"`
+	}
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+
+	var basisPoints int
+	switch {
+	case body.GSTRatePercent != nil:
+		basisPoints = int(*body.GSTRatePercent*100 + 0.5) // round to nearest basis point
+	case body.GSTRateBasisPoints != nil:
+		basisPoints = *body.GSTRateBasisPoints
+	default:
+		appErr := domain.ValidationError("body", "gst_rate_percent or gst_rate_basis_points is required")
+		response.ErrorResponse(ctx, appErr.StatusCode, appErr.Message, appErr, nil)
+		return
+	}
+
+	updated, err := a.adminUseCase.UpdateSubscriptionGSTConfig(ctx, domain.SubscriptionGSTConfig{GSTRateBasisPoints: basisPoints})
+	if err != nil {
+		a.handleAppErr(ctx, "Failed to update GST config", err)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Subscription GST rate updated", subscriptionGSTResponse{
+		GSTRateBasisPoints: updated.GSTRateBasisPoints,
+		GSTRatePercent:     float64(updated.GSTRateBasisPoints) / 100,
+	})
+}
+
+// ── Sales Executive referral program ───────────────────────────────────────
+
+func (a *adminHandler) handleAppErr(ctx *gin.Context, fallbackMsg string, err error) {
+	var appErr *domain.AppError
+	if errors.As(err, &appErr) {
+		response.ErrorResponse(ctx, appErr.StatusCode, appErr.Message, appErr, nil)
+		return
+	}
+	response.ErrorResponse(ctx, http.StatusInternalServerError, fallbackMsg, err, nil)
+}
+
+// CreateShopReferral godoc
+//
+//	@Summary		Manually attach a shop to a Sales Executive
+//	@Security		BearerAuth
+//	@Description	Super-admin-only. Sellers normally get attached automatically by submitting a referral_coupon_id when creating their shop.
+//	@Id				CreateShopReferral
+//	@Tags			Admin Referrals
+//	@Router			/admin/referrals [post]
+//	@Success		201	{object}	response.Response{}	"Referral created"
+func (a *adminHandler) CreateShopReferral(ctx *gin.Context) {
+	callerID := a.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	var body domain.ShopReferral
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	if body.ID != "" {
+		appErr := domain.ValidationError("id", "must not be provided when creating a new referral")
+		response.ErrorResponse(ctx, appErr.StatusCode, appErr.Message, appErr, nil)
+		return
+	}
+	referral, err := a.adminUseCase.CreateShopReferral(ctx, callerID, body)
+	if err != nil {
+		a.handleAppErr(ctx, "Failed to create referral", err)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusCreated, "Referral created successfully", referral)
+}
+
+// ListShopReferrals godoc
+//
+//	@Summary		List all shop referral attachments
+//	@Security		BearerAuth
+//	@Id				ListShopReferrals
+//	@Tags			Admin Referrals
+//	@Param			page_number	query	int	false	"Page Number"
+//	@Param			count		query	int	false	"Count"
+//	@Router			/admin/referrals [get]
+//	@Success		200	{object}	response.Response{}	"Referrals fetched"
+func (a *adminHandler) ListShopReferrals(ctx *gin.Context) {
+	callerID := a.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	pagination := request.GetPagination(ctx)
+	referrals, err := a.adminUseCase.ListShopReferrals(ctx, callerID, pagination)
+	if err != nil {
+		a.handleAppErr(ctx, "Failed to list referrals", err)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Referrals fetched successfully", referrals)
+}
+
+// GetShopReferral godoc
+//
+//	@Summary		Get a single referral attachment
+//	@Security		BearerAuth
+//	@Id				GetShopReferral
+//	@Tags			Admin Referrals
+//	@Router			/admin/referrals/{referral_id} [get]
+//	@Success		200	{object}	response.Response{}	"Referral fetched"
+func (a *adminHandler) GetShopReferral(ctx *gin.Context) {
+	callerID := a.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	referralID := ctx.Param("referral_id")
+	referral, err := a.adminUseCase.GetShopReferral(ctx, callerID, referralID)
+	if err != nil {
+		a.handleAppErr(ctx, "Failed to get referral", err)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Referral fetched successfully", referral)
+}
+
+// UpdateShopReferral godoc
+//
+//	@Summary		Update a referral attachment (status or reassignment)
+//	@Security		BearerAuth
+//	@Id				UpdateShopReferral
+//	@Tags			Admin Referrals
+//	@Router			/admin/referrals/{referral_id} [put]
+//	@Success		200	{object}	response.Response{}	"Referral updated"
+func (a *adminHandler) UpdateShopReferral(ctx *gin.Context) {
+	callerID := a.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	referralID := ctx.Param("referral_id")
+	var body domain.ShopReferral
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	if err := a.adminUseCase.UpdateShopReferral(ctx, callerID, referralID, body); err != nil {
+		a.handleAppErr(ctx, "Failed to update referral", err)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Referral updated successfully")
+}
+
+// DeleteShopReferral godoc
+//
+//	@Summary		Delete a referral attachment
+//	@Security		BearerAuth
+//	@Id				DeleteShopReferral
+//	@Tags			Admin Referrals
+//	@Router			/admin/referrals/{referral_id} [delete]
+//	@Success		200	{object}	response.Response{}	"Referral deleted"
+func (a *adminHandler) DeleteShopReferral(ctx *gin.Context) {
+	callerID := a.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	referralID := ctx.Param("referral_id")
+	if err := a.adminUseCase.DeleteShopReferral(ctx, callerID, referralID); err != nil {
+		a.handleAppErr(ctx, "Failed to delete referral", err)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Referral deleted successfully")
+}
+
+// ListShopsForSalesExecutive godoc
+//
+//	@Summary		List shops attached to a Sales Executive (a platform user)
+//	@Security		BearerAuth
+//	@Description	A Sales Executive may only view their own shops; a super admin may view any executive's shops.
+//	@Id				ListShopsForSalesExecutive
+//	@Tags			Admin Referrals
+//	@Param			admin_id	path	string	true	"Platform user (Sales Executive) ID"
+//	@Router			/admin/platform-users/{admin_id}/shops [get]
+//	@Success		200	{object}	response.Response{}	"Attached shops fetched"
+func (a *adminHandler) ListShopsForSalesExecutive(ctx *gin.Context) {
+	callerID := a.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	platformUserID := ctx.Param("admin_id")
+	referrals, err := a.adminUseCase.ListShopsForSalesExecutive(ctx, callerID, platformUserID, request.GetPagination(ctx))
+	if err != nil {
+		a.handleAppErr(ctx, "Failed to list attached shops", err)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Attached shops fetched successfully", referrals)
+}

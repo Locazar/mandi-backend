@@ -22,5 +22,11 @@ type SubscriptionRepository interface {
 	// SumGSTCollected returns the total GST collected from paid subscription
 	// orders whose paid_at falls within [from, to].
 	SumGSTCollected(ctx context.Context, from, to time.Time) (domain.Money, error)
+	// GetGSTRateBasisPoints returns the admin-configured subscription GST
+	// rate (1800 = 18.00%) read from the same subscription_gst_config
+	// singleton row AdminRepository.GetSubscriptionGSTConfig manages. Falls
+	// back to 1800 if the row is somehow missing, matching the previous
+	// hardcoded env-var default, so a missing row never breaks checkout.
+	GetGSTRateBasisPoints(ctx context.Context) (int, error)
 	Transaction(fn func(repo SubscriptionRepository) error) error
 }

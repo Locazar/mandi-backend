@@ -651,6 +651,23 @@ func (c *adminUseCase) UpdateAdvertisementPricingConfig(ctx context.Context, cfg
 	return c.adminRepo.UpdateAdvertisementPricingConfig(ctx, cfg)
 }
 
+func (c *adminUseCase) GetSubscriptionGSTConfig(ctx context.Context) (domain.SubscriptionGSTConfig, error) {
+	cfg, err := c.adminRepo.GetSubscriptionGSTConfig(ctx)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		// Same fallback as SubscriptionRepository.GetGSTRateBasisPoints —
+		// the migration seeds this row, but never hard-fail a read.
+		return domain.SubscriptionGSTConfig{GSTRateBasisPoints: 1800}, nil
+	}
+	return cfg, err
+}
+
+func (c *adminUseCase) UpdateSubscriptionGSTConfig(ctx context.Context, cfg domain.SubscriptionGSTConfig) (domain.SubscriptionGSTConfig, error) {
+	if cfg.GSTRateBasisPoints < 0 || cfg.GSTRateBasisPoints > 10000 {
+		return domain.SubscriptionGSTConfig{}, domain.ValidationError("gst_rate_basis_points", "must be between 0 and 10000 (0% to 100%)")
+	}
+	return c.adminRepo.UpdateSubscriptionGSTConfig(ctx, cfg)
+}
+
 // Feature flags
 
 // GetFeatureFlagsObject returns all flags as a key→enabled map, the shape
@@ -997,7 +1014,57 @@ func (c *adminUseCase) CreateShop(ctx context.Context, shop domain.ShopDetails) 
 	if err != nil {
 		return domain.ShopDetails{}, fmt.Errorf("failed to create shop \nerror:%v", err.Error())
 	}
+
+	// Referral attach is best-effort: an invalid or missing code must never
+	// fail shop creation, only surface as ReferralStatus for the client to
+	// show "Invalid Referral ID" (see ShopDetails.ReferralStatus).
+	createdShop.ReferralStatus = c.attachShopReferral(ctx, createdShop.ID, createdShop.AdminID, shop.ReferralCouponID)
+	createdShop.ReferralCouponID = shop.ReferralCouponID
+
 	return createdShop, nil
+}
+
+// attachShopReferral resolves referralCouponID to a Sales Executive and, on
+// a match, attaches shopID to them for commission/reporting. Returns
+// "attached", "invalid", or "" (no code submitted) — never an error, so a
+// broken or unknown referral code never blocks shop creation.
+func (c *adminUseCase) attachShopReferral(ctx context.Context, shopID, sellerAdminID, referralCouponID string) string {
+	if referralCouponID == "" {
+		return ""
+	}
+
+	// Idempotent: onboarding retries (or a resubmit of the same step) must
+	// not create a second attachment or move the shop to a different exec.
+	existing, err := c.adminRepo.GetShopReferralByShopID(ctx, shopID)
+	if err != nil {
+		applogger.L().Warn("referral lookup failed during shop create", zap.String("shop_id", shopID), zap.Error(err))
+		return "invalid"
+	}
+	if existing.ID != "" {
+		return "attached"
+	}
+
+	exec, err := c.adminRepo.FindAdminByReferralCouponID(ctx, referralCouponID)
+	if err != nil {
+		applogger.L().Warn("referral admin lookup failed during shop create", zap.String("shop_id", shopID), zap.Error(err))
+		return "invalid"
+	}
+	if exec.ID == "" {
+		return "invalid"
+	}
+
+	_, err = c.adminRepo.CreateShopReferral(ctx, domain.ShopReferral{
+		ReferralCouponID: referralCouponID,
+		PlatformUserID:   exec.ID,
+		ShopID:           shopID,
+		SellerAdminID:    sellerAdminID,
+		Status:           domain.ShopReferralStatusActive,
+	})
+	if err != nil {
+		applogger.L().Error("failed to attach shop referral", zap.String("shop_id", shopID), zap.String("platform_user_id", exec.ID), zap.Error(err))
+		return "invalid"
+	}
+	return "attached"
 }
 
 func (c *adminUseCase) SearchShops(ctx context.Context, filter request.ShopSearch) ([]domain.ShopDetails, error) {
@@ -1171,4 +1238,133 @@ func (c *adminUseCase) GetAdminByID(ctx context.Context, adminID string) (domain
 
 func (c *adminUseCase) GetDashboardStats(ctx context.Context) (domain.DashboardStats, error) {
 	return c.adminRepo.GetDashboardStats(ctx)
+}
+
+// ── Sales Executive referral program (CRUD) ────────────────────────────────
+
+func (c *adminUseCase) FindAdminByReferralCouponID(ctx context.Context, referralCouponID string) (domain.Admin, error) {
+	return c.adminRepo.FindAdminByReferralCouponID(ctx, referralCouponID)
+}
+
+func (c *adminUseCase) CreateShopReferral(ctx context.Context, callerID string, body domain.ShopReferral) (domain.ShopReferral, error) {
+	caller, err := c.adminRepo.GetAdminByID(ctx, callerID)
+	if err != nil || caller.ID == "" {
+		return domain.ShopReferral{}, domain.NotFoundError("caller admin")
+	}
+	if caller.Role != domain.AdminRoleSuperAdmin {
+		return domain.ShopReferral{}, domain.ForbiddenError("only super admins can create referral attachments")
+	}
+	if body.ReferralCouponID == "" || body.PlatformUserID == "" || body.ShopID == "" {
+		return domain.ShopReferral{}, domain.ValidationError("body", "referral_coupon_id, platform_user_id and shop_id are required")
+	}
+	if body.Status == "" {
+		body.Status = domain.ShopReferralStatusActive
+	} else if !body.Status.IsValid() {
+		return domain.ShopReferral{}, domain.ValidationError("status", "must be 'active' or 'inactive'")
+	}
+
+	existing, err := c.adminRepo.GetShopReferralByShopID(ctx, body.ShopID)
+	if err != nil {
+		return domain.ShopReferral{}, err
+	}
+	if existing.ID != "" {
+		return domain.ShopReferral{}, domain.ConflictError("shop already attached", "this shop already has a referral attachment; delete it first to reassign")
+	}
+
+	return c.adminRepo.CreateShopReferral(ctx, body)
+}
+
+func (c *adminUseCase) ListShopReferrals(ctx context.Context, callerID string, pagination request.Pagination) ([]domain.ShopReferral, error) {
+	caller, err := c.adminRepo.GetAdminByID(ctx, callerID)
+	if err != nil || caller.ID == "" {
+		return nil, domain.NotFoundError("caller admin")
+	}
+	if caller.Role != domain.AdminRoleSuperAdmin {
+		return nil, domain.ForbiddenError("only super admins can list all referral attachments")
+	}
+	return c.adminRepo.ListShopReferrals(ctx, pagination)
+}
+
+func (c *adminUseCase) GetShopReferral(ctx context.Context, callerID, referralID string) (domain.ShopReferral, error) {
+	caller, err := c.adminRepo.GetAdminByID(ctx, callerID)
+	if err != nil || caller.ID == "" {
+		return domain.ShopReferral{}, domain.NotFoundError("caller admin")
+	}
+	referral, err := c.adminRepo.GetShopReferralByID(ctx, referralID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return domain.ShopReferral{}, domain.NotFoundError("referral")
+		}
+		return domain.ShopReferral{}, err
+	}
+	if caller.Role != domain.AdminRoleSuperAdmin && caller.ID != referral.PlatformUserID {
+		return domain.ShopReferral{}, domain.ForbiddenError("you cannot view this referral")
+	}
+	return referral, nil
+}
+
+func (c *adminUseCase) UpdateShopReferral(ctx context.Context, callerID, referralID string, body domain.ShopReferral) error {
+	caller, err := c.adminRepo.GetAdminByID(ctx, callerID)
+	if err != nil || caller.ID == "" {
+		return domain.NotFoundError("caller admin")
+	}
+	if caller.Role != domain.AdminRoleSuperAdmin {
+		return domain.ForbiddenError("only super admins can update referral attachments")
+	}
+
+	updates := map[string]interface{}{}
+	if body.Status != "" {
+		if !body.Status.IsValid() {
+			return domain.ValidationError("status", "must be 'active' or 'inactive'")
+		}
+		updates["status"] = body.Status
+	}
+	if body.PlatformUserID != "" {
+		updates["platform_user_id"] = body.PlatformUserID
+	}
+	if body.ReferralCouponID != "" {
+		updates["referral_coupon_id"] = body.ReferralCouponID
+	}
+	if len(updates) == 0 {
+		return domain.ValidationError("body", "no updatable fields provided")
+	}
+
+	if err := c.adminRepo.UpdateShopReferral(ctx, referralID, updates); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return domain.NotFoundError("referral")
+		}
+		return err
+	}
+	return nil
+}
+
+func (c *adminUseCase) DeleteShopReferral(ctx context.Context, callerID, referralID string) error {
+	caller, err := c.adminRepo.GetAdminByID(ctx, callerID)
+	if err != nil || caller.ID == "" {
+		return domain.NotFoundError("caller admin")
+	}
+	if caller.Role != domain.AdminRoleSuperAdmin {
+		return domain.ForbiddenError("only super admins can delete referral attachments")
+	}
+	if err := c.adminRepo.DeleteShopReferral(ctx, referralID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return domain.NotFoundError("referral")
+		}
+		return err
+	}
+	return nil
+}
+
+func (c *adminUseCase) ListShopsForSalesExecutive(ctx context.Context, callerID, platformUserID string, pagination request.Pagination) ([]domain.ShopReferral, error) {
+	caller, err := c.adminRepo.GetAdminByID(ctx, callerID)
+	if err != nil || caller.ID == "" {
+		return nil, domain.NotFoundError("caller admin")
+	}
+	if platformUserID == "" {
+		platformUserID = callerID
+	}
+	if caller.Role != domain.AdminRoleSuperAdmin && caller.ID != platformUserID {
+		return nil, domain.ForbiddenError("you can only view shops attached to your own account")
+	}
+	return c.adminRepo.ListShopReferralsByPlatformUser(ctx, platformUserID, pagination)
 }

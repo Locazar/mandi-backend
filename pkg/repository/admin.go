@@ -960,6 +960,33 @@ func (c *adminDatabase) UpdateAdvertisementPricingConfig(ctx context.Context, cf
 	return c.GetAdvertisementPricingConfig(ctx)
 }
 
+func (c *adminDatabase) GetSubscriptionGSTConfig(ctx context.Context) (domain.SubscriptionGSTConfig, error) {
+	var cfg domain.SubscriptionGSTConfig
+	err := c.DB.WithContext(ctx).Raw(
+		`SELECT * FROM subscription_gst_config ORDER BY id LIMIT 1`,
+	).Scan(&cfg).Error
+	if err == nil && cfg.ID == "" {
+		return cfg, gorm.ErrRecordNotFound
+	}
+	return cfg, err
+}
+
+func (c *adminDatabase) UpdateSubscriptionGSTConfig(ctx context.Context, cfg domain.SubscriptionGSTConfig) (domain.SubscriptionGSTConfig, error) {
+	// Upsert the singleton row.
+	err := c.DB.WithContext(ctx).Exec(`INSERT INTO subscription_gst_config
+		(id, gst_rate_basis_points, updated_at)
+		VALUES ('subgst_default', $1, NOW())
+		ON CONFLICT (id) DO UPDATE
+		SET gst_rate_basis_points = EXCLUDED.gst_rate_basis_points,
+		    updated_at = NOW()`,
+		cfg.GSTRateBasisPoints,
+	).Error
+	if err != nil {
+		return cfg, err
+	}
+	return c.GetSubscriptionGSTConfig(ctx)
+}
+
 // Shop Details
 func (c *adminDatabase) CreateShop(ctx context.Context, shop domain.ShopDetails) (domain.ShopDetails, error) {
 	shop.ShopID = utils.GenerateShopID()
@@ -1446,4 +1473,98 @@ func (a *adminDatabase) GetDashboardStats(ctx context.Context) (domain.Dashboard
 	}
 
 	return stats, nil
+}
+
+// ── Sales Executive referral program ───────────────────────────────────────
+
+// FindAdminByReferralCouponID looks up the platform user (Sales Executive)
+// that owns the given referral coupon ID. Returns a zero-value Admin (ID ==
+// "") with a nil error when no admin holds this code — callers treat that as
+// "invalid referral" rather than a hard failure.
+func (c *adminDatabase) FindAdminByReferralCouponID(ctx context.Context, referralCouponID string) (domain.Admin, error) {
+	var admin domain.Admin
+	err := c.DB.WithContext(ctx).
+		Where("referral_coupon_id = ?", referralCouponID).
+		First(&admin).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return domain.Admin{}, nil
+	}
+	if err != nil {
+		return domain.Admin{}, err
+	}
+	return admin, nil
+}
+
+func (c *adminDatabase) CreateShopReferral(ctx context.Context, referral domain.ShopReferral) (domain.ShopReferral, error) {
+	if err := c.DB.WithContext(ctx).Create(&referral).Error; err != nil {
+		return domain.ShopReferral{}, err
+	}
+	return referral, nil
+}
+
+func (c *adminDatabase) GetShopReferralByID(ctx context.Context, referralID string) (domain.ShopReferral, error) {
+	var referral domain.ShopReferral
+	err := c.DB.WithContext(ctx).Where("id = ?", referralID).First(&referral).Error
+	if err != nil {
+		return domain.ShopReferral{}, err
+	}
+	return referral, nil
+}
+
+func (c *adminDatabase) GetShopReferralByShopID(ctx context.Context, shopID string) (domain.ShopReferral, error) {
+	var referral domain.ShopReferral
+	err := c.DB.WithContext(ctx).Where("shop_id = ?", shopID).First(&referral).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return domain.ShopReferral{}, nil
+	}
+	if err != nil {
+		return domain.ShopReferral{}, err
+	}
+	return referral, nil
+}
+
+func (c *adminDatabase) ListShopReferrals(ctx context.Context, pagination request.Pagination) ([]domain.ShopReferral, error) {
+	var referrals []domain.ShopReferral
+	err := c.DB.WithContext(ctx).
+		Order("created_at DESC").
+		Offset(int(pagination.Offset)).
+		Limit(int(pagination.Limit)).
+		Find(&referrals).Error
+	return referrals, err
+}
+
+func (c *adminDatabase) ListShopReferralsByPlatformUser(ctx context.Context, platformUserID string, pagination request.Pagination) ([]domain.ShopReferral, error) {
+	var referrals []domain.ShopReferral
+	err := c.DB.WithContext(ctx).
+		Where("platform_user_id = ?", platformUserID).
+		Order("created_at DESC").
+		Offset(int(pagination.Offset)).
+		Limit(int(pagination.Limit)).
+		Find(&referrals).Error
+	return referrals, err
+}
+
+func (c *adminDatabase) UpdateShopReferral(ctx context.Context, referralID string, updates map[string]interface{}) error {
+	result := c.DB.WithContext(ctx).
+		Model(&domain.ShopReferral{}).
+		Where("id = ?", referralID).
+		Updates(updates)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+func (c *adminDatabase) DeleteShopReferral(ctx context.Context, referralID string) error {
+	result := c.DB.WithContext(ctx).Where("id = ?", referralID).Delete(&domain.ShopReferral{})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }

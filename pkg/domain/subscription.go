@@ -48,6 +48,18 @@ type BillingOrder struct {
 	PlanName string `gorm:"column:plan_name"`
 }
 
+// SubscriptionGSTConfig is the admin-managed singleton row holding the GST
+// rate applied to subscription prices (which are GST-inclusive). Stored in
+// basis points (1800 = 18.00%) to match the per-order snapshot fields on
+// SubscriptionOrder/UserSubscription above — every new order reads this at
+// creation time and freezes its own rate, so changing this never rewrites
+// historical orders.
+type SubscriptionGSTConfig struct {
+	ID                 string    `json:"id" gorm:"primaryKey;type:varchar(32)"`
+	GSTRateBasisPoints int       `json:"gst_rate_basis_points" gorm:"not null;default:1800"`
+	UpdatedAt          time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+}
+
 type UserSubscription struct {
 	ID                  string    `json:"id" gorm:"primaryKey;type:varchar(32)"`
 	UserID              string    `json:"user_id" gorm:"type:varchar(32);not null;index"`

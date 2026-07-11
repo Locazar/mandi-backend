@@ -18,6 +18,11 @@ func (m *Admin) BeforeCreate(*gorm.DB) error {
 	return nil
 }
 
+func (m *ShopReferral) BeforeCreate(*gorm.DB) error {
+	m.ID = NewID(PrefixShopReferral)
+	return nil
+}
+
 func (m *UserAddress) BeforeCreate(*gorm.DB) error {
 	m.ID = NewID(PrefixUserAddress)
 	return nil

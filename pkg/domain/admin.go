@@ -135,6 +135,14 @@ type Admin struct {
 	Status         AdminStatus `json:"status" gorm:"size:50"`
 	Role           AdminRole   `json:"role" gorm:"size:50;not null;default:'super_admin'"`
 
+	// ReferralCouponID is the unique code a super admin assigns when creating
+	// a Sales Executive platform user. Sellers optionally enter this code
+	// during shop onboarding; a match attaches their shop to this exec (see
+	// ShopReferral) for commission and reporting. Empty for accounts that
+	// aren't Sales Executives. Uniqueness (when non-empty) is enforced by a
+	// partial unique index — see migration 000020.
+	ReferralCouponID string `json:"referral_coupon_id" gorm:"size:50" binding:"omitempty"`
+
 	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
 }
 

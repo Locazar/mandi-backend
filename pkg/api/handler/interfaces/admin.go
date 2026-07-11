@@ -118,4 +118,15 @@ type AdminHandler interface {
 	// Dashboard
 	GetDashboardStats(ctx *gin.Context)
 
+	// Subscription GST configuration
+	GetSubscriptionGSTConfig(ctx *gin.Context)
+	UpdateSubscriptionGSTConfig(ctx *gin.Context)
+
+	// Sales Executive referral program
+	CreateShopReferral(ctx *gin.Context)
+	ListShopReferrals(ctx *gin.Context)
+	GetShopReferral(ctx *gin.Context)
+	UpdateShopReferral(ctx *gin.Context)
+	DeleteShopReferral(ctx *gin.Context)
+	ListShopsForSalesExecutive(ctx *gin.Context)
 }
