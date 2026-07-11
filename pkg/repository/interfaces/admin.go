@@ -100,6 +100,12 @@ type AdminRepository interface {
 	GetShopSocialDetails(ctx context.Context, shopID string) ([]domain.ShopSocial, error)
 	GetDashboardStats(ctx context.Context) (domain.DashboardStats, error)
 
+	// Shop phone number change (OTP-gated — see AdminUseCase.SendShopPhoneChangeOtp
+	// / VerifyShopPhoneChangeOtp). Deliberately separate from UpdateShop's
+	// generic column whitelist, which excludes phone for this reason.
+	UpdateAdminMobile(ctx context.Context, adminID, phone string) error
+	UpdateShopPhoneByAdminID(ctx context.Context, adminID, phone string) error
+
 	// Roles & permissions (custom roles + per-role permission set).
 	CreateRole(ctx context.Context, role domain.Role, permissions []domain.PermissionKey) (domain.Role, error)
 	ListRoles(ctx context.Context) ([]domain.Role, error)

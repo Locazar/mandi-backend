@@ -450,6 +450,14 @@ auth := api.Group("/auth")
 			{
 				address.POST("/save", adminHandler.UploadAddress)
 			}
+
+			// Phone number change on the shop profile — OTP-gated so a new
+			// number can never be saved without proving ownership first.
+			phone := shop.Group("/phone")
+			{
+				phone.POST("/send-otp", adminHandler.SendShopPhoneChangeOtp)
+				phone.POST("/verify-otp", adminHandler.VerifyShopPhoneChangeOtp)
+			}
 			// social := shop.Group("/social")
 			// {
 			// 	social.GET(":shop_id", adminHandler.GetShopSocialDetails)

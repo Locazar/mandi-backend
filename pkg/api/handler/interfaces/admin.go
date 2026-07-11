@@ -122,6 +122,10 @@ type AdminHandler interface {
 	GetSubscriptionGSTConfig(ctx *gin.Context)
 	UpdateSubscriptionGSTConfig(ctx *gin.Context)
 
+	// Shop phone number change (OTP-gated)
+	SendShopPhoneChangeOtp(ctx *gin.Context)
+	VerifyShopPhoneChangeOtp(ctx *gin.Context)
+
 	// Roles & permissions
 	GetMyPermissions(ctx *gin.Context)
 	CreateRole(ctx *gin.Context)

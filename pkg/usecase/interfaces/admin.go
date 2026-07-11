@@ -107,6 +107,11 @@ type AdminUseCase interface {
 	GetShopSocialDetails(ctx context.Context, shopID string) ([]domain.ShopSocial, error)
 	GetDashboardStats(ctx context.Context) (domain.DashboardStats, error)
 
+	// Shop phone number change — OTP-gated so a new number can never be
+	// saved without proving ownership of it first.
+	SendShopPhoneChangeOtp(ctx context.Context, callerID, newPhone string) (otpID string, err error)
+	VerifyShopPhoneChangeOtp(ctx context.Context, callerID, otpID, otp string) (phone string, err error)
+
 	// Roles & permissions (custom roles + per-role sidebar/feature access).
 	CreateRole(ctx context.Context, callerID string, role domain.Role) (domain.Role, error)
 	ListRoles(ctx context.Context, callerID string) ([]domain.Role, error)

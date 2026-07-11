@@ -1190,8 +1190,15 @@ func (c *adminDatabase) UpdateShop(ctx context.Context, shop map[string]interfac
 			columnName = "pincode"
 		case "Email":
 			columnName = "email"
-		case "Phone":
-			columnName = "mobile"
+		case "Phone", "phone", "mobile", "Mobile":
+			// Phone number changes must go through the OTP-gated flow
+			// (SendShopPhoneChangeOtp / VerifyShopPhoneChangeOtp) so a phone
+			// can never be swapped in without proving ownership of it first.
+			// Callers (e.g. seller-app) send lowercase "phone" — the default
+			// fallthrough below would otherwise use it as a literal column
+			// name, and shop_details does have a real "phone" column, so
+			// this must be excluded by name, not just "Phone".
+			continue
 		case "BankAccountNumber":
 			columnName = "bank_account_number"
 		case "ShopType":
@@ -1256,6 +1263,33 @@ func (c *adminDatabase) GetShopByOwnerID(ctx context.Context, ownerID string) (s
 	}
 	c.decryptShopPII(&shop)
 	return shop, nil
+}
+
+// UpdateAdminMobile and UpdateShopPhoneByAdminID together back the
+// OTP-gated phone-change flow (see AdminUseCase.VerifyShopPhoneChangeOtp).
+// Both the admins.mobile and shop_details.phone columns are kept in sync —
+// CreateShop originally copies mobile into shop phone at creation time, and
+// nothing else should be able to make them drift apart.
+func (c *adminDatabase) UpdateAdminMobile(ctx context.Context, adminID, phone string) error {
+	result := c.DB.WithContext(ctx).Exec(
+		`UPDATE admins SET mobile = $1, updated_at = NOW() WHERE id = $2`, phone, adminID)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+func (c *adminDatabase) UpdateShopPhoneByAdminID(ctx context.Context, adminID, phone string) error {
+	result := c.DB.WithContext(ctx).Exec(
+		`UPDATE shop_details SET phone = $1, updated_at = NOW() WHERE admin_id = $2`, phone, adminID)
+	if result.Error != nil {
+		return result.Error
+	}
+	// No matching shop yet is fine — the admin may not have created a shop.
+	return nil
 }
 
 func (c *adminDatabase) SendNotificationToUsersInRadius(ctx context.Context, requestData request.NotificationRadiusRequest) error {

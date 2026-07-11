@@ -2884,6 +2884,60 @@ func (a *adminHandler) UpdateSubscriptionGSTConfig(ctx *gin.Context) {
 	})
 }
 
+// ── Shop phone number change (OTP-gated) ────────────────────────────────────
+
+// SendShopPhoneChangeOtp godoc
+//
+//	@summary		Send an OTP to a new phone number before it can be saved to the shop profile
+//	@Security		BearerAuth
+//	@Id				SendShopPhoneChangeOtp
+//	@Tags			Admin Shop
+//	@Router			/admin/shops/phone/send-otp [post]
+//	@Success		200	{object}	response.Response{}
+func (a *adminHandler) SendShopPhoneChangeOtp(ctx *gin.Context) {
+	callerID := a.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	var body struct {
+		Phone string `json:"phone" binding:"required"`
+	}
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	otpID, err := a.adminUseCase.SendShopPhoneChangeOtp(ctx, callerID, body.Phone)
+	if err != nil {
+		a.handleAppErr(ctx, "Failed to send OTP", err)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "OTP sent", gin.H{"otp_id": otpID})
+}
+
+// VerifyShopPhoneChangeOtp godoc
+//
+//	@summary		Verify the OTP for a new phone number and save it to the shop profile
+//	@Security		BearerAuth
+//	@Id				VerifyShopPhoneChangeOtp
+//	@Tags			Admin Shop
+//	@Router			/admin/shops/phone/verify-otp [post]
+//	@Success		200	{object}	response.Response{}
+//	@Failure		400	{object}	response.Response{}	"Invalid or expired OTP"
+func (a *adminHandler) VerifyShopPhoneChangeOtp(ctx *gin.Context) {
+	callerID := a.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	var body struct {
+		OtpID string `json:"otp_id" binding:"required"`
+		Otp   string `json:"otp" binding:"required"`
+	}
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	phone, err := a.adminUseCase.VerifyShopPhoneChangeOtp(ctx, callerID, body.OtpID, body.Otp)
+	if err != nil {
+		a.handleAppErr(ctx, "Invalid or expired OTP", err)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Phone number updated", gin.H{"phone": phone})
+}
+
 // ── Roles & permissions ─────────────────────────────────────────────────────
 
 // meResponse is what the admin-portal reads right after login (and on

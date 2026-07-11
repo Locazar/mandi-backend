@@ -651,6 +651,68 @@ func (c *adminUseCase) UpdateAdvertisementPricingConfig(ctx context.Context, cfg
 	return c.adminRepo.UpdateAdvertisementPricingConfig(ctx, cfg)
 }
 
+// ── Shop phone number change (OTP-gated) ────────────────────────────────────
+
+// SendShopPhoneChangeOtp sends an OTP to newPhone and returns an otp_id to
+// verify it with. Rejects a number already registered to a *different*
+// admin — reusing the same number the caller already has is allowed (no-op
+// once verified) but shouldn't need this flow at all.
+func (c *adminUseCase) SendShopPhoneChangeOtp(ctx context.Context, callerID, newPhone string) (string, error) {
+	if strings.TrimSpace(newPhone) == "" {
+		return "", domain.ValidationError("phone", "phone number is required")
+	}
+
+	existing, err := c.adminRepo.FindAdminByPhone(ctx, newPhone)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return "", domain.InternalError("failed to check phone number", err)
+	}
+	if existing.ID != "" && existing.ID != callerID {
+		return "", domain.ConflictError("phone number already in use", "this phone number is registered to another account")
+	}
+
+	return c.issueOtpSession(ctx, callerID, newPhone)
+}
+
+// VerifyShopPhoneChangeOtp verifies the OTP issued by SendShopPhoneChangeOtp
+// and, only on success, updates admins.mobile and shop_details.phone. The
+// session's own AdminID/Phone are trusted over caller-supplied values — a
+// verified session can only ever apply to the admin and number it was
+// issued for, so a stolen otp_id can't be replayed against a different
+// caller or a different phone number.
+func (c *adminUseCase) VerifyShopPhoneChangeOtp(ctx context.Context, callerID, otpID, otp string) (string, error) {
+	if otpID == "" {
+		return "", domain.ValidationError("otp_id", "otp_id is required")
+	}
+
+	otpSession, err := c.authRepo.FindOtpSession(ctx, otpID)
+	if err != nil {
+		return "", utils.PrependMessageToError(err, "failed to find otp session")
+	}
+	if otpSession.OtpID == "" || otpSession.OtpHash == "" {
+		return "", domain.ValidationError("otp", "invalid OTP session")
+	}
+	if otpSession.AdminID != callerID {
+		return "", domain.ForbiddenError("this OTP was not issued to your account")
+	}
+	if c.otpService.IsOTPExpired(otpSession.ExpireAt) {
+		return "", domain.ValidationError("otp", "OTP has expired — request a new one")
+	}
+	if !c.skipOTPValidation {
+		if err := c.otpService.VerifyOTP(otp, otpSession.OtpHash); err != nil {
+			return "", domain.ValidationError("otp", "incorrect OTP")
+		}
+	}
+
+	if err := c.adminRepo.UpdateAdminMobile(ctx, callerID, otpSession.Phone); err != nil {
+		return "", domain.InternalError("failed to update phone number", err)
+	}
+	if err := c.adminRepo.UpdateShopPhoneByAdminID(ctx, callerID, otpSession.Phone); err != nil {
+		return "", domain.InternalError("failed to update shop phone number", err)
+	}
+
+	return otpSession.Phone, nil
+}
+
 // ── Roles & permissions ─────────────────────────────────────────────────────
 
 func (c *adminUseCase) requireSuperAdmin(ctx context.Context, callerID string) (domain.Admin, error) {
