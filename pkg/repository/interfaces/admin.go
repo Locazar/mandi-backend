@@ -100,6 +100,15 @@ type AdminRepository interface {
 	GetShopSocialDetails(ctx context.Context, shopID string) ([]domain.ShopSocial, error)
 	GetDashboardStats(ctx context.Context) (domain.DashboardStats, error)
 
+	// Roles & permissions (custom roles + per-role permission set).
+	CreateRole(ctx context.Context, role domain.Role, permissions []domain.PermissionKey) (domain.Role, error)
+	ListRoles(ctx context.Context) ([]domain.Role, error)
+	GetRoleByID(ctx context.Context, roleID string) (domain.Role, error)
+	GetRoleByName(ctx context.Context, name string) (domain.Role, error)
+	UpdateRole(ctx context.Context, roleID string, label *string, permissions *[]domain.PermissionKey) (domain.Role, error)
+	DeleteRole(ctx context.Context, roleID string) error
+	CountAdminsWithRole(ctx context.Context, roleName string) (int64, error)
+
 	// Subscription GST configuration (admin-managed rate; see also
 	// SubscriptionRepository.GetGSTRateBasisPoints, which reads the same
 	// singleton row at charge time).

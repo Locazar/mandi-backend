@@ -22,7 +22,22 @@ func NewPlatformUserUseCase(repo repoInterfaces.PlatformUserRepository, adminUC 
 	return &platformUserUseCase{repo: repo, adminUC: adminUC}
 }
 
-func (u *platformUserUseCase) ListAdmins(ctx context.Context, callerID string, pagination request.Pagination) ([]domain.Admin, error) {
+// roleAssignable reports whether roleName is a real, currently-existing role
+// (from the roles table) that isn't the reserved "seller" account type.
+// Replaces the old closed AdminRole.IsValid() enum check now that roles are
+// admin-managed instead of a fixed Go enum.
+func (u *platformUserUseCase) roleAssignable(ctx context.Context, roleName string) (bool, error) {
+	if roleName == "" || roleName == domain.RoleNameSeller {
+		return false, nil
+	}
+	role, err := u.adminUC.GetRoleByName(ctx, roleName)
+	if err != nil {
+		return false, err
+	}
+	return role.ID != "", nil
+}
+
+func (u *platformUserUseCase) ListAdmins(ctx context.Context, callerID, roleFilter string, pagination request.Pagination) ([]domain.Admin, error) {
 	caller, err := u.adminUC.GetAdminByID(ctx, callerID)
 	if err != nil {
 		return nil, domain.NotFoundError("caller admin")
@@ -30,7 +45,12 @@ func (u *platformUserUseCase) ListAdmins(ctx context.Context, callerID string, p
 	if caller.Role != domain.AdminRoleSuperAdmin {
 		return nil, domain.ForbiddenError("only super admins can list platform users")
 	}
-	return u.repo.ListAdmins(ctx, pagination)
+	// This endpoint is scoped to platform users, never sellers — reject an
+	// explicit role=seller filter rather than silently ignoring it.
+	if roleFilter == domain.RoleNameSeller {
+		return nil, domain.ValidationError("role", "seller accounts are not platform users")
+	}
+	return u.repo.ListAdmins(ctx, roleFilter, pagination)
 }
 
 func (u *platformUserUseCase) CreateAdmin(ctx context.Context, callerID string, body domain.Admin) (string, error) {
@@ -40,6 +60,16 @@ func (u *platformUserUseCase) CreateAdmin(ctx context.Context, callerID string, 
 	}
 	if caller.Role != domain.AdminRoleSuperAdmin {
 		return "", domain.ForbiddenError("only super admins can create platform users")
+	}
+
+	if body.Role != "" {
+		assignable, err := u.roleAssignable(ctx, string(body.Role))
+		if err != nil {
+			return "", domain.InternalError("failed to validate role", err)
+		}
+		if !assignable {
+			return "", domain.ValidationError("role", "unknown role; create it first under Roles")
+		}
 	}
 
 	if body.ReferralCouponID != "" {
@@ -76,8 +106,12 @@ func (u *platformUserUseCase) UpdateAdminRole(ctx context.Context, callerID, tar
 		return domain.ForbiddenError("only super admins can update roles")
 	}
 
-	if !role.IsValid() || role == domain.AdminRoleSeller {
-		return domain.ValidationError("role", "invalid or disallowed role; seller accounts are managed separately")
+	assignable, err := u.roleAssignable(ctx, string(role))
+	if err != nil {
+		return domain.InternalError("failed to validate role", err)
+	}
+	if !assignable {
+		return domain.ValidationError("role", "unknown or disallowed role; seller accounts are managed separately")
 	}
 
 	if err := u.repo.UpdateAdminRole(ctx, targetID, role); err != nil {
@@ -112,8 +146,12 @@ func (u *platformUserUseCase) UpdateAdmin(ctx context.Context, callerID, targetI
 		if callerID == targetID {
 			return domain.ForbiddenError("you cannot change your own role")
 		}
-		if !body.Role.IsValid() || body.Role == domain.AdminRoleSeller {
-			return domain.ValidationError("role", "invalid or disallowed role; seller accounts are managed separately")
+		assignable, err := u.roleAssignable(ctx, string(body.Role))
+		if err != nil {
+			return domain.InternalError("failed to validate role", err)
+		}
+		if !assignable {
+			return domain.ValidationError("role", "unknown or disallowed role; seller accounts are managed separately")
 		}
 		updates["role"] = body.Role
 	}

@@ -2884,6 +2884,159 @@ func (a *adminHandler) UpdateSubscriptionGSTConfig(ctx *gin.Context) {
 	})
 }
 
+// ── Roles & permissions ─────────────────────────────────────────────────────
+
+// meResponse is what the admin-portal reads right after login (and on
+// session restore) to know its own identity, role, and — critically — its
+// resolved permission set, since permissions are now DB-driven per role
+// rather than a static frontend lookup table.
+type meResponse struct {
+	ID          string                `json:"id"`
+	FullName    string                `json:"full_name"`
+	Email       string                `json:"email"`
+	Role        string                `json:"role"`
+	RoleLabel   string                `json:"role_label"`
+	Permissions []domain.PermissionKey `json:"permissions"`
+}
+
+// GetMyPermissions godoc
+//
+//	@summary		Get the authenticated admin's identity, role, and resolved permission set
+//	@Security		BearerAuth
+//	@Id				GetMyPermissions
+//	@Tags			Admin Roles
+//	@Router			/admin/me [get]
+//	@Success		200	{object}	response.Response{}
+func (a *adminHandler) GetMyPermissions(ctx *gin.Context) {
+	callerID := a.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	caller, err := a.adminUseCase.GetAdminByID(ctx, callerID)
+	if err != nil || caller.ID == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Invalid or expired session", err, nil)
+		return
+	}
+
+	perms, err := a.adminUseCase.GetPermissionsForRole(ctx, string(caller.Role))
+	if err != nil {
+		a.handleAppErr(ctx, "Failed to resolve permissions", err)
+		return
+	}
+
+	roleLabel := string(caller.Role)
+	if role, err := a.adminUseCase.GetRoleByName(ctx, string(caller.Role)); err == nil && role.ID != "" {
+		roleLabel = role.Label
+	} else if caller.Role == domain.AdminRoleSuperAdmin {
+		roleLabel = "Super Admin"
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Fetched current admin", meResponse{
+		ID:          caller.ID,
+		FullName:    caller.FullName,
+		Email:       caller.Email,
+		Role:        string(caller.Role),
+		RoleLabel:   roleLabel,
+		Permissions: perms,
+	})
+}
+
+// CreateRole godoc
+//
+//	@summary		Create a custom admin-portal role
+//	@Security		BearerAuth
+//	@Id				CreateRole
+//	@Tags			Admin Roles
+//	@Router			/admin/roles [post]
+//	@Success		201	{object}	response.Response{}
+func (a *adminHandler) CreateRole(ctx *gin.Context) {
+	callerID := a.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	var body domain.Role
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	role, err := a.adminUseCase.CreateRole(ctx, callerID, body)
+	if err != nil {
+		a.handleAppErr(ctx, "Failed to create role", err)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusCreated, "Role created successfully", role)
+}
+
+// ListRoles godoc
+//
+//	@summary		List every admin-portal role with its permissions
+//	@Security		BearerAuth
+//	@Id				ListRoles
+//	@Tags			Admin Roles
+//	@Router			/admin/roles [get]
+//	@Success		200	{object}	response.Response{}
+func (a *adminHandler) ListRoles(ctx *gin.Context) {
+	callerID := a.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	roles, err := a.adminUseCase.ListRoles(ctx, callerID)
+	if err != nil {
+		a.handleAppErr(ctx, "Failed to list roles", err)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Roles fetched successfully", roles)
+}
+
+// GetRole godoc
+//
+//	@summary		Get a single role with its permissions
+//	@Security		BearerAuth
+//	@Id				GetRole
+//	@Tags			Admin Roles
+//	@Router			/admin/roles/{role_id} [get]
+//	@Success		200	{object}	response.Response{}
+func (a *adminHandler) GetRole(ctx *gin.Context) {
+	callerID := a.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	role, err := a.adminUseCase.GetRole(ctx, callerID, ctx.Param("role_id"))
+	if err != nil {
+		a.handleAppErr(ctx, "Failed to get role", err)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Role fetched successfully", role)
+}
+
+// UpdateRole godoc
+//
+//	@summary		Update a role's label and/or permission set
+//	@Security		BearerAuth
+//	@Id				UpdateRole
+//	@Tags			Admin Roles
+//	@Router			/admin/roles/{role_id} [put]
+//	@Success		200	{object}	response.Response{}
+func (a *adminHandler) UpdateRole(ctx *gin.Context) {
+	callerID := a.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	var body domain.Role
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	role, err := a.adminUseCase.UpdateRole(ctx, callerID, ctx.Param("role_id"), body)
+	if err != nil {
+		a.handleAppErr(ctx, "Failed to update role", err)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Role updated successfully", role)
+}
+
+// DeleteRole godoc
+//
+//	@summary		Delete a custom role (built-in roles and roles still assigned to admins can't be deleted)
+//	@Security		BearerAuth
+//	@Id				DeleteRole
+//	@Tags			Admin Roles
+//	@Router			/admin/roles/{role_id} [delete]
+//	@Success		200	{object}	response.Response{}
+func (a *adminHandler) DeleteRole(ctx *gin.Context) {
+	callerID := a.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	if err := a.adminUseCase.DeleteRole(ctx, callerID, ctx.Param("role_id")); err != nil {
+		a.handleAppErr(ctx, "Failed to delete role", err)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Role deleted successfully")
+}
+
 // ── Sales Executive referral program ───────────────────────────────────────
 
 func (a *adminHandler) handleAppErr(ctx *gin.Context, fallbackMsg string, err error) {

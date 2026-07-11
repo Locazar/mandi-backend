@@ -122,6 +122,14 @@ type AdminHandler interface {
 	GetSubscriptionGSTConfig(ctx *gin.Context)
 	UpdateSubscriptionGSTConfig(ctx *gin.Context)
 
+	// Roles & permissions
+	GetMyPermissions(ctx *gin.Context)
+	CreateRole(ctx *gin.Context)
+	ListRoles(ctx *gin.Context)
+	GetRole(ctx *gin.Context)
+	UpdateRole(ctx *gin.Context)
+	DeleteRole(ctx *gin.Context)
+
 	// Sales Executive referral program
 	CreateShopReferral(ctx *gin.Context)
 	ListShopReferrals(ctx *gin.Context)

@@ -129,6 +129,22 @@ auth := api.Group("/auth")
 			platformUsers.GET("/:admin_id/shops", adminHandler.ListShopsForSalesExecutive)
 		}
 
+		// Self-serve identity+permissions — the admin-portal calls this right
+		// after login (and on session restore) since permissions are now
+		// DB-driven per role rather than a static frontend lookup table.
+		api.GET("/me", adminHandler.GetMyPermissions)
+
+		// Custom roles + per-role permission set, assignable to platform
+		// users in place of the old fixed 4-role enum.
+		roles := api.Group("/roles")
+		{
+			roles.GET("/", adminHandler.ListRoles)
+			roles.POST("/", middleware.TrimSpaces(), adminHandler.CreateRole)
+			roles.GET("/:role_id", adminHandler.GetRole)
+			roles.PUT("/:role_id", middleware.TrimSpaces(), adminHandler.UpdateRole)
+			roles.DELETE("/:role_id", adminHandler.DeleteRole)
+		}
+
 		// Sales Executive referral program — CRUD over the shop<->platform
 		// user attachments created automatically when a seller enters a
 		// valid referral coupon ID during shop onboarding (see CreateShop).

@@ -1475,6 +1475,150 @@ func (a *adminDatabase) GetDashboardStats(ctx context.Context) (domain.Dashboard
 	return stats, nil
 }
 
+// ── Roles & permissions ─────────────────────────────────────────────────────
+
+func (c *adminDatabase) CreateRole(ctx context.Context, role domain.Role, permissions []domain.PermissionKey) (domain.Role, error) {
+	tx := c.DB.WithContext(ctx).Begin()
+	if tx.Error != nil {
+		return domain.Role{}, tx.Error
+	}
+
+	if err := tx.Create(&role).Error; err != nil {
+		tx.Rollback()
+		return domain.Role{}, err
+	}
+
+	for _, key := range permissions {
+		rp := domain.RolePermission{RoleID: role.ID, PermissionKey: key}
+		if err := tx.Create(&rp).Error; err != nil {
+			tx.Rollback()
+			return domain.Role{}, err
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return domain.Role{}, err
+	}
+
+	role.Permissions = permissions
+	return role, nil
+}
+
+func (c *adminDatabase) rolePermissionsByRoleIDs(ctx context.Context, roleIDs []string) (map[string][]domain.PermissionKey, error) {
+	if len(roleIDs) == 0 {
+		return map[string][]domain.PermissionKey{}, nil
+	}
+	var rows []domain.RolePermission
+	if err := c.DB.WithContext(ctx).Where("role_id IN ?", roleIDs).Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	byRole := map[string][]domain.PermissionKey{}
+	for _, row := range rows {
+		byRole[row.RoleID] = append(byRole[row.RoleID], row.PermissionKey)
+	}
+	return byRole, nil
+}
+
+func (c *adminDatabase) ListRoles(ctx context.Context) ([]domain.Role, error) {
+	var roles []domain.Role
+	if err := c.DB.WithContext(ctx).Order("created_at ASC").Find(&roles).Error; err != nil {
+		return nil, err
+	}
+	ids := make([]string, len(roles))
+	for i, r := range roles {
+		ids[i] = r.ID
+	}
+	byRole, err := c.rolePermissionsByRoleIDs(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	for i := range roles {
+		roles[i].Permissions = byRole[roles[i].ID]
+	}
+	return roles, nil
+}
+
+func (c *adminDatabase) GetRoleByID(ctx context.Context, roleID string) (domain.Role, error) {
+	var role domain.Role
+	if err := c.DB.WithContext(ctx).Where("id = ?", roleID).First(&role).Error; err != nil {
+		return domain.Role{}, err
+	}
+	byRole, err := c.rolePermissionsByRoleIDs(ctx, []string{role.ID})
+	if err != nil {
+		return domain.Role{}, err
+	}
+	role.Permissions = byRole[role.ID]
+	return role, nil
+}
+
+func (c *adminDatabase) GetRoleByName(ctx context.Context, name string) (domain.Role, error) {
+	var role domain.Role
+	err := c.DB.WithContext(ctx).Where("name = ?", name).First(&role).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return domain.Role{}, nil
+	}
+	if err != nil {
+		return domain.Role{}, err
+	}
+	byRole, err := c.rolePermissionsByRoleIDs(ctx, []string{role.ID})
+	if err != nil {
+		return domain.Role{}, err
+	}
+	role.Permissions = byRole[role.ID]
+	return role, nil
+}
+
+func (c *adminDatabase) UpdateRole(ctx context.Context, roleID string, label *string, permissions *[]domain.PermissionKey) (domain.Role, error) {
+	tx := c.DB.WithContext(ctx).Begin()
+	if tx.Error != nil {
+		return domain.Role{}, tx.Error
+	}
+
+	if label != nil {
+		if err := tx.Model(&domain.Role{}).Where("id = ?", roleID).Update("label", *label).Error; err != nil {
+			tx.Rollback()
+			return domain.Role{}, err
+		}
+	}
+
+	if permissions != nil {
+		if err := tx.Where("role_id = ?", roleID).Delete(&domain.RolePermission{}).Error; err != nil {
+			tx.Rollback()
+			return domain.Role{}, err
+		}
+		for _, key := range *permissions {
+			rp := domain.RolePermission{RoleID: roleID, PermissionKey: key}
+			if err := tx.Create(&rp).Error; err != nil {
+				tx.Rollback()
+				return domain.Role{}, err
+			}
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return domain.Role{}, err
+	}
+
+	return c.GetRoleByID(ctx, roleID)
+}
+
+func (c *adminDatabase) DeleteRole(ctx context.Context, roleID string) error {
+	result := c.DB.WithContext(ctx).Where("id = ?", roleID).Delete(&domain.Role{})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+func (c *adminDatabase) CountAdminsWithRole(ctx context.Context, roleName string) (int64, error) {
+	var count int64
+	err := c.DB.WithContext(ctx).Model(&domain.Admin{}).Where("role = ?", roleName).Count(&count).Error
+	return count, err
+}
+
 // ── Sales Executive referral program ───────────────────────────────────────
 
 // FindAdminByReferralCouponID looks up the platform user (Sales Executive)

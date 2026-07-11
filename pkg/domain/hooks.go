@@ -23,6 +23,16 @@ func (m *ShopReferral) BeforeCreate(*gorm.DB) error {
 	return nil
 }
 
+func (m *Role) BeforeCreate(*gorm.DB) error {
+	m.ID = NewID(PrefixRole)
+	return nil
+}
+
+func (m *RolePermission) BeforeCreate(*gorm.DB) error {
+	m.ID = NewID(PrefixRolePermission)
+	return nil
+}
+
 func (m *UserAddress) BeforeCreate(*gorm.DB) error {
 	m.ID = NewID(PrefixUserAddress)
 	return nil

@@ -651,6 +651,162 @@ func (c *adminUseCase) UpdateAdvertisementPricingConfig(ctx context.Context, cfg
 	return c.adminRepo.UpdateAdvertisementPricingConfig(ctx, cfg)
 }
 
+// ── Roles & permissions ─────────────────────────────────────────────────────
+
+func (c *adminUseCase) requireSuperAdmin(ctx context.Context, callerID string) (domain.Admin, error) {
+	caller, err := c.adminRepo.GetAdminByID(ctx, callerID)
+	if err != nil || caller.ID == "" {
+		return domain.Admin{}, domain.NotFoundError("caller admin")
+	}
+	if caller.Role != domain.AdminRoleSuperAdmin {
+		return domain.Admin{}, domain.ForbiddenError("only super admins can manage roles")
+	}
+	return caller, nil
+}
+
+func validatePermissionKeys(keys []domain.PermissionKey) error {
+	for _, k := range keys {
+		if !k.IsValid() {
+			return domain.ValidationError("permissions", fmt.Sprintf("unknown permission key: %s", k))
+		}
+	}
+	return nil
+}
+
+func (c *adminUseCase) CreateRole(ctx context.Context, callerID string, role domain.Role) (domain.Role, error) {
+	if _, err := c.requireSuperAdmin(ctx, callerID); err != nil {
+		return domain.Role{}, err
+	}
+
+	name := strings.TrimSpace(role.Name)
+	if name == "" || role.Label == "" {
+		return domain.Role{}, domain.ValidationError("name/label", "both are required")
+	}
+	if name == domain.RoleNameSeller || name == domain.RoleNameSuperAdmin {
+		return domain.Role{}, domain.ValidationError("name", "this role name is reserved")
+	}
+	if err := validatePermissionKeys(role.Permissions); err != nil {
+		return domain.Role{}, err
+	}
+
+	existing, err := c.adminRepo.GetRoleByName(ctx, name)
+	if err != nil {
+		return domain.Role{}, err
+	}
+	if existing.ID != "" {
+		return domain.Role{}, domain.ConflictError("role already exists", "a role with this name already exists")
+	}
+
+	return c.adminRepo.CreateRole(ctx, domain.Role{Name: name, Label: role.Label}, role.Permissions)
+}
+
+func (c *adminUseCase) ListRoles(ctx context.Context, callerID string) ([]domain.Role, error) {
+	if _, err := c.requireSuperAdmin(ctx, callerID); err != nil {
+		return nil, err
+	}
+	return c.adminRepo.ListRoles(ctx)
+}
+
+func (c *adminUseCase) GetRole(ctx context.Context, callerID, roleID string) (domain.Role, error) {
+	if _, err := c.requireSuperAdmin(ctx, callerID); err != nil {
+		return domain.Role{}, err
+	}
+	role, err := c.adminRepo.GetRoleByID(ctx, roleID)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return domain.Role{}, domain.NotFoundError("role")
+	}
+	return role, err
+}
+
+func (c *adminUseCase) UpdateRole(ctx context.Context, callerID, roleID string, body domain.Role) (domain.Role, error) {
+	if _, err := c.requireSuperAdmin(ctx, callerID); err != nil {
+		return domain.Role{}, err
+	}
+
+	existing, err := c.adminRepo.GetRoleByID(ctx, roleID)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return domain.Role{}, domain.NotFoundError("role")
+	}
+	if err != nil {
+		return domain.Role{}, err
+	}
+	if existing.Name == domain.RoleNameSuperAdmin {
+		return domain.Role{}, domain.ForbiddenError("super_admin permissions cannot be edited — it always has full access")
+	}
+
+	var labelPtr *string
+	if body.Label != "" {
+		labelPtr = &body.Label
+	}
+
+	var permsPtr *[]domain.PermissionKey
+	if body.Permissions != nil {
+		if err := validatePermissionKeys(body.Permissions); err != nil {
+			return domain.Role{}, err
+		}
+		permsPtr = &body.Permissions
+	}
+
+	if labelPtr == nil && permsPtr == nil {
+		return domain.Role{}, domain.ValidationError("body", "no updatable fields provided")
+	}
+
+	return c.adminRepo.UpdateRole(ctx, roleID, labelPtr, permsPtr)
+}
+
+func (c *adminUseCase) DeleteRole(ctx context.Context, callerID, roleID string) error {
+	if _, err := c.requireSuperAdmin(ctx, callerID); err != nil {
+		return err
+	}
+
+	role, err := c.adminRepo.GetRoleByID(ctx, roleID)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return domain.NotFoundError("role")
+	}
+	if err != nil {
+		return err
+	}
+	if role.IsSystem {
+		return domain.ForbiddenError("built-in roles can't be deleted")
+	}
+
+	inUse, err := c.adminRepo.CountAdminsWithRole(ctx, role.Name)
+	if err != nil {
+		return err
+	}
+	if inUse > 0 {
+		return domain.ConflictError("role is in use", fmt.Sprintf("%d platform user(s) currently have this role; reassign them first", inUse))
+	}
+
+	if err := c.adminRepo.DeleteRole(ctx, roleID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return domain.NotFoundError("role")
+		}
+		return err
+	}
+	return nil
+}
+
+func (c *adminUseCase) GetRoleByName(ctx context.Context, name string) (domain.Role, error) {
+	return c.adminRepo.GetRoleByName(ctx, name)
+}
+
+func (c *adminUseCase) GetPermissionsForRole(ctx context.Context, roleName string) ([]domain.PermissionKey, error) {
+	if roleName == domain.RoleNameSuperAdmin || roleName == "" {
+		return domain.AllPermissionKeys(), nil
+	}
+	role, err := c.adminRepo.GetRoleByName(ctx, roleName)
+	if err != nil {
+		return nil, err
+	}
+	if role.ID == "" {
+		// Role no longer exists (deleted out from under an assigned admin) —
+		// fail closed with no permissions rather than erroring the caller out.
+		return []domain.PermissionKey{}, nil
+	}
+	return role.Permissions, nil
+}
+
 func (c *adminUseCase) GetSubscriptionGSTConfig(ctx context.Context) (domain.SubscriptionGSTConfig, error) {
 	cfg, err := c.adminRepo.GetSubscriptionGSTConfig(ctx)
 	if errors.Is(err, gorm.ErrRecordNotFound) {

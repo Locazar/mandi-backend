@@ -1,0 +1,20 @@
+# Never let secrets or local-only files enter the Docker build context —
+# this repo's image is pushed to a registry, and any file that ends up in a
+# layer is recoverable later via `docker pull` + inspection even if a later
+# Dockerfile edit stops COPYing it explicitly.
+.env
+.env.*
+!.env.example
+
+*.pem
+*.key
+*.crt
+*.p12
+
+.git
+.github
+
+server.log
+*.log
+
+.DS_Store

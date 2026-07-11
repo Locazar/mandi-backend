@@ -37,7 +37,8 @@ func (h *platformUserHandler) handleAppErr(ctx *gin.Context, fallbackMsg string,
 func (h *platformUserHandler) ListAdmins(ctx *gin.Context) {
 	callerID := h.callerID(ctx)
 	pagination := request.GetPagination(ctx)
-	admins, err := h.useCase.ListAdmins(ctx, callerID, pagination)
+	roleFilter := ctx.Query("role")
+	admins, err := h.useCase.ListAdmins(ctx, callerID, roleFilter, pagination)
 	if err != nil {
 		h.handleAppErr(ctx, "Failed to list platform users", err)
 		return

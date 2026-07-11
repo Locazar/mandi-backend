@@ -107,6 +107,18 @@ type AdminUseCase interface {
 	GetShopSocialDetails(ctx context.Context, shopID string) ([]domain.ShopSocial, error)
 	GetDashboardStats(ctx context.Context) (domain.DashboardStats, error)
 
+	// Roles & permissions (custom roles + per-role sidebar/feature access).
+	CreateRole(ctx context.Context, callerID string, role domain.Role) (domain.Role, error)
+	ListRoles(ctx context.Context, callerID string) ([]domain.Role, error)
+	GetRole(ctx context.Context, callerID, roleID string) (domain.Role, error)
+	UpdateRole(ctx context.Context, callerID, roleID string, body domain.Role) (domain.Role, error)
+	DeleteRole(ctx context.Context, callerID, roleID string) error
+	GetRoleByName(ctx context.Context, name string) (domain.Role, error)
+	// GetPermissionsForRole resolves the effective permission set for a
+	// role name — super_admin always gets every key (see domain.Role doc);
+	// every other role reads its stored role_permissions rows.
+	GetPermissionsForRole(ctx context.Context, roleName string) ([]domain.PermissionKey, error)
+
 	// Subscription GST configuration (admin-managed rate applied to
 	// subscription checkout — see subscriptionPaymentUseCase.CreateSubscriptionOrder).
 	GetSubscriptionGSTConfig(ctx context.Context) (domain.SubscriptionGSTConfig, error)

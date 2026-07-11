@@ -59,6 +59,8 @@ const (
 	PrefixDeviceToken     IDPrefix = "ndt"
 	PrefixShop            IDPrefix = "shp"
 	PrefixShopReferral    IDPrefix = "shrf"
+	PrefixRole            IDPrefix = "role"
+	PrefixRolePermission  IDPrefix = "rolp"
 	PrefixShopOffer       IDPrefix = "shof"
 	PrefixShopDepartment  IDPrefix = "shdp"
 	PrefixShopTime        IDPrefix = "shtm"
@@ -103,7 +105,7 @@ var allPrefixes = []IDPrefix{
 	PrefixFeedback, PrefixOffer, PrefixOfferCategory, PrefixOfferProduct,
 	PrefixCoupon, PrefixCouponUses, PrefixWallet, PrefixTransaction,
 	PrefixAdvertisement, PrefixAdvertRequest, PrefixNotification, PrefixDeviceToken, PrefixShop,
-	PrefixShopReferral, PrefixShopOffer, PrefixShopDepartment, PrefixShopTime, PrefixShopSocial,
+	PrefixShopReferral, PrefixRole, PrefixRolePermission, PrefixShopOffer, PrefixShopDepartment, PrefixShopTime, PrefixShopSocial,
 	PrefixPaymentMethod, PrefixAlert, PrefixAlertAction, PrefixAlertTemplate,
 	PrefixSellerAlertLog, PrefixPromotion, PrefixPromotionType, PrefixPromotionCat,
 	PrefixBanner, PrefixSubscPlan, PrefixSubscOrder, PrefixUserSubsc,
