@@ -147,6 +147,12 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 	// Help center (support contact details + FAQs) — read by clients without admin auth
 	engine.GET("/api/help", adminHandler.GetHelpCenter)
 
+	// PIN code lookup (city/district/state) — used by admin-portal's shop
+	// address verification screen; no admin dependencies, so constructed
+	// directly here rather than threaded through wire.
+	pincodeHandler := handler.NewPincodeHandler()
+	engine.GET("/api/pincode/:pincode", pincodeHandler.GetPincodeDetails)
+
 	// log registered routes for debug
 	for _, route := range engine.Routes() {
 		log.Printf("GIN route registered: %s %s -> %s", route.Method, route.Path, route.Handler)

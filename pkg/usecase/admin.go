@@ -364,12 +364,12 @@ func (c *adminUseCase) GetFullSalesReport(ctx context.Context, requestData reque
 	return salesReport, nil
 }
 
+// VerifyShop marks a shop fully verified once its two mandatory checks pass:
+// shop photo and address proof. Business Document and Identity Document are
+// optional — a shop can be verified without them (they still get saved and
+// shown to the admin, they just never block VerificationStatus).
 func (c *adminUseCase) VerifyShop(ctx context.Context, verify request.ShopVerification) error {
-	VerificationStatus := false
-	if verify.Photo_Shop_Verification && verify.Business_Doc_Verification &&
-		verify.Identity_Doc_Verification && verify.Address_Proof_Verification {
-		VerificationStatus = true
-	}
+	VerificationStatus := verify.Photo_Shop_Verification && verify.Address_Proof_Verification
 	err := c.adminRepo.VerifyShop(ctx, verify, VerificationStatus)
 
 	if err != nil {
