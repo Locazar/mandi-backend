@@ -24,6 +24,13 @@ type ShopDetails struct {
 	Latitude     float64 `json:"latitude" gorm:"type:decimal(10,7);"`
 	Longitude    float64 `json:"longitude" gorm:"type:decimal(10,7);"`
 
+	// PhoneVisibleConsent records the seller's opt-in, given on the first
+	// onboarding step right after phone OTP verification, to show Phone to
+	// customers on the shop listing ("visible to customers to discover you").
+	// Defaults to true (both here and in the DB column default) — sellers
+	// are opted in unless they explicitly uncheck the consent box.
+	PhoneVisibleConsent bool `json:"phone_visible_consent" gorm:"not null;default:true" binding:"omitempty"`
+
 	ShopDescription      string           `json:"shop_description" gorm:"type:text" binding:"omitempty"`
 	ShopVerificationDocs string           `json:"shop_verification_docs" gorm:"type:text;" binding:"omitempty"`
 	Document_Type        ShopDocumentType `json:"document_type" gorm:"size:50" binding:"omitempty"`

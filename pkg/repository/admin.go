@@ -1027,8 +1027,8 @@ func (c *adminDatabase) CreateShop(ctx context.Context, shop domain.ShopDetails)
 	shopID := domain.NewID(domain.PrefixShop)
 
 	query := `INSERT INTO shop_details (id, admin_id, shop_name,owner_name, address_line1, address_line2, email, phone,
-	city, state, country, pincode, latitude, longitude, bank_account_number, shop_type, shop_status, bank_ifsc, pan_number, itr_documents, document_type, document_value,  created_at, updated_at)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
+	city, state, country, pincode, latitude, longitude, bank_account_number, shop_type, shop_status, bank_ifsc, pan_number, itr_documents, document_type, document_value, phone_visible_consent, created_at, updated_at)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
 	ON CONFLICT (admin_id) DO UPDATE SET
 		shop_name = EXCLUDED.shop_name,
 		owner_name = EXCLUDED.owner_name,
@@ -1050,13 +1050,14 @@ func (c *adminDatabase) CreateShop(ctx context.Context, shop domain.ShopDetails)
 		itr_documents = EXCLUDED.itr_documents,
 		document_type = EXCLUDED.document_type,
 		document_value = EXCLUDED.document_value,
+		phone_visible_consent = EXCLUDED.phone_visible_consent,
 		updated_at = EXCLUDED.updated_at
 	RETURNING id`
 
 	err = tx.Raw(query, shopID, shop.AdminID, shop.ShopName, shop.OwnerName, shop.AddressLine1,
 		shop.AddressLine2, shop.Email, shop.Phone, shop.City, shop.State, shop.Country, shop.Pincode, shop.Latitude, shop.Longitude,
 		encBankAccount, shop.ShopType, shop.ShopStatus, encBankIFSC, encPAN, encITR, shop.Document_Type, encDocValue,
-		time.Now(), time.Now()).Scan(&shop.ID).Error
+		shop.PhoneVisibleConsent, time.Now(), time.Now()).Scan(&shop.ID).Error
 
 	if err != nil {
 		tx.Rollback()

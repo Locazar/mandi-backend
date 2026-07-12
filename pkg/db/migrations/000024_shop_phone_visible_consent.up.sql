@@ -1,0 +1,2 @@
+ALTER TABLE shop_details
+    ADD COLUMN IF NOT EXISTS phone_visible_consent BOOLEAN NOT NULL DEFAULT TRUE;
