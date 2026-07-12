@@ -726,10 +726,13 @@ func (c *adminUseCase) requireSuperAdmin(ctx context.Context, callerID string) (
 	return caller, nil
 }
 
-func validatePermissionKeys(keys []domain.PermissionKey) error {
-	for _, k := range keys {
-		if !k.IsValid() {
-			return domain.ValidationError("permissions", fmt.Sprintf("unknown permission key: %s", k))
+func validatePermissionGrants(grants []domain.RolePermissionGrant) error {
+	for _, g := range grants {
+		if !g.PermissionKey.IsValid() {
+			return domain.ValidationError("permissions", fmt.Sprintf("unknown permission key: %s", g.PermissionKey))
+		}
+		if !g.AccessLevel.IsValid() {
+			return domain.ValidationError("permissions", fmt.Sprintf("access_level for %s must be 'read' or 'write'", g.PermissionKey))
 		}
 	}
 	return nil
@@ -747,7 +750,7 @@ func (c *adminUseCase) CreateRole(ctx context.Context, callerID string, role dom
 	if name == domain.RoleNameSeller || name == domain.RoleNameSuperAdmin {
 		return domain.Role{}, domain.ValidationError("name", "this role name is reserved")
 	}
-	if err := validatePermissionKeys(role.Permissions); err != nil {
+	if err := validatePermissionGrants(role.Permissions); err != nil {
 		return domain.Role{}, err
 	}
 
@@ -801,9 +804,9 @@ func (c *adminUseCase) UpdateRole(ctx context.Context, callerID, roleID string, 
 		labelPtr = &body.Label
 	}
 
-	var permsPtr *[]domain.PermissionKey
+	var permsPtr *[]domain.RolePermissionGrant
 	if body.Permissions != nil {
-		if err := validatePermissionKeys(body.Permissions); err != nil {
+		if err := validatePermissionGrants(body.Permissions); err != nil {
 			return domain.Role{}, err
 		}
 		permsPtr = &body.Permissions
@@ -853,9 +856,13 @@ func (c *adminUseCase) GetRoleByName(ctx context.Context, name string) (domain.R
 	return c.adminRepo.GetRoleByName(ctx, name)
 }
 
-func (c *adminUseCase) GetPermissionsForRole(ctx context.Context, roleName string) ([]domain.PermissionKey, error) {
+func (c *adminUseCase) GetPermissionsForRole(ctx context.Context, roleName string) ([]domain.RolePermissionGrant, error) {
 	if roleName == domain.RoleNameSuperAdmin || roleName == "" {
-		return domain.AllPermissionKeys(), nil
+		grants := make([]domain.RolePermissionGrant, 0, len(domain.AllPermissionKeys()))
+		for _, key := range domain.AllPermissionKeys() {
+			grants = append(grants, domain.RolePermissionGrant{PermissionKey: key, AccessLevel: domain.AccessLevelWrite})
+		}
+		return grants, nil
 	}
 	role, err := c.adminRepo.GetRoleByName(ctx, roleName)
 	if err != nil {
@@ -864,7 +871,7 @@ func (c *adminUseCase) GetPermissionsForRole(ctx context.Context, roleName strin
 	if role.ID == "" {
 		// Role no longer exists (deleted out from under an assigned admin) —
 		// fail closed with no permissions rather than erroring the caller out.
-		return []domain.PermissionKey{}, nil
+		return []domain.RolePermissionGrant{}, nil
 	}
 	return role.Permissions, nil
 }
@@ -1466,6 +1473,14 @@ func (c *adminUseCase) FindAdminByReferralCouponID(ctx context.Context, referral
 
 func (c *adminUseCase) FindAdminByEmail(ctx context.Context, email string) (domain.Admin, error) {
 	return c.adminRepo.FindAdminByEmail(ctx, email)
+}
+
+func (c *adminUseCase) CountShopsAttachedToPlatformUser(ctx context.Context, platformUserID string) (int64, error) {
+	return c.adminRepo.CountShopReferralsByPlatformUser(ctx, platformUserID)
+}
+
+func (c *adminUseCase) RevokeAdminSessions(ctx context.Context, adminID string) error {
+	return c.adminRepo.DeleteRefreshSessionByUserID(ctx, adminID)
 }
 
 func (c *adminUseCase) CreateShopReferral(ctx context.Context, callerID string, body domain.ShopReferral) (domain.ShopReferral, error) {

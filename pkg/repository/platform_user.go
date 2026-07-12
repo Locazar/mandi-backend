@@ -33,7 +33,50 @@ func (r *platformUserRepository) ListAdmins(ctx context.Context, roleFilter stri
 		Offset(int(pagination.Offset)).
 		Limit(int(pagination.Limit)).
 		Find(&admins).Error
-	return admins, err
+	if err != nil {
+		return nil, err
+	}
+
+	if err := r.attachShopsOnboardedCounts(ctx, admins); err != nil {
+		return nil, err
+	}
+	return admins, nil
+}
+
+// attachShopsOnboardedCounts batch-populates ShopsOnboardedCount for every
+// admin in the slice that carries a referral coupon — one grouped COUNT
+// query instead of one query per row.
+func (r *platformUserRepository) attachShopsOnboardedCounts(ctx context.Context, admins []domain.Admin) error {
+	ids := make([]string, 0, len(admins))
+	for _, a := range admins {
+		if a.ReferralCouponID != "" {
+			ids = append(ids, a.ID)
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+
+	var rows []struct {
+		PlatformUserID string
+		Count          int64
+	}
+	if err := r.db.WithContext(ctx).Model(&domain.ShopReferral{}).
+		Select("platform_user_id, COUNT(*) as count").
+		Where("platform_user_id IN ? AND status = ?", ids, domain.ShopReferralStatusActive).
+		Group("platform_user_id").
+		Scan(&rows).Error; err != nil {
+		return err
+	}
+
+	counts := make(map[string]int64, len(rows))
+	for _, row := range rows {
+		counts[row.PlatformUserID] = row.Count
+	}
+	for i := range admins {
+		admins[i].ShopsOnboardedCount = counts[admins[i].ID]
+	}
+	return nil
 }
 
 func (r *platformUserRepository) UpdateAdminRole(ctx context.Context, adminID string, role domain.AdminRole) error {

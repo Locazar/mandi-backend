@@ -1518,7 +1518,7 @@ func (a *adminDatabase) GetDashboardStats(ctx context.Context) (domain.Dashboard
 
 // ── Roles & permissions ─────────────────────────────────────────────────────
 
-func (c *adminDatabase) CreateRole(ctx context.Context, role domain.Role, permissions []domain.PermissionKey) (domain.Role, error) {
+func (c *adminDatabase) CreateRole(ctx context.Context, role domain.Role, permissions []domain.RolePermissionGrant) (domain.Role, error) {
 	tx := c.DB.WithContext(ctx).Begin()
 	if tx.Error != nil {
 		return domain.Role{}, tx.Error
@@ -1529,8 +1529,8 @@ func (c *adminDatabase) CreateRole(ctx context.Context, role domain.Role, permis
 		return domain.Role{}, err
 	}
 
-	for _, key := range permissions {
-		rp := domain.RolePermission{RoleID: role.ID, PermissionKey: key}
+	for _, grant := range permissions {
+		rp := domain.RolePermission{RoleID: role.ID, PermissionKey: grant.PermissionKey, AccessLevel: grant.AccessLevel}
 		if err := tx.Create(&rp).Error; err != nil {
 			tx.Rollback()
 			return domain.Role{}, err
@@ -1545,17 +1545,20 @@ func (c *adminDatabase) CreateRole(ctx context.Context, role domain.Role, permis
 	return role, nil
 }
 
-func (c *adminDatabase) rolePermissionsByRoleIDs(ctx context.Context, roleIDs []string) (map[string][]domain.PermissionKey, error) {
+func (c *adminDatabase) rolePermissionsByRoleIDs(ctx context.Context, roleIDs []string) (map[string][]domain.RolePermissionGrant, error) {
 	if len(roleIDs) == 0 {
-		return map[string][]domain.PermissionKey{}, nil
+		return map[string][]domain.RolePermissionGrant{}, nil
 	}
 	var rows []domain.RolePermission
 	if err := c.DB.WithContext(ctx).Where("role_id IN ?", roleIDs).Find(&rows).Error; err != nil {
 		return nil, err
 	}
-	byRole := map[string][]domain.PermissionKey{}
+	byRole := map[string][]domain.RolePermissionGrant{}
 	for _, row := range rows {
-		byRole[row.RoleID] = append(byRole[row.RoleID], row.PermissionKey)
+		byRole[row.RoleID] = append(byRole[row.RoleID], domain.RolePermissionGrant{
+			PermissionKey: row.PermissionKey,
+			AccessLevel:   row.AccessLevel,
+		})
 	}
 	return byRole, nil
 }
@@ -1609,7 +1612,7 @@ func (c *adminDatabase) GetRoleByName(ctx context.Context, name string) (domain.
 	return role, nil
 }
 
-func (c *adminDatabase) UpdateRole(ctx context.Context, roleID string, label *string, permissions *[]domain.PermissionKey) (domain.Role, error) {
+func (c *adminDatabase) UpdateRole(ctx context.Context, roleID string, label *string, permissions *[]domain.RolePermissionGrant) (domain.Role, error) {
 	tx := c.DB.WithContext(ctx).Begin()
 	if tx.Error != nil {
 		return domain.Role{}, tx.Error
@@ -1627,8 +1630,8 @@ func (c *adminDatabase) UpdateRole(ctx context.Context, roleID string, label *st
 			tx.Rollback()
 			return domain.Role{}, err
 		}
-		for _, key := range *permissions {
-			rp := domain.RolePermission{RoleID: roleID, PermissionKey: key}
+		for _, grant := range *permissions {
+			rp := domain.RolePermission{RoleID: roleID, PermissionKey: grant.PermissionKey, AccessLevel: grant.AccessLevel}
 			if err := tx.Create(&rp).Error; err != nil {
 				tx.Rollback()
 				return domain.Role{}, err
@@ -1727,6 +1730,14 @@ func (c *adminDatabase) ListShopReferralsByPlatformUser(ctx context.Context, pla
 		Limit(int(pagination.Limit)).
 		Find(&referrals).Error
 	return referrals, err
+}
+
+func (c *adminDatabase) CountShopReferralsByPlatformUser(ctx context.Context, platformUserID string) (int64, error) {
+	var count int64
+	err := c.DB.WithContext(ctx).Model(&domain.ShopReferral{}).
+		Where("platform_user_id = ? AND status = ?", platformUserID, domain.ShopReferralStatusActive).
+		Count(&count).Error
+	return count, err
 }
 
 func (c *adminDatabase) UpdateShopReferral(ctx context.Context, referralID string, updates map[string]interface{}) error {

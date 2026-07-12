@@ -3,12 +3,15 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
+	applogger "github.com/rohit221990/mandi-backend/pkg/logger"
 	repoInterfaces "github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
 	ucInterfaces "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 )
@@ -198,12 +201,43 @@ func (u *platformUserUseCase) DeleteAdmin(ctx context.Context, callerID, targetI
 		return domain.ForbiddenError("only super admins can delete accounts")
 	}
 
+	target, err := u.adminUC.GetAdminByID(ctx, targetID)
+	if err != nil || target.ID == "" {
+		return domain.NotFoundError("admin")
+	}
+	if target.Role == domain.AdminRoleSuperAdmin {
+		return domain.ForbiddenError("super admin accounts can't be deleted")
+	}
+
+	// A Sales Executive with active shop attachments must be reassigned
+	// first — deleting them out from under live referrals would sever
+	// commission/reporting attribution with no way to trace it back.
+	attachedShops, err := u.adminUC.CountShopsAttachedToPlatformUser(ctx, targetID)
+	if err != nil {
+		return domain.InternalError("failed to check attached shops", err)
+	}
+	if attachedShops > 0 {
+		return domain.ConflictError(
+			"platform user has attached shops",
+			fmt.Sprintf("%d shop(s) are still attached to this user via referral; reassign or remove those referrals first", attachedShops),
+		)
+	}
+
 	if err := u.repo.DeleteAdmin(ctx, targetID); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return domain.NotFoundError("admin")
 		}
 		return err
 	}
+
+	// Best-effort: kill any active session so an already-issued token can't
+	// keep working against a now-deleted account. Deletion itself already
+	// succeeded, so a failure here is logged-and-swallowed, not fatal.
+	if err := u.adminUC.RevokeAdminSessions(ctx, targetID); err != nil {
+		applogger.L().Warn("failed to revoke sessions after admin delete",
+			zap.String("admin_id", targetID), zap.Error(err))
+	}
+
 	return nil
 }
 
