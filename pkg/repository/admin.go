@@ -182,6 +182,13 @@ func (c *adminDatabase) SaveAdmin(ctx context.Context, admin domain.Admin) (doma
 	if admin.ID == "" {
 		admin.ID = domain.NewID(domain.PrefixAdmin)
 	}
+	// admins_status_check only allows 'active'|'inactive'|'suspended' — the
+	// Go zero value ("") isn't one of them, so every caller that doesn't
+	// explicitly set Status (e.g. platform-user creation) would otherwise
+	// violate the check constraint on insert.
+	if admin.Status == "" {
+		admin.Status = domain.AdminStatusActive
+	}
 
 	// First insert into admins table
 	query := `INSERT INTO admins (id, full_name, email, mobile, password, user_name,
