@@ -2945,12 +2945,23 @@ func (a *adminHandler) VerifyShopPhoneChangeOtp(ctx *gin.Context) {
 // resolved permission set, since permissions are now DB-driven per role
 // rather than a static frontend lookup table.
 type meResponse struct {
-	ID          string                `json:"id"`
-	FullName    string                `json:"full_name"`
-	Email       string                `json:"email"`
-	Role        string                `json:"role"`
-	RoleLabel   string                `json:"role_label"`
-	Permissions []domain.PermissionKey `json:"permissions"`
+	ID        string `json:"id"`
+	FullName  string `json:"full_name"`
+	Email     string `json:"email"`
+	Role      string `json:"role"`
+	RoleLabel string `json:"role_label"`
+	// Permissions maps each granted permission key to its access level
+	// ("read" or "write"); a key absent from this map means no access at
+	// all — the admin-portal treats that section as fully hidden.
+	Permissions map[domain.PermissionKey]domain.AccessLevel `json:"permissions"`
+
+	// ReferralCouponID + ShopsOnboardedCount let the admin-portal show a
+	// self-service "shops onboarded via your referral code" widget on the
+	// dashboard for a Sales Executive who may not have access to the
+	// Platform Users list at all. Empty/zero for accounts that aren't
+	// Sales Executives.
+	ReferralCouponID    string `json:"referral_coupon_id,omitempty"`
+	ShopsOnboardedCount int64  `json:"shops_onboarded_count"`
 }
 
 // GetMyPermissions godoc
@@ -2969,10 +2980,14 @@ func (a *adminHandler) GetMyPermissions(ctx *gin.Context) {
 		return
 	}
 
-	perms, err := a.adminUseCase.GetPermissionsForRole(ctx, string(caller.Role))
+	grants, err := a.adminUseCase.GetPermissionsForRole(ctx, string(caller.Role))
 	if err != nil {
 		a.handleAppErr(ctx, "Failed to resolve permissions", err)
 		return
+	}
+	perms := make(map[domain.PermissionKey]domain.AccessLevel, len(grants))
+	for _, g := range grants {
+		perms[g.PermissionKey] = g.AccessLevel
 	}
 
 	roleLabel := string(caller.Role)
@@ -2982,13 +2997,25 @@ func (a *adminHandler) GetMyPermissions(ctx *gin.Context) {
 		roleLabel = "Super Admin"
 	}
 
+	var shopsOnboarded int64
+	if caller.ReferralCouponID != "" {
+		shopsOnboarded, err = a.adminUseCase.CountShopsAttachedToPlatformUser(ctx, caller.ID)
+		if err != nil {
+			// Non-fatal — the widget just shows 0 rather than failing the
+			// whole session-restore/login call over a count query.
+			shopsOnboarded = 0
+		}
+	}
+
 	response.SuccessResponse(ctx, http.StatusOK, "Fetched current admin", meResponse{
-		ID:          caller.ID,
-		FullName:    caller.FullName,
-		Email:       caller.Email,
-		Role:        string(caller.Role),
-		RoleLabel:   roleLabel,
-		Permissions: perms,
+		ID:                  caller.ID,
+		FullName:            caller.FullName,
+		Email:               caller.Email,
+		Role:                string(caller.Role),
+		RoleLabel:           roleLabel,
+		Permissions:         perms,
+		ReferralCouponID:    caller.ReferralCouponID,
+		ShopsOnboardedCount: shopsOnboarded,
 	})
 }
 

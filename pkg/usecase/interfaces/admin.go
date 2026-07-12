@@ -122,7 +122,7 @@ type AdminUseCase interface {
 	// GetPermissionsForRole resolves the effective permission set for a
 	// role name — super_admin always gets every key (see domain.Role doc);
 	// every other role reads its stored role_permissions rows.
-	GetPermissionsForRole(ctx context.Context, roleName string) ([]domain.PermissionKey, error)
+	GetPermissionsForRole(ctx context.Context, roleName string) ([]domain.RolePermissionGrant, error)
 
 	// Subscription GST configuration (admin-managed rate applied to
 	// subscription checkout — see subscriptionPaymentUseCase.CreateSubscriptionOrder).
@@ -144,6 +144,13 @@ type AdminUseCase interface {
 	// platform user. A Sales Executive may pass their own ID; only a super
 	// admin may pass someone else's.
 	ListShopsForSalesExecutive(ctx context.Context, callerID, platformUserID string, pagination request.Pagination) ([]domain.ShopReferral, error)
+	// CountShopsAttachedToPlatformUser is used to block deleting a platform
+	// user who is still an active Sales Executive for one or more shops.
+	CountShopsAttachedToPlatformUser(ctx context.Context, platformUserID string) (int64, error)
+	// RevokeAdminSessions deletes any active refresh session for adminID —
+	// called on account deletion so an already-issued token can't keep
+	// working against a deleted account until it naturally expires.
+	RevokeAdminSessions(ctx context.Context, adminID string) error
 }
 
 // GetCategory(ctx context.Context) (helper.Category, any)

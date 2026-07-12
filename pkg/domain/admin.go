@@ -143,6 +143,12 @@ type Admin struct {
 	// partial unique index — see migration 000020.
 	ReferralCouponID string `json:"referral_coupon_id" gorm:"size:50" binding:"omitempty"`
 
+	// ShopsOnboardedCount is the number of active ShopReferral attachments
+	// for this admin's ReferralCouponID — i.e. shops that entered this
+	// Sales Executive's referral code during onboarding. Output-only,
+	// populated by ListAdmins/GetMyPermissions; never persisted.
+	ShopsOnboardedCount int64 `json:"shops_onboarded_count,omitempty" gorm:"-"`
+
 	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
 }
 

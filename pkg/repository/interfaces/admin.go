@@ -107,11 +107,11 @@ type AdminRepository interface {
 	UpdateShopPhoneByAdminID(ctx context.Context, adminID, phone string) error
 
 	// Roles & permissions (custom roles + per-role permission set).
-	CreateRole(ctx context.Context, role domain.Role, permissions []domain.PermissionKey) (domain.Role, error)
+	CreateRole(ctx context.Context, role domain.Role, permissions []domain.RolePermissionGrant) (domain.Role, error)
 	ListRoles(ctx context.Context) ([]domain.Role, error)
 	GetRoleByID(ctx context.Context, roleID string) (domain.Role, error)
 	GetRoleByName(ctx context.Context, name string) (domain.Role, error)
-	UpdateRole(ctx context.Context, roleID string, label *string, permissions *[]domain.PermissionKey) (domain.Role, error)
+	UpdateRole(ctx context.Context, roleID string, label *string, permissions *[]domain.RolePermissionGrant) (domain.Role, error)
 	DeleteRole(ctx context.Context, roleID string) error
 	CountAdminsWithRole(ctx context.Context, roleName string) (int64, error)
 
@@ -130,6 +130,10 @@ type AdminRepository interface {
 	GetShopReferralByShopID(ctx context.Context, shopID string) (domain.ShopReferral, error)
 	ListShopReferrals(ctx context.Context, pagination request.Pagination) ([]domain.ShopReferral, error)
 	ListShopReferralsByPlatformUser(ctx context.Context, platformUserID string, pagination request.Pagination) ([]domain.ShopReferral, error)
+	// CountShopReferralsByPlatformUser is used to block deleting a Sales
+	// Executive who still has shops attached — see AdminUseCase.DeleteAdmin
+	// equivalent in platformUserUseCase.
+	CountShopReferralsByPlatformUser(ctx context.Context, platformUserID string) (int64, error)
 	UpdateShopReferral(ctx context.Context, referralID string, updates map[string]interface{}) error
 	DeleteShopReferral(ctx context.Context, referralID string) error
 }
