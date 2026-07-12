@@ -1672,8 +1672,11 @@ func (c *adminDatabase) CountAdminsWithRole(ctx context.Context, roleName string
 // "invalid referral" rather than a hard failure.
 func (c *adminDatabase) FindAdminByReferralCouponID(ctx context.Context, referralCouponID string) (domain.Admin, error) {
 	var admin domain.Admin
+	// Case/whitespace-insensitive: the code is free text end-to-end (admin
+	// portal entry, seller-app entry), so an exact "=" match spuriously
+	// rejects otherwise-correct codes typed in different casing.
 	err := c.DB.WithContext(ctx).
-		Where("referral_coupon_id = ?", referralCouponID).
+		Where("UPPER(TRIM(referral_coupon_id)) = UPPER(TRIM(?))", referralCouponID).
 		First(&admin).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return domain.Admin{}, nil
