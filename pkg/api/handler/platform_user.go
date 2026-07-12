@@ -46,19 +46,37 @@ func (h *platformUserHandler) ListAdmins(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved platform users", admins)
 }
 
+// createPlatformUserRequest is a dedicated request DTO rather than binding
+// straight into domain.Admin: Admin.Password is tagged `json:"-"` (so it
+// never leaks in API responses like GET /admin/profile), but that same tag
+// makes ShouldBindJSON silently drop an incoming "password" field too — so
+// binding into domain.Admin directly meant body.Password was always empty.
+// This struct also has no ID field, so a create request can never smuggle
+// in a primary key.
+type createPlatformUserRequest struct {
+	FullName         string `json:"full_name" binding:"required"`
+	Mobile           string `json:"mobile" binding:"required"`
+	Email            string `json:"email" binding:"required,email"`
+	Password         string `json:"password" binding:"required"`
+	Role             string `json:"role"`
+	ReferralCouponID string `json:"referral_coupon_id"`
+}
+
 func (h *platformUserHandler) CreateAdmin(ctx *gin.Context) {
 	callerID := h.callerID(ctx)
-	var body domain.Admin
-	if err := ctx.ShouldBindJSON(&body); err != nil {
+	var req createPlatformUserRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
 		return
 	}
 
-	// Reject any create request that supplies the record's own primary key.
-	if body.ID != "" {
-		appErr := domain.ValidationError("id", "must not be provided when creating a new admin")
-		response.ErrorResponse(ctx, appErr.StatusCode, appErr.Message, appErr, nil)
-		return
+	body := domain.Admin{
+		FullName:         req.FullName,
+		Mobile:           req.Mobile,
+		Email:            req.Email,
+		Password:         req.Password,
+		Role:             domain.AdminRole(req.Role),
+		ReferralCouponID: req.ReferralCouponID,
 	}
 
 	otpID, err := h.useCase.CreateAdmin(ctx, callerID, body)

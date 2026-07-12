@@ -52,12 +52,22 @@ type AppError struct {
 	Timestamp  int64       `json:"timestamp"`
 }
 
-// Error implements the error interface
+// Error implements the error interface. Includes Details when present —
+// e.g. ValidationError's "Field: X, Reason: Y" — since callers (see
+// response.ErrorResponse, which splits Error() into the client-facing
+// "error" array) otherwise only ever surface the generic top-level Message
+// ("Validation failed") with no indication of which field actually failed.
 func (e *AppError) Error() string {
-	if e.Err != nil {
+	switch {
+	case e.Err != nil && e.Details != "":
+		return fmt.Sprintf("[%s] %s: %s: %v", e.Code, e.Message, e.Details, e.Err)
+	case e.Err != nil:
 		return fmt.Sprintf("[%s] %s: %v", e.Code, e.Message, e.Err)
+	case e.Details != "":
+		return fmt.Sprintf("[%s] %s: %s", e.Code, e.Message, e.Details)
+	default:
+		return fmt.Sprintf("[%s] %s", e.Code, e.Message)
 	}
-	return fmt.Sprintf("[%s] %s", e.Code, e.Message)
 }
 
 // NewAppError creates a new AppError with status code mapping
