@@ -243,7 +243,6 @@ func (c *authUseCase) AdminLogin(ctx context.Context, loginDetails request.Login
 		admin domain.Admin
 		err   error
 	)
-	fmt.Printf("Admin login attempt with details: %+v\n", loginDetails)
 	switch {
 	case loginDetails.Email != "":
 		admin, err = c.adminRepo.FindAdminByEmail(ctx, loginDetails.Email)
@@ -264,12 +263,15 @@ func (c *authUseCase) AdminLogin(ctx context.Context, loginDetails request.Login
 		return domain.Admin{}, ErrUserNotExist
 	}
 
-	fmt.Printf("Admin found: %+v\n", admin)
-
-	// err = utils.ComparePasswordWithHashedPassword(loginDetails.Password, admin.Password)
-	// if err != nil {
-	// 	return domain.Admin{}, domain.ShopVerification{}, ErrWrongPassword
-	// }
+	if admin.Password == "" {
+		// Account has no password set (e.g. an OTP-only seller account) —
+		// password login can never succeed for it, regardless of what was
+		// typed, rather than comparing against an empty hash.
+		return domain.Admin{}, ErrWrongPassword
+	}
+	if err := utils.ComparePasswordWithHashedPassword(loginDetails.Password, admin.Password); err != nil {
+		return domain.Admin{}, ErrWrongPassword
+	}
 
 	return admin, nil
 }

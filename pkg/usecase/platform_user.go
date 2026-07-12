@@ -72,6 +72,23 @@ func (u *platformUserUseCase) CreateAdmin(ctx context.Context, callerID string, 
 		}
 	}
 
+	// Platform users log in with email or phone + password (not OTP), so
+	// both must be set at creation time — unlike the self-service seller
+	// SignUp path this usecase reuses, which allows either to be empty.
+	if body.Email == "" {
+		return "", domain.ValidationError("email", "email is required")
+	}
+	if body.Password == "" {
+		return "", domain.ValidationError("password", "password is required")
+	}
+	existingByEmail, err := u.adminUC.FindAdminByEmail(ctx, body.Email)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return "", domain.InternalError("failed to validate email", err)
+	}
+	if existingByEmail.ID != "" {
+		return "", domain.ConflictError("email already registered", "an admin account with this email already exists")
+	}
+
 	if body.ReferralCouponID != "" {
 		existing, err := u.adminUC.FindAdminByReferralCouponID(ctx, body.ReferralCouponID)
 		if err != nil {

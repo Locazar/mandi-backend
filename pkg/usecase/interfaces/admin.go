@@ -129,6 +129,10 @@ type AdminUseCase interface {
 	GetSubscriptionGSTConfig(ctx context.Context) (domain.SubscriptionGSTConfig, error)
 	UpdateSubscriptionGSTConfig(ctx context.Context, cfg domain.SubscriptionGSTConfig) (domain.SubscriptionGSTConfig, error)
 
+	// Used by platform-user creation to enforce email uniqueness (SignUp
+	// itself only checks phone uniqueness).
+	FindAdminByEmail(ctx context.Context, email string) (domain.Admin, error)
+
 	// Sales Executive referral program (CRUD + attach lookup).
 	FindAdminByReferralCouponID(ctx context.Context, referralCouponID string) (domain.Admin, error)
 	CreateShopReferral(ctx context.Context, callerID string, body domain.ShopReferral) (domain.ShopReferral, error)

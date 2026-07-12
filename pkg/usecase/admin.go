@@ -1464,6 +1464,10 @@ func (c *adminUseCase) FindAdminByReferralCouponID(ctx context.Context, referral
 	return c.adminRepo.FindAdminByReferralCouponID(ctx, referralCouponID)
 }
 
+func (c *adminUseCase) FindAdminByEmail(ctx context.Context, email string) (domain.Admin, error) {
+	return c.adminRepo.FindAdminByEmail(ctx, email)
+}
+
 func (c *adminUseCase) CreateShopReferral(ctx context.Context, callerID string, body domain.ShopReferral) (domain.ShopReferral, error) {
 	caller, err := c.adminRepo.GetAdminByID(ctx, callerID)
 	if err != nil || caller.ID == "" {

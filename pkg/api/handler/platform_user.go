@@ -66,7 +66,7 @@ func (h *platformUserHandler) CreateAdmin(ctx *gin.Context) {
 		h.handleAppErr(ctx, "Failed to create platform user", err)
 		return
 	}
-	response.SuccessResponse(ctx, http.StatusCreated, "Admin account created. They can log in via OTP.", map[string]string{"otp_id": otpID})
+	response.SuccessResponse(ctx, http.StatusCreated, "Platform user created. They can log in with their email or phone number and password.", map[string]string{"otp_id": otpID})
 }
 
 func (h *platformUserHandler) UpdateAdminRole(ctx *gin.Context) {
