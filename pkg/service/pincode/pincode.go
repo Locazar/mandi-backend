@@ -6,6 +6,7 @@ package pincode
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -52,10 +53,20 @@ type Client struct {
 }
 
 // NewClient builds a Client with a bounded timeout so a slow/unresponsive
-// upstream can never hang a request indefinitely.
+// upstream can never hang a request indefinitely. Transport forces HTTP/1.1
+// — api.postalpincode.in intermittently resets HTTP/2 streams ("stream
+// error ... CANCEL"), which surfaces as a spurious request failure; HTTP/1.1
+// doesn't hit that failure mode.
 func NewClient() *Client {
-	return &Client{httpClient: &http.Client{Timeout: 8 * time.Second}}
+	transport := &http.Transport{
+		TLSNextProto: make(map[string]func(authority string, c *tls.Conn) http.RoundTripper),
+	}
+	return &Client{httpClient: &http.Client{Timeout: 8 * time.Second, Transport: transport}}
 }
+
+// maxAttempts bounds retries for transient upstream failures (network
+// errors, 5xx) — api.postalpincode.in is a free, occasionally flaky service.
+const maxAttempts = 3
 
 // Lookup resolves city/district/state for pincode. It returns a *domain.AppError
 // for every failure mode (invalid format, upstream failure, no matching PIN
@@ -65,31 +76,23 @@ func (c *Client) Lookup(ctx context.Context, pincode string) (*Details, error) {
 		return nil, domain.ValidationError("pincode", "must be a 6-digit Indian PIN code")
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, externalAPIBaseURL+pincode, nil)
-	if err != nil {
-		return nil, domain.InternalError("failed to build pincode lookup request", err)
-	}
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		applogger.L().Error("pincode lookup request failed",
-			zap.String("pincode", pincode), zap.Error(err))
-		return nil, domain.ExternalServiceError("India Post PIN Code API", "request to upstream failed", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		applogger.L().Error("pincode lookup non-200 response",
-			zap.String("pincode", pincode), zap.Int("status_code", resp.StatusCode))
-		return nil, domain.ExternalServiceError("India Post PIN Code API",
-			fmt.Sprintf("unexpected status code %d", resp.StatusCode), nil)
-	}
-
 	var results []apiResult
-	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
-		applogger.L().Error("pincode lookup response decode failed",
-			zap.String("pincode", pincode), zap.Error(err))
-		return nil, domain.ExternalServiceError("India Post PIN Code API", "invalid response format", err)
+	var lastErr error
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		results, lastErr = c.fetch(ctx, pincode)
+		if lastErr == nil {
+			break
+		}
+		applogger.L().Warn("pincode lookup attempt failed",
+			zap.String("pincode", pincode), zap.Int("attempt", attempt), zap.Error(lastErr))
+		if attempt < maxAttempts {
+			time.Sleep(time.Duration(attempt) * 200 * time.Millisecond)
+		}
+	}
+	if lastErr != nil {
+		applogger.L().Error("pincode lookup failed after retries",
+			zap.String("pincode", pincode), zap.Int("attempts", maxAttempts), zap.Error(lastErr))
+		return nil, domain.ExternalServiceError("India Post PIN Code API", "request to upstream failed", lastErr)
 	}
 
 	if len(results) == 0 || results[0].Status != "Success" || len(results[0].PostOffice) == 0 {
@@ -107,6 +110,32 @@ func (c *Client) Lookup(ctx context.Context, pincode string) (*Details, error) {
 		District: selected.District,
 		State:    selected.State,
 	}, nil
+}
+
+// fetch performs one HTTP round-trip and decodes the response. Non-2xx
+// status and transport errors are both returned as plain errors so Lookup's
+// retry loop treats them uniformly.
+func (c *Client) fetch(ctx context.Context, pincode string) ([]apiResult, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, externalAPIBaseURL+pincode, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code %d", resp.StatusCode)
+	}
+
+	var results []apiResult
+	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
+		return nil, fmt.Errorf("invalid response format: %w", err)
+	}
+	return results, nil
 }
 
 // selectPostOffice picks the best match when a PIN code covers multiple post
