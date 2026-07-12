@@ -12,21 +12,22 @@ import "time"
 type PermissionKey string
 
 const (
-	PermCanManageCatalog     PermissionKey = "canManageCatalog"
-	PermCanManageMarketing   PermissionKey = "canManageMarketing"
-	PermCanManageOrders      PermissionKey = "canManageOrders"
-	PermCanManageUsers       PermissionKey = "canManageUsers"
-	PermCanManageSettings    PermissionKey = "canManageSettings"
-	PermCanSendNotifications PermissionKey = "canSendNotifications"
-	PermCanManageAdmins      PermissionKey = "canManageAdmins"
-	PermCanBlockUsers        PermissionKey = "canBlockUsers"
+	PermCanManageCatalog      PermissionKey = "canManageCatalog"
+	PermCanManageMarketing    PermissionKey = "canManageMarketing"
+	PermCanManageOrders       PermissionKey = "canManageOrders"
+	PermCanManageUsers        PermissionKey = "canManageUsers"
+	PermCanManageSettings     PermissionKey = "canManageSettings"
+	PermCanSendNotifications  PermissionKey = "canSendNotifications"
+	PermCanManageAdmins       PermissionKey = "canManageAdmins"
+	PermCanBlockUsers         PermissionKey = "canBlockUsers"
+	PermCanManageVerification PermissionKey = "canManageVerification"
 )
 
 func (p PermissionKey) IsValid() bool {
 	switch p {
 	case PermCanManageCatalog, PermCanManageMarketing, PermCanManageOrders,
 		PermCanManageUsers, PermCanManageSettings, PermCanSendNotifications,
-		PermCanManageAdmins, PermCanBlockUsers:
+		PermCanManageAdmins, PermCanBlockUsers, PermCanManageVerification:
 		return true
 	}
 	return false
@@ -39,7 +40,7 @@ func AllPermissionKeys() []PermissionKey {
 	return []PermissionKey{
 		PermCanManageCatalog, PermCanManageMarketing, PermCanManageOrders,
 		PermCanManageUsers, PermCanManageSettings, PermCanSendNotifications,
-		PermCanManageAdmins, PermCanBlockUsers,
+		PermCanManageAdmins, PermCanBlockUsers, PermCanManageVerification,
 	}
 }
 

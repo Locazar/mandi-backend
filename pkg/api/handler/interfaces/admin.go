@@ -1,8 +1,16 @@
 package interfaces
 
-import "github.com/gin-gonic/gin"
+import (
+	"github.com/rohit221990/mandi-backend/pkg/domain"
+
+	"github.com/gin-gonic/gin"
+)
 
 type AdminHandler interface {
+	// RequirePermission is route-group middleware — see the implementation
+	// doc comment in pkg/api/handler/admin.go for what it enforces.
+	RequirePermission(key domain.PermissionKey) gin.HandlerFunc
+
 	GetAllUsers(ctx *gin.Context)
 	BlockUser(ctx *gin.Context)
 	AdminSignUpVerify(ctx *gin.Context)

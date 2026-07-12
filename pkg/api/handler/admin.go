@@ -3129,6 +3129,71 @@ func (a *adminHandler) handleAppErr(ctx *gin.Context, fallbackMsg string, err er
 	response.ErrorResponse(ctx, http.StatusInternalServerError, fallbackMsg, err, nil)
 }
 
+// ── Route-level permission enforcement ──────────────────────────────────────
+
+// RequirePermission is server-side enforcement of the same read/write/none
+// model the admin-portal UI already gates on (see domain.Role/RolePermission
+// and GET /api/admin/me) — the UI hiding a button was never a security
+// boundary by itself; this closes that gap for a specific route group.
+//
+// GET/HEAD requests need at least "read"; every other method needs "write".
+// super_admin always passes. Seller accounts (role == "seller") always pass
+// too and are deliberately NOT part of this check — sellers aren't assigned
+// an admin-portal role at all, and their access to their own resources is
+// governed by ownership checks elsewhere (AdminID == callerID), not by this
+// permission matrix. Only apply this middleware to route groups that are
+// exclusively admin-portal management surfaces — see the comments at each
+// call site in routes/admin.go for why a given group is safe to gate.
+func (a *adminHandler) RequirePermission(key domain.PermissionKey) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		callerID := a.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+		if callerID == "" {
+			response.ErrorResponse(ctx, http.StatusUnauthorized, "Invalid or expired session", nil, nil)
+			ctx.Abort()
+			return
+		}
+		caller, err := a.adminUseCase.GetAdminByID(ctx, callerID)
+		if err != nil || caller.ID == "" {
+			response.ErrorResponse(ctx, http.StatusUnauthorized, "Invalid or expired session", err, nil)
+			ctx.Abort()
+			return
+		}
+
+		if caller.Role == domain.AdminRoleSeller || caller.Role == domain.AdminRoleSuperAdmin {
+			ctx.Next()
+			return
+		}
+
+		grants, err := a.adminUseCase.GetPermissionsForRole(ctx, string(caller.Role))
+		if err != nil {
+			a.handleAppErr(ctx, "Failed to resolve permissions", err)
+			ctx.Abort()
+			return
+		}
+		var level domain.AccessLevel
+		for _, g := range grants {
+			if g.PermissionKey == key {
+				level = g.AccessLevel
+				break
+			}
+		}
+
+		required := domain.AccessLevelRead
+		if ctx.Request.Method != http.MethodGet && ctx.Request.Method != http.MethodHead {
+			required = domain.AccessLevelWrite
+		}
+
+		hasAccess := level != "" && (required == domain.AccessLevelRead || level == domain.AccessLevelWrite)
+		if !hasAccess {
+			appErr := domain.ForbiddenError(fmt.Sprintf("your role doesn't have %s access to this section", required))
+			response.ErrorResponse(ctx, appErr.StatusCode, appErr.Message, appErr, nil)
+			ctx.Abort()
+			return
+		}
+		ctx.Next()
+	}
+}
+
 // CreateShopReferral godoc
 //
 //	@Summary		Manually attach a shop to a Sales Executive
