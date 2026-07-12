@@ -5,6 +5,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/api/handler"
 	handlerInterface "github.com/rohit221990/mandi-backend/pkg/api/handler/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/api/middleware"
+	"github.com/rohit221990/mandi-backend/pkg/domain"
 )
 
 func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, middleware middleware.Middleware,
@@ -22,7 +23,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 	sellerGuideHandler handlerInterface.SellerGuideHandler,
 ) {
 
-auth := api.Group("/auth")
+	auth := api.Group("/auth")
 	{
 		login := auth.Group("/signin")
 		{
@@ -114,7 +115,7 @@ auth := api.Group("/auth")
 			user.PATCH("/block", adminHandler.BlockUser)
 		}
 
-		platformUsers := api.Group("/platform-users")
+		platformUsers := api.Group("/platform-users", adminHandler.RequirePermission(domain.PermCanManageAdmins))
 		{
 			platformUsers.GET("/", platformUserHandler.ListAdmins)
 			platformUsers.POST("/", platformUserHandler.CreateAdmin)
@@ -136,7 +137,7 @@ auth := api.Group("/auth")
 
 		// Custom roles + per-role permission set, assignable to platform
 		// users in place of the old fixed 4-role enum.
-		roles := api.Group("/roles")
+		roles := api.Group("/roles", adminHandler.RequirePermission(domain.PermCanManageAdmins))
 		{
 			roles.GET("/", adminHandler.ListRoles)
 			roles.POST("/", middleware.TrimSpaces(), adminHandler.CreateRole)
@@ -148,7 +149,7 @@ auth := api.Group("/auth")
 		// Sales Executive referral program — CRUD over the shop<->platform
 		// user attachments created automatically when a seller enters a
 		// valid referral coupon ID during shop onboarding (see CreateShop).
-		referrals := api.Group("/referrals")
+		referrals := api.Group("/referrals", adminHandler.RequirePermission(domain.PermCanManageAdmins))
 		{
 			referrals.GET("/", adminHandler.ListShopReferrals)
 			referrals.POST("/", adminHandler.CreateShopReferral)
@@ -317,7 +318,7 @@ auth := api.Group("/auth")
 		}
 
 		// coupons
-		coupons := api.Group("/coupons")
+		coupons := api.Group("/coupons", adminHandler.RequirePermission(domain.PermCanManageMarketing))
 		{
 			coupons.POST("/", middleware.TrimSpaces(), couponHandler.SaveCoupon)
 			coupons.GET("/", couponHandler.GetAllCouponsAdmin)
@@ -339,7 +340,7 @@ auth := api.Group("/auth")
 		}
 
 		// advertisement
-		advertisement := api.Group("/advertisements")
+		advertisement := api.Group("/advertisements", adminHandler.RequirePermission(domain.PermCanManageMarketing))
 		{
 			advertisement.POST("/", middleware.TrimSpaces(), adminHandler.CreateAdvertisement)
 			advertisement.PUT("/:advertisement_id", middleware.TrimSpaces(), adminHandler.UpdateAdvertisement)
@@ -364,7 +365,7 @@ auth := api.Group("/auth")
 		}
 
 		// advertisement pricing configuration (managed from the admin panel)
-		advertisementPricing := api.Group("/advertisement-pricing")
+		advertisementPricing := api.Group("/advertisement-pricing", adminHandler.RequirePermission(domain.PermCanManageMarketing))
 		{
 			advertisementPricing.GET("", adminHandler.GetAdvertisementPricing)
 			advertisementPricing.POST("/plans", middleware.TrimSpaces(), adminHandler.CreateAdvertisementPlan)
@@ -374,7 +375,7 @@ auth := api.Group("/auth")
 		}
 
 		// feature flags (managed from the admin panel; clients read /api/feature-flags)
-		featureFlags := api.Group("/feature-flags")
+		featureFlags := api.Group("/feature-flags", adminHandler.RequirePermission(domain.PermCanManageSettings))
 		{
 			featureFlags.GET("/", adminHandler.ListFeatureFlags)
 			featureFlags.POST("/", middleware.TrimSpaces(), adminHandler.CreateFeatureFlag)
@@ -383,7 +384,7 @@ auth := api.Group("/auth")
 		}
 
 		// app configs (managed from the admin panel)
-		appConfigs := api.Group("/app-configs")
+		appConfigs := api.Group("/app-configs", adminHandler.RequirePermission(domain.PermCanManageSettings))
 		{
 			appConfigs.GET("/", adminHandler.ListAppConfigs)
 			appConfigs.GET("/:config_key", adminHandler.GetAppConfigByKey)
@@ -393,11 +394,11 @@ auth := api.Group("/auth")
 		}
 
 		// Global structured app config (CDN, feature flags, HTTP, image upload, AI) — single JSON blob
-		api.GET("/config", adminHandler.GetGlobalConfig)
-		api.PUT("/config", middleware.TrimSpaces(), adminHandler.UpdateGlobalConfig)
+		api.GET("/config", adminHandler.RequirePermission(domain.PermCanManageSettings), adminHandler.GetGlobalConfig)
+		api.PUT("/config", adminHandler.RequirePermission(domain.PermCanManageSettings), middleware.TrimSpaces(), adminHandler.UpdateGlobalConfig)
 
 		// help center — contact settings + FAQs (managed from the admin panel)
-		help := api.Group("/help")
+		help := api.Group("/help", adminHandler.RequirePermission(domain.PermCanManageSettings))
 		{
 			help.GET("/settings", adminHandler.GetHelpSettings)
 			help.PUT("/settings", middleware.TrimSpaces(), adminHandler.UpdateHelpSettings)
@@ -408,7 +409,7 @@ auth := api.Group("/auth")
 		}
 
 		// subscription plans (managed from the admin panel)
-		subscriptionPlans := api.Group("/subscription-plans")
+		subscriptionPlans := api.Group("/subscription-plans", adminHandler.RequirePermission(domain.PermCanManageSettings))
 		{
 			subscriptionPlans.GET("/", adminHandler.ListSubscriptionPlans)
 			subscriptionPlans.POST("/", middleware.TrimSpaces(), adminHandler.CreateSubscriptionPlan)
@@ -417,7 +418,7 @@ auth := api.Group("/auth")
 		}
 
 		// Subscription pricing — GST rate applied at checkout (admin panel)
-		subscriptionPricing := api.Group("/subscription-pricing")
+		subscriptionPricing := api.Group("/subscription-pricing", adminHandler.RequirePermission(domain.PermCanManageSettings))
 		{
 			subscriptionPricing.GET("/gst", adminHandler.GetSubscriptionGSTConfig)
 			subscriptionPricing.PUT("/gst", middleware.TrimSpaces(), adminHandler.UpdateSubscriptionGSTConfig)
@@ -466,7 +467,7 @@ auth := api.Group("/auth")
 		}
 
 		// Notification
-		notification := api.Group("/notifications")
+		notification := api.Group("/notifications", adminHandler.RequirePermission(domain.PermCanSendNotifications))
 		{
 			notification.GET("/sendToUsersInRadius", adminHandler.SendNotificationToUsersInRadius)
 			notification.POST("/push", notificationHandler.SendPushNotification)
@@ -505,7 +506,7 @@ auth := api.Group("/auth")
 			identity.POST("/verify-otp", adminHandler.AdminDocumentOtpVerify)
 		}
 
-		verification := api.Group("/verification")
+		verification := api.Group("/verification", adminHandler.RequirePermission(domain.PermCanManageVerification))
 		{
 			verification.GET("/shop/:shop_id", adminHandler.GetVerificationStatus)
 		}
