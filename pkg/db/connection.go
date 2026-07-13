@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/rohit221990/mandi-backend/pkg/config"
@@ -30,7 +31,18 @@ func ConnectDatabase(cfg config.Config) (*gorm.DB, error) {
 		// Silence GORM's internal "insufficient arguments" logger formatting
 		// bugs that appear during AutoMigrate schema checks on some Postgres
 		// versions.  Warnings and errors from our own code still use log.Printf.
-		Logger: gormlogger.Default.LogMode(gormlogger.Error),
+		//
+		// IgnoreRecordNotFoundError is required here: gorm.ErrRecordNotFound is
+		// a routine, expected outcome for plenty of First()/Find() lookups in
+		// this codebase (e.g. "does this shop have a referral yet?"), and every
+		// call site already handles it via errors.Is(err, gorm.ErrRecordNotFound).
+		// Without this flag GORM logs each one as an [error] line with a full
+		// query dump, flooding production logs with noise for normal,
+		// already-handled misses.
+		Logger: gormlogger.New(log.New(os.Stdout, "\r\n", log.LstdFlags), gormlogger.Config{
+			LogLevel:                  gormlogger.Error,
+			IgnoreRecordNotFoundError: true,
+		}),
 	})
 
 	if err != nil {
