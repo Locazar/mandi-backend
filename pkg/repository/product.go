@@ -1772,20 +1772,19 @@ func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID 
 	query := `SELECT pi.id, pi.sub_category_name, pi.category_id, pi.department_id, pi.sub_category_id, pi.stock,
 	           sc.name AS category_name, mc.name AS main_category_name,
 	           pi.dynamic_fields, pi.created_at, pi.updated_at, pi.shop_id,
-	           (SELECT COALESCE(SUM(view_count), 0) FROM product_item_views WHERE product_item_id = pi.id) AS view_count
+	           (SELECT COALESCE(SUM(view_count), 0) FROM product_item_views WHERE product_item_id = pi.id) AS view_count,
+	           ` + IsSubscribedColumn + `
 	       FROM product_items pi
 	       LEFT JOIN categories sc ON pi.category_id = sc.id
 	       LEFT JOIN categories mc ON pi.category_id = mc.id
 	       LEFT JOIN shop_details sd ON sd.id = pi.shop_id
-	       WHERE pi.id = $1`
+	       WHERE pi.id = $1;`
 
-	// Subscription gate: on customer-facing calls, a product whose owning shop has
-	// no active subscription is treated as not-found (handler returns 404). Admin/
-	// seller views (customerView=false) are never gated.
-	if customerView && subscriptionGateEnabled {
-		query += " AND " + SubscribedShopPredicate
-	}
-	query += ";"
+	// Item detail is intentionally NOT hidden when the seller is unsubscribed: a
+	// customer must still be able to open a PAST enquiry (which loads the product).
+	// Discovery lists (search / shop-products) hide the product; here we only expose
+	// is_subscribed so the client can disable engage actions (Ask for Price, negotiate).
+	_ = customerView
 
 	var dbItem struct {
 		ID               string
@@ -1803,6 +1802,7 @@ func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID 
 		UpdatedAt        time.Time
 		ViewCount        uint
 		ShopId           string
+		IsSubscribed     bool
 	}
 
 	err = c.DB.Raw(query, productItemID).Scan(&dbItem).Error
@@ -1828,6 +1828,7 @@ func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID 
 	productItem.UpdatedAt = dbItem.UpdatedAt
 	productItem.ViewCount = dbItem.ViewCount
 	productItem.ShopID = dbItem.ShopId
+	productItem.IsSubscribed = dbItem.IsSubscribed
 
 	// Parse highlights PostgreSQL array format
 	if dbItem.Highlights != "" {
