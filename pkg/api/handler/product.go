@@ -774,7 +774,7 @@ func (p *ProductHandler) GetAllProductItemsAdmin() func(*gin.Context) {
 		tokenString := ctx.GetHeader("Authorization")
 
 		adminID := p.tokenService.DecodeTokenData(tokenString)
-		p.getAllProductItems(adminID)(ctx)
+		p.getAllProductItems(adminID, false)(ctx)
 	}
 }
 
@@ -794,12 +794,14 @@ func (p *ProductHandler) GetAllProductItemsAdmin() func(*gin.Context) {
 //	@Failure		400	{object}	response.Response{}	"Failed to get all product items"
 func (p *ProductHandler) GetAllProductItemsUser() func(*gin.Context) {
 	return func(ctx *gin.Context) {
-		p.getAllProductItems("")(ctx)
+		p.getAllProductItems("", true)(ctx)
 	}
 }
 
-// same functionality of get all product items for admin and user
-func (p *ProductHandler) getAllProductItems(adminID string) func(ctx *gin.Context) {
+// same functionality of get all product items for admin and user.
+// customerView=true applies the subscription visibility gate (customer-facing);
+// admin/seller callers pass false so a lapsed seller still sees their own items.
+func (p *ProductHandler) getAllProductItems(adminID string, customerView bool) func(ctx *gin.Context) {
 	return func(ctx *gin.Context) {
 
 		shopID := ctx.Param("shop_id")
@@ -873,7 +875,7 @@ func (p *ProductHandler) getAllProductItems(adminID string) func(ctx *gin.Contex
 		// Goroutine 1: Primary search (could be Elasticsearch if available, otherwise database)
 		go func() {
 			start := time.Now()
-			items, err := p.productUseCase.FindAllProductItems(ctx, adminID, keyword, catIDPtr, brandIDPtr, locIDPtr, offer, sortby, pagination, shopID)
+			items, err := p.productUseCase.FindAllProductItems(ctx, adminID, keyword, catIDPtr, brandIDPtr, locIDPtr, offer, sortby, pagination, shopID, customerView)
 			resultChan <- searchResult{
 				items:   items,
 				err:     err,
@@ -887,7 +889,7 @@ func (p *ProductHandler) getAllProductItems(adminID string) func(ctx *gin.Contex
 			start := time.Now()
 			// Add small delay to prefer primary search
 			time.Sleep(50 * time.Millisecond)
-			items, err := p.productUseCase.FindAllProductItems(ctx, adminID, keyword, catIDPtr, brandIDPtr, locIDPtr, offer, sortby, pagination, shopID)
+			items, err := p.productUseCase.FindAllProductItems(ctx, adminID, keyword, catIDPtr, brandIDPtr, locIDPtr, offer, sortby, pagination, shopID, customerView)
 			resultChan <- searchResult{
 				items:   items,
 				err:     err,
@@ -1037,7 +1039,7 @@ func (p *ProductHandler) GetProductItemsByShopID() func(ctx *gin.Context) {
 		if offer != nil {
 			offerVal = *offer
 		}
-		productItems, err := p.productUseCase.FindAllProductItems(ctx, adminID, keyword, catIDPtr, brandIDPtr, locIDPtr, offerVal, sortby, pagination, shopID)
+		productItems, err := p.productUseCase.FindAllProductItems(ctx, adminID, keyword, catIDPtr, brandIDPtr, locIDPtr, offerVal, sortby, pagination, shopID, false)
 
 		if err != nil {
 			response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get product items", err, nil)

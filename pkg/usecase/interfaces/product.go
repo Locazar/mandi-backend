@@ -32,7 +32,7 @@ type ProductUseCase interface {
 	UpdateProduct(ctx context.Context, product domain.Product) error
 
 	SaveProductItem(ctx context.Context, productItem request.ProductItem, adminID string, shopID string) error
-	FindAllProductItems(ctx context.Context, shopID string, keyword string, categoryID, brandID, locationID *string, offer string, sortby string, pagination *request.Pagination, filterByShopID string) ([]response.ProductItems, error)
+	FindAllProductItems(ctx context.Context, shopID string, keyword string, categoryID, brandID, locationID *string, offer string, sortby string, pagination *request.Pagination, filterByShopID string, customerView bool) ([]response.ProductItems, error)
 	FindLowViewProductItems(ctx context.Context, shopID string, keyword string, categoryID, brandID, locationID *string, sortby string, pagination *request.Pagination, filterByShopID *string) ([]response.ProductItems, error)
 	UpdateProductItem(ctx context.Context, productItemID string, productItem request.ProductItem) error
 	UpdateProductItemStock(ctx context.Context, productItemID string, inStock bool) error

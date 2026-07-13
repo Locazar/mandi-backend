@@ -709,7 +709,7 @@ func (c *productDatabase) UpdateProductItemStock(ctx context.Context, productIte
 }
 
 // for get all products items for a product filtered by admin_id and additional filters
-func (c *productDatabase) FindAllProductItems(ctx context.Context, adminID string, keyword string, categoryID *string, brandID *string, locationID *string, offer string, sortby string, pagination *request.Pagination, filterByShopID string) (productItems []response.ProductItems, err error) {
+func (c *productDatabase) FindAllProductItems(ctx context.Context, adminID string, keyword string, categoryID *string, brandID *string, locationID *string, offer string, sortby string, pagination *request.Pagination, filterByShopID string, customerView bool) (productItems []response.ProductItems, err error) {
 	var ids []string
 	if keyword != "" && c.ElasticClient != nil {
 		limit := 100
@@ -787,11 +787,19 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context, adminID strin
 				sc.image_url AS sub_category_image_url,
 				(SELECT COALESCE(SUM(view_count), 0) FROM product_item_views WHERE product_item_id = pi.id) AS view_count,
 				` + offerSubquery + `
-			FROM product_items pi 
-			LEFT JOIN categories c ON pi.category_id = c.id 
+			FROM product_items pi
+			LEFT JOIN categories c ON pi.category_id = c.id
 			LEFT JOIN departments d ON pi.department_id = d.id
 			LEFT JOIN sub_categories sc ON pi.sub_category_id = sc.id
+			LEFT JOIN shop_details sd ON sd.id = pi.shop_id
 			WHERE 1=1`
+
+	// Subscription gate: on customer-facing calls, hide products whose owning shop
+	// has no active subscription. Skipped for seller/admin views (customerView=false)
+	// so a lapsed seller still sees their own catalogue.
+	if customerView && subscriptionGateEnabled {
+		query += " AND " + SubscribedShopPredicate
+	}
 
 	// Add offer filter - this ensures different data sets based on offer parameter
 	log.Printf("DEBUG: offer=%s, len=%d", offer, len(offer))
