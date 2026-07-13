@@ -1421,6 +1421,13 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 	paramIndex := 1
 	whereClause := " WHERE 1=1"
 
+	// Subscription gate: hide products whose owning shop has no active subscription.
+	// Applied in the Postgres WHERE (never in Elasticsearch), so it filters
+	// ES-derived candidates during hydration too. Uses the shop_details sd alias.
+	if subscriptionGateEnabled {
+		whereClause += " AND " + SubscribedShopPredicate
+	}
+
 	// If we have IDs from Elasticsearch, filter by them
 	if useElasticsearchResults && len(ids) > 0 {
 		placeholders := make([]string, len(ids))
