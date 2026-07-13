@@ -34,6 +34,7 @@ type Shop struct {
 	AverageRating          float64   `json:"average_rating" gorm:"column:average_rating"`
 	IsFollowing            bool      `json:"is_following" gorm:"column:is_following"`
 	IsLiked                bool      `json:"is_liked" gorm:"column:is_liked"`
+	IsSubscribed           bool      `json:"is_subscribed" gorm:"column:is_subscribed"`
 	UserRating             uint      `json:"user_rating" gorm:"column:user_rating"`
 	UserReview             string    `json:"user_review" gorm:"column:user_review"`
 	DistanceKm             *float64  `json:"distance_km,omitempty" gorm:"column:distance_km"`

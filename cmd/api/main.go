@@ -17,6 +17,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/db"
 	"github.com/rohit221990/mandi-backend/pkg/di"
 	applogger "github.com/rohit221990/mandi-backend/pkg/logger"
+	"github.com/rohit221990/mandi-backend/pkg/repository"
 )
 
 func main() {
@@ -26,6 +27,9 @@ func main() {
 	if err != nil {
 		log.Fatal("Error to load the config: ", err)
 	}
+
+	// Configure the customer-facing product-visibility gate (ships dark by default).
+	repository.SetSubscriptionGateEnabled(cfg.SubscriptionGateEnabled)
 
 	// Initialise structured logger as early as possible so all subsequent
 	// startup messages are captured in the same format.
