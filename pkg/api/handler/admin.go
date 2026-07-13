@@ -3137,13 +3137,15 @@ func (a *adminHandler) handleAppErr(ctx *gin.Context, fallbackMsg string, err er
 // boundary by itself; this closes that gap for a specific route group.
 //
 // GET/HEAD requests need at least "read"; every other method needs "write".
-// super_admin always passes. Seller accounts (role == "seller") always pass
-// too and are deliberately NOT part of this check — sellers aren't assigned
-// an admin-portal role at all, and their access to their own resources is
-// governed by ownership checks elsewhere (AdminID == callerID), not by this
-// permission matrix. Only apply this middleware to route groups that are
-// exclusively admin-portal management surfaces — see the comments at each
-// call site in routes/admin.go for why a given group is safe to gate.
+// super_admin always passes. Seller/customer accounts (role == "", the
+// zero value) always pass too and are deliberately NOT part of this check —
+// role is a platform-user-only concept assigned by a super_admin via
+// CreateAdmin, never set on a self-registered seller/customer account, and
+// their access to their own resources is governed by ownership checks
+// elsewhere (AdminID == callerID), not by this permission matrix. Only apply
+// this middleware to route groups that are exclusively admin-portal
+// management surfaces — see the comments at each call site in
+// routes/admin.go for why a given group is safe to gate.
 func (a *adminHandler) RequirePermission(key domain.PermissionKey) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		callerID := a.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
@@ -3159,7 +3161,11 @@ func (a *adminHandler) RequirePermission(key domain.PermissionKey) gin.HandlerFu
 			return
 		}
 
-		if caller.Role == domain.AdminRoleSeller || caller.Role == domain.AdminRoleSuperAdmin {
+		// Blank role means a seller/customer account (role is a
+		// platform-user-only concept, never assigned to those — see
+		// SaveAdmin's comment), which always bypasses RBAC entirely since
+		// it's out of scope for admin-portal permissions.
+		if caller.Role == "" || caller.Role == domain.AdminRoleSuperAdmin {
 			ctx.Next()
 			return
 		}

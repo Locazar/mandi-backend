@@ -277,7 +277,7 @@ func (c *authUseCase) AdminLogin(ctx context.Context, loginDetails request.Login
 }
 
 func (c *authUseCase) AdminSignUpOtpSend(ctx context.Context, phone string) (string, error) {
-	
+
 	if phone == "" {
 		return "", ErrEmptyLoginCredentials
 	}
@@ -333,11 +333,14 @@ func (c *authUseCase) AdminSignUpOtpVerify(ctx context.Context, otpVerifyDetails
 		return "", utils.PrependMessageToError(err, "failed to verify admin login")
 	}
 
+	// Role is intentionally left unset: role is a platform-user-only concept
+	// (assigned by an admin-portal super_admin via CreateAdmin) — a
+	// self-registered seller/customer account must never carry one. See
+	// SaveAdmin for why this used to silently become 'super_admin'.
 	newAdmin := domain.Admin{
 		Mobile:         otpSession.Phone,
 		Status:         "active",
 		VerifiedSeller: false,
-		Role:           domain.AdminRoleSeller,
 	}
 
 	savedAdmin, err := c.adminRepo.SaveAdmin(ctx, newAdmin)
