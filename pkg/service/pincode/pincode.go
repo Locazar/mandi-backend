@@ -195,6 +195,12 @@ func (c *Client) fetch(ctx context.Context, pincode string) ([]apiResult, error)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build request: %w", err)
 	}
+	// Go's default "Go-http-client/1.1" User-Agent gets connection-reset by
+	// this upstream's bot mitigation — confirmed by reproducing the exact
+	// failure with `curl -A "Go-http-client/1.1"` while a normal curl UA
+	// succeeds every time. A browser-like UA is required, not optional.
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+	req.Header.Set("Accept", "application/json")
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
