@@ -25,7 +25,12 @@ func (r *platformUserRepository) ListAdmins(ctx context.Context, roleFilter stri
 	if roleFilter != "" {
 		query = query.Where("role = ?", roleFilter)
 	} else {
-		query = query.Where("role <> ?", domain.AdminRoleSeller)
+		// Exclude sellers explicitly, and also NULL/blank role — a plain
+		// "role <> 'seller'" never matches NULL or '' in SQL (NULL <> x is
+		// NULL, not true), so a legacy admin row with an unset role would
+		// silently leak into this "platform users only" listing instead of
+		// being excluded like every other seller account.
+		query = query.Where("role <> ? AND role IS NOT NULL AND role <> ''", domain.AdminRoleSeller)
 	}
 
 	err := query.
