@@ -189,18 +189,27 @@ func (c *adminDatabase) SaveAdmin(ctx context.Context, admin domain.Admin) (doma
 	if admin.Status == "" {
 		admin.Status = domain.AdminStatusActive
 	}
+	// role has a DB column default of 'super_admin' (migration 000007), and
+	// this column used to be missing from the INSERT below entirely, so
+	// every caller that left Role unset (e.g. seller/customer self-signup —
+	// role is a platform-user-only concept, intentionally never set for
+	// these) silently got 'super_admin' from that column default — a real
+	// seller-to-super-admin privilege escalation bug. Now explicitly
+	// inserting admin.Role (empty string for sellers/customers) sidesteps
+	// the column default entirely, since DEFAULT only applies when a column
+	// is omitted from the INSERT, not when explicitly set to "".
 
 	// First insert into admins table
 	query := `INSERT INTO admins (id, full_name, email, mobile, password, user_name,
 		address_line1, address_line2, city, state, country, pincode,
 		bank_account_number, bank_ifsc, pan, aadhaar_last4, aadhaar_verified,
-		verified_seller, status, latitude, longitude, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
-		$12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)`
+		verified_seller, status, role, latitude, longitude, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
+		$12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)`
 
 	err = tx.Exec(query, admin.ID, admin.FullName, admin.Email, admin.Mobile, admin.Password, admin.UserName,
 		admin.AddressLine1, admin.AddressLine2, admin.City, admin.State, admin.Country, admin.Pincode,
 		encBankAccount, encBankIFSC, encPAN, admin.AadhaarLast4, admin.AadhaarVerified,
-		admin.VerifiedSeller, admin.Status, admin.Latitude, admin.Longitude, time.Now(), time.Now()).Error
+		admin.VerifiedSeller, admin.Status, admin.Role, admin.Latitude, admin.Longitude, time.Now(), time.Now()).Error
 	if err != nil {
 		tx.Rollback()
 		return domain.Admin{}, err

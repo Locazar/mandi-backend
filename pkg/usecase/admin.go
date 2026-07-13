@@ -145,9 +145,8 @@ func (c *adminUseCase) findOrCreateAdminByMobile(ctx context.Context, details do
 		}
 		details.Password = string(hashPass)
 	}
-	if details.Role == "" {
-		details.Role = domain.AdminRoleSeller
-	}
+	// Role stays unset here — see SaveAdmin's comment: role is a
+	// platform-user-only concept, never assigned to a seller/customer record.
 	if details.Status == "" {
 		details.Status = "active"
 	}
@@ -264,12 +263,12 @@ func (c *adminUseCase) AdminSignUpOtpVerify(ctx context.Context,
 		return admin.ID, domain.ShopDetails{}, nil
 	}
 
-	// Admin doesn't exist, create new admin
+	// Admin doesn't exist, create new admin — role left unset, see
+	// SaveAdmin's comment: it's a platform-user-only concept.
 	newAdmin := domain.Admin{
 		Mobile:         otpSession.Phone,
 		Status:         "active",
 		VerifiedSeller: false,
-		Role:           domain.AdminRoleSeller,
 	}
 
 	savedAdmin, err := c.adminRepo.SaveAdmin(ctx, newAdmin)
@@ -857,12 +856,19 @@ func (c *adminUseCase) GetRoleByName(ctx context.Context, name string) (domain.R
 }
 
 func (c *adminUseCase) GetPermissionsForRole(ctx context.Context, roleName string) ([]domain.RolePermissionGrant, error) {
-	if roleName == domain.RoleNameSuperAdmin || roleName == "" {
+	if roleName == domain.RoleNameSuperAdmin {
 		grants := make([]domain.RolePermissionGrant, 0, len(domain.AllPermissionKeys()))
 		for _, key := range domain.AllPermissionKeys() {
 			grants = append(grants, domain.RolePermissionGrant{PermissionKey: key, AccessLevel: domain.AccessLevelWrite})
 		}
 		return grants, nil
+	}
+	// Blank role means a seller/customer account, not a platform user at
+	// all (role is assigned only via CreateAdmin) — it must resolve to no
+	// admin-portal permissions, never the super_admin synthesized grant set
+	// that used to apply here.
+	if roleName == "" {
+		return []domain.RolePermissionGrant{}, nil
 	}
 	role, err := c.adminRepo.GetRoleByName(ctx, roleName)
 	if err != nil {
