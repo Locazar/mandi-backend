@@ -103,7 +103,7 @@ type ProductRepository interface {
 	GetCategoryImageByID(ctx context.Context, imageID string) (response.CategoryImage, error)
 	UpdateCategoryImage(ctx context.Context, image domain.CategoryImage) error
 	DeleteCategoryImage(ctx context.Context, imageID string) error
-	GetProductItemByID(ctx context.Context, productItemID string) (response.ProductItems, error)
+	GetProductItemByID(ctx context.Context, productItemID string, customerView bool) (response.ProductItems, error)
 	IncrementProductItemViewCount(ctx context.Context, productItemID string, adminID string) error
 	GetProductItemViewCount(ctx context.Context, productItemID string, adminID string) (uint, error)
 

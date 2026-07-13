@@ -1476,8 +1476,8 @@ func (c *productUseCase) DeleteCategoryImage(ctx context.Context, imageID string
 	return nil
 }
 
-func (c *productUseCase) GetProductItemByID(ctx context.Context, productItemID string) (response.ProductItems, error) {
-	productItem, err := c.productRepo.GetProductItemByID(ctx, productItemID)
+func (c *productUseCase) GetProductItemByID(ctx context.Context, productItemID string, customerView bool) (response.ProductItems, error) {
+	productItem, err := c.productRepo.GetProductItemByID(ctx, productItemID, customerView)
 	if err != nil {
 		return response.ProductItems{}, utils.PrependMessageToError(err, "failed to get product item by id")
 	}

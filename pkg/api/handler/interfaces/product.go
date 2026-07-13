@@ -55,6 +55,7 @@ type ProductHandler interface {
 	GetProductSearchFilters(ctx *gin.Context)
 	GetProductSearchLocations(ctx *gin.Context)
 	GetProductItemByID(ctx *gin.Context)
+	GetProductItemByIDUser(ctx *gin.Context)
 	DeleteProductItem(ctx *gin.Context)
 	UpdateProductItem(ctx *gin.Context)
 	UpdateProductItemStock(ctx *gin.Context)

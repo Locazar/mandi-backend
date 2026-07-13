@@ -1768,7 +1768,7 @@ func (c *productDatabase) DeleteCategoryImage(ctx context.Context, imageID strin
 	return c.DB.Exec(query, imageID).Error
 }
 
-func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID string) (productItem response.ProductItems, err error) {
+func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID string, customerView bool) (productItem response.ProductItems, err error) {
 	query := `SELECT pi.id, pi.sub_category_name, pi.category_id, pi.department_id, pi.sub_category_id, pi.stock,
 	           sc.name AS category_name, mc.name AS main_category_name,
 	           pi.dynamic_fields, pi.created_at, pi.updated_at, pi.shop_id,
@@ -1776,7 +1776,16 @@ func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID 
 	       FROM product_items pi
 	       LEFT JOIN categories sc ON pi.category_id = sc.id
 	       LEFT JOIN categories mc ON pi.category_id = mc.id
-	       WHERE pi.id = $1;`
+	       LEFT JOIN shop_details sd ON sd.id = pi.shop_id
+	       WHERE pi.id = $1`
+
+	// Subscription gate: on customer-facing calls, a product whose owning shop has
+	// no active subscription is treated as not-found (handler returns 404). Admin/
+	// seller views (customerView=false) are never gated.
+	if customerView && subscriptionGateEnabled {
+		query += " AND " + SubscribedShopPredicate
+	}
+	query += ";"
 
 	var dbItem struct {
 		ID               string
@@ -1799,6 +1808,11 @@ func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID 
 	err = c.DB.Raw(query, productItemID).Scan(&dbItem).Error
 	if err != nil {
 		return
+	}
+	// Raw().Scan() yields no error for zero rows; treat an empty result as
+	// not-found so the handler can return 404 (also the gated-out case above).
+	if dbItem.ID == "" {
+		return productItem, gorm.ErrRecordNotFound
 	}
 
 	productItem.ID = dbItem.ID

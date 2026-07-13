@@ -20,6 +20,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jinzhu/copier"
+	"gorm.io/gorm"
 
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
@@ -2433,12 +2434,27 @@ func (p *ProductHandler) DeleteCategoryImage(ctx *gin.Context) {
 //	@Failure		400				{object}	response.Response{}	"Invalid product item ID"
 //	@Failure		500				{object}	response.Response{}	"Internal server error"
 //	@Router			/products/item/{product_item_id} [get]
+// GetProductItemByID is the admin/seller entry point (not subscription-gated).
 func (p *ProductHandler) GetProductItemByID(ctx *gin.Context) {
+	p.getProductItemByID(ctx, false)
+}
+
+// GetProductItemByIDUser is the customer entry point: a product whose owning
+// shop has no active subscription is hidden (404) when the gate is enabled.
+func (p *ProductHandler) GetProductItemByIDUser(ctx *gin.Context) {
+	p.getProductItemByID(ctx, true)
+}
+
+func (p *ProductHandler) getProductItemByID(ctx *gin.Context, customerView bool) {
 	productItemID := ctx.Param("product_item_id")
 
-	productItem, err := p.productUseCase.GetProductItemByID(ctx, productItemID)
+	productItem, err := p.productUseCase.GetProductItemByID(ctx, productItemID, customerView)
 	fmt.Printf("Fetched product item: %+v\n", productItem)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			response.ErrorResponse(ctx, http.StatusNotFound, "Product item not found", err, nil)
+			return
+		}
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get product item", err, nil)
 		return
 	}
