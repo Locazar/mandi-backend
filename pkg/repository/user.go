@@ -478,6 +478,7 @@ func (c *userDatabase) SearchShopList(ctx context.Context, reqData request.Searc
 			sd.state,
 			sd.pincode,
 			sd.shop_verification_status,
+			`+IsSubscribedColumn+`,
 			%s,
 			sd.created_at,
 			sd.updated_at
@@ -600,6 +601,7 @@ func (c *userDatabase) FindShopByID(ctx context.Context, shopID string) (respons
 			sd.shop_type, sd.shop_verification_status, sd.shop_image_url,
 			sd.latitude, sd.longitude,
 			sd.created_at, sd.updated_at,
+			` + IsSubscribedColumn + `,
 			CASE
 				WHEN st.status = 'open' AND (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::time BETWEEN st.open_time::time AND st.close_time::time THEN true
 				ELSE false

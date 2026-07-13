@@ -368,8 +368,8 @@ func (c *productUseCase) isProductVariationCombinationExist(productID string, va
 }
 
 // for get all productItem for a specific product
-func (c *productUseCase) FindAllProductItems(ctx context.Context, adminId string, keyword string, categoryID, brandID, locationID *string, offer string, sortby string, pagination *request.Pagination, filterByShopID string) ([]response.ProductItems, error) {
-	productItems, err := c.productRepo.FindAllProductItems(ctx, adminId, keyword, categoryID, brandID, locationID, offer, sortby, pagination, filterByShopID)
+func (c *productUseCase) FindAllProductItems(ctx context.Context, adminId string, keyword string, categoryID, brandID, locationID *string, offer string, sortby string, pagination *request.Pagination, filterByShopID string, customerView bool) ([]response.ProductItems, error) {
+	productItems, err := c.productRepo.FindAllProductItems(ctx, adminId, keyword, categoryID, brandID, locationID, offer, sortby, pagination, filterByShopID, customerView)
 	if err != nil {
 		return productItems, err
 	}
@@ -1476,8 +1476,8 @@ func (c *productUseCase) DeleteCategoryImage(ctx context.Context, imageID string
 	return nil
 }
 
-func (c *productUseCase) GetProductItemByID(ctx context.Context, productItemID string) (response.ProductItems, error) {
-	productItem, err := c.productRepo.GetProductItemByID(ctx, productItemID)
+func (c *productUseCase) GetProductItemByID(ctx context.Context, productItemID string, customerView bool) (response.ProductItems, error) {
+	productItem, err := c.productRepo.GetProductItemByID(ctx, productItemID, customerView)
 	if err != nil {
 		return response.ProductItems{}, utils.PrependMessageToError(err, "failed to get product item by id")
 	}

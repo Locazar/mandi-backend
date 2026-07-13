@@ -107,6 +107,7 @@ type ProductItems struct {
 	ViewCount           uint                   `json:"view_count"`
 	DistanceKM          *float64               `json:"distance_km,omitempty"`
 	Stock               bool                   `json:"stock"`
+	IsSubscribed        bool                   `json:"is_subscribed"`
 }
 
 type ProductVariationValue struct {

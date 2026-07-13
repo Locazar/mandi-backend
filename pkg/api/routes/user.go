@@ -73,9 +73,9 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 
 			productItem := product.Group("/items")
 			{
-				product.GET("/:product_item_id", productHandler.GetProductItemByID)
+				product.GET("/:product_item_id", productHandler.GetProductItemByIDUser)
 				productItem.GET("/", productHandler.GetAllProductItemsUser())
-				productItem.GET("/:product_item_id", productHandler.GetProductItemByID)
+				productItem.GET("/:product_item_id", productHandler.GetProductItemByIDUser)
 				productItem.GET("/:product_item_id/filters", productHandler.FindProductItemFilters)
 			}
 

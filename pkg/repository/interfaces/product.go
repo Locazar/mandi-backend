@@ -48,7 +48,7 @@ type ProductRepository interface {
 
 	// product items
 	FindProductItemByID(ctx context.Context, productItemID string) (domain.ProductItem, error)
-	FindAllProductItems(ctx context.Context, adminID string, keyword string, categoryID, brandID, locationID *string, offer string, sortby string, pagination *request.Pagination, filterByShopID string) ([]response.ProductItems, error)
+	FindAllProductItems(ctx context.Context, adminID string, keyword string, categoryID, brandID, locationID *string, offer string, sortby string, pagination *request.Pagination, filterByShopID string, customerView bool) ([]response.ProductItems, error)
 	FindLowViewProductItems(ctx context.Context, adminID string, keyword string, categoryID, brandID, locationID *string, sortby string, pagination *request.Pagination, filterByShopID *string) ([]response.ProductItems, error)
 	DeleteProductItem(ctx context.Context, productItemID string) error
 	FindProductItemFilters(ctx context.Context, adminID string, shopID string) ([]domain.ProductItemFilterType, error)
@@ -103,7 +103,7 @@ type ProductRepository interface {
 	GetCategoryImageByID(ctx context.Context, imageID string) (response.CategoryImage, error)
 	UpdateCategoryImage(ctx context.Context, image domain.CategoryImage) error
 	DeleteCategoryImage(ctx context.Context, imageID string) error
-	GetProductItemByID(ctx context.Context, productItemID string) (response.ProductItems, error)
+	GetProductItemByID(ctx context.Context, productItemID string, customerView bool) (response.ProductItems, error)
 	IncrementProductItemViewCount(ctx context.Context, productItemID string, adminID string) error
 	GetProductItemViewCount(ctx context.Context, productItemID string, adminID string) (uint, error)
 

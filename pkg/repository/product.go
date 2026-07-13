@@ -709,7 +709,7 @@ func (c *productDatabase) UpdateProductItemStock(ctx context.Context, productIte
 }
 
 // for get all products items for a product filtered by admin_id and additional filters
-func (c *productDatabase) FindAllProductItems(ctx context.Context, adminID string, keyword string, categoryID *string, brandID *string, locationID *string, offer string, sortby string, pagination *request.Pagination, filterByShopID string) (productItems []response.ProductItems, err error) {
+func (c *productDatabase) FindAllProductItems(ctx context.Context, adminID string, keyword string, categoryID *string, brandID *string, locationID *string, offer string, sortby string, pagination *request.Pagination, filterByShopID string, customerView bool) (productItems []response.ProductItems, err error) {
 	var ids []string
 	if keyword != "" && c.ElasticClient != nil {
 		limit := 100
@@ -787,11 +787,19 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context, adminID strin
 				sc.image_url AS sub_category_image_url,
 				(SELECT COALESCE(SUM(view_count), 0) FROM product_item_views WHERE product_item_id = pi.id) AS view_count,
 				` + offerSubquery + `
-			FROM product_items pi 
-			LEFT JOIN categories c ON pi.category_id = c.id 
+			FROM product_items pi
+			LEFT JOIN categories c ON pi.category_id = c.id
 			LEFT JOIN departments d ON pi.department_id = d.id
 			LEFT JOIN sub_categories sc ON pi.sub_category_id = sc.id
+			LEFT JOIN shop_details sd ON sd.id = pi.shop_id
 			WHERE 1=1`
+
+	// Subscription gate: on customer-facing calls, hide products whose owning shop
+	// has no active subscription. Skipped for seller/admin views (customerView=false)
+	// so a lapsed seller still sees their own catalogue.
+	if customerView && subscriptionGateEnabled {
+		query += " AND " + SubscribedShopPredicate
+	}
 
 	// Add offer filter - this ensures different data sets based on offer parameter
 	log.Printf("DEBUG: offer=%s, len=%d", offer, len(offer))
@@ -1421,6 +1429,13 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 	paramIndex := 1
 	whereClause := " WHERE 1=1"
 
+	// Subscription gate: hide products whose owning shop has no active subscription.
+	// Applied in the Postgres WHERE (never in Elasticsearch), so it filters
+	// ES-derived candidates during hydration too. Uses the shop_details sd alias.
+	if subscriptionGateEnabled {
+		whereClause += " AND " + SubscribedShopPredicate
+	}
+
 	// If we have IDs from Elasticsearch, filter by them
 	if useElasticsearchResults && len(ids) > 0 {
 		placeholders := make([]string, len(ids))
@@ -1753,15 +1768,23 @@ func (c *productDatabase) DeleteCategoryImage(ctx context.Context, imageID strin
 	return c.DB.Exec(query, imageID).Error
 }
 
-func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID string) (productItem response.ProductItems, err error) {
+func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID string, customerView bool) (productItem response.ProductItems, err error) {
 	query := `SELECT pi.id, pi.sub_category_name, pi.category_id, pi.department_id, pi.sub_category_id, pi.stock,
 	           sc.name AS category_name, mc.name AS main_category_name,
 	           pi.dynamic_fields, pi.created_at, pi.updated_at, pi.shop_id,
-	           (SELECT COALESCE(SUM(view_count), 0) FROM product_item_views WHERE product_item_id = pi.id) AS view_count
+	           (SELECT COALESCE(SUM(view_count), 0) FROM product_item_views WHERE product_item_id = pi.id) AS view_count,
+	           ` + IsSubscribedColumn + `
 	       FROM product_items pi
 	       LEFT JOIN categories sc ON pi.category_id = sc.id
 	       LEFT JOIN categories mc ON pi.category_id = mc.id
+	       LEFT JOIN shop_details sd ON sd.id = pi.shop_id
 	       WHERE pi.id = $1;`
+
+	// Item detail is intentionally NOT hidden when the seller is unsubscribed: a
+	// customer must still be able to open a PAST enquiry (which loads the product).
+	// Discovery lists (search / shop-products) hide the product; here we only expose
+	// is_subscribed so the client can disable engage actions (Ask for Price, negotiate).
+	_ = customerView
 
 	var dbItem struct {
 		ID               string
@@ -1779,11 +1802,17 @@ func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID 
 		UpdatedAt        time.Time
 		ViewCount        uint
 		ShopId           string
+		IsSubscribed     bool
 	}
 
 	err = c.DB.Raw(query, productItemID).Scan(&dbItem).Error
 	if err != nil {
 		return
+	}
+	// Raw().Scan() yields no error for zero rows; treat an empty result as
+	// not-found so the handler can return 404 (also the gated-out case above).
+	if dbItem.ID == "" {
+		return productItem, gorm.ErrRecordNotFound
 	}
 
 	productItem.ID = dbItem.ID
@@ -1799,6 +1828,7 @@ func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID 
 	productItem.UpdatedAt = dbItem.UpdatedAt
 	productItem.ViewCount = dbItem.ViewCount
 	productItem.ShopID = dbItem.ShopId
+	productItem.IsSubscribed = dbItem.IsSubscribed
 
 	// Parse highlights PostgreSQL array format
 	if dbItem.Highlights != "" {

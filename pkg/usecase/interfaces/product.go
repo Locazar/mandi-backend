@@ -32,7 +32,7 @@ type ProductUseCase interface {
 	UpdateProduct(ctx context.Context, product domain.Product) error
 
 	SaveProductItem(ctx context.Context, productItem request.ProductItem, adminID string, shopID string) error
-	FindAllProductItems(ctx context.Context, shopID string, keyword string, categoryID, brandID, locationID *string, offer string, sortby string, pagination *request.Pagination, filterByShopID string) ([]response.ProductItems, error)
+	FindAllProductItems(ctx context.Context, shopID string, keyword string, categoryID, brandID, locationID *string, offer string, sortby string, pagination *request.Pagination, filterByShopID string, customerView bool) ([]response.ProductItems, error)
 	FindLowViewProductItems(ctx context.Context, shopID string, keyword string, categoryID, brandID, locationID *string, sortby string, pagination *request.Pagination, filterByShopID *string) ([]response.ProductItems, error)
 	UpdateProductItem(ctx context.Context, productItemID string, productItem request.ProductItem) error
 	UpdateProductItemStock(ctx context.Context, productItemID string, inStock bool) error
@@ -93,7 +93,7 @@ type ProductUseCase interface {
 	GetCategoryImageByID(ctx context.Context, imageID string) (response.CategoryImage, error)
 	UpdateCategoryImage(ctx context.Context, imageID string, image request.CategoryImage) error
 	DeleteCategoryImage(ctx context.Context, imageID string) error
-	GetProductItemByID(ctx context.Context, productItemID string) (response.ProductItems, error)
+	GetProductItemByID(ctx context.Context, productItemID string, customerView bool) (response.ProductItems, error)
 	IncrementProductItemViewCount(ctx context.Context, productItemID string, adminID string) error
 	GetProductItemViewCount(ctx context.Context, productItemID string, adminID string) (uint, error)
 

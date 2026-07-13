@@ -20,6 +20,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jinzhu/copier"
+	"gorm.io/gorm"
 
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
@@ -774,7 +775,7 @@ func (p *ProductHandler) GetAllProductItemsAdmin() func(*gin.Context) {
 		tokenString := ctx.GetHeader("Authorization")
 
 		adminID := p.tokenService.DecodeTokenData(tokenString)
-		p.getAllProductItems(adminID)(ctx)
+		p.getAllProductItems(adminID, false)(ctx)
 	}
 }
 
@@ -794,12 +795,14 @@ func (p *ProductHandler) GetAllProductItemsAdmin() func(*gin.Context) {
 //	@Failure		400	{object}	response.Response{}	"Failed to get all product items"
 func (p *ProductHandler) GetAllProductItemsUser() func(*gin.Context) {
 	return func(ctx *gin.Context) {
-		p.getAllProductItems("")(ctx)
+		p.getAllProductItems("", true)(ctx)
 	}
 }
 
-// same functionality of get all product items for admin and user
-func (p *ProductHandler) getAllProductItems(adminID string) func(ctx *gin.Context) {
+// same functionality of get all product items for admin and user.
+// customerView=true applies the subscription visibility gate (customer-facing);
+// admin/seller callers pass false so a lapsed seller still sees their own items.
+func (p *ProductHandler) getAllProductItems(adminID string, customerView bool) func(ctx *gin.Context) {
 	return func(ctx *gin.Context) {
 
 		shopID := ctx.Param("shop_id")
@@ -873,7 +876,7 @@ func (p *ProductHandler) getAllProductItems(adminID string) func(ctx *gin.Contex
 		// Goroutine 1: Primary search (could be Elasticsearch if available, otherwise database)
 		go func() {
 			start := time.Now()
-			items, err := p.productUseCase.FindAllProductItems(ctx, adminID, keyword, catIDPtr, brandIDPtr, locIDPtr, offer, sortby, pagination, shopID)
+			items, err := p.productUseCase.FindAllProductItems(ctx, adminID, keyword, catIDPtr, brandIDPtr, locIDPtr, offer, sortby, pagination, shopID, customerView)
 			resultChan <- searchResult{
 				items:   items,
 				err:     err,
@@ -887,7 +890,7 @@ func (p *ProductHandler) getAllProductItems(adminID string) func(ctx *gin.Contex
 			start := time.Now()
 			// Add small delay to prefer primary search
 			time.Sleep(50 * time.Millisecond)
-			items, err := p.productUseCase.FindAllProductItems(ctx, adminID, keyword, catIDPtr, brandIDPtr, locIDPtr, offer, sortby, pagination, shopID)
+			items, err := p.productUseCase.FindAllProductItems(ctx, adminID, keyword, catIDPtr, brandIDPtr, locIDPtr, offer, sortby, pagination, shopID, customerView)
 			resultChan <- searchResult{
 				items:   items,
 				err:     err,
@@ -1037,7 +1040,7 @@ func (p *ProductHandler) GetProductItemsByShopID() func(ctx *gin.Context) {
 		if offer != nil {
 			offerVal = *offer
 		}
-		productItems, err := p.productUseCase.FindAllProductItems(ctx, adminID, keyword, catIDPtr, brandIDPtr, locIDPtr, offerVal, sortby, pagination, shopID)
+		productItems, err := p.productUseCase.FindAllProductItems(ctx, adminID, keyword, catIDPtr, brandIDPtr, locIDPtr, offerVal, sortby, pagination, shopID, false)
 
 		if err != nil {
 			response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get product items", err, nil)
@@ -2431,12 +2434,27 @@ func (p *ProductHandler) DeleteCategoryImage(ctx *gin.Context) {
 //	@Failure		400				{object}	response.Response{}	"Invalid product item ID"
 //	@Failure		500				{object}	response.Response{}	"Internal server error"
 //	@Router			/products/item/{product_item_id} [get]
+// GetProductItemByID is the admin/seller entry point (not subscription-gated).
 func (p *ProductHandler) GetProductItemByID(ctx *gin.Context) {
+	p.getProductItemByID(ctx, false)
+}
+
+// GetProductItemByIDUser is the customer entry point: a product whose owning
+// shop has no active subscription is hidden (404) when the gate is enabled.
+func (p *ProductHandler) GetProductItemByIDUser(ctx *gin.Context) {
+	p.getProductItemByID(ctx, true)
+}
+
+func (p *ProductHandler) getProductItemByID(ctx *gin.Context, customerView bool) {
 	productItemID := ctx.Param("product_item_id")
 
-	productItem, err := p.productUseCase.GetProductItemByID(ctx, productItemID)
+	productItem, err := p.productUseCase.GetProductItemByID(ctx, productItemID, customerView)
 	fmt.Printf("Fetched product item: %+v\n", productItem)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			response.ErrorResponse(ctx, http.StatusNotFound, "Product item not found", err, nil)
+			return
+		}
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get product item", err, nil)
 		return
 	}
