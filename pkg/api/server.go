@@ -169,5 +169,33 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 }
 
 func (s *ServerHTTP) Start() error {
-	return s.Engine.Run(":3000")
+	return http.ListenAndServe(":3000", alwaysCORS(s.Engine))
+}
+
+// alwaysCORS sets CORS headers on every response and short-circuits OPTIONS
+// preflights outside of Gin's router entirely — before Gin (and its
+// RedirectTrailingSlash) ever sees the request.
+//
+// Why this is needed: some registered routes end in a trailing slash (e.g.
+// department.POST("/", ...) -> "/departments/") and some don't (e.g.
+// attrOption.DELETE("/:option_id", ...) -> ".../options/:option_id"). Any
+// request whose path trailing-slash doesn't match its route's registration
+// makes Gin's RedirectTrailingSlash issue an internal 301/307 redirect
+// *before* engine.Use() middleware — including CORSMiddleware — runs on
+// that request, so the redirect response carries no CORS headers and the
+// browser reports a CORS failure on the preflight instead of following a
+// redirect. Setting headers here, before Gin's router runs at all, means
+// they're present on every response Gin produces (including a redirect),
+// and preflights never depend on routing/redirect behavior succeeding.
+func alwaysCORS(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type, Authorization")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
