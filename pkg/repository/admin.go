@@ -203,13 +203,13 @@ func (c *adminDatabase) SaveAdmin(ctx context.Context, admin domain.Admin) (doma
 	query := `INSERT INTO admins (id, full_name, email, mobile, password, user_name,
 		address_line1, address_line2, city, state, country, pincode,
 		bank_account_number, bank_ifsc, pan, aadhaar_last4, aadhaar_verified,
-		verified_seller, status, role, latitude, longitude, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
-		$12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)`
+		verified_seller, status, role, referral_coupon_id, latitude, longitude, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
+		$12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)`
 
 	err = tx.Exec(query, admin.ID, admin.FullName, admin.Email, admin.Mobile, admin.Password, admin.UserName,
 		admin.AddressLine1, admin.AddressLine2, admin.City, admin.State, admin.Country, admin.Pincode,
 		encBankAccount, encBankIFSC, encPAN, admin.AadhaarLast4, admin.AadhaarVerified,
-		admin.VerifiedSeller, admin.Status, admin.Role, admin.Latitude, admin.Longitude, time.Now(), time.Now()).Error
+		admin.VerifiedSeller, admin.Status, admin.Role, admin.ReferralCouponID, admin.Latitude, admin.Longitude, time.Now(), time.Now()).Error
 	if err != nil {
 		tx.Rollback()
 		return domain.Admin{}, err
