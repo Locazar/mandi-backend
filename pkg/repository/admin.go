@@ -1777,3 +1777,116 @@ func (c *adminDatabase) DeleteShopReferral(ctx context.Context, referralID strin
 	}
 	return nil
 }
+
+// ── Category requests ────────────────────────────────────────────────────
+
+func (c *adminDatabase) CreateCategoryRequest(ctx context.Context, req domain.CategoryRequest) (domain.CategoryRequest, error) {
+	if err := c.DB.WithContext(ctx).Create(&req).Error; err != nil {
+		return domain.CategoryRequest{}, err
+	}
+	return req, nil
+}
+
+func (c *adminDatabase) ListCategoryRequests(ctx context.Context, status string, pagination request.Pagination) ([]domain.CategoryRequest, error) {
+	var requests []domain.CategoryRequest
+	query := c.DB.WithContext(ctx).Model(&domain.CategoryRequest{})
+	if status != "" {
+		query = query.Where("status = ?", status)
+	}
+	if err := query.
+		Order("created_at DESC").
+		Offset(int(pagination.Offset)).
+		Limit(int(pagination.Limit)).
+		Find(&requests).Error; err != nil {
+		return nil, err
+	}
+	c.attachCategoryRequestNames(ctx, requests)
+	return requests, nil
+}
+
+func (c *adminDatabase) ListCategoryRequestsByAdmin(ctx context.Context, adminID string, pagination request.Pagination) ([]domain.CategoryRequest, error) {
+	var requests []domain.CategoryRequest
+	if err := c.DB.WithContext(ctx).
+		Where("admin_id = ?", adminID).
+		Order("created_at DESC").
+		Offset(int(pagination.Offset)).
+		Limit(int(pagination.Limit)).
+		Find(&requests).Error; err != nil {
+		return nil, err
+	}
+	return requests, nil
+}
+
+func (c *adminDatabase) GetCategoryRequestByID(ctx context.Context, id string) (domain.CategoryRequest, error) {
+	var req domain.CategoryRequest
+	if err := c.DB.WithContext(ctx).Where("id = ?", id).First(&req).Error; err != nil {
+		return domain.CategoryRequest{}, err
+	}
+	return req, nil
+}
+
+func (c *adminDatabase) UpdateCategoryRequestStatus(ctx context.Context, id string, status domain.CategoryRequestStatus, adminResponse string) error {
+	result := c.DB.WithContext(ctx).Model(&domain.CategoryRequest{}).
+		Where("id = ?", id).
+		Updates(map[string]interface{}{
+			"status":         status,
+			"admin_response": adminResponse,
+		})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+// attachCategoryRequestNames batch-populates the transient SellerName/ShopName
+// display fields for admin-portal's list view — two grouped queries instead
+// of N+1 per-row lookups.
+func (c *adminDatabase) attachCategoryRequestNames(ctx context.Context, requests []domain.CategoryRequest) {
+	if len(requests) == 0 {
+		return
+	}
+	adminIDs := make([]string, 0, len(requests))
+	shopIDs := make([]string, 0, len(requests))
+	for _, r := range requests {
+		adminIDs = append(adminIDs, r.AdminID)
+		if r.ShopID != "" {
+			shopIDs = append(shopIDs, r.ShopID)
+		}
+	}
+
+	adminNames := map[string]string{}
+	var admins []struct {
+		ID       string
+		FullName string
+	}
+	if err := c.DB.WithContext(ctx).Table("admins").
+		Select("id, full_name").Where("id IN ?", adminIDs).Find(&admins).Error; err == nil {
+		for _, a := range admins {
+			adminNames[a.ID] = a.FullName
+		}
+	}
+
+	shopNames := map[string]string{}
+	if len(shopIDs) > 0 {
+		var shops []struct {
+			ID       string
+			ShopName string
+		}
+		if err := c.DB.WithContext(ctx).Table("shop_details").
+			Select("id, shop_name").Where("id IN ?", shopIDs).Find(&shops).Error; err == nil {
+			for _, s := range shops {
+				shopNames[s.ID] = s.ShopName
+			}
+		}
+	}
+
+	for i := range requests {
+		requests[i].SellerName = adminNames[requests[i].AdminID]
+		if requests[i].ShopID != "" {
+			requests[i].ShopName = shopNames[requests[i].ShopID]
+		}
+	}
+}

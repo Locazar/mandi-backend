@@ -146,6 +146,19 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			roles.DELETE("/:role_id", adminHandler.DeleteRole)
 		}
 
+		// Category requests: a seller asking for a department/category
+		// that's missing (seller-app "More" section). Create/mine are
+		// shared with seller-app (no RequirePermission — sellers carry a
+		// blank role and would bypass it anyway, but kept explicit here for
+		// clarity); the review-queue list/update are admin-portal only.
+		categoryRequests := api.Group("/category-requests")
+		{
+			categoryRequests.POST("/", middleware.TrimSpaces(), adminHandler.CreateCategoryRequest)
+			categoryRequests.GET("/mine", adminHandler.ListMyCategoryRequests)
+			categoryRequests.GET("/", adminHandler.RequirePermission(domain.PermCanManageCatalog), adminHandler.ListCategoryRequests)
+			categoryRequests.PATCH("/:request_id/status", adminHandler.RequirePermission(domain.PermCanManageCatalog), middleware.TrimSpaces(), adminHandler.UpdateCategoryRequestStatus)
+		}
+
 		// Sales Executive referral program — CRUD over the shop<->platform
 		// user attachments created automatically when a seller enters a
 		// valid referral coupon ID during shop onboarding (see CreateShop).
