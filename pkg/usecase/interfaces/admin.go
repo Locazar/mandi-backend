@@ -151,6 +151,13 @@ type AdminUseCase interface {
 	// called on account deletion so an already-issued token can't keep
 	// working against a deleted account until it naturally expires.
 	RevokeAdminSessions(ctx context.Context, adminID string) error
+
+	// Category requests: a seller asking for a department/category that
+	// isn't in the existing list.
+	CreateCategoryRequest(ctx context.Context, callerID string, req domain.CategoryRequest) (domain.CategoryRequest, error)
+	ListCategoryRequests(ctx context.Context, callerID, status string, pagination request.Pagination) ([]domain.CategoryRequest, error)
+	ListMyCategoryRequests(ctx context.Context, callerID string, pagination request.Pagination) ([]domain.CategoryRequest, error)
+	UpdateCategoryRequestStatus(ctx context.Context, callerID, requestID string, status domain.CategoryRequestStatus, adminResponse string) error
 }
 
 // GetCategory(ctx context.Context) (helper.Category, any)

@@ -142,6 +142,12 @@ type AdminHandler interface {
 	UpdateRole(ctx *gin.Context)
 	DeleteRole(ctx *gin.Context)
 
+	// Category requests (seller asks for a missing department/category)
+	CreateCategoryRequest(ctx *gin.Context)
+	ListCategoryRequests(ctx *gin.Context)
+	ListMyCategoryRequests(ctx *gin.Context)
+	UpdateCategoryRequestStatus(ctx *gin.Context)
+
 	// Sales Executive referral program
 	CreateShopReferral(ctx *gin.Context)
 	ListShopReferrals(ctx *gin.Context)

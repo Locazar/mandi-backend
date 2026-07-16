@@ -3118,6 +3118,78 @@ func (a *adminHandler) DeleteRole(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Role deleted successfully")
 }
 
+// ── Category requests ────────────────────────────────────────────────────
+
+type categoryRequestBody struct {
+	DepartmentName string `json:"department_name" binding:"required"`
+	CategoryName   string `json:"category_name"`
+	Note           string `json:"note"`
+}
+
+// CreateCategoryRequest — a seller asking for a department/category that
+// isn't in the existing list. Surfaced from the seller-app "More" section.
+func (a *adminHandler) CreateCategoryRequest(ctx *gin.Context) {
+	callerID := a.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	var body categoryRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	created, err := a.adminUseCase.CreateCategoryRequest(ctx, callerID, domain.CategoryRequest{
+		DepartmentName: body.DepartmentName,
+		CategoryName:   body.CategoryName,
+		Note:           body.Note,
+	})
+	if err != nil {
+		a.handleAppErr(ctx, "Failed to submit category request", err)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Request submitted — we'll review it soon", created)
+}
+
+// ListCategoryRequests — admin-portal review queue. Optional ?status=pending|approved|rejected filter.
+func (a *adminHandler) ListCategoryRequests(ctx *gin.Context) {
+	callerID := a.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	pagination := request.GetPagination(ctx)
+	requests, err := a.adminUseCase.ListCategoryRequests(ctx, callerID, ctx.Query("status"), pagination)
+	if err != nil {
+		a.handleAppErr(ctx, "Failed to list category requests", err)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Category requests", requests)
+}
+
+// ListMyCategoryRequests — a seller viewing the status of their own requests.
+func (a *adminHandler) ListMyCategoryRequests(ctx *gin.Context) {
+	callerID := a.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	pagination := request.GetPagination(ctx)
+	requests, err := a.adminUseCase.ListMyCategoryRequests(ctx, callerID, pagination)
+	if err != nil {
+		a.handleAppErr(ctx, "Failed to load your requests", err)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Your category requests", requests)
+}
+
+// UpdateCategoryRequestStatus — admin-portal approves/rejects a request.
+func (a *adminHandler) UpdateCategoryRequestStatus(ctx *gin.Context) {
+	callerID := a.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	var body struct {
+		Status        string `json:"status" binding:"required"`
+		AdminResponse string `json:"admin_response"`
+	}
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	status := domain.CategoryRequestStatus(body.Status)
+	if err := a.adminUseCase.UpdateCategoryRequestStatus(ctx, callerID, ctx.Param("request_id"), status, body.AdminResponse); err != nil {
+		a.handleAppErr(ctx, "Failed to update category request", err)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Category request updated")
+}
+
 // ── Sales Executive referral program ───────────────────────────────────────
 
 func (a *adminHandler) handleAppErr(ctx *gin.Context, fallbackMsg string, err error) {
