@@ -22,6 +22,15 @@ type AdminRepository interface {
 	//stock side
 	FindStockBySKU(ctx context.Context, sku string) (stock response.Stock, err error)
 	VerifyShop(ctx context.Context, shopVerification request.ShopVerification, verificationStatus bool) error
+	// SubmitShopForReview is the seller-facing counterpart to VerifyShop: it
+	// records the seller's self-reported document flags and moves the shop
+	// into under_review, without touching shop_verification_status (only an
+	// admin decision — ApproveShop/RejectShop — can set that).
+	SubmitShopForReview(ctx context.Context, shopVerification request.ShopVerification) error
+	// ApproveShop/RejectShop are the admin's explicit go-live decision. They
+	// are the only writers of shop_status = active/rejected.
+	ApproveShop(ctx context.Context, shopID string) error
+	RejectShop(ctx context.Context, shopID, remark string) error
 	// Advertisement Management
 	CreateAdvertisement(ctx context.Context, ad domain.Advertisement) (domain.Advertisement, error)
 	GetAllAdvertisements(ctx context.Context, pagination request.Pagination, filter domain.AdvertisementFilter) (ads []domain.Advertisement, err error)

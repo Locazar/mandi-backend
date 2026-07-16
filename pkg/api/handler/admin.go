@@ -453,6 +453,89 @@ func (c *adminHandler) VerifyShop(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully updated shop verification status", nil)
 }
 
+// SubmitShopForReview godoc
+//
+//	@summary 	api for a seller to submit their shop for admin review
+//	@Security	BearerAuth
+//	@id			SubmitShopForReview
+//	@tags		Admin Shop
+//	@Param		input	body	request.ShopVerification{}	true	"inputs"
+//	@Router		/admin/shops/submit-for-review [post]
+//	@Success	200	{object}	response.Response{}	"Shop submitted for review"
+//	@Failure	400	{object}	response.Response{}	"invalid input"
+func (c *adminHandler) SubmitShopForReview(ctx *gin.Context) {
+	var body request.ShopVerification
+
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, body)
+		return
+	}
+
+	if err := c.adminUseCase.SubmitShopForReview(ctx, body); err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to submit shop for review", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Shop submitted for review", nil)
+}
+
+// ApproveShop godoc
+//
+//	@summary 	api for admin to approve a shop and make it live to customers
+//	@Security	BearerAuth
+//	@id			ApproveShop
+//	@tags		Admin Shop
+//	@Param		shop_id	path	string	true	"Shop ID"
+//	@Router		/admin/shops/{shop_id}/approve [post]
+//	@Success	200	{object}	response.Response{}	"Shop approved"
+//	@Failure	400	{object}	response.Response{}	"invalid input"
+func (c *adminHandler) ApproveShop(ctx *gin.Context) {
+	shopID := ctx.Param("shop_id")
+	if shopID == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "shop_id is required", nil, nil)
+		return
+	}
+
+	if err := c.adminUseCase.ApproveShop(ctx, shopID); err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to approve shop", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Shop approved", nil)
+}
+
+// RejectShop godoc
+//
+//	@summary 	api for admin to reject a shop with a remark
+//	@Security	BearerAuth
+//	@id			RejectShop
+//	@tags		Admin Shop
+//	@Param		shop_id	path	string						true	"Shop ID"
+//	@Param		input	body	request.ShopRejection{}	true	"inputs"
+//	@Router		/admin/shops/{shop_id}/reject [post]
+//	@Success	200	{object}	response.Response{}	"Shop rejected"
+//	@Failure	400	{object}	response.Response{}	"invalid input"
+func (c *adminHandler) RejectShop(ctx *gin.Context) {
+	shopID := ctx.Param("shop_id")
+	if shopID == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "shop_id is required", nil, nil)
+		return
+	}
+
+	var body request.ShopRejection
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, body)
+		return
+	}
+
+	if err := c.adminUseCase.RejectShop(ctx, shopID, body.Remark); err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to reject shop", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Shop rejected", nil)
+}
+
 // CreateAdvertisement godoc
 //
 //	@summary		Create advertisement (Admin)

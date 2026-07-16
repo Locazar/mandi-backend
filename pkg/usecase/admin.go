@@ -24,6 +24,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	applogger "github.com/rohit221990/mandi-backend/pkg/logger"
 	"github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
+	notificationSvc "github.com/rohit221990/mandi-backend/pkg/service/notification"
 	"github.com/rohit221990/mandi-backend/pkg/service/otp"
 	"github.com/rohit221990/mandi-backend/pkg/service/sms"
 	"github.com/rohit221990/mandi-backend/pkg/service/token"
@@ -43,6 +44,7 @@ type adminUseCase struct {
 	smsService        *sms.TwoFactorSMSService
 	skipOTPValidation bool
 	config            config.Config
+	fcmPush           notificationSvc.PushSender
 }
 
 func NewAdminUseCase(repo interfaces.AdminRepository, userRepo interfaces.UserRepository, authRepo interfaces.AuthRepository, optAuth otp.OtpAuth, tokenService token.TokenService, otpService *otp.MobileOTPService, smsService *sms.TwoFactorSMSService, skipOTPValidation bool, cfg config.Config) service.AdminUseCase {
@@ -57,6 +59,7 @@ func NewAdminUseCase(repo interfaces.AdminRepository, userRepo interfaces.UserRe
 		smsService:        smsService,
 		skipOTPValidation: skipOTPValidation,
 		config:            cfg,
+		fcmPush:           notificationSvc.NewFCMPushService(),
 	}
 }
 
@@ -375,6 +378,57 @@ func (c *adminUseCase) VerifyShop(ctx context.Context, verify request.ShopVerifi
 		return fmt.Errorf("failed to update shop verification status \nerror:%v", err.Error())
 	}
 	return nil
+}
+
+// SubmitShopForReview is the seller's own "submit for verification" action —
+// it records their self-reported document flags and moves the shop to
+// under_review. It never sets shop_verification_status or shop_status =
+// active; only ApproveShop can put a shop live.
+func (c *adminUseCase) SubmitShopForReview(ctx context.Context, verify request.ShopVerification) error {
+	if err := c.adminRepo.SubmitShopForReview(ctx, verify); err != nil {
+		return fmt.Errorf("failed to submit shop for review \nerror:%v", err.Error())
+	}
+	return nil
+}
+
+// ApproveShop is the admin's explicit go-live decision.
+func (c *adminUseCase) ApproveShop(ctx context.Context, shopID string) error {
+	if err := c.adminRepo.ApproveShop(ctx, shopID); err != nil {
+		return fmt.Errorf("failed to approve shop \nerror:%v", err.Error())
+	}
+	c.notifyShopOwner(ctx, shopID,
+		"Your shop is live!",
+		"Congratulations — your shop has been approved and is now visible to customers on Localzar.",
+	)
+	return nil
+}
+
+// RejectShop records the admin's decision not to approve the shop, along
+// with a remark the seller can act on before resubmitting.
+func (c *adminUseCase) RejectShop(ctx context.Context, shopID, remark string) error {
+	if err := c.adminRepo.RejectShop(ctx, shopID, remark); err != nil {
+		return fmt.Errorf("failed to reject shop \nerror:%v", err.Error())
+	}
+	body := "Your shop verification was declined. Please review the feedback and resubmit."
+	if strings.TrimSpace(remark) != "" {
+		body = "Your shop verification was declined: " + remark + ". Please fix the issue and resubmit."
+	}
+	c.notifyShopOwner(ctx, shopID, "Shop verification declined", body)
+	return nil
+}
+
+// notifyShopOwner sends a best-effort FCM push to the shop's seller about a
+// shop_status change. Enquiry/seller Firestore docs key sellers by shop ID
+// (see SaveFcmToken), so ownerID here is the shop ID, not the admin ID.
+// Failure to notify never fails the underlying approve/reject decision.
+func (c *adminUseCase) notifyShopOwner(ctx context.Context, shopID, title, body string) {
+	if c.fcmPush == nil {
+		return
+	}
+	data := map[string]string{"event_type": "shop_status_changed", "shop_id": shopID}
+	if err := c.fcmPush.SendToOwnerViaFirestore(ctx, "sellers", shopID, title, body, data); err != nil {
+		log.Printf("WARN [notifyShopOwner]: failed to notify shop %s: %v", shopID, err)
+	}
 }
 
 func (c *adminUseCase) CreateAdvertisement(ctx context.Context, ad domain.Advertisement) (domain.Advertisement, error) {

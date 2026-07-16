@@ -1012,7 +1012,7 @@ func (s *productUseCase) GetNearbyProductsByPincode(ctx context.Context, pincode
 		LEFT JOIN categories c ON pi.category_id = c.id
 		LEFT JOIN departments d ON pi.department_id = d.id
 		LEFT JOIN sub_categories sc ON pi.sub_category_id = sc.id
-		WHERE sd.pincode = $1
+		WHERE sd.pincode = $1 AND sd.shop_status = 'active'
 		ORDER BY pi.created_at DESC
 		LIMIT $2 OFFSET $3
 	`
@@ -1127,7 +1127,7 @@ func (c *productUseCase) GetProductsByRadius(ctx context.Context, latitude float
 			LEFT JOIN categories c ON pi.category_id = c.id
 			LEFT JOIN departments d ON pi.department_id = d.id
 			LEFT JOIN sub_categories sc ON pi.sub_category_id = sc.id
-			WHERE sd.latitude IS NOT NULL AND sd.longitude IS NOT NULL
+			WHERE sd.latitude IS NOT NULL AND sd.longitude IS NOT NULL AND sd.shop_status = 'active'
 		) AS subquery
 		WHERE distance_km <= $3
 		ORDER BY distance_km

@@ -439,7 +439,7 @@ func (r *searchRepository) searchShopsDB(ctx context.Context, query string, lat,
 				sd.latitude, sd.longitude, COALESCE(sd.shop_type, '') AS shop_type
 			FROM shop_details sd
 			WHERE (sd.shop_name ILIKE $1 OR sd.city ILIKE $1 OR sd.owner_name ILIKE $1)
-				AND sd.shop_verification_status = true
+				AND sd.shop_status = 'active'
 				AND (6371 * acos(
 					cos(radians($5)) * cos(radians(sd.latitude)) *
 					cos(radians(sd.longitude) - radians($6)) +
@@ -457,7 +457,7 @@ func (r *searchRepository) searchShopsDB(ctx context.Context, query string, lat,
 				sd.latitude, sd.longitude, COALESCE(sd.shop_type, '') AS shop_type
 			FROM shop_details sd
 			WHERE (sd.shop_name ILIKE $1 OR sd.city ILIKE $1 OR sd.owner_name ILIKE $1)
-				AND sd.shop_verification_status = true
+				AND sd.shop_status = 'active'
 				AND sd.pincode = $5
 			ORDER BY
 				CASE WHEN sd.shop_name ILIKE $2 THEN 0 ELSE 1 END,
@@ -471,7 +471,7 @@ func (r *searchRepository) searchShopsDB(ctx context.Context, query string, lat,
 				sd.latitude, sd.longitude, COALESCE(sd.shop_type, '') AS shop_type
 			FROM shop_details sd
 			WHERE (sd.shop_name ILIKE $1 OR sd.city ILIKE $1 OR sd.owner_name ILIKE $1)
-				AND sd.shop_verification_status = true
+				AND sd.shop_status = 'active'
 			ORDER BY
 				CASE WHEN sd.shop_name ILIKE $2 THEN 0 ELSE 1 END,
 				sd.created_at DESC
@@ -613,7 +613,7 @@ func (r *searchRepository) AutocompleteSuggestions(ctx context.Context, prefix s
 		(
 			SELECT shop_name AS text, 'shop' AS entity_type, id, COALESCE(shop_image_url, '') AS image_url
 			FROM shop_details
-			WHERE (shop_name ILIKE $1 OR shop_name ILIKE $2) AND shop_verification_status = true
+			WHERE (shop_name ILIKE $1 OR shop_name ILIKE $2) AND shop_status = 'active'
 			ORDER BY CASE WHEN shop_name ILIKE $1 THEN 0 ELSE 1 END, shop_name
 			LIMIT $4
 		)

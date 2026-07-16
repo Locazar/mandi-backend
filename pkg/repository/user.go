@@ -346,7 +346,7 @@ func (c *userDatabase) FindSellersByRadius(ctx context.Context, reqData request.
 					sin(radians($1)) * sin(radians(a.latitude))
 			)) AS distance_km
 		FROM shop_details a
-		WHERE a.latitude IS NOT NULL AND a.longitude IS NOT NULL
+		WHERE a.latitude IS NOT NULL AND a.longitude IS NOT NULL AND a.shop_status = 'active'
 	) AS subquery
 	WHERE distance_km <= $3
 	LIMIT $4 OFFSET $5
@@ -363,7 +363,7 @@ func (c *userDatabase) FindSellersByPincode(ctx context.Context, reqData request
 		owner_name, shop_image_url, address_line1, address_line2, city, country, state, pincode,
 		shop_verification_status, created_at, updated_at
 		FROM shop_details
-		WHERE pincode = $1
+		WHERE pincode = $1 AND shop_status = 'active'
 		LIMIT $2 OFFSET $3
 	`
 
@@ -378,6 +378,10 @@ func (c *userDatabase) SearchShopList(ctx context.Context, reqData request.Searc
 	whereClause := " WHERE 1=1"
 	orderBy := " ORDER BY sd.id, sd.created_at DESC"
 	distanceExpr := "NULL::double precision AS distance_km"
+
+	// Only approved, live shops are visible to customers — shop_status is
+	// the single source of truth for the shop approval lifecycle.
+	whereClause += " AND sd.shop_status = 'active'"
 
 	// Add search query condition if provided.
 	if reqData.Query != "" {
@@ -612,7 +616,7 @@ func (c *userDatabase) FindShopByID(ctx context.Context, shopID string) (respons
 			FROM shop_times
 			ORDER BY shop_id, id DESC
 		) st ON st.shop_id = sd.id
-		WHERE sd.id = $1`
+		WHERE sd.id = $1 AND sd.shop_status = 'active'`
 	if c.DB.Raw(query, shopID).Scan(&shop).Error != nil {
 		return shop, errors.New("failed to find shop by ID")
 	}

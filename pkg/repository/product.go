@@ -794,6 +794,14 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context, adminID strin
 			LEFT JOIN shop_details sd ON sd.id = pi.shop_id
 			WHERE 1=1`
 
+	// Shop-status gate: on customer-facing calls, hide products whose owning
+	// shop isn't approved & live yet (under_review/rejected/suspended).
+	// Skipped for seller/admin views (customerView=false) so a seller still
+	// sees their own catalogue while awaiting approval.
+	if customerView {
+		query += " AND " + ShopActivePredicate
+	}
+
 	// Subscription gate: on customer-facing calls, hide products whose owning shop
 	// has no active subscription. Skipped for seller/admin views (customerView=false)
 	// so a lapsed seller still sees their own catalogue.
@@ -1428,6 +1436,12 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 	params := []interface{}{}
 	paramIndex := 1
 	whereClause := " WHERE 1=1"
+
+	// Shop-status gate: hide products whose owning shop isn't approved & live
+	// (under_review/rejected/suspended). Applied in the Postgres WHERE (never
+	// in Elasticsearch), so it filters ES-derived candidates during hydration
+	// too — this is the customer-facing product search/radius/nearby path.
+	whereClause += " AND " + ShopActivePredicate
 
 	// Subscription gate: hide products whose owning shop has no active subscription.
 	// Applied in the Postgres WHERE (never in Elasticsearch), so it filters
@@ -2684,7 +2698,8 @@ func GetProductItemsByOfferID(ctx context.Context, db *gorm.DB, offerID string, 
 			LEFT JOIN departments d ON pi.department_id = d.id
 			LEFT JOIN sub_categories sc ON pi.sub_category_id = sc.id
 			INNER JOIN offer_products op ON (op.product_item_id::text::bigint) = pi.id
-			WHERE op.offer_id = $1`
+			INNER JOIN shop_details sd ON sd.id = pi.shop_id
+			WHERE op.offer_id = $1 AND ` + ShopActivePredicate
 
 	// Add filters if provided
 	var filters []string

@@ -435,6 +435,9 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			shop.PUT("/:shop_id", adminHandler.UploadShopById)
 			shop.GET("/shop_details", adminHandler.GetShopByOwnerID)
 			shop.POST("/verify", adminHandler.VerifyShop)
+			shop.POST("/submit-for-review", adminHandler.SubmitShopForReview)
+			shop.POST("/:shop_id/approve", adminHandler.ApproveShop)
+			shop.POST("/:shop_id/reject", adminHandler.RejectShop)
 			shop.GET("/verify-status", adminHandler.GetVerificationStatus)
 
 			shop.POST("/upload-profile-image", middleware.AuthenticateAdmin(), adminHandler.UploadAdminProfileImage)

@@ -11,6 +11,11 @@ type ShopVerification struct {
 	UpdatedAt                  time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }
 
+// ShopRejection is the admin's remark when rejecting a shop's verification.
+type ShopRejection struct {
+	Remark string `json:"remark" binding:"required"`
+}
+
 // ShopSearch filters for the admin shop search endpoint.
 // All fields are optional; provided filters are combined with AND.
 type ShopSearch struct {

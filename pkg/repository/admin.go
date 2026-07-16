@@ -289,6 +289,77 @@ func (c *adminDatabase) VerifyShop(ctx context.Context, shopVerification request
 	return nil
 }
 
+// SubmitShopForReview records the seller's self-reported document flags and
+// moves shop_status to under_review. It deliberately never touches
+// shop_verification_status — that flag (and shop_status = active/rejected)
+// is only ever set by an admin's explicit ApproveShop/RejectShop decision.
+// 'active' and 'suspended' are preserved: a resubmit must not silently
+// re-open a suspended seller, nor knock an already-live shop back into review.
+func (c *adminDatabase) SubmitShopForReview(ctx context.Context, shopVerification request.ShopVerification) error {
+	updateQuery := `UPDATE shop_details SET
+	shop_status = CASE WHEN shop_status IN ($1, $2) THEN shop_status ELSE $3 END,
+	photo_shop_verification = $4,
+	business_doc_verification = $5,
+	identity_doc_verification = $6,
+	address_proof_verification = $7,
+	updated_at = $8
+	WHERE id = $9`
+	result := c.DB.Exec(updateQuery,
+		string(domain.ShopStatusActive), string(domain.ShopStatusSuspended), string(domain.ShopStatusUnderReview),
+		shopVerification.Photo_Shop_Verification, shopVerification.Business_Doc_Verification,
+		shopVerification.Identity_Doc_Verification, shopVerification.Address_Proof_Verification,
+		time.Now(), shopVerification.ShopId)
+	if result.Error != nil {
+		return fmt.Errorf("failed to submit shop %s for review: %v", shopVerification.ShopId, result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("shop not found: %s", shopVerification.ShopId)
+	}
+	return nil
+}
+
+// ApproveShop sets the shop live: shop_status = active, verification flags
+// all true, any prior rejection remark cleared.
+func (c *adminDatabase) ApproveShop(ctx context.Context, shopID string) error {
+	updateQuery := `UPDATE shop_details SET
+	shop_status = $1,
+	shop_verification_status = TRUE,
+	photo_shop_verification = TRUE,
+	business_doc_verification = TRUE,
+	identity_doc_verification = TRUE,
+	address_proof_verification = TRUE,
+	shop_verification_remarks = '',
+	updated_at = $2
+	WHERE id = $3`
+	result := c.DB.Exec(updateQuery, string(domain.ShopStatusActive), time.Now(), shopID)
+	if result.Error != nil {
+		return fmt.Errorf("failed to approve shop %s: %v", shopID, result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("shop not found: %s", shopID)
+	}
+	return nil
+}
+
+// RejectShop records the admin's decision not to approve the shop, along
+// with the remark explaining why so the seller can act on it and resubmit.
+func (c *adminDatabase) RejectShop(ctx context.Context, shopID, remark string) error {
+	updateQuery := `UPDATE shop_details SET
+	shop_status = $1,
+	shop_verification_status = FALSE,
+	shop_verification_remarks = $2,
+	updated_at = $3
+	WHERE id = $4`
+	result := c.DB.Exec(updateQuery, string(domain.ShopStatusRejected), remark, time.Now(), shopID)
+	if result.Error != nil {
+		return fmt.Errorf("failed to reject shop %s: %v", shopID, result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("shop not found: %s", shopID)
+	}
+	return nil
+}
+
 func (c *adminDatabase) CreateAdvertisement(ctx context.Context, ad domain.Advertisement) (domain.Advertisement, error) {
 	ad.ID = domain.NewID(domain.PrefixAdvertisement)
 	if ad.Audience == "" {
@@ -1035,9 +1106,15 @@ func (c *adminDatabase) CreateShop(ctx context.Context, shop domain.ShopDetails)
 
 	shopID := domain.NewID(domain.PrefixShop)
 
+	// shop_status defaulting: $17 is the raw, possibly-empty client value (no
+	// caller currently populates ShopStatus). On first insert an empty value
+	// becomes 'under_review'. On a conflict (e.g. the seller re-saving address
+	// details after approval), an empty client value must NOT clobber an
+	// already-set status (active/rejected/suspended/under_review) — only a
+	// genuinely unset existing row falls back to 'under_review'.
 	query := `INSERT INTO shop_details (id, admin_id, shop_name,owner_name, address_line1, address_line2, email, phone,
 	city, state, country, pincode, latitude, longitude, bank_account_number, shop_type, shop_status, bank_ifsc, pan_number, itr_documents, document_type, document_value, phone_visible_consent, created_at, updated_at)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, COALESCE(NULLIF($17, ''), 'under_review'), $18, $19, $20, $21, $22, $23, $24, $25)
 	ON CONFLICT (admin_id) DO UPDATE SET
 		shop_name = EXCLUDED.shop_name,
 		owner_name = EXCLUDED.owner_name,
@@ -1053,7 +1130,7 @@ func (c *adminDatabase) CreateShop(ctx context.Context, shop domain.ShopDetails)
 		longitude = EXCLUDED.longitude,
 		bank_account_number = EXCLUDED.bank_account_number,
 		shop_type = EXCLUDED.shop_type,
-		shop_status = EXCLUDED.shop_status,
+		shop_status = COALESCE(NULLIF($17, ''), shop_details.shop_status, 'under_review'),
 		bank_ifsc = EXCLUDED.bank_ifsc,
 		pan_number = EXCLUDED.pan_number,
 		itr_documents = EXCLUDED.itr_documents,
