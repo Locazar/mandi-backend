@@ -362,3 +362,13 @@ func (m *JobCategoryLocation) BeforeCreate(*gorm.DB) error {
 	m.ID = NewID(PrefixJobCategoryLocation)
 	return nil
 }
+
+func (m *CategoryRequest) BeforeCreate(*gorm.DB) error {
+	if m.ID == "" {
+		m.ID = NewID(PrefixCategoryRequest)
+	}
+	if m.Status == "" {
+		m.Status = CategoryRequestPending
+	}
+	return nil
+}

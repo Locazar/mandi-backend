@@ -145,9 +145,8 @@ func (c *adminUseCase) findOrCreateAdminByMobile(ctx context.Context, details do
 		}
 		details.Password = string(hashPass)
 	}
-	if details.Role == "" {
-		details.Role = domain.AdminRoleSeller
-	}
+	// Role stays unset here — see SaveAdmin's comment: role is a
+	// platform-user-only concept, never assigned to a seller/customer record.
 	if details.Status == "" {
 		details.Status = "active"
 	}
@@ -264,12 +263,12 @@ func (c *adminUseCase) AdminSignUpOtpVerify(ctx context.Context,
 		return admin.ID, domain.ShopDetails{}, nil
 	}
 
-	// Admin doesn't exist, create new admin
+	// Admin doesn't exist, create new admin — role left unset, see
+	// SaveAdmin's comment: it's a platform-user-only concept.
 	newAdmin := domain.Admin{
 		Mobile:         otpSession.Phone,
 		Status:         "active",
 		VerifiedSeller: false,
-		Role:           domain.AdminRoleSeller,
 	}
 
 	savedAdmin, err := c.adminRepo.SaveAdmin(ctx, newAdmin)
@@ -857,12 +856,19 @@ func (c *adminUseCase) GetRoleByName(ctx context.Context, name string) (domain.R
 }
 
 func (c *adminUseCase) GetPermissionsForRole(ctx context.Context, roleName string) ([]domain.RolePermissionGrant, error) {
-	if roleName == domain.RoleNameSuperAdmin || roleName == "" {
+	if roleName == domain.RoleNameSuperAdmin {
 		grants := make([]domain.RolePermissionGrant, 0, len(domain.AllPermissionKeys()))
 		for _, key := range domain.AllPermissionKeys() {
 			grants = append(grants, domain.RolePermissionGrant{PermissionKey: key, AccessLevel: domain.AccessLevelWrite})
 		}
 		return grants, nil
+	}
+	// Blank role means a seller/customer account, not a platform user at
+	// all (role is assigned only via CreateAdmin) — it must resolve to no
+	// admin-portal permissions, never the super_admin synthesized grant set
+	// that used to apply here.
+	if roleName == "" {
+		return []domain.RolePermissionGrant{}, nil
 	}
 	role, err := c.adminRepo.GetRoleByName(ctx, roleName)
 	if err != nil {
@@ -1481,6 +1487,75 @@ func (c *adminUseCase) CountShopsAttachedToPlatformUser(ctx context.Context, pla
 
 func (c *adminUseCase) RevokeAdminSessions(ctx context.Context, adminID string) error {
 	return c.adminRepo.DeleteRefreshSessionByUserID(ctx, adminID)
+}
+
+// ── Category requests ────────────────────────────────────────────────────
+
+// CreateCategoryRequest is open to any authenticated caller (sellers are
+// the intended requester — surfaced from the seller-app "More" section) —
+// no role restriction beyond being logged in.
+func (c *adminUseCase) CreateCategoryRequest(ctx context.Context, callerID string, req domain.CategoryRequest) (domain.CategoryRequest, error) {
+	if callerID == "" {
+		return domain.CategoryRequest{}, domain.UnauthorizedError("session required")
+	}
+	if req.DepartmentName == "" {
+		return domain.CategoryRequest{}, domain.ValidationError("department_name", "is required")
+	}
+	req.AdminID = callerID
+	req.Status = domain.CategoryRequestPending
+	req.AdminResponse = ""
+
+	// Best-effort: attach the caller's shop if they have one, so admin-portal
+	// can show which shop asked. Not required — a brand-new seller mid-onboarding
+	// may not have a shop yet.
+	if shop, err := c.adminRepo.GetShopByOwnerID(ctx, callerID); err == nil && shop.ID != "" {
+		req.ShopID = shop.ID
+	}
+
+	return c.adminRepo.CreateCategoryRequest(ctx, req)
+}
+
+// ListCategoryRequests is admin-portal only — the caller must be a platform
+// user (any assigned role); fine-grained read/write permission on top of
+// that is enforced by the RequirePermission route middleware.
+func (c *adminUseCase) ListCategoryRequests(ctx context.Context, callerID, status string, pagination request.Pagination) ([]domain.CategoryRequest, error) {
+	caller, err := c.adminRepo.GetAdminByID(ctx, callerID)
+	if err != nil || caller.ID == "" {
+		return nil, domain.NotFoundError("caller admin")
+	}
+	if caller.Role == "" {
+		return nil, domain.ForbiddenError("only platform users can list category requests")
+	}
+	return c.adminRepo.ListCategoryRequests(ctx, status, pagination)
+}
+
+// ListMyCategoryRequests lets a seller see the status of their own past
+// requests (e.g. from the seller-app "More" section).
+func (c *adminUseCase) ListMyCategoryRequests(ctx context.Context, callerID string, pagination request.Pagination) ([]domain.CategoryRequest, error) {
+	if callerID == "" {
+		return nil, domain.UnauthorizedError("session required")
+	}
+	return c.adminRepo.ListCategoryRequestsByAdmin(ctx, callerID, pagination)
+}
+
+func (c *adminUseCase) UpdateCategoryRequestStatus(ctx context.Context, callerID, requestID string, status domain.CategoryRequestStatus, adminResponse string) error {
+	caller, err := c.adminRepo.GetAdminByID(ctx, callerID)
+	if err != nil || caller.ID == "" {
+		return domain.NotFoundError("caller admin")
+	}
+	if caller.Role == "" {
+		return domain.ForbiddenError("only platform users can review category requests")
+	}
+	if !status.IsValid() {
+		return domain.ValidationError("status", "must be pending, approved, or rejected")
+	}
+	if err := c.adminRepo.UpdateCategoryRequestStatus(ctx, requestID, status, adminResponse); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return domain.NotFoundError("category request")
+		}
+		return err
+	}
+	return nil
 }
 
 func (c *adminUseCase) CreateShopReferral(ctx context.Context, callerID string, body domain.ShopReferral) (domain.ShopReferral, error) {

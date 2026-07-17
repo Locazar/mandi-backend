@@ -3118,6 +3118,78 @@ func (a *adminHandler) DeleteRole(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Role deleted successfully")
 }
 
+// ── Category requests ────────────────────────────────────────────────────
+
+type categoryRequestBody struct {
+	DepartmentName string `json:"department_name" binding:"required"`
+	CategoryName   string `json:"category_name"`
+	Note           string `json:"note"`
+}
+
+// CreateCategoryRequest — a seller asking for a department/category that
+// isn't in the existing list. Surfaced from the seller-app "More" section.
+func (a *adminHandler) CreateCategoryRequest(ctx *gin.Context) {
+	callerID := a.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	var body categoryRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	created, err := a.adminUseCase.CreateCategoryRequest(ctx, callerID, domain.CategoryRequest{
+		DepartmentName: body.DepartmentName,
+		CategoryName:   body.CategoryName,
+		Note:           body.Note,
+	})
+	if err != nil {
+		a.handleAppErr(ctx, "Failed to submit category request", err)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Request submitted — we'll review it soon", created)
+}
+
+// ListCategoryRequests — admin-portal review queue. Optional ?status=pending|approved|rejected filter.
+func (a *adminHandler) ListCategoryRequests(ctx *gin.Context) {
+	callerID := a.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	pagination := request.GetPagination(ctx)
+	requests, err := a.adminUseCase.ListCategoryRequests(ctx, callerID, ctx.Query("status"), pagination)
+	if err != nil {
+		a.handleAppErr(ctx, "Failed to list category requests", err)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Category requests", requests)
+}
+
+// ListMyCategoryRequests — a seller viewing the status of their own requests.
+func (a *adminHandler) ListMyCategoryRequests(ctx *gin.Context) {
+	callerID := a.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	pagination := request.GetPagination(ctx)
+	requests, err := a.adminUseCase.ListMyCategoryRequests(ctx, callerID, pagination)
+	if err != nil {
+		a.handleAppErr(ctx, "Failed to load your requests", err)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Your category requests", requests)
+}
+
+// UpdateCategoryRequestStatus — admin-portal approves/rejects a request.
+func (a *adminHandler) UpdateCategoryRequestStatus(ctx *gin.Context) {
+	callerID := a.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	var body struct {
+		Status        string `json:"status" binding:"required"`
+		AdminResponse string `json:"admin_response"`
+	}
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	status := domain.CategoryRequestStatus(body.Status)
+	if err := a.adminUseCase.UpdateCategoryRequestStatus(ctx, callerID, ctx.Param("request_id"), status, body.AdminResponse); err != nil {
+		a.handleAppErr(ctx, "Failed to update category request", err)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Category request updated")
+}
+
 // ── Sales Executive referral program ───────────────────────────────────────
 
 func (a *adminHandler) handleAppErr(ctx *gin.Context, fallbackMsg string, err error) {
@@ -3137,13 +3209,15 @@ func (a *adminHandler) handleAppErr(ctx *gin.Context, fallbackMsg string, err er
 // boundary by itself; this closes that gap for a specific route group.
 //
 // GET/HEAD requests need at least "read"; every other method needs "write".
-// super_admin always passes. Seller accounts (role == "seller") always pass
-// too and are deliberately NOT part of this check — sellers aren't assigned
-// an admin-portal role at all, and their access to their own resources is
-// governed by ownership checks elsewhere (AdminID == callerID), not by this
-// permission matrix. Only apply this middleware to route groups that are
-// exclusively admin-portal management surfaces — see the comments at each
-// call site in routes/admin.go for why a given group is safe to gate.
+// super_admin always passes. Seller/customer accounts (role == "", the
+// zero value) always pass too and are deliberately NOT part of this check —
+// role is a platform-user-only concept assigned by a super_admin via
+// CreateAdmin, never set on a self-registered seller/customer account, and
+// their access to their own resources is governed by ownership checks
+// elsewhere (AdminID == callerID), not by this permission matrix. Only apply
+// this middleware to route groups that are exclusively admin-portal
+// management surfaces — see the comments at each call site in
+// routes/admin.go for why a given group is safe to gate.
 func (a *adminHandler) RequirePermission(key domain.PermissionKey) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		callerID := a.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
@@ -3159,7 +3233,11 @@ func (a *adminHandler) RequirePermission(key domain.PermissionKey) gin.HandlerFu
 			return
 		}
 
-		if caller.Role == domain.AdminRoleSeller || caller.Role == domain.AdminRoleSuperAdmin {
+		// Blank role means a seller/customer account (role is a
+		// platform-user-only concept, never assigned to those — see
+		// SaveAdmin's comment), which always bypasses RBAC entirely since
+		// it's out of scope for admin-portal permissions.
+		if caller.Role == "" || caller.Role == domain.AdminRoleSuperAdmin {
 			ctx.Next()
 			return
 		}

@@ -136,4 +136,13 @@ type AdminRepository interface {
 	CountShopReferralsByPlatformUser(ctx context.Context, platformUserID string) (int64, error)
 	UpdateShopReferral(ctx context.Context, referralID string, updates map[string]interface{}) error
 	DeleteShopReferral(ctx context.Context, referralID string) error
+
+	// Category requests: a seller asking for a department/category that
+	// isn't in the existing list (seller-app "More" section), reviewed by
+	// a platform user from admin-portal.
+	CreateCategoryRequest(ctx context.Context, req domain.CategoryRequest) (domain.CategoryRequest, error)
+	ListCategoryRequests(ctx context.Context, status string, pagination request.Pagination) ([]domain.CategoryRequest, error)
+	ListCategoryRequestsByAdmin(ctx context.Context, adminID string, pagination request.Pagination) ([]domain.CategoryRequest, error)
+	GetCategoryRequestByID(ctx context.Context, id string) (domain.CategoryRequest, error)
+	UpdateCategoryRequestStatus(ctx context.Context, id string, status domain.CategoryRequestStatus, adminResponse string) error
 }
