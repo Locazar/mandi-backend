@@ -780,12 +780,33 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context, adminID strin
 	log.Printf("Offer parameter: '%s', includeOffers: %v", offer, includeOffers)
 	log.Printf("offerSubquery: %s", offerSubquery)
 
+	// Relevance ranking: active only for a text query resolved via the Postgres
+	// fallback (no Elasticsearch id set). Mirrors SearchProducts so shop-detail /
+	// category listing search ranks the same way as global search.
+	rankingActive := searchRankingEnabled && keyword != "" && len(ids) == 0 && len(tokenizeQuery(keyword)) > 0
+	scoreColumn := ""
+	if rankingActive {
+		// Layered additive weighted score on the FULL query phrase, plus a
+		// per-token name-contains bonus. Uses GORM named params (reused below).
+		scoreColumn = fmt.Sprintf(`(
+			CASE WHEN pi.sub_category_name ILIKE @phraseExact THEN %d ELSE 0 END
+			+ CASE WHEN pi.sub_category_name ILIKE @phrasePrefix THEN %d ELSE 0 END
+			+ CASE WHEN pi.sub_category_name ILIKE @phraseContains THEN %d ELSE 0 END
+			+ CASE WHEN (c.name::text ILIKE @phraseContains OR sc.name::text ILIKE @phraseContains) THEN %d ELSE 0 END
+			+ CASE WHEN d.name::text ILIKE @phraseContains THEN %d ELSE 0 END
+			+ CASE WHEN (pi.description ILIKE @phraseContains OR array_to_string(pi.highlights, ' ') ILIKE @phraseContains OR pi.dynamic_fields::text ILIKE @phraseContains) THEN %d ELSE 0 END
+		) AS relevance_score,`,
+			scoreExactName, scoreNamePrefix, scoreNameContains,
+			scoreCategoryContains, scoreDepartmentContains, scoreLongTextContains)
+	}
+
 	query := `SELECT pi.sub_category_name, pi.id, pi.category_id, pi.department_id, pi.sub_category_id,
 			pi.product_item_images, pi.dynamic_fields, pi.stock, pi.created_at, pi.updated_at,
 				c.name AS category_name, d.name AS department_name, sc.name AS sub_category_name_ref,
 			(SELECT MAX(p3.discount_rate) FROM offer_products op3 INNER JOIN promotions p3 ON p3.id = op3.offer_id WHERE op3.product_item_id = pi.id AND p3.is_active = true AND (p3.start_date)::timestamp <= CURRENT_TIMESTAMP AND (p3.end_date)::timestamp >= CURRENT_TIMESTAMP) AS discount_rate,
 				sc.image_url AS sub_category_image_url,
 				(SELECT COALESCE(SUM(view_count), 0) FROM product_item_views WHERE product_item_id = pi.id) AS view_count,
+				` + scoreColumn + `
 				` + offerSubquery + `
 			FROM product_items pi
 			LEFT JOIN categories c ON pi.category_id = c.id
@@ -831,7 +852,32 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context, adminID strin
 		params["ids"] = ids
 		query += " AND pi.id = ANY(@ids)"
 	}
-	if keyword != "" && len(ids) == 0 {
+	if rankingActive {
+		// AND-of-tokens candidacy across every searched field (unified with
+		// SearchProducts): each token must hit at least one field.
+		params["phraseExact"] = keyword
+		params["phrasePrefix"] = keyword + "%"
+		params["phraseContains"] = "%" + keyword + "%"
+		tokens := tokenizeQuery(keyword)
+		tokenClauses := make([]string, 0, len(tokens))
+		tokenNameBonuses := make([]string, 0, len(tokens))
+		for i, tok := range tokens {
+			key := fmt.Sprintf("tok%d", i)
+			params[key] = "%" + tok + "%"
+			tokenClauses = append(tokenClauses, fmt.Sprintf(
+				"(pi.sub_category_name ILIKE @%s OR c.name::text ILIKE @%s OR sc.name::text ILIKE @%s OR d.name::text ILIKE @%s OR pi.description ILIKE @%s OR array_to_string(pi.highlights, ' ') ILIKE @%s OR pi.dynamic_fields::text ILIKE @%s)",
+				key, key, key, key, key, key, key))
+			tokenNameBonuses = append(tokenNameBonuses, fmt.Sprintf(
+				"CASE WHEN pi.sub_category_name ILIKE @%s THEN %d ELSE 0 END", key, scorePerTokenNameBonus))
+		}
+		query += " AND (" + strings.Join(tokenClauses, " AND ") + ")"
+		// Fold the per-token name bonus into the score expression built above.
+		if len(tokenNameBonuses) > 0 {
+			query = strings.Replace(query,
+				"\n\t\t) AS relevance_score,",
+				"\n\t\t\t+ "+strings.Join(tokenNameBonuses, " + ")+"\n\t\t) AS relevance_score,", 1)
+		}
+	} else if keyword != "" && len(ids) == 0 {
 		query += " AND (pi.sub_category_name ILIKE @keyword OR c.name ILIKE @keyword OR sc.name ILIKE @keyword)"
 		params["keyword"] = "%" + keyword + "%"
 	}
@@ -860,12 +906,18 @@ func (c *productDatabase) FindAllProductItems(ctx context.Context, adminID strin
 			orderBy = "view_count"
 		}
 	}
+	// When relevance ranking is active, sort by score first, keep the existing
+	// column as the tie-breaker, and add pi.id for deterministic pagination.
+	orderByClause := orderBy + " DESC"
+	if rankingActive {
+		orderByClause = "relevance_score DESC, " + orderBy + " DESC, pi.id"
+	}
 	if pagination != nil {
-		query += " ORDER BY " + orderBy + " DESC LIMIT @limit OFFSET @offset"
+		query += " ORDER BY " + orderByClause + " LIMIT @limit OFFSET @offset"
 		params["limit"] = pagination.Limit
 		params["offset"] = pagination.Offset
 	} else {
-		query += " ORDER BY " + orderBy + " DESC"
+		query += " ORDER BY " + orderByClause
 	}
 
 	// Internal struct for scanning DB result
@@ -1399,6 +1451,7 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 			sc.image_url AS sub_category_image_url,
 			sd.id AS shop_id, sd.shop_name,
 			%s,
+			%s
 			(SELECT COALESCE(SUM(view_count), 0) FROM product_item_views WHERE product_item_id = pi.id) AS view_count,
 			(
 				SELECT COALESCE(json_agg(json_build_object(
@@ -1429,6 +1482,13 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 	paramIndex := 1
 	whereClause := " WHERE 1=1"
 
+	// scoreExpr is the relevance_score SELECT column; empty unless ranking is on.
+	// rankingOrderBy is the ORDER BY prefix that sorts by relevance_score first;
+	// empty unless ranking is on (falls back to the geo/created_at ordering).
+	scoreExpr := ""
+	rankingOrderBy := ""
+	rankingActive := searchRankingEnabled && keyword != "" && !useElasticsearchResults && len(tokenizeQuery(keyword)) > 0
+
 	// Subscription gate: hide products whose owning shop has no active subscription.
 	// Applied in the Postgres WHERE (never in Elasticsearch), so it filters
 	// ES-derived candidates during hydration too. Uses the shop_details sd alias.
@@ -1445,8 +1505,58 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 			paramIndex++
 		}
 		whereClause += " AND pi.id IN (" + strings.Join(placeholders, ",") + ")"
+	} else if rankingActive {
+		// Relevance ranking ON: AND-of-tokens candidacy across every searched
+		// field (each token must hit at least one field), plus a computed
+		// relevance_score that ranks contiguous full-phrase matches highest.
+		tokens := tokenizeQuery(keyword)
+
+		// Full-phrase param (used by the score tiers and the phrase-contains match).
+		phraseExact := paramIndex // ILIKE <phrase> (no wildcards) -> exact
+		params = append(params, keyword)
+		paramIndex++
+		phrasePrefix := paramIndex // ILIKE <phrase>%
+		params = append(params, keyword+"%")
+		paramIndex++
+		phraseContains := paramIndex // ILIKE %<phrase>%
+		params = append(params, "%"+keyword+"%")
+		paramIndex++
+
+		// Per-token candidacy: AND over tokens, each token ORs across all fields.
+		tokenClauses := make([]string, 0, len(tokens))
+		tokenNameBonuses := make([]string, 0, len(tokens))
+		for _, tok := range tokens {
+			idx := paramIndex
+			params = append(params, "%"+tok+"%")
+			paramIndex++
+			tokenClauses = append(tokenClauses, fmt.Sprintf(
+				"(pi.sub_category_name ILIKE $%d OR c.name::text ILIKE $%d OR sc.name::text ILIKE $%d OR d.name::text ILIKE $%d OR pi.description ILIKE $%d OR array_to_string(pi.highlights, ' ') ILIKE $%d OR pi.dynamic_fields::text ILIKE $%d)",
+				idx, idx, idx, idx, idx, idx, idx))
+			tokenNameBonuses = append(tokenNameBonuses, fmt.Sprintf(
+				"CASE WHEN pi.sub_category_name ILIKE $%d THEN %d ELSE 0 END", idx, scorePerTokenNameBonus))
+		}
+		whereClause += " AND (" + strings.Join(tokenClauses, " AND ") + ")"
+
+		// Layered, additive weighted score on the FULL query phrase, plus the
+		// per-token name bonus so multi-word name matches beat category-only ones.
+		scoreExpr = fmt.Sprintf(`(
+			CASE WHEN pi.sub_category_name ILIKE $%d THEN %d ELSE 0 END
+			+ CASE WHEN pi.sub_category_name ILIKE $%d THEN %d ELSE 0 END
+			+ CASE WHEN pi.sub_category_name ILIKE $%d THEN %d ELSE 0 END
+			+ CASE WHEN (c.name::text ILIKE $%d OR sc.name::text ILIKE $%d) THEN %d ELSE 0 END
+			+ CASE WHEN d.name::text ILIKE $%d THEN %d ELSE 0 END
+			+ CASE WHEN (pi.description ILIKE $%d OR array_to_string(pi.highlights, ' ') ILIKE $%d OR pi.dynamic_fields::text ILIKE $%d) THEN %d ELSE 0 END
+			+ %s
+		) AS relevance_score,`,
+			phraseExact, scoreExactName,
+			phrasePrefix, scoreNamePrefix,
+			phraseContains, scoreNameContains,
+			phraseContains, phraseContains, scoreCategoryContains,
+			phraseContains, scoreDepartmentContains,
+			phraseContains, phraseContains, phraseContains, scoreLongTextContains,
+			strings.Join(tokenNameBonuses, " + "))
 	} else if keyword != "" {
-		// Fallback to keyword search if no Elasticsearch or ES failed
+		// Fallback to keyword search if no Elasticsearch or ES failed (ranking off).
 		whereClause += fmt.Sprintf(" AND (pi.sub_category_name ILIKE $%d OR pi.dynamic_fields::text ILIKE $%d OR c.name::text ILIKE $%d OR sc.name::text ILIKE $%d OR d.name::text ILIKE $%d)", paramIndex, paramIndex, paramIndex, paramIndex, paramIndex)
 		params = append(params, "%"+keyword+"%")
 		paramIndex++
@@ -1498,6 +1608,21 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 	}
 	params = append(params, geoArgs...)
 
+	// When relevance ranking is active, order by score first, then the existing
+	// distance/recency tie-breakers, with a final deterministic tiebreaker on
+	// pi.id so pagination is stable. buildGeoDistanceQuery has already set orderBy
+	// to distance-then-recency (geo) or created_at DESC (no geo); we splice the
+	// score in front and reuse those existing tie-break columns.
+	if rankingActive {
+		useGeo := latitude != 0 && longitude != 0
+		if useGeo {
+			rankingOrderBy = " ORDER BY relevance_score DESC, distance_km ASC NULLS LAST, pi.created_at DESC, pi.id"
+		} else {
+			rankingOrderBy = " ORDER BY relevance_score DESC, pi.created_at DESC, pi.id"
+		}
+		orderBy = rankingOrderBy
+	}
+
 	useGeoDistance := latitude != 0 && longitude != 0
 
 	if !useGeoDistance && pincode != nil {
@@ -1507,7 +1632,7 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 		paramIndex++
 	}
 
-	baseQuery := fmt.Sprintf(baseQueryTemplate, distanceExpr)
+	baseQuery := fmt.Sprintf(baseQueryTemplate, distanceExpr, scoreExpr)
 	baseQuery += whereClause + orderBy + " LIMIT $" + fmt.Sprint(paramIndex) + " OFFSET $" + fmt.Sprint(paramIndex+1)
 	params = append(params, limit, offset)
 

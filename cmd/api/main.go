@@ -31,6 +31,9 @@ func main() {
 	// Configure the customer-facing product-visibility gate (ships dark by default).
 	repository.SetSubscriptionGateEnabled(cfg.SubscriptionGateEnabled)
 
+	// Configure best-effort relevance ranking on product search (ships dark by default).
+	repository.SetSearchRankingEnabled(cfg.SearchRankingEnabled)
+
 	// Initialise structured logger as early as possible so all subsequent
 	// startup messages are captured in the same format.
 	// LOG_LEVEL env: debug | info | warn | error (default: info)
