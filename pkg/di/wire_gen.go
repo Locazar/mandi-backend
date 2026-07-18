@@ -74,7 +74,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	couponRepository := repository.NewCouponRepository(gormDB)
 	paymentUseCase := usecase.NewPaymentUseCase(paymentRepository, orderRepository, userRepository, cartRepository, couponRepository, cfg)
 	paymentHandler := handler.NewPaymentHandler(paymentUseCase)
-	productUseCase := usecase.NewProductUseCase(productRepository, cloudService, gormDB)
+	productUseCase := usecase.NewProductUseCase(productRepository, adminRepository, cloudService, gormDB)
 	client := provideAIServiceClient(cfg)
 	productHandler := handler.NewProductHandler(productUseCase, tokenService, client, cloudService)
 	orderUseCase := usecase.NewOrderUseCase(orderRepository, cartRepository, userRepository, paymentRepository)

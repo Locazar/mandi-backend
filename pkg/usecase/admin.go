@@ -1305,6 +1305,13 @@ func (c *adminUseCase) SearchShops(ctx context.Context, filter request.ShopSearc
 	return c.adminRepo.SearchShops(ctx, filter)
 }
 
+func (c *adminUseCase) GetShopConflicts(ctx context.Context, radiusMeters float64) ([]domain.ShopConflict, error) {
+	if radiusMeters <= 0 {
+		radiusMeters = 10
+	}
+	return c.adminRepo.GetShopConflicts(ctx, radiusMeters)
+}
+
 func (c *adminUseCase) GetAllShops(ctx context.Context, pagination request.Pagination) (shops []domain.ShopDetails, err error) {
 	shops, err = c.adminRepo.GetAllShops(ctx, pagination)
 	if err != nil {
@@ -1320,6 +1327,18 @@ func (c *adminUseCase) GetShopByID(ctx context.Context, shopID string) (shop dom
 	}
 	return shop, nil
 }
+// UpdateSellerProductLimit lets the admin panel cap how many product items a
+// seller may upload in total; enforced in ProductUseCase.SaveProductItem.
+func (c *adminUseCase) UpdateSellerProductLimit(ctx context.Context, adminID string, limit int) error {
+	if limit < 0 {
+		return fmt.Errorf("product limit must not be negative")
+	}
+	if err := c.adminRepo.UpdateSellerProductLimit(ctx, adminID, limit); err != nil {
+		return fmt.Errorf("failed to update seller product limit \nerror:%v", err.Error())
+	}
+	return nil
+}
+
 func (c *adminUseCase) UpdateShop(ctx context.Context, shop map[string]interface{}, shopId string) (map[string]interface{}, error) {
 	updatedShop, err := c.adminRepo.UpdateShop(ctx, shop, shopId)
 	if err != nil {

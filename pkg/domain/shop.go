@@ -95,3 +95,18 @@ type ShopDepartment struct {
 func (ShopDepartment) TableName() string {
 	return "shop_departments"
 }
+
+// ShopConflict is one pair of onboarded shops whose pinned locations fall
+// within the configured detection radius of each other.
+type ShopConflict struct {
+	ShopAID     string    `json:"shop_a_id"`
+	ShopAName   string    `json:"shop_a_name"`
+	ShopAAdmin  string    `json:"shop_a_admin_id"`
+	ShopBID     string    `json:"shop_b_id"`
+	ShopBName   string    `json:"shop_b_name"`
+	ShopBAdmin  string    `json:"shop_b_admin_id"`
+	City        string    `json:"city"`
+	Pincode     string    `json:"pincode"`
+	DistanceM   float64   `json:"distance_m"`
+	DetectedAt  time.Time `json:"detected_at"`
+}

@@ -135,6 +135,11 @@ type Admin struct {
 	Status         AdminStatus `json:"status" gorm:"size:50"`
 	Role           AdminRole   `json:"role" gorm:"size:50;not null;default:'super_admin'"`
 
+	// ProductLimit is the maximum number of product items a seller's shops
+	// may have in total. Enforced on product-item upload (see
+	// ProductUseCase.SaveProductItem); admin-editable per seller.
+	ProductLimit int `json:"product_limit" gorm:"not null;default:100"`
+
 	// ReferralCouponID is the unique code a super admin assigns when creating
 	// a Sales Executive platform user. Sellers optionally enter this code
 	// during shop onboarding; a match attaches their shop to this exec (see

@@ -1891,6 +1891,41 @@ func (h *adminHandler) SearchShops(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully searched shops", shops)
 }
 
+// UpdateSellerProductLimit godoc
+//
+//	@summary		Set a seller's product upload limit
+//	@Security		BearerAuth
+//	@Description	API for admin panel to cap how many product items a seller may upload in total
+//	@Id				UpdateSellerProductLimit
+//	@Tags			Admin Seller
+//	@Param			admin_id		path	string	true	"Seller (admin) ID"
+//	@Param			product_limit	body	object	true	"{\"product_limit\": 100}"
+//	@Router			/admin/sellers/{admin_id}/product-limit [put]
+//	@Success		200	{object}	response.Response{}	"Successfully updated product limit"
+//	@Failure		400	{object}	response.Response{}	"invalid input"
+func (a *adminHandler) UpdateSellerProductLimit(ctx *gin.Context) {
+	adminID := ctx.Param("admin_id")
+	if adminID == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "admin_id is required", nil, nil)
+		return
+	}
+
+	var body struct {
+		ProductLimit int `json:"product_limit" binding:"min=0"`
+	}
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "invalid request body", err, nil)
+		return
+	}
+
+	if err := a.adminUseCase.UpdateSellerProductLimit(ctx, adminID, body.ProductLimit); err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "failed to update seller product limit", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully updated product limit", nil)
+}
+
 // GetShopByID godoc
 //
 //	@summary		Get shop by ID
@@ -1903,6 +1938,33 @@ func (h *adminHandler) SearchShops(ctx *gin.Context) {
 //	@Success		200	{object}	response.Response{}	"Successfully got shop by ID"
 //	@Failure		400	{object}	response.Response{}	"Invalid shop ID"
 //	@Failure		500	{object}	response.Response{}	"Failed to get shop by ID"
+// GetShopConflicts godoc
+//
+//	@summary		Get shops onboarded within conflicting distance of each other
+//	@Security		BearerAuth
+//	@Description	API for admin to find pairs of shops whose pinned locations fall within radius_m of each other
+//	@Id				GetShopConflicts
+//	@Tags			Admin Shop
+//	@Param			radius_m	query	number	false	"Detection radius in meters (default 10)"
+//	@Router			/admin/shops/conflicts [get]
+//	@Success		200	{object}	response.Response{}	"Successfully got shop conflicts"
+//	@Failure		500	{object}	response.Response{}	"Failed to get shop conflicts"
+func (h *adminHandler) GetShopConflicts(ctx *gin.Context) {
+	radiusMeters := 10.0
+	if raw := ctx.Query("radius_m"); raw != "" {
+		if parsed, err := strconv.ParseFloat(raw, 64); err == nil && parsed > 0 {
+			radiusMeters = parsed
+		}
+	}
+
+	conflicts, err := h.adminUseCase.GetShopConflicts(ctx, radiusMeters)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get shop conflicts", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully got shop conflicts", conflicts)
+}
+
 func (h *adminHandler) GetShopByID(ctx *gin.Context) {
 	shopIDStr := ctx.Param("shop_id")
 	if shopIDStr == "" {
