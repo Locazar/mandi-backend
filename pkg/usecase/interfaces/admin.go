@@ -23,6 +23,7 @@ type AdminUseCase interface {
 	GetFullSalesReport(ctx context.Context, requestData request.SalesReport) (salesReport []response.SalesReport, err error)
 	VerifyShop(ctx context.Context, verify request.ShopVerification) error
 	GetVerificationStatus(ctx context.Context, adminId string) (domain.Admin, domain.ShopVerification, error)
+	UpdateSellerProductLimit(ctx context.Context, adminID string, limit int) error
 
 	CreateAdvertisement(ctx context.Context, ad domain.Advertisement) (domain.Advertisement, error)
 	GetAllAdvertisements(ctx context.Context, pagination request.Pagination, filter domain.AdvertisementFilter) (ads []domain.Advertisement, err error)
@@ -88,6 +89,7 @@ type AdminUseCase interface {
 	CreateShop(ctx context.Context, shop domain.ShopDetails) (domain.ShopDetails, error)
 	GetAllShops(ctx context.Context, pagination request.Pagination) (shops []domain.ShopDetails, err error)
 	SearchShops(ctx context.Context, filter request.ShopSearch) ([]domain.ShopDetails, error)
+	GetShopConflicts(ctx context.Context, radiusMeters float64) ([]domain.ShopConflict, error)
 	GetAdminByID(ctx context.Context, adminID string) (domain.Admin, error)
 	GetShopByID(ctx context.Context, shopID string) (shop domain.ShopDetails, err error)
 	UpdateShop(ctx context.Context, shop map[string]interface{}, shopId string) (map[string]interface{}, error)

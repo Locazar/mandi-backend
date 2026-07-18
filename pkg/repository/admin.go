@@ -1167,6 +1167,41 @@ func (c *adminDatabase) SearchShops(ctx context.Context, filter request.ShopSear
 	return shops, err
 }
 
+// GetShopConflicts finds pairs of onboarded shops whose pinned locations sit
+// within radiusMeters of each other. Distance uses the equirectangular
+// approximation (accurate enough at this scale) rather than full haversine,
+// since candidate pairs are pre-filtered to the same pincode to keep the
+// self-join cheap.
+func (c *adminDatabase) GetShopConflicts(ctx context.Context, radiusMeters float64) (conflicts []domain.ShopConflict, err error) {
+	query := `
+		SELECT
+			a.id AS shop_a_id, a.shop_name AS shop_a_name, a.admin_id AS shop_a_admin,
+			b.id AS shop_b_id, b.shop_name AS shop_b_name, b.admin_id AS shop_b_admin,
+			a.city AS city, a.pincode AS pincode,
+			(6371000 * acos(least(1.0,
+				cos(radians(a.latitude)) * cos(radians(b.latitude)) *
+				cos(radians(b.longitude) - radians(a.longitude)) +
+				sin(radians(a.latitude)) * sin(radians(b.latitude))
+			))) AS distance_m,
+			GREATEST(a.created_at, b.created_at) AS detected_at
+		FROM shop_details a
+		JOIN shop_details b
+			ON a.id < b.id
+			AND a.pincode = b.pincode
+		WHERE a.latitude != 0 AND a.longitude != 0
+			AND b.latitude != 0 AND b.longitude != 0
+			AND a.deleted_at IS NULL AND b.deleted_at IS NULL
+			AND (6371000 * acos(least(1.0,
+				cos(radians(a.latitude)) * cos(radians(b.latitude)) *
+				cos(radians(b.longitude) - radians(a.longitude)) +
+				sin(radians(a.latitude)) * sin(radians(b.latitude))
+			))) <= $1
+		ORDER BY detected_at DESC`
+
+	err = c.DB.Raw(query, radiusMeters).Scan(&conflicts).Error
+	return conflicts, err
+}
+
 func (c *adminDatabase) GetShopByID(ctx context.Context, shopID string) (shop domain.ShopDetails, err error) {
 	query := `SELECT sd.*, (EXISTS (SELECT 1 FROM shop_offers so WHERE so.shop_id = sd.id)) as has_offers FROM shop_details sd WHERE sd.id = $1`
 	err = c.DB.Raw(query, shopID).Scan(&shop).Error
@@ -1481,6 +1516,19 @@ func (c *adminDatabase) GetAdminByID(ctx context.Context, adminID string) (domai
 	}
 	c.decryptAdminPII(&admin)
 	return admin, nil
+}
+
+// UpdateSellerProductLimit sets the max product-item quota (admins.product_limit)
+// for a seller, enforced in ProductUseCase.SaveProductItem.
+func (c *adminDatabase) UpdateSellerProductLimit(ctx context.Context, adminID string, limit int) error {
+	result := c.DB.WithContext(ctx).Model(&domain.Admin{}).Where("id = ?", adminID).Update("product_limit", limit)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return domain.NotFoundError("seller not found")
+	}
+	return nil
 }
 
 func (a *adminDatabase) GetDashboardStats(ctx context.Context) (domain.DashboardStats, error) {

@@ -61,6 +61,7 @@ type ProductRepository interface {
 	FindAllProductItemIDsByProductIDAndVariationOptionID(ctx context.Context, productID, variationOptionID string) ([]string, error)
 	SaveProductConfiguration(ctx context.Context, productItemID, variationOptionID string) error
 	SaveProductItem(ctx context.Context, productItem request.ProductItem, adminID string, shopID string) (productItemID string, err error)
+	CountProductItemsByShopID(ctx context.Context, shopID string) (count int64, err error)
 	UpdateProductItem(ctx context.Context, productItemID string, productItem request.ProductItem) error
 	UpdateProductItemStock(ctx context.Context, productItemID string, inStock bool) error
 	// product item image
