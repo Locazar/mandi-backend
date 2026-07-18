@@ -438,11 +438,17 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		}
 
 		// Shop details
+		sellers := api.Group("/sellers", adminHandler.RequirePermission(domain.PermCanManageAdmins))
+		{
+			sellers.PUT("/:admin_id/product-limit", middleware.TrimSpaces(), adminHandler.UpdateSellerProductLimit)
+		}
+
 		shop := api.Group("/shops")
 		{
 			shop.POST("/", adminHandler.CreateShop)
 			shop.GET("/", adminHandler.GetAllShops)
 			shop.GET("/search", adminHandler.SearchShops)
+			shop.GET("/conflicts", adminHandler.GetShopConflicts)
 			shop.GET("/:shop_id", adminHandler.GetShopByID)
 			shop.PUT("/", adminHandler.UpdateShop)
 			shop.PUT("/:shop_id", adminHandler.UploadShopById)

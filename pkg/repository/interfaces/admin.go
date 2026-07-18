@@ -14,6 +14,7 @@ type AdminRepository interface {
 	FindAdminWithShopVerificationByPhone(ctx context.Context, phone string) (domain.Admin, domain.ShopVerification, error)
 	GetAdminByID(ctx context.Context, adminID string) (domain.Admin, error)
 	SaveAdmin(ctx context.Context, admin domain.Admin) (domain.Admin, error)
+	UpdateSellerProductLimit(ctx context.Context, adminID string, limit int) error
 
 	FindAllUser(ctx context.Context, pagination request.Pagination) (users []response.User, err error)
 
@@ -83,6 +84,7 @@ type AdminRepository interface {
 	CreateShop(ctx context.Context, shop domain.ShopDetails) (domain.ShopDetails, error)
 	GetAllShops(ctx context.Context, pagination request.Pagination) (shops []domain.ShopDetails, err error)
 	SearchShops(ctx context.Context, filter request.ShopSearch) ([]domain.ShopDetails, error)
+	GetShopConflicts(ctx context.Context, radiusMeters float64) ([]domain.ShopConflict, error)
 	GetShopByID(ctx context.Context, shopID string) (shop domain.ShopDetails, err error)
 	UpdateShop(ctx context.Context, shop map[string]interface{}, shopId string) (map[string]interface{}, error)
 	GetShopByOwnerID(ctx context.Context, ownerID string) (shop domain.ShopDetails, err error)

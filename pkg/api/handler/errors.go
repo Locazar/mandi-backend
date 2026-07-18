@@ -44,6 +44,7 @@ var sentinelStatus = map[error]int{
 	usecase.ErrProductAlreadyExist:         http.StatusConflict,
 	usecase.ErrProductItemAlreadyExist:     http.StatusConflict,
 	usecase.ErrNotEnoughVariations:         http.StatusBadRequest,
+	usecase.ErrProductLimitExceeded:        http.StatusForbidden,
 	// offer
 	usecase.ErrOfferNameAlreadyExist:     http.StatusConflict,
 	usecase.ErrInvalidOfferEndDate:       http.StatusBadRequest,
