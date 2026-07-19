@@ -47,6 +47,15 @@ type ModerationResponse struct {
 	Scam struct {
 		Prob float64 `json:"prob"`
 	} `json:"scam"`
+	Tobacco struct {
+		Prob float64 `json:"prob"`
+	} `json:"tobacco"`
+	RecreationalDrug struct {
+		Prob float64 `json:"prob"`
+	} `json:"recreational_drug"`
+	Alcohol struct {
+		Prob float64 `json:"prob"`
+	} `json:"alcohol"`
 	Error struct {
 		Type    string `json:"type"`
 		Code    int    `json:"code"`
@@ -82,7 +91,7 @@ func CheckNudity(path string) (bool, error) {
 	// IMPORTANT: Sightengine rejects the *entire* request (status: failure)
 	// if even one model name here is invalid — verify a name against
 	// https://sightengine.com/docs/models before adding it back.
-	_ = writer.WriteField("models", "nudity-2.1,gore-2.0,violence,self-harm,weapon,offensive,scam")
+	_ = writer.WriteField("models", "nudity-2.1,gore-2.0,violence,self-harm,weapon,offensive,scam,tobacco,recreational_drug,alcohol")
 	_ = writer.WriteField("api_user", "1350960651")
 	_ = writer.WriteField("api_secret", "xD7trXQ3EDEzJsd4Msy5bZzVZCXADoJf")
 
@@ -160,6 +169,12 @@ func CheckNudity(path string) (bool, error) {
 	}
 
 	if result.Scam.Prob > threshold {
+		return true, nil
+	}
+
+	if result.Tobacco.Prob > threshold ||
+		result.RecreationalDrug.Prob > threshold ||
+		result.Alcohol.Prob > threshold {
 		return true, nil
 	}
 
