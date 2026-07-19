@@ -1,6 +1,10 @@
 package domain
 
-import "time"
+import (
+	"time"
+
+	"github.com/lib/pq"
+)
 
 // Subscription order statuses
 const (
@@ -20,6 +24,14 @@ type SubscriptionPlan struct {
 	PriceMonthly Money `json:"price_monthly" gorm:"embedded;embeddedPrefix:price_monthly_"`
 	DurationDays uint  `json:"duration_days" gorm:"not null;default:30"`
 	IsActive     bool  `json:"is_active" gorm:"not null;default:true"`
+
+	// Description and Features are admin-editable marketing copy shown on the
+	// seller-app plan-details bottom sheet; neither affects billing logic.
+	// pq.StringArray (not a plain []string) so raw-SQL Scan into this struct
+	// (see ListSubscriptionPlans) can decode a Postgres text[] column —
+	// database/sql has no built-in support for scanning arrays into []string.
+	Description string         `json:"description" gorm:"type:text" binding:"omitempty"`
+	Features    pq.StringArray `json:"features" gorm:"type:text[]" binding:"omitempty"`
 }
 
 type SubscriptionOrder struct {

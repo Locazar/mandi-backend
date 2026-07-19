@@ -11,8 +11,10 @@ import (
 )
 
 const (
-	guideVideoNamespace    = "guide_video"
-	trainingVideoNamespace = "training_video"
+	guideVideoNamespace             = "guide_video"
+	trainingVideoNamespace          = "training_video"
+	productUploadGuideVideoNS       = "product_upload_guide"
+	productUploadGuideDefaultFolder = "_default"
 )
 
 // SellerGuideHandler serves seller onboarding guide data and manages guide/training videos.
@@ -84,6 +86,75 @@ func (h *SellerGuideHandler) GetCategories(ctx *gin.Context) {
 	})
 }
 
+// GetPublicProductUploadGuideVideo GET /api/seller-guide/product-upload-guide-video?department=<name>
+// Returns the single "how to upload a product" video for the given department,
+// falling back to the default video if none was uploaded for that department.
+func (h *SellerGuideHandler) GetPublicProductUploadGuideVideo(ctx *gin.Context) {
+	department := ctx.Query("department")
+	slug := slugifyDepartment(department)
+
+	video, err := h.firstVideoInNamespace(ctx, productUploadGuideVideoNS+"/"+slug)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to load guide video", err, nil)
+		return
+	}
+	if video == nil {
+		video, err = h.firstVideoInNamespace(ctx, productUploadGuideVideoNS+"/"+productUploadGuideDefaultFolder)
+		if err != nil {
+			response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to load guide video", err, nil)
+			return
+		}
+	}
+	if video == nil {
+		response.ErrorResponse(ctx, http.StatusNotFound, "No product upload guide video uploaded", nil, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Product upload guide video retrieved", video)
+}
+
+// ── Admin — Product Upload Guide Videos ──────────────────────────────────────
+
+// GetProductUploadGuideVideos GET /api/admin/product-upload-guide-videos?department=<name|"default">
+func (h *SellerGuideHandler) GetProductUploadGuideVideos(ctx *gin.Context) {
+	folder := productUploadGuideFolder(ctx.Query("department"))
+	h.listVideos(ctx, productUploadGuideVideoNS+"/"+folder)
+}
+
+// UploadProductUploadGuideVideo POST /api/admin/product-upload-guide-videos
+// (form: video file, department (or "default"), name?)
+// Each department folder holds exactly one video, so any existing one is removed first.
+func (h *SellerGuideHandler) UploadProductUploadGuideVideo(ctx *gin.Context) {
+	folder := productUploadGuideFolder(ctx.Query("department"))
+	if folder == "" {
+		folder = productUploadGuideFolder(ctx.PostForm("department"))
+	}
+	namespace := productUploadGuideVideoNS + "/" + folder
+	if !h.clearNamespace(ctx, namespace) {
+		return
+	}
+	h.saveVideo(ctx, namespace, http.StatusCreated, "Product upload guide video uploaded")
+}
+
+// ReplaceProductUploadGuideVideo PUT /api/admin/product-upload-guide-videos
+// (form: video file, department (or "default"), name?)
+func (h *SellerGuideHandler) ReplaceProductUploadGuideVideo(ctx *gin.Context) {
+	folder := productUploadGuideFolder(ctx.Query("department"))
+	if folder == "" {
+		folder = productUploadGuideFolder(ctx.PostForm("department"))
+	}
+	namespace := productUploadGuideVideoNS + "/" + folder
+	if !h.clearNamespace(ctx, namespace) {
+		return
+	}
+	h.saveVideo(ctx, namespace, http.StatusOK, "Product upload guide video replaced")
+}
+
+// DeleteProductUploadGuideVideo DELETE /api/admin/product-upload-guide-videos?department=<name|"default">&name=<filename>
+func (h *SellerGuideHandler) DeleteProductUploadGuideVideo(ctx *gin.Context) {
+	folder := productUploadGuideFolder(ctx.Query("department"))
+	h.deleteVideo(ctx, productUploadGuideVideoNS+"/"+folder)
+}
+
 // ── Admin — Guide Videos ──────────────────────────────────────────────────────
 
 // ListGuideVideos GET /api/admin/guide-videos
@@ -136,6 +207,64 @@ func (h *SellerGuideHandler) DeleteTrainingVideo(ctx *gin.Context) {
 }
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
+
+// slugifyDepartment normalizes a department name into a storage-safe folder
+// name: lowercase, alphanumerics kept, everything else collapsed to "-".
+func slugifyDepartment(name string) string {
+	name = strings.ToLower(strings.TrimSpace(name))
+	if name == "" {
+		return productUploadGuideDefaultFolder
+	}
+	var b strings.Builder
+	lastDash := false
+	for _, r := range name {
+		switch {
+		case r >= 'a' && r <= 'z' || r >= '0' && r <= '9':
+			b.WriteRune(r)
+			lastDash = false
+		default:
+			if !lastDash {
+				b.WriteByte('-')
+				lastDash = true
+			}
+		}
+	}
+	slug := strings.Trim(b.String(), "-")
+	if slug == "" {
+		return productUploadGuideDefaultFolder
+	}
+	return slug
+}
+
+// productUploadGuideFolder resolves the storage folder for a department query
+// param, treating "" and "default" as the shared fallback folder.
+func productUploadGuideFolder(department string) string {
+	if strings.EqualFold(strings.TrimSpace(department), "default") {
+		return productUploadGuideDefaultFolder
+	}
+	return slugifyDepartment(department)
+}
+
+// firstVideoInNamespace returns the first video found under namespace, or nil
+// (with no error) if the namespace has no videos.
+func (h *SellerGuideHandler) firstVideoInNamespace(ctx *gin.Context, namespace string) (map[string]interface{}, error) {
+	keys, err := h.cloudService.ListObjects(ctx, namespace+"/")
+	if err != nil {
+		return nil, err
+	}
+	for _, key := range keys {
+		name := filepath.Base(key)
+		if name == "" || name == "." || strings.HasSuffix(key, "/") {
+			continue
+		}
+		return map[string]interface{}{
+			"name":      name,
+			"key":       key,
+			"video_url": h.cloudService.PublicURL(key),
+		}, nil
+	}
+	return nil, nil
+}
 
 // clearNamespace deletes every object under the namespace. Returns false if it
 // failed and an error response was already written.

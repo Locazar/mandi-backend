@@ -55,6 +55,10 @@ type ShopDetails struct {
 	Offers    []Offer `json:"offers" gorm:"many2many:shop_offers;"`
 	HasOffers bool    `json:"has_offers" gorm:"column:has_offers"`
 
+	// ProductLimit is the owning seller's admins.product_limit, joined in for
+	// admin-panel display/edit; not a real shop_details column.
+	ProductLimit int `json:"product_limit" gorm:"column:product_limit"`
+
 	// ReferralCouponID (input-only, not persisted here) is the optional
 	// referral code the seller enters on the final onboarding step. A match
 	// against an Admin.ReferralCouponID creates a ShopReferral row instead
