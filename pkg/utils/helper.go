@@ -54,7 +54,7 @@ func CheckNudity(path string) (bool, error) {
 	}
 
 	// Add API parameters
-	_ = writer.WriteField("models", "nudity-2.1")
+	_ = writer.WriteField("models", "nudity-2.1,weapons-1.0,offensive-1.0,drugs-1.0,gore-2.0,alcohol-1.0,political-1.0,terrorism-1.0,self-harm-1.0,discrimination-1.0,adult-1.0,sexual-1.0,explicit-1.0,sexual_activity-1.0,sexual_display-1.0,erotica-1.0,very_suggestive-1.0,suggestive-1.0,mildly_suggestive-1.0,none-1.0,military-1.0")
 	_ = writer.WriteField("api_user", "1350960651")
 	_ = writer.WriteField("api_secret", "xD7trXQ3EDEzJsd4Msy5bZzVZCXADoJf")
 
