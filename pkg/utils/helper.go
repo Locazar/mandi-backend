@@ -22,6 +22,31 @@ type ModerationResponse struct {
 		MildlySuggestive float64 `json:"mildly_suggestive"`
 		None             float64 `json:"none"`
 	} `json:"nudity"`
+	Gore struct {
+		Prob float64 `json:"prob"`
+	} `json:"gore"`
+	Violence struct {
+		Prob float64 `json:"prob"`
+	} `json:"violence"`
+	SelfHarm struct {
+		Prob float64 `json:"prob"`
+	} `json:"self-harm"`
+	// WeaponFirearm/WeaponKnife are Sightengine's top-level convenience
+	// aggregates for the "weapon" model (rather than the nested per-class
+	// breakdown), same shape as the drug/medical top-level scores below.
+	WeaponFirearm float64 `json:"weapon_firearm"`
+	WeaponKnife   float64 `json:"weapon_knife"`
+	Offensive     struct {
+		Prob         float64 `json:"prob"`
+		Nazi         float64 `json:"nazi"`
+		Confederate  float64 `json:"confederate"`
+		Supremacist  float64 `json:"supremacist"`
+		Terrorist    float64 `json:"terrorist"`
+		MiddleFinger float64 `json:"middle_finger"`
+	} `json:"offensive"`
+	Scam struct {
+		Prob float64 `json:"prob"`
+	} `json:"scam"`
 	Error struct {
 		Type    string `json:"type"`
 		Code    int    `json:"code"`
@@ -53,8 +78,11 @@ func CheckNudity(path string) (bool, error) {
 		return false, fmt.Errorf("failed to copy file: %w", err)
 	}
 
-	// Add API parameters
-	_ = writer.WriteField("models", "nudity-2.1,weapons-1.0,offensive-1.0,drugs-1.0,gore-2.0,alcohol-1.0,political-1.0,terrorism-1.0,self-harm-1.0,discrimination-1.0,adult-1.0,sexual-1.0,explicit-1.0,sexual_activity-1.0,sexual_display-1.0,erotica-1.0,very_suggestive-1.0,suggestive-1.0,mildly_suggestive-1.0,none-1.0,military-1.0")
+	// Add API parameters.
+	// IMPORTANT: Sightengine rejects the *entire* request (status: failure)
+	// if even one model name here is invalid — verify a name against
+	// https://sightengine.com/docs/models before adding it back.
+	_ = writer.WriteField("models", "nudity-2.1,gore-2.0,violence,self-harm,weapon,offensive,scam")
 	_ = writer.WriteField("api_user", "1350960651")
 	_ = writer.WriteField("api_secret", "xD7trXQ3EDEzJsd4Msy5bZzVZCXADoJf")
 
@@ -87,28 +115,52 @@ func CheckNudity(path string) (bool, error) {
 	// Print the full response for debugging
 	fmt.Printf("Sightengine API Response: %+v\n", result)
 	fmt.Printf("Response Status: %s\n", result.Status)
-	if result.Status == "success" {
-		fmt.Printf("Sexual Activity: %f\n", result.Nudity.SexualActivity)
-		fmt.Printf("Sexual Display: %f\n", result.Nudity.SexualDisplay)
-		fmt.Printf("Erotica: %f\n", result.Nudity.Erotica)
-		fmt.Printf("Very Suggestive: %f\n", result.Nudity.VerySuggestive)
-		fmt.Printf("Suggestive: %f\n", result.Nudity.Suggestive)
-	} else if result.Status == "failure" {
+	if result.Status == "failure" {
 		fmt.Printf("Error Type: %s\n", result.Error.Type)
 		fmt.Printf("Error Code: %d\n", result.Error.Code)
 		fmt.Printf("Error Message: %s\n", result.Error.Message)
 	}
 
-	// If any of the explicit adult content scores > 0.5, it's adult content
-	// sexual_activity and sexual_display are clear indicators of adult content
-	// erotica and very_suggestive are also strong indicators
-	if result.Status == "success" {
-		if result.Nudity.SexualActivity > 0.5 ||
-			result.Nudity.SexualDisplay > 0.5 ||
-			result.Nudity.Erotica > 0.5 ||
-			result.Nudity.VerySuggestive > 0.5 {
-			return true, nil // It is adult content
-		}
+	// Fail closed: if Sightengine didn't return a clean success, we have no
+	// signal either way, so don't let the image through unmoderated.
+	if result.Status != "success" {
+		return false, fmt.Errorf(
+			"moderation check failed: %s (code %d): %s",
+			result.Error.Type, result.Error.Code, result.Error.Message,
+		)
+	}
+
+	const threshold = 0.5
+
+	// sexual_activity/sexual_display are clear indicators of adult content;
+	// erotica/very_suggestive are also strong indicators.
+	if result.Nudity.SexualActivity > threshold ||
+		result.Nudity.SexualDisplay > threshold ||
+		result.Nudity.Erotica > threshold ||
+		result.Nudity.VerySuggestive > threshold {
+		return true, nil
+	}
+
+	if result.Gore.Prob > threshold ||
+		result.Violence.Prob > threshold ||
+		result.SelfHarm.Prob > threshold {
+		return true, nil
+	}
+
+	if result.WeaponFirearm > threshold || result.WeaponKnife > threshold {
+		return true, nil
+	}
+
+	if result.Offensive.Prob > threshold ||
+		result.Offensive.Nazi > threshold ||
+		result.Offensive.Confederate > threshold ||
+		result.Offensive.Supremacist > threshold ||
+		result.Offensive.Terrorist > threshold {
+		return true, nil
+	}
+
+	if result.Scam.Prob > threshold {
+		return true, nil
 	}
 
 	return false, nil // Safe
