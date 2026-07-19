@@ -917,10 +917,10 @@ func (c *adminDatabase) CreateSubscriptionPlan(ctx context.Context, plan domain.
 		plan.PriceMonthly.Currency = "INR"
 	}
 	err := c.DB.WithContext(ctx).Exec(`INSERT INTO subscription_plans
-		(id, name, price_monthly_amount_minor, price_monthly_currency, duration_days, is_active)
-		VALUES ($1,$2,$3,$4,$5,$6)`,
+		(id, name, price_monthly_amount_minor, price_monthly_currency, duration_days, is_active, description, features)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
 		plan.ID, plan.Name, plan.PriceMonthly.AmountMinor, plan.PriceMonthly.Currency,
-		plan.DurationDays, plan.IsActive,
+		plan.DurationDays, plan.IsActive, plan.Description, plan.Features,
 	).Error
 	return plan, err
 }
@@ -931,10 +931,10 @@ func (c *adminDatabase) UpdateSubscriptionPlan(ctx context.Context, plan domain.
 	}
 	result := c.DB.WithContext(ctx).Exec(`UPDATE subscription_plans
 		SET name = $2, price_monthly_amount_minor = $3, price_monthly_currency = $4,
-		    duration_days = $5, is_active = $6
+		    duration_days = $5, is_active = $6, description = $7, features = $8
 		WHERE id = $1`,
 		plan.ID, plan.Name, plan.PriceMonthly.AmountMinor, plan.PriceMonthly.Currency,
-		plan.DurationDays, plan.IsActive,
+		plan.DurationDays, plan.IsActive, plan.Description, plan.Features,
 	)
 	if result.Error != nil {
 		return plan, result.Error
@@ -1109,7 +1109,8 @@ func (c *adminDatabase) GetAllShops(ctx context.Context, pagination request.Pagi
 	limit := pagination.Limit
 	offset := pagination.Offset
 
-	query := `SELECT sd.*, (EXISTS (SELECT 1 FROM shop_offers so WHERE so.shop_id = sd.id)) as has_offers FROM shop_details sd ORDER BY sd.created_at DESC LIMIT $1 OFFSET $2`
+	query := `SELECT sd.*, (EXISTS (SELECT 1 FROM shop_offers so WHERE so.shop_id = sd.id)) as has_offers, a.product_limit
+		FROM shop_details sd LEFT JOIN admins a ON a.id = sd.admin_id ORDER BY sd.created_at DESC LIMIT $1 OFFSET $2`
 	err = c.DB.Raw(query, limit, offset).Scan(&shops).Error
 	for i := range shops {
 		c.decryptShopPII(&shops[i])
@@ -1120,7 +1121,8 @@ func (c *adminDatabase) GetAllShops(ctx context.Context, pagination request.Pagi
 // SearchShops filters shops by phone, pincode, city, and/or radius (km) around a point.
 // Empty filters are ignored; all provided filters are ANDed together.
 func (c *adminDatabase) SearchShops(ctx context.Context, filter request.ShopSearch) (shops []domain.ShopDetails, err error) {
-	query := `SELECT sd.*, (EXISTS (SELECT 1 FROM shop_offers so WHERE so.shop_id = sd.id)) as has_offers FROM shop_details sd WHERE 1=1`
+	query := `SELECT sd.*, (EXISTS (SELECT 1 FROM shop_offers so WHERE so.shop_id = sd.id)) as has_offers, a.product_limit
+		FROM shop_details sd LEFT JOIN admins a ON a.id = sd.admin_id WHERE 1=1`
 	args := []interface{}{}
 	i := 1
 

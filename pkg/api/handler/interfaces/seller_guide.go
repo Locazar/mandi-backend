@@ -18,4 +18,11 @@ type SellerGuideHandler interface {
 	UploadTrainingVideo(ctx *gin.Context)
 	ReplaceTrainingVideo(ctx *gin.Context)
 	DeleteTrainingVideo(ctx *gin.Context)
+	// Public — product upload guide video
+	GetPublicProductUploadGuideVideo(ctx *gin.Context)
+	// Admin — product upload guide videos
+	GetProductUploadGuideVideos(ctx *gin.Context)
+	UploadProductUploadGuideVideo(ctx *gin.Context)
+	ReplaceProductUploadGuideVideo(ctx *gin.Context)
+	DeleteProductUploadGuideVideo(ctx *gin.Context)
 }

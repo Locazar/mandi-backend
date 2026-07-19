@@ -34,10 +34,12 @@ type SubscriptionStatusResponse struct {
 }
 
 type SubscriptionPlanResponse struct {
-	ID           string `json:"id"`
-	Name         string `json:"name"`
-	PriceMonthly uint   `json:"price_monthly"`
-	DurationDays uint   `json:"duration_days"`
+	ID           string   `json:"id"`
+	Name         string   `json:"name"`
+	PriceMonthly uint     `json:"price_monthly"`
+	DurationDays uint     `json:"duration_days"`
+	Description  string   `json:"description,omitempty"`
+	Features     []string `json:"features,omitempty"`
 }
 
 // BillingPaymentResponse is one paid subscription payment in the billing

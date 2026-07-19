@@ -574,5 +574,15 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			trainingVideos.PUT("", sellerGuideHandler.ReplaceTrainingVideo)
 			trainingVideos.DELETE("", sellerGuideHandler.DeleteTrainingVideo)
 		}
+
+		// Product upload guide video management (per-department, with a
+		// "default" folder used as fallback for departments with none).
+		productUploadGuideVideos := api.Group("/product-upload-guide-videos")
+		{
+			productUploadGuideVideos.GET("", sellerGuideHandler.GetProductUploadGuideVideos)
+			productUploadGuideVideos.POST("", sellerGuideHandler.UploadProductUploadGuideVideo)
+			productUploadGuideVideos.PUT("", sellerGuideHandler.ReplaceProductUploadGuideVideo)
+			productUploadGuideVideos.DELETE("", sellerGuideHandler.DeleteProductUploadGuideVideo)
+		}
 	}
 }
