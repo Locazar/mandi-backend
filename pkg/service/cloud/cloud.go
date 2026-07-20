@@ -27,4 +27,7 @@ type CloudService interface {
 	PresignedURL(ctx context.Context, objectKey string, ttl time.Duration) (url string, err error)
 	DeleteObject(ctx context.Context, objectKey string) error
 	ListObjects(ctx context.Context, prefix string) (keys []string, err error)
+	// GetBytes reads an object's full content. Returns an error if the
+	// object does not exist.
+	GetBytes(ctx context.Context, objectKey string) ([]byte, error)
 }
