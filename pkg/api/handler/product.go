@@ -1256,6 +1256,10 @@ func (h *ProductHandler) SearchProducts(c *gin.Context) {
 		}
 	}
 
+	// trending=true sorts most-viewed products first (overrides default
+	// relevance/geo/recency ordering); trending=false (or omitted) changes nothing.
+	trending := c.Query("trending") == "true"
+
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 
@@ -1284,7 +1288,7 @@ func (h *ProductHandler) SearchProducts(c *gin.Context) {
 		Offset: offsetUint64,
 	}
 
-	products, err := h.productUseCase.SearchProducts(c, keyword, catIDPtr, deptIDPtr, brandIDPtr, locIDPtr, shopIDPtr, latitude, longitude, radius, pincode, int(pagination.Limit), int(pagination.Offset))
+	products, err := h.productUseCase.SearchProducts(c, keyword, catIDPtr, deptIDPtr, brandIDPtr, locIDPtr, shopIDPtr, latitude, longitude, radius, pincode, trending, int(pagination.Limit), int(pagination.Offset))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

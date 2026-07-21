@@ -1432,7 +1432,7 @@ func buildGeoDistanceQuery(lat, lng, radius float64, startParam int, locationCol
 }
 
 // SearchProducts implements interfaces.ProductRepository.
-func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, categoryID, departmentID, brandID, locationID, shopID *string, latitude, longitude, radius float64, pincode *uint, pagination request.Pagination) (products []response.ProductItems, err error) {
+func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, categoryID, departmentID, brandID, locationID, shopID *string, latitude, longitude, radius float64, pincode *uint, trending bool, pagination request.Pagination) (products []response.ProductItems, err error) {
 	limit := int(pagination.Limit)
 	offset := int(pagination.Offset)
 
@@ -1628,6 +1628,13 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 			rankingOrderBy = " ORDER BY relevance_score DESC, pi.created_at DESC, pi.id"
 		}
 		orderBy = rankingOrderBy
+	}
+
+	// Trending: most-viewed first, overriding relevance/geo/recency ordering.
+	// Applied before LIMIT/OFFSET below, so it ranks across the whole
+	// matching set rather than just re-sorting an already-truncated page.
+	if trending {
+		orderBy = " ORDER BY view_count DESC, pi.id"
 	}
 
 	useGeoDistance := latitude != 0 && longitude != 0
