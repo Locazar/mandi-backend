@@ -660,6 +660,9 @@ func (c *UserHandler) SearchShopList(ctx *gin.Context) {
 	}
 
 	response.ResolveShopsImages(c.cloudService, shops)
+	for i := range shops {
+		shops[i].Phone = ""
+	}
 
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully found shops", shops)
 }
@@ -855,6 +858,7 @@ func (c *UserHandler) GetShopByID(ctx *gin.Context) {
 	shop.UserReview = socialSummary.UserReview
 
 	shop.ResolveImages(c.cloudService)
+	shop.Phone = ""
 
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully got shop by ID", shop)
 
