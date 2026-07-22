@@ -1475,6 +1475,45 @@ func (c *adminHandler) UpdateGlobalConfig(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Config updated", updated)
 }
 
+// GetOnboardingCopy godoc
+//
+//	@summary		Get the seller onboarding wizard's admin-editable text/copy
+//	@Security		BearerAuth
+//	@Id				GetOnboardingCopy
+//	@Tags			App Configs
+//	@Router			/admin/onboarding-copy [get]
+//	@Success		200	{object}	response.Response{}
+func (c *adminHandler) GetOnboardingCopy(ctx *gin.Context) {
+	copyObj, err := c.adminUseCase.GetOnboardingWizardCopy(ctx)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to fetch onboarding copy", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Onboarding copy fetched", copyObj)
+}
+
+// UpdateOnboardingCopy godoc
+//
+//	@summary		Update the seller onboarding wizard's admin-editable text/copy
+//	@Security		BearerAuth
+//	@Id				UpdateOnboardingCopy
+//	@Tags			App Configs
+//	@Router			/admin/onboarding-copy [put]
+//	@Success		200	{object}	response.Response{}
+func (c *adminHandler) UpdateOnboardingCopy(ctx *gin.Context) {
+	var body domain.OnboardingWizardCopy
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	updated, err := c.adminUseCase.UpdateOnboardingWizardCopy(ctx, body)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to update onboarding copy", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Onboarding copy updated", updated)
+}
+
 // GetHelpSettings godoc
 //
 //	@summary		Get help center contact settings (admin panel)

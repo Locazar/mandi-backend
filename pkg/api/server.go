@@ -144,6 +144,9 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 	// mobile apps on launch (RemoteConfigService). Same data as /api/admin/config;
 	// this route just skips the admin-auth requirement for client reads.
 	engine.GET("/api/app-config", adminHandler.GetGlobalConfig)
+	// Seller onboarding wizard text/copy — read by the seller-app without admin auth.
+	// Same data as /api/admin/onboarding-copy; this route just skips the admin-auth requirement.
+	engine.GET("/api/onboarding-copy", adminHandler.GetOnboardingCopy)
 	// Help center (support contact details + FAQs) — read by clients without admin auth
 	engine.GET("/api/help", adminHandler.GetHelpCenter)
 
