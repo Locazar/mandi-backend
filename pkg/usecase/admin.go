@@ -1038,6 +1038,51 @@ func (c *adminUseCase) UpdateGlobalConfig(ctx context.Context, cfg domain.Global
 	return cfg, nil
 }
 
+// GetOnboardingWizardCopy returns the admin-editable text shown across the
+// seller-app's shop-onboarding wizard, falling back to the shipped defaults
+// if nothing has been saved yet.
+func (c *adminUseCase) GetOnboardingWizardCopy(ctx context.Context) (domain.OnboardingWizardCopy, error) {
+	row, err := c.adminRepo.GetAppConfigByKey(ctx, domain.OnboardingWizardCopyKey)
+	if err != nil {
+		return domain.DefaultOnboardingWizardCopy(), nil
+	}
+	var copyObj domain.OnboardingWizardCopy
+	if err := json.Unmarshal([]byte(row.Value), &copyObj); err != nil {
+		return domain.DefaultOnboardingWizardCopy(), fmt.Errorf("stored onboarding wizard copy is corrupt: %w", err)
+	}
+	return copyObj, nil
+}
+
+// UpdateOnboardingWizardCopy persists the full onboarding wizard copy object
+// as a single JSON blob, creating the underlying app_configs row on first save.
+func (c *adminUseCase) UpdateOnboardingWizardCopy(ctx context.Context, copyObj domain.OnboardingWizardCopy) (domain.OnboardingWizardCopy, error) {
+	encoded, err := json.Marshal(copyObj)
+	if err != nil {
+		return domain.OnboardingWizardCopy{}, fmt.Errorf("failed to encode onboarding wizard copy: %w", err)
+	}
+
+	row := domain.AppConfig{
+		ConfigKey:   domain.OnboardingWizardCopyKey,
+		Value:       string(encoded),
+		Description: "Seller onboarding wizard text/copy — managed via admin-portal Onboarding Copy page",
+		Enabled:     true,
+	}
+
+	existing, err := c.adminRepo.GetAppConfigByKey(ctx, domain.OnboardingWizardCopyKey)
+	if err != nil {
+		if _, err := c.adminRepo.CreateAppConfig(ctx, row); err != nil {
+			return domain.OnboardingWizardCopy{}, err
+		}
+		return copyObj, nil
+	}
+
+	row.ID = existing.ID
+	if _, err := c.adminRepo.UpdateAppConfig(ctx, row); err != nil {
+		return domain.OnboardingWizardCopy{}, err
+	}
+	return copyObj, nil
+}
+
 // Help center (contact settings + FAQs)
 
 func validateHelpSettings(s domain.HelpSettings) error {

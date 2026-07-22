@@ -70,6 +70,8 @@ type AdminUseCase interface {
 	// Global app config (single structured config used by client apps)
 	GetGlobalConfig(ctx context.Context) (domain.GlobalAppConfig, error)
 	UpdateGlobalConfig(ctx context.Context, cfg domain.GlobalAppConfig) (domain.GlobalAppConfig, error)
+	GetOnboardingWizardCopy(ctx context.Context) (domain.OnboardingWizardCopy, error)
+	UpdateOnboardingWizardCopy(ctx context.Context, copy domain.OnboardingWizardCopy) (domain.OnboardingWizardCopy, error)
 
 	// Help center (contact settings + FAQs)
 	GetHelpSettings(ctx context.Context) (domain.HelpSettings, error)

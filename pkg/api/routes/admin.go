@@ -410,6 +410,11 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		api.GET("/config", adminHandler.RequirePermission(domain.PermCanManageSettings), adminHandler.GetGlobalConfig)
 		api.PUT("/config", adminHandler.RequirePermission(domain.PermCanManageSettings), middleware.TrimSpaces(), adminHandler.UpdateGlobalConfig)
 
+		// Seller onboarding wizard text/copy — single JSON blob (see also the
+		// public GET /api/onboarding-copy registered directly in server.go)
+		api.GET("/onboarding-copy", adminHandler.RequirePermission(domain.PermCanManageSettings), adminHandler.GetOnboardingCopy)
+		api.PUT("/onboarding-copy", adminHandler.RequirePermission(domain.PermCanManageSettings), middleware.TrimSpaces(), adminHandler.UpdateOnboardingCopy)
+
 		// help center — contact settings + FAQs (managed from the admin panel)
 		help := api.Group("/help", adminHandler.RequirePermission(domain.PermCanManageSettings))
 		{

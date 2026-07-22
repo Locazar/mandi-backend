@@ -35,6 +35,8 @@ type AdminHandler interface {
 	// Global app config (single structured config used by client apps)
 	GetGlobalConfig(ctx *gin.Context)
 	UpdateGlobalConfig(ctx *gin.Context)
+	GetOnboardingCopy(ctx *gin.Context)
+	UpdateOnboardingCopy(ctx *gin.Context)
 
 	// Advertisement Requests (seller-raised)
 	GetAdvertisementPricePlans(ctx *gin.Context)

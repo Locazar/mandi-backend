@@ -34,10 +34,11 @@ All query params are optional.
 | `lng` (or `long`) | float | 0 | Longitude, for geo/radius search |
 | `radius` | float | 0 | Radius in km around `lat`/`lng` |
 | `pincode` | uint | — | Pincode |
+| `trending` | bool | `false` | `true` sorts results by most-viewed first (`view_count DESC`), overriding relevance/geo/recency ordering. `false` (or omitted) = no change to existing ordering |
 | `limit` | int | `20` | Page size |
 | `offset` | int | `0` | Pagination offset |
 
-No price-range, sort, in-stock, or rating filters exist on this endpoint today.
+No price-range or rating filters exist on this endpoint today.
 
 Response shape:
 ```json
@@ -75,6 +76,18 @@ curl --location 'http://localhost:3000/api/products/search?shop_id=shop_00042&pi
 All filters combined:
 ```bash
 curl --location 'http://localhost:3000/api/products/search?q=shoes&department_id=dept_00001&category_id=cat_00003&brand_id=brand_00007&location_id=loc_00002&shop_id=shop_00042&lat=28.6139&lng=77.2090&radius=5&pincode=110001&limit=20&offset=0' \
+--header 'Authorization: Bearer <token>'
+```
+
+Trending (most-viewed first):
+```bash
+curl --location 'http://localhost:3000/api/products/search?trending=true&limit=10' \
+--header 'Authorization: Bearer <token>'
+```
+
+Trending + other filters combined:
+```bash
+curl --location 'http://localhost:3000/api/products/search?trending=true&department_id=dept_00001&category_id=cat_00003&limit=10&offset=0' \
 --header 'Authorization: Bearer <token>'
 ```
 
