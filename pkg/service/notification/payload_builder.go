@@ -162,9 +162,9 @@ func (pb *PayloadBuilder) buildStatusNotification(change domain.FieldChange, fie
 	case "pending_customer_price":
 		title = "Seller Price Shared"
 		if sellerInitialPrice != "" {
-			return title, fmt.Sprintf("The seller has shared an initial price of %s for %s.", sellerInitialPrice, enquiryRef)
+			return title, fmt.Sprintf("The seller has shared an initial price of %s.", sellerInitialPrice)
 		}
-		return title, fmt.Sprintf("The seller has shared an initial price update for %s.", enquiryRef)
+		return title, "The seller has shared an initial price update."
 	case "pending_seller_final":
 		title = "Customer Counter Offer Received"
 		if customerNegotiatedPrice != "" {
@@ -174,24 +174,24 @@ func (pb *PayloadBuilder) buildStatusNotification(change domain.FieldChange, fie
 	case "pending_customer_final":
 		title = "Seller Final Price Shared"
 		if sellerFinalPrice != "" {
-			return title, fmt.Sprintf("The seller has shared a final price of %s for %s.", sellerFinalPrice, enquiryRef)
+			return title, fmt.Sprintf("The seller has shared a final price of %s.", sellerFinalPrice)
 		}
-		return title, fmt.Sprintf("The seller has shared the final price for %s.", enquiryRef)
+		return title, "The seller has shared the final price."
 	case "seller_final_update":
 		title = "Customer Final Response Received"
 		if customerFinalResponse != "" {
-			return title, fmt.Sprintf("The customer submitted a final response of %s for %s.", customerFinalResponse, enquiryRef)
+			return title, fmt.Sprintf("The customer submitted a final response of %s.", customerFinalResponse)
 		}
 		return title, fmt.Sprintf("The customer submitted a final response for %s.", enquiryRef)
 	case "customer_accepted_final":
 		title = "Customer Final Response Accepted"
 		if customerFinalResponse != "" {
-			return title, fmt.Sprintf("The customer accepted the final price of %s for %s.", customerFinalResponse, enquiryRef)
+			return title, fmt.Sprintf("The customer accepted the final price of %s.", customerFinalResponse)
 		}
-		return title, fmt.Sprintf("The customer accepted the final price for %s.", enquiryRef)
+		return title, "The customer accepted the final price."
 	case "completed_accepted":
 		title = "Deal Accepted"
-		body = fmt.Sprintf("%s has been accepted", enquiryRef)
+		body = "Deal has been accepted"
 		if acceptedPrice != "" {
 			body += fmt.Sprintf(" at %s", acceptedPrice)
 		}
@@ -201,7 +201,10 @@ func (pb *PayloadBuilder) buildStatusNotification(change domain.FieldChange, fie
 		return title, body + "."
 	case "completed_rejected":
 		title = "Deal Rejected"
-		body = fmt.Sprintf("%s has been rejected", enquiryRef)
+		body = "Deal has been rejected"
+		if acceptedPrice != "" {
+			body += fmt.Sprintf(" at %s", acceptedPrice)
+		}
 		if acceptedPrice != "" {
 			body += fmt.Sprintf(" at %s", acceptedPrice)
 		}
@@ -334,11 +337,15 @@ func ValidatePayload(payload *domain.NotificationPayload) error {
 // of the provided field names.  It replaces the incorrect multi-arg calls to
 // firestore.GetFieldAsString that only accepts a single key.
 func firstNonEmptyField(fields map[string]interface{}, keys ...string) string {
+	if fields == nil {
+		return ""
+	}
 	for _, k := range keys {
-		if v, ok := fields[k]; ok {
-			if s, ok := v.(string); ok && s != "" {
-				return s
-			}
+		// Use the shared Firestore helper which normalises typed values
+		// (stringValue, integerValue, mapValue, arrayValue, etc.) into a
+		// Go-friendly representation and returns a string.
+		if s := strings.TrimSpace(firestore.GetFieldAsString(fields, k)); s != "" {
+			return s
 		}
 	}
 	return ""

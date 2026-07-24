@@ -52,6 +52,15 @@ service cloud.firestore {
     
    match /enquiry/{enquiryId} { allow read: if true; allow create, update: if true; allow delete: if false; }
 
+    // Seller app update config, read before login by LauncherPage. Editable
+    // only from the Firebase console / admin tooling, never from the client.
+    // Scoped to this exact document so other future docs under
+    // config_seller/ aren't accidentally made public.
+    match /config_seller/app {
+      allow read: if true;
+      allow write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
