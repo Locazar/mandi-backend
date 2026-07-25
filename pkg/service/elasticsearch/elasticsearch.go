@@ -295,6 +295,8 @@ func (es *ElasticService) SearchProductItems(ctx context.Context, keyword string
 		}
 	}
 
+	query["query"].(map[string]interface{})["bool"].(map[string]interface{})["filter"] = filters
+
 	data, err := json.Marshal(query)
 	if err != nil {
 		return nil, err

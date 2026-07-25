@@ -1570,35 +1570,30 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 	}
 	// Note: If keyword is empty, we continue without keyword filter but apply other filters (category, department, geo, etc.)
 
-	if categoryID != nil {
-		if cid, err := strconv.ParseUint(*categoryID, 10, 64); err == nil {
-			whereClause += fmt.Sprintf(" AND pi.category_id = $%d", paramIndex)
-			params = append(params, cid)
-			paramIndex++
-		}
+	// category_id, shop_id, and brand_id are all varchar(32) typed-prefix IDs
+	// (e.g. "cat_00001"), not integers — same as department_id below.
+	if categoryID != nil && *categoryID != "" {
+		whereClause += fmt.Sprintf(" AND pi.category_id = $%d", paramIndex)
+		params = append(params, *categoryID)
+		paramIndex++
 	}
 
-	// department_id is varchar(32) (e.g. "dept_00001"), not an integer.
 	if departmentID != nil && *departmentID != "" {
 		whereClause += fmt.Sprintf(" AND pi.department_id = $%d", paramIndex)
 		params = append(params, *departmentID)
 		paramIndex++
 	}
 
-	if shopID != nil {
-		if sid, err := strconv.ParseUint(*shopID, 10, 64); err == nil {
-			whereClause += fmt.Sprintf(" AND pi.shop_id = $%d", paramIndex)
-			params = append(params, sid)
-			paramIndex++
-		}
+	if shopID != nil && *shopID != "" {
+		whereClause += fmt.Sprintf(" AND pi.shop_id = $%d", paramIndex)
+		params = append(params, *shopID)
+		paramIndex++
 	}
 
-	if brandID != nil {
-		if bid, err := strconv.ParseUint(*brandID, 10, 64); err == nil {
-			whereClause += fmt.Sprintf(" AND pi.brand_id = $%d", paramIndex)
-			params = append(params, bid)
-			paramIndex++
-		}
+	if brandID != nil && *brandID != "" {
+		whereClause += fmt.Sprintf(" AND pi.brand_id = $%d", paramIndex)
+		params = append(params, *brandID)
+		paramIndex++
 	}
 
 	if locationID != nil {
