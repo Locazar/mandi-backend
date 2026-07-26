@@ -202,6 +202,7 @@ type Advertisement struct {
 	AdminID         string                `json:"admin_id" gorm:"type:varchar(32);index"`
 	AreaTargeted    string                `json:"area_targeted" gorm:"size:255" binding:"omitempty"`
 	PincodeTargeted string                `json:"pincode_targeted" gorm:"size:20" binding:"omitempty"`
+	Phone           string                `json:"phone" gorm:"size:20" binding:"omitempty"`
 	Latitude        float64               `json:"latitude" gorm:"type:decimal(10,7);"`
 	Longitude       float64               `json:"longitude" gorm:"type:decimal(10,7);"`
 	DistanceKM      float64               `json:"distance_km" gorm:"type:decimal(10,2);"`

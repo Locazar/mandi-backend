@@ -1,0 +1,2 @@
+ALTER TABLE advertisements
+    ADD COLUMN IF NOT EXISTS phone VARCHAR(20);
