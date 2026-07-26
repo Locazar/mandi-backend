@@ -470,6 +470,7 @@ func (c *adminHandler) VerifyShop(ctx *gin.Context) {
 //	@Param			priority			formData	string	false	"high | medium | low"
 //	@Param			area_targeted		formData	string	false	"Target area name"
 //	@Param			pincode_targeted	formData	string	false	"Target pincode"
+//	@Param			phone				formData	string	false	"Contact phone number"
 //	@Param			latitude			formData	number	false	"Latitude"
 //	@Param			longitude			formData	number	false	"Longitude"
 //	@Param			distance_km			formData	number	false	"Radius in km"
@@ -556,6 +557,7 @@ func (c *adminHandler) CreateAdvertisement(ctx *gin.Context) {
 		Priority:        priority,
 		AreaTargeted:    ctx.PostForm("area_targeted"),
 		PincodeTargeted: ctx.PostForm("pincode_targeted"),
+		Phone:           ctx.PostForm("phone"),
 		Latitude:        lat,
 		Longitude:       lng,
 		DistanceKM:      dist,
@@ -675,6 +677,7 @@ func (c *adminHandler) GetAllAdvertisements(ctx *gin.Context) {
 //	@Param			priority			formData	string	false	"high | medium | low"
 //	@Param			area_targeted		formData	string	false	"Target area"
 //	@Param			pincode_targeted	formData	string	false	"Target pincode"
+//	@Param			phone				formData	string	false	"Contact phone number"
 //	@Param			latitude			formData	number	false	"Latitude"
 //	@Param			longitude			formData	number	false	"Longitude"
 //	@Param			distance_km			formData	number	false	"Radius km"
@@ -717,6 +720,9 @@ func (c *adminHandler) UpdateAdvertisement(ctx *gin.Context) {
 	}
 	if v := ctx.PostForm("pincode_targeted"); v != "" {
 		existing.PincodeTargeted = v
+	}
+	if v := ctx.PostForm("phone"); v != "" {
+		existing.Phone = v
 	}
 	if v := ctx.PostForm("latitude"); v != "" {
 		if f, e := strconv.ParseFloat(v, 64); e == nil {
