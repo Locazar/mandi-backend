@@ -25,6 +25,8 @@ import (
 	"gorm.io/gorm"
 )
 
+var panPattern = regexp.MustCompile(`^[A-Z]{5}[0-9]{4}[A-Z]{1}$`)
+
 type adminHandler struct {
 	adminUseCase    usecaseInterface.AdminUseCase
 	shopTimeUseCase usecaseInterface.ShopTimeUseCase
@@ -2485,6 +2487,47 @@ func (a *adminHandler) UploadShopDocument(ctx *gin.Context) {
 	}
 
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully uploaded shop document", nil)
+}
+
+// VerifyBusinessPAN godoc
+//
+//	@Summary		Verify shop PAN number (seller)
+//	@Security		BearerAuth
+//	@Description	Format-checks a PAN number and stores it against the shop for admin review; no third-party lookup, so success just means "accepted, pending review" — an admin approves it manually via identity_doc_verification.
+//	@Id				VerifyBusinessPAN
+//	@Tags			Admin Shop
+//	@Param			input	body	request.PANVerifyRequest{}	true	"PAN number"
+//	@Router			/admin/shops/business-document/verify-pan [post]
+//	@Success		200	{object}	response.Response{}	"PAN accepted, pending review"
+//	@Failure		400	{object}	response.Response{}	"Invalid PAN format"
+//	@Failure		401	{object}	response.Response{}	"Invalid token"
+//	@Failure		500	{object}	response.Response{}	"Unable to verify. Please try again."
+func (a *adminHandler) VerifyBusinessPAN(ctx *gin.Context) {
+	var req request.PANVerifyRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+
+	panNumber := strings.ToUpper(strings.TrimSpace(req.PANNumber))
+	if !panPattern.MatchString(panNumber) {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid PAN format", fmt.Errorf("pan number does not match required format"), nil)
+		return
+	}
+
+	tokenString := ctx.GetHeader("Authorization")
+	shopOwnerIdStr := a.adminUseCase.DecodeTokenData(tokenString)
+	if shopOwnerIdStr == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Invalid token data", fmt.Errorf("failed to decode shop owner ID from token"), nil)
+		return
+	}
+
+	if err := a.adminUseCase.VerifyBusinessPAN(ctx.Request.Context(), shopOwnerIdStr, panNumber); err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Unable to verify. Please try again.", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "PAN submitted for verification", gin.H{"status": "pending"})
 }
 
 func (a *adminHandler) UploadAddress(ctx *gin.Context) {

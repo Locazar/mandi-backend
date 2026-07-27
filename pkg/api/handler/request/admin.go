@@ -31,3 +31,9 @@ type VerifyShopDocumentRequest struct {
 	DocumentValue string `json:"document_value" binding:"required"`
 	DocumentType  string `json:"document_type" binding:"required"`
 }
+
+// PANVerifyRequest keeps the seller-app's exact "panNumber" JSON key rather
+// than this file's usual snake_case convention.
+type PANVerifyRequest struct {
+	PANNumber string `json:"panNumber" binding:"required"`
+}

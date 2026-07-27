@@ -1400,6 +1400,19 @@ func (c *adminDatabase) UploadShopDocument(ctx context.Context, shopID string, d
 	return c.DB.Exec(query, documentType, encDocValue, time.Now(), shopID).Error
 }
 
+// VerifyBusinessPAN stores a format-checked PAN number against the shop's
+// dedicated pan_number column (distinct from the generic document_value used
+// by the other OTP-based document types). No third-party lookup happens
+// here — an admin still approves it manually via identity_doc_verification.
+func (c *adminDatabase) VerifyBusinessPAN(ctx context.Context, shopID string, panNumber string) error {
+	encPAN, err := c.encrypt(panNumber)
+	if err != nil {
+		return err
+	}
+	query := `UPDATE shop_details SET pan_number = $1, document_type = 'pan', updated_at = $2 WHERE admin_id = $3`
+	return c.DB.Exec(query, encPAN, time.Now(), shopID).Error
+}
+
 func (c *adminDatabase) UploadAddress(ctx context.Context, adminId string, address request.AddressRequest) error {
 	// Parse latitude and longitude from string to float64
 	latitude, err := strconv.ParseFloat(address.Latitude, 64)

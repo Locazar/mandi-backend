@@ -108,6 +108,7 @@ type AdminHandler interface {
 
 	//Documents
 	UploadShopDocument(ctx *gin.Context)
+	VerifyBusinessPAN(ctx *gin.Context)
 	VerifyShopDocument(ctx *gin.Context)
 
 	//Address
