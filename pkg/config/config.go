@@ -89,6 +89,11 @@ type Config struct {
 	// ordering.
 	SearchRankingEnabled bool `mapstructure:"SEARCH_RANKING_ENABLED"`
 
+	// EnquiryAutoRejectHours is how long an enquiry may sit awaiting a reply
+	// (from whichever side owes one) before the cmd/enquiry-autoreject sweep
+	// auto-rejects it. 0 disables the sweep entirely — ships dark by default.
+	EnquiryAutoRejectHours int `mapstructure:"ENQUIRY_AUTO_REJECT_HOURS"`
+
 	// PII encryption keyring. PIIEncryptionKeys is a comma-separated list of
 	// "<id>:<base64-32-byte-key>" entries; PIIEncryptionActiveKey names the key
 	// used for new writes. Older keys remain present to decrypt existing data.

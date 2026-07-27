@@ -94,6 +94,7 @@ type AdminRepository interface {
 	UploadAdminProfileImage(ctx context.Context, adminID string, imagePath string, shopId string) (string, error)
 	UploadShopDocument(ctx context.Context, shopID string, documentType string, documentValue string) error
 	VerifyBusinessPAN(ctx context.Context, shopID string, panNumber string) error
+	SavePANImages(ctx context.Context, shopID string, frontURL string, backURL string) error
 	UploadAddress(ctx context.Context, adminId string, address request.AddressRequest) error
 	UploadAdminDocumentOtpSend(ctx context.Context, adminID string, documentType string, documentValue string) error
 

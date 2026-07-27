@@ -1413,6 +1413,13 @@ func (c *adminDatabase) VerifyBusinessPAN(ctx context.Context, shopID string, pa
 	return c.DB.Exec(query, encPAN, time.Now(), shopID).Error
 }
 
+// SavePANImages stores the seller-uploaded PAN card front/back image URLs
+// against the shop, for admin review alongside the PAN number itself.
+func (c *adminDatabase) SavePANImages(ctx context.Context, shopID string, frontURL string, backURL string) error {
+	query := `UPDATE shop_details SET pan_front_image_url = $1, pan_back_image_url = $2, updated_at = $3 WHERE admin_id = $4`
+	return c.DB.Exec(query, frontURL, backURL, time.Now(), shopID).Error
+}
+
 func (c *adminDatabase) UploadAddress(ctx context.Context, adminId string, address request.AddressRequest) error {
 	// Parse latitude and longitude from string to float64
 	latitude, err := strconv.ParseFloat(address.Latitude, 64)
