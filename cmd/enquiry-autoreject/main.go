@@ -13,6 +13,12 @@
 //
 //	seller owes a reply:   new, pending_seller_price, pending_seller_final, seller_final_update
 //	customer owes a reply: pending_customer_price, pending_customer_final
+//	turn ambiguous:        in_progress, counter_offer
+//
+// The ambiguous-turn bucket exists so NO enquiry survives past the window in
+// any non-terminal status. Sensitive states are deliberately excluded and
+// never auto-rejected: customer_accepted_final (an agreed deal), on_hold (an
+// intentional pause), and dispute/dispute_resolved (need human resolution).
 //
 // "Too long" is measured from Firestore's own server-assigned document
 // UpdateTime (not an app-set field — no such field is reliably populated
@@ -54,6 +60,14 @@ var sellerOwedStatuses = []string{
 var customerOwedStatuses = []string{
 	"pending_customer_price",
 	"pending_customer_final",
+}
+
+// inactiveStatuses are active negotiation states where a reply is expected
+// but the turn-owner is ambiguous — swept so nothing lingers past the window,
+// rejected with a generic reason and both parties notified.
+var inactiveStatuses = []string{
+	"in_progress",
+	"counter_offer",
 }
 
 func main() {
@@ -160,6 +174,7 @@ func main() {
 
 	sweep(sellerOwedStatuses, "Did not get reply from seller", "system_seller_timeout", "seller-owed")
 	sweep(customerOwedStatuses, "Did not get reply from customer", "system_customer_timeout", "customer-owed")
+	sweep(inactiveStatuses, "Enquiry closed due to inactivity", "system_inactivity_timeout", "inactive")
 
 	if *apply {
 		log.Printf("done: checked %d, rejected %d, notify failures %d", checked, rejected, notifyFailures)

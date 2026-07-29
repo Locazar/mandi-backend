@@ -164,6 +164,8 @@ func enquiryRecipientResolver(docData map[string]interface{}) (notifyUser bool, 
 			return true, false // seller went quiet → notify buyer
 		case "system_customer_timeout":
 			return false, true // buyer went quiet → notify seller
+		case "system_inactivity_timeout":
+			return true, true // ambiguous turn (in_progress/counter_offer) → notify both
 		default:
 			return true, true // actor unknown → notify both
 		}
