@@ -1433,8 +1433,8 @@ func (c *adminDatabase) UploadAddress(ctx context.Context, adminId string, addre
 	}
 
 	//insert or update address in shop_details table
-	query := `INSERT INTO shop_details (id, admin_id, shop_name, owner_name, phone, address_line1, address_line2, city, state, pincode, latitude, longitude, created_at, updated_at)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+	query := `INSERT INTO shop_details (id, admin_id, shop_name, owner_name, phone, address_line1, address_line2, city, state, pincode, latitude, longitude, preferred_language, created_at, updated_at)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 	ON CONFLICT (admin_id) DO UPDATE SET
 		shop_name = EXCLUDED.shop_name,
 		owner_name = EXCLUDED.owner_name,
@@ -1446,10 +1446,12 @@ func (c *adminDatabase) UploadAddress(ctx context.Context, adminId string, addre
 		pincode = EXCLUDED.pincode,
 		latitude = EXCLUDED.latitude,
 		longitude = EXCLUDED.longitude,
+		-- Don't clobber a previously-chosen language with an empty value.
+		preferred_language = COALESCE(NULLIF(EXCLUDED.preferred_language, ''), shop_details.preferred_language),
 		updated_at = EXCLUDED.updated_at`
 
 	err = c.DB.Exec(query, domain.NewID(domain.PrefixShop), adminId, address.ShopName, address.OwnerName, address.Phone, address.AddressLine1, address.AddressLine2, address.City, address.State, address.Pincode,
-		latitude, longitude, time.Now(), time.Now()).Error
+		latitude, longitude, address.PreferredLanguage, time.Now(), time.Now()).Error
 
 	return err
 }
