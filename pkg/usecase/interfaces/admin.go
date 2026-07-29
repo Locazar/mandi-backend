@@ -101,6 +101,8 @@ type AdminUseCase interface {
 	UploadAdminProfileImage(ctx context.Context, adminID string, imagePath string, shopId string) (string, error)
 	DecodeTokenData(tokenString string) string
 	UploadShopDocument(ctx context.Context, shopID string, documentType string, documentValue string) error
+	VerifyBusinessPAN(ctx context.Context, shopID string, panNumber string) error
+	SavePANImages(ctx context.Context, shopID string, frontURL string, backURL string) error
 	UploadAddress(ctx context.Context, adminId string, address request.AddressRequest) error
 	VerifyShopDocument(ctx context.Context, otp string) error
 	UploadAdminDocumentOtpSend(ctx context.Context, adminId string, documentType string, documentValue string) error

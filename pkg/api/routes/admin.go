@@ -469,6 +469,8 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 				document.POST("/send-otp", adminHandler.UploadShopDocument)
 				document.POST("/verify-otp", adminHandler.VerifyShopDocument)
 				document.POST("/upload", middleware.AuthenticateAdmin(), adminHandler.UploadBusinessDocument)
+				document.POST("/verify-pan", adminHandler.VerifyBusinessPAN)
+				document.POST("/upload-pan-images", adminHandler.UploadPANImages)
 			}
 
 			address := shop.Group("/address-details")

@@ -1442,6 +1442,22 @@ func (c *adminUseCase) UploadShopDocument(ctx context.Context, shopID string, do
 	}
 	return nil
 }
+func (c *adminUseCase) VerifyBusinessPAN(ctx context.Context, shopID string, panNumber string) error {
+	err := c.adminRepo.VerifyBusinessPAN(ctx, shopID, panNumber)
+	if err != nil {
+		return fmt.Errorf("failed to verify business PAN \nerror:%v", err.Error())
+	}
+	return nil
+}
+
+func (c *adminUseCase) SavePANImages(ctx context.Context, shopID string, frontURL string, backURL string) error {
+	err := c.adminRepo.SavePANImages(ctx, shopID, frontURL, backURL)
+	if err != nil {
+		return fmt.Errorf("failed to save PAN images \nerror:%v", err.Error())
+	}
+	return nil
+}
+
 func (c *adminUseCase) UploadAddress(ctx context.Context, adminId string, address request.AddressRequest) error {
 	err := c.adminRepo.UploadAddress(ctx, adminId, address)
 	if err != nil {

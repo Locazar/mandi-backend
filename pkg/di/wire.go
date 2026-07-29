@@ -111,6 +111,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		repository.NewNotificationRepository,
 		repository.NewAlertRepository,
 		repository.NewPlatformUserRepository,
+		repository.NewShopUpdateRepository,
 
 		//usecase — constructors that return interface directly need no Bind;
 		//          constructors that return *concrete need Bind
@@ -136,6 +137,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		usecase.NewAlertTemplateUseCase,
 		usecase.NewBannerUseCase,
 		usecase.NewPlatformUserUseCase,
+		usecase.NewShopUpdateUseCase,
 
 		// handler
 		handler.NewAuthHandler,
@@ -174,6 +176,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		usecase.NewJobCategoryService,
 		wire.Bind(new(handler.JobCategoryService), new(*usecase.JobCategoryService)),
 		handler.NewPlatformUserHandler,
+		handler.NewShopUpdateHandler,
 
 		// mobile OTP auth (seller signup)
 		provideSQLDB,

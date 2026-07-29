@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"regexp"
@@ -24,6 +25,8 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/utils"
 	"gorm.io/gorm"
 )
+
+var panPattern = regexp.MustCompile(`^[A-Z]{5}[0-9]{4}[A-Z]{1}$`)
 
 type adminHandler struct {
 	adminUseCase    usecaseInterface.AdminUseCase
@@ -2485,6 +2488,134 @@ func (a *adminHandler) UploadShopDocument(ctx *gin.Context) {
 	}
 
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully uploaded shop document", nil)
+}
+
+// VerifyBusinessPAN godoc
+//
+//	@Summary		Verify shop PAN number (seller)
+//	@Security		BearerAuth
+//	@Description	Format-checks a PAN number and stores it against the shop for admin review; no third-party lookup, so success just means "accepted, pending review" — an admin approves it manually via identity_doc_verification.
+//	@Id				VerifyBusinessPAN
+//	@Tags			Admin Shop
+//	@Param			input	body	request.PANVerifyRequest{}	true	"PAN number"
+//	@Router			/admin/shops/business-document/verify-pan [post]
+//	@Success		200	{object}	response.Response{}	"PAN accepted, pending review"
+//	@Failure		400	{object}	response.Response{}	"Invalid PAN format"
+//	@Failure		401	{object}	response.Response{}	"Invalid token"
+//	@Failure		500	{object}	response.Response{}	"Unable to verify. Please try again."
+func (a *adminHandler) VerifyBusinessPAN(ctx *gin.Context) {
+	var req request.PANVerifyRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+
+	panNumber := strings.ToUpper(strings.TrimSpace(req.PANNumber))
+	if !panPattern.MatchString(panNumber) {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid PAN format", fmt.Errorf("pan number does not match required format"), nil)
+		return
+	}
+
+	tokenString := ctx.GetHeader("Authorization")
+	shopOwnerIdStr := a.adminUseCase.DecodeTokenData(tokenString)
+	if shopOwnerIdStr == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Invalid token data", fmt.Errorf("failed to decode shop owner ID from token"), nil)
+		return
+	}
+
+	if err := a.adminUseCase.VerifyBusinessPAN(ctx.Request.Context(), shopOwnerIdStr, panNumber); err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Unable to verify. Please try again.", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "PAN submitted for verification", gin.H{"status": "pending"})
+}
+
+// UploadPANImages godoc
+//
+//	@Summary		Upload PAN card front/back images (seller)
+//	@Security		BearerAuth
+//	@Description	Uploads the seller's PAN card front and back photos and stores the resulting URLs against the shop for admin review alongside the PAN number.
+//	@Id				UploadPANImages
+//	@Tags			Admin Shop
+//	@Accept			multipart/form-data
+//	@Param			pan_front	formData	file	true	"PAN card — front"
+//	@Param			pan_back	formData	file	true	"PAN card — back"
+//	@Router			/admin/shops/business-document/upload-pan-images [post]
+//	@Success		200	{object}	response.Response{}	"PAN images uploaded"
+//	@Failure		400	{object}	response.Response{}	"Missing or oversized file"
+//	@Failure		401	{object}	response.Response{}	"Invalid token"
+//	@Failure		500	{object}	response.Response{}	"Failed to upload PAN images"
+func (a *adminHandler) UploadPANImages(ctx *gin.Context) {
+	if err := ctx.Request.ParseMultipartForm(10 << 20); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to parse multipart form", err, nil)
+		return
+	}
+
+	frontHeader, err := ctx.FormFile("pan_front")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "PAN front image is required", err, nil)
+		return
+	}
+	backHeader, err := ctx.FormFile("pan_back")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "PAN back image is required", err, nil)
+		return
+	}
+	for _, fh := range []*multipart.FileHeader{frontHeader, backHeader} {
+		if fh.Size > 10<<20 {
+			response.ErrorResponse(ctx, http.StatusBadRequest, "File size exceeds 10MB limit", fmt.Errorf("file %q size %d exceeds limit", fh.Filename, fh.Size), nil)
+			return
+		}
+	}
+
+	tokenString := ctx.GetHeader("Authorization")
+	ownerID := a.adminUseCase.DecodeTokenData(tokenString)
+	if ownerID == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Invalid token data", fmt.Errorf("failed to decode owner ID from token"), nil)
+		return
+	}
+
+	namespace := fmt.Sprintf("business-docs/pan/%s", ownerID)
+	timestamp := time.Now().Unix()
+
+	uploadOne := func(fh *multipart.FileHeader, side string) (string, error) {
+		contentType := fh.Header.Get("Content-Type")
+		if contentType == "" {
+			contentType = "application/octet-stream"
+		}
+		savedKey, err := a.cloudService.SaveFile(ctx, fh, cloud.SaveOptions{
+			Namespace:   namespace,
+			Visibility:  cloud.VisibilityPublic,
+			ContentType: contentType,
+			Filename:    fmt.Sprintf("%d-%s-%s", timestamp, side, fh.Filename),
+		})
+		if err != nil {
+			return "", err
+		}
+		return a.cloudService.PublicURL(savedKey), nil
+	}
+
+	frontURL, err := uploadOne(frontHeader, "front")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to upload PAN front image", err, nil)
+		return
+	}
+	backURL, err := uploadOne(backHeader, "back")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to upload PAN back image", err, nil)
+		return
+	}
+
+	if err := a.adminUseCase.SavePANImages(ctx.Request.Context(), ownerID, frontURL, backURL); err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to save PAN images", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "PAN images uploaded", gin.H{
+		"pan_front_image_url": frontURL,
+		"pan_back_image_url":  backURL,
+	})
 }
 
 func (a *adminHandler) UploadAddress(ctx *gin.Context) {

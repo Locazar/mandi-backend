@@ -91,6 +91,8 @@ const (
 	PrefixJobCategoryFilter   IDPrefix = "jcflt"
 	PrefixJobCategoryLocation IDPrefix = "jcloc"
 	PrefixCategoryRequest     IDPrefix = "catrq"
+	PrefixShopUpdate          IDPrefix = "shupd"
+	PrefixShopUpdateProduct   IDPrefix = "shupp"
 )
 
 // allPrefixes is the authoritative registry of every entity prefix. Used by
@@ -114,7 +116,7 @@ var allPrefixes = []IDPrefix{
 	PrefixMobileUser, PrefixOtpSession,
 	PrefixJob, PrefixJobCategory, PrefixJobSubCategory, PrefixJobLocation,
 	PrefixJobFilter, PrefixJobCategoryFilter, PrefixJobCategoryLocation,
-	PrefixCategoryRequest,
+	PrefixCategoryRequest, PrefixShopUpdate, PrefixShopUpdateProduct,
 }
 
 // NewID returns a fresh typed-prefix identifier, e.g. "usr_x7k2q9m4p3...".

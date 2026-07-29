@@ -1,0 +1,48 @@
+# Deployment configuration for the enquiry-autoreject Cloud Run Job.
+# Unlike the enquiry-notification-handler (a Cloud Run *service* triggered by
+# Eventarc), this deploys a Cloud Run *Job* — a run-to-completion task meant
+# to be invoked on a schedule by Cloud Scheduler (see README in this
+# directory / the plan notes for the exact `gcloud scheduler jobs create`
+# command), not an always-on HTTP endpoint.
+
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/enquiry-autoreject:latest'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/enquiry-autoreject:$COMMIT_SHA'
+      - '-f'
+      - 'cmd/enquiry-autoreject/Dockerfile'
+      - '.'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/enquiry-autoreject:$COMMIT_SHA'
+
+  # Deploy/update the Cloud Run Job (must already exist — created once via
+  # `gcloud run jobs create`, see the plan notes for the full command).
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'jobs'
+      - 'update'
+      - '$_JOB_NAME'
+      - '--image=gcr.io/$PROJECT_ID/enquiry-autoreject:$COMMIT_SHA'
+      - '--region=$_REGION'
+
+images:
+  - 'gcr.io/$PROJECT_ID/enquiry-autoreject:latest'
+  - 'gcr.io/$PROJECT_ID/enquiry-autoreject:$COMMIT_SHA'
+
+substitutions:
+  _REGION: 'us-central2'
+  _JOB_NAME: 'enquiry-autoreject'
+
+timeout: 1800s
+
+options:
+  machineType: 'N1_HIGHCPU_8'
