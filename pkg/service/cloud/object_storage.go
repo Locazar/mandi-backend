@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"mime/multipart"
 	"path/filepath"
@@ -94,6 +95,10 @@ func (noopObjectStorage) DeleteObject(ctx context.Context, objectKey string) err
 
 func (noopObjectStorage) ListObjects(ctx context.Context, prefix string) ([]string, error) {
 	return nil, nil
+}
+
+func (noopObjectStorage) GetBytes(ctx context.Context, objectKey string) ([]byte, error) {
+	return nil, fmt.Errorf("object storage unavailable: S3 configuration is missing")
 }
 
 func (s *objectStorage) SaveFile(ctx context.Context, fh *multipart.FileHeader, opts SaveOptions) (string, error) {
@@ -197,6 +202,18 @@ func (s *objectStorage) ListObjects(ctx context.Context, prefix string) ([]strin
 		continuationToken = out.NextContinuationToken
 	}
 	return keys, nil
+}
+
+func (s *objectStorage) GetBytes(ctx context.Context, objectKey string) ([]byte, error) {
+	out, err := s.client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(objectKey),
+	})
+	if err != nil {
+		return nil, err
+	}
+	defer out.Body.Close()
+	return io.ReadAll(out.Body)
 }
 
 func buildKey(opts SaveOptions, srcFilename string) string {

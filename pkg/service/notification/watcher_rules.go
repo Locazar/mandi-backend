@@ -412,7 +412,7 @@ func enquiryMessageBuilder(doc map[string]interface{}, changes []WatchFieldChang
 			}
 			return "Customer Final Response Received", fmt.Sprintf("The customer submitted a final response for %s.", enquiryRef)
 		case "completed_accepted":
-			msg := fmt.Sprintf("%s has been accepted", enquiryRefCap)
+			msg := "Deal has been accepted"
 			if acceptedPrice != "" {
 				msg += fmt.Sprintf(" at Rs. %s", acceptedPrice)
 			}
@@ -421,7 +421,7 @@ func enquiryMessageBuilder(doc map[string]interface{}, changes []WatchFieldChang
 			}
 			return "Deal Accepted", msg + "."
 		case "completed_rejected":
-			msg := fmt.Sprintf("%s has been rejected", enquiryRefCap)
+			msg := "Deal has been rejected"
 			if acceptedPrice != "" {
 				msg += fmt.Sprintf(" at Rs. %s", acceptedPrice)
 			}

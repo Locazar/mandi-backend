@@ -38,7 +38,7 @@ type ProductUseCase interface {
 	UpdateProductItemStock(ctx context.Context, productItemID string, inStock bool) error
 	DeleteProductItem(ctx context.Context, productItemID string) error
 	FindProductItemFilters(ctx context.Context, adminID string, shopID string) ([]domain.ProductItemFilterType, error)
-	SearchProducts(ctx context.Context, keyword string, categoryID, departmentID, brandID, locationID *string, shopID *string, latitude, longitude, radius float64, pincode *uint, limit, offset int) (products []response.ProductItems, err error)
+	SearchProducts(ctx context.Context, keyword string, categoryID, departmentID, brandID, locationID *string, shopID *string, latitude, longitude, radius float64, pincode *uint, trending bool, limit, offset int) (products []response.ProductItems, err error)
 	GetProductNameSuggestions(ctx context.Context, prefix string) (suggestions []string, err error)
 	GetProductFilters(ctx context.Context) (filters response.ProductFilters, err error)
 	GetProductLocations(ctx context.Context) (locations []response.Location, err error)

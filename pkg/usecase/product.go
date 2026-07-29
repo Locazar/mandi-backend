@@ -22,6 +22,7 @@ import (
 
 type productUseCase struct {
 	productRepo  interfaces.ProductRepository
+	adminRepo    interfaces.AdminRepository
 	cloudService cloud.CloudService
 	DB           DBQuerier // Add this field for DB access
 }
@@ -143,9 +144,10 @@ type Offer struct {
 	Active          bool      `json:"active"`
 }
 
-func NewProductUseCase(productRepo interfaces.ProductRepository, cloudService cloud.CloudService, db *gorm.DB) service.ProductUseCase {
+func NewProductUseCase(productRepo interfaces.ProductRepository, adminRepo interfaces.AdminRepository, cloudService cloud.CloudService, db *gorm.DB) service.ProductUseCase {
 	return &productUseCase{
 		productRepo:  productRepo,
+		adminRepo:    adminRepo,
 		cloudService: cloudService,
 		DB:           &GormDBAdapter{db: db},
 	}
@@ -307,7 +309,20 @@ func (c *productUseCase) SaveProduct(ctx context.Context, product request.Produc
 
 // for add new productItem for a specific product
 func (c *productUseCase) SaveProductItem(ctx context.Context, productItem request.ProductItem, adminID string, shopID string) error {
-	_, err := c.productRepo.SaveProductItem(ctx, productItem, adminID, shopID)
+	admin, err := c.adminRepo.GetAdminByID(ctx, adminID)
+	if err != nil {
+		return utils.PrependMessageToError(err, "failed to load seller for product limit check")
+	}
+
+	existingCount, err := c.productRepo.CountProductItemsByShopID(ctx, shopID)
+	if err != nil {
+		return utils.PrependMessageToError(err, "failed to count existing product items for shop")
+	}
+	if existingCount >= int64(admin.ProductLimit) {
+		return ErrProductLimitExceeded
+	}
+
+	_, err = c.productRepo.SaveProductItem(ctx, productItem, adminID, shopID)
 	if err != nil {
 		return utils.PrependMessageToError(err, "failed to save product item")
 	}
@@ -429,7 +444,7 @@ func SafeIntToUint64(i int) (uint64, error) {
 	return uint64(i), nil
 }
 
-func (c *productUseCase) SearchProducts(ctx context.Context, keyword string, categoryID *string, departmentID *string, brandID *string, locationID *string, shopID *string, latitude, longitude, radius float64, pincode *uint, limit, offset int) ([]response.ProductItems, error) {
+func (c *productUseCase) SearchProducts(ctx context.Context, keyword string, categoryID *string, departmentID *string, brandID *string, locationID *string, shopID *string, latitude, longitude, radius float64, pincode *uint, trending bool, limit, offset int) ([]response.ProductItems, error) {
 	limitUint64, err := SafeIntToUint64(limit)
 	if err != nil {
 		return nil, utils.PrependMessageToError(err, "invalid limit for pagination")
@@ -444,7 +459,7 @@ func (c *productUseCase) SearchProducts(ctx context.Context, keyword string, cat
 		Limit:  limitUint64,
 		Offset: offsetUint64,
 	}
-	resProducts, err := c.productRepo.SearchProducts(ctx, keyword, categoryID, departmentID, brandID, locationID, shopID, latitude, longitude, radius, pincode, pagination)
+	resProducts, err := c.productRepo.SearchProducts(ctx, keyword, categoryID, departmentID, brandID, locationID, shopID, latitude, longitude, radius, pincode, trending, pagination)
 	if err != nil {
 		return nil, utils.PrependMessageToError(err, "failed to search products")
 	}

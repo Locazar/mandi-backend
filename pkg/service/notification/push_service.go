@@ -181,8 +181,7 @@ func (s *FCMPushService) SendToOwnerViaFirestore(
 		return fmt.Errorf("fetch tokens: %w", err)
 	}
 	if len(tokens) == 0 {
-		log.Printf("INFO: no active FCM tokens for %s/%s", ownerCollection, ownerID)
-		return nil
+		return fmt.Errorf("no active FCM tokens for %s/%s", ownerCollection, ownerID)
 	}
 
 	imageURL := strings.TrimSpace(data["image_url"])
@@ -242,6 +241,9 @@ func (s *FCMPushService) SendToOwnerViaFirestore(
 	}
 
 	log.Printf("INFO: FCM sent %d/%d successfully to %s/%s", resp.SuccessCount, len(tokens), ownerCollection, ownerID)
+	if resp.SuccessCount == 0 {
+		return fmt.Errorf("FCM multicast send: all %d token(s) failed for %s/%s, e.g. %v", len(tokens), ownerCollection, ownerID, resp.Responses[0].Error)
+	}
 	return nil
 }
 

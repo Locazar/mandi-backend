@@ -35,6 +35,8 @@ type AdminHandler interface {
 	// Global app config (single structured config used by client apps)
 	GetGlobalConfig(ctx *gin.Context)
 	UpdateGlobalConfig(ctx *gin.Context)
+	GetOnboardingCopy(ctx *gin.Context)
+	UpdateOnboardingCopy(ctx *gin.Context)
 
 	// Advertisement Requests (seller-raised)
 	GetAdvertisementPricePlans(ctx *gin.Context)
@@ -88,8 +90,10 @@ type AdminHandler interface {
 	CreateShop(ctx *gin.Context)
 	GetAllShops(ctx *gin.Context)
 	SearchShops(ctx *gin.Context)
+	GetShopConflicts(ctx *gin.Context)
 	GetShopByID(ctx *gin.Context)
 	UpdateShop(ctx *gin.Context)
+	UpdateSellerProductLimit(ctx *gin.Context)
 	GetShopByOwnerID(ctx *gin.Context)
 	VerifyShop(ctx *gin.Context)
 	SubmitShopForReview(ctx *gin.Context)
@@ -144,6 +148,12 @@ type AdminHandler interface {
 	GetRole(ctx *gin.Context)
 	UpdateRole(ctx *gin.Context)
 	DeleteRole(ctx *gin.Context)
+
+	// Category requests (seller asks for a missing department/category)
+	CreateCategoryRequest(ctx *gin.Context)
+	ListCategoryRequests(ctx *gin.Context)
+	ListMyCategoryRequests(ctx *gin.Context)
+	UpdateCategoryRequestStatus(ctx *gin.Context)
 
 	// Sales Executive referral program
 	CreateShopReferral(ctx *gin.Context)

@@ -20,6 +20,10 @@ func (s stubCS) PresignedURL(ctx context.Context, k string, ttl time.Duration) (
 	return "", nil
 }
 func (s stubCS) DeleteObject(ctx context.Context, k string) error { return nil }
+func (s stubCS) ListObjects(ctx context.Context, prefix string) ([]string, error) {
+	return nil, nil
+}
+func (s stubCS) GetBytes(ctx context.Context, k string) ([]byte, error) { return nil, nil }
 
 func TestResolveURL(t *testing.T) {
 	cs := stubCS{base: "https://innoida.utho.io/locazar-dev"}

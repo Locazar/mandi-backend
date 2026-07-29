@@ -81,6 +81,14 @@ type Config struct {
 	// Default false so the feature ships dark until explicitly enabled.
 	SubscriptionGateEnabled bool `mapstructure:"SUBSCRIPTION_GATE_ENABLED"`
 
+	// SearchRankingEnabled toggles best-effort relevance ranking on the customer
+	// product-search path: when true, results are matched with AND-of-tokens
+	// multi-field matching and ordered by a computed relevance score (name > category
+	// > department > attributes). Default false so the feature ships dark; when
+	// off, search behaviour is byte-identical to the previous substring + recency
+	// ordering.
+	SearchRankingEnabled bool `mapstructure:"SEARCH_RANKING_ENABLED"`
+
 	// PII encryption keyring. PIIEncryptionKeys is a comma-separated list of
 	// "<id>:<base64-32-byte-key>" entries; PIIEncryptionActiveKey names the key
 	// used for new writes. Older keys remain present to decrypt existing data.
@@ -177,6 +185,7 @@ var envsNames = []string{
 	"PII_ENCRYPTION_ACTIVE_KEY",
 	"SKIP_OTP_VALIDATION",
 	"SUBSCRIPTION_GATE_ENABLED",
+	"SEARCH_RANKING_ENABLED",
 }
 
 func LoadConfig() (config Config, err error) {

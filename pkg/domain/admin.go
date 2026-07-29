@@ -135,6 +135,11 @@ type Admin struct {
 	Status         AdminStatus `json:"status" gorm:"size:50"`
 	Role           AdminRole   `json:"role" gorm:"size:50;not null;default:'super_admin'"`
 
+	// ProductLimit is the maximum number of product items a seller's shops
+	// may have in total. Enforced on product-item upload (see
+	// ProductUseCase.SaveProductItem); admin-editable per seller.
+	ProductLimit int `json:"product_limit" gorm:"not null;default:100"`
+
 	// ReferralCouponID is the unique code a super admin assigns when creating
 	// a Sales Executive platform user. Sellers optionally enter this code
 	// during shop onboarding; a match attaches their shop to this exec (see
@@ -197,6 +202,7 @@ type Advertisement struct {
 	AdminID         string                `json:"admin_id" gorm:"type:varchar(32);index"`
 	AreaTargeted    string                `json:"area_targeted" gorm:"size:255" binding:"omitempty"`
 	PincodeTargeted string                `json:"pincode_targeted" gorm:"size:20" binding:"omitempty"`
+	Phone           string                `json:"phone" gorm:"size:20" binding:"omitempty"`
 	Latitude        float64               `json:"latitude" gorm:"type:decimal(10,7);"`
 	Longitude       float64               `json:"longitude" gorm:"type:decimal(10,7);"`
 	DistanceKM      float64               `json:"distance_km" gorm:"type:decimal(10,2);"`

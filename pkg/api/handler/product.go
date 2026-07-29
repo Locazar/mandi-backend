@@ -811,23 +811,20 @@ func (p *ProductHandler) getAllProductItems(adminID string, customerView bool) f
 		// Parse optional query params
 		keyword := ctx.Query("q")
 		var catIDPtr, brandIDPtr, locIDPtr *string
+		// category_id/brand_id/location_id are typed-prefix string IDs (e.g.
+		// "cat_00003"), never numeric — a strconv.ParseUint check here would
+		// always fail for every real ID and silently drop the filter.
 		if cid := ctx.Query("category_id"); cid != "" {
-			if _, err := strconv.ParseUint(cid, 10, 64); err == nil {
-				s := cid
-				catIDPtr = &s
-			}
+			s := cid
+			catIDPtr = &s
 		}
 		if bid := ctx.Query("brand_id"); bid != "" {
-			if _, err := strconv.ParseUint(bid, 10, 64); err == nil {
-				s := bid
-				brandIDPtr = &s
-			}
+			s := bid
+			brandIDPtr = &s
 		}
 		if lid := ctx.Query("location_id"); lid != "" {
-			if _, err := strconv.ParseUint(lid, 10, 64); err == nil {
-				s := lid
-				locIDPtr = &s
-			}
+			s := lid
+			locIDPtr = &s
 		}
 
 		sortby := ctx.Query("sortby")
@@ -987,23 +984,23 @@ func (p *ProductHandler) GetProductItemsByShopID() func(ctx *gin.Context) {
 		if offerStr := ctx.Query("offers"); offerStr != "" {
 			offer = &offerStr
 		}
+		// category_id/brand_id/location_id are typed-prefix string IDs (e.g.
+		// "cat_00003", domain.NewID(domain.PrefixCategory)), never numeric —
+		// the previous strconv.ParseUint validation here always failed for
+		// every real ID, silently dropping the filter param no matter what
+		// the caller sent. Only an empty string should be treated as "no
+		// filter"; any non-empty value is passed through as-is.
 		if cid := ctx.Query("category_id"); cid != "" {
-			if _, err := strconv.ParseUint(cid, 10, 64); err == nil {
-				s := cid
-				catIDPtr = &s
-			}
+			s := cid
+			catIDPtr = &s
 		}
 		if bid := ctx.Query("brand_id"); bid != "" {
-			if _, err := strconv.ParseUint(bid, 10, 64); err == nil {
-				s := bid
-				brandIDPtr = &s
-			}
+			s := bid
+			brandIDPtr = &s
 		}
 		if lid := ctx.Query("location_id"); lid != "" {
-			if _, err := strconv.ParseUint(lid, 10, 64); err == nil {
-				s := lid
-				locIDPtr = &s
-			}
+			s := lid
+			locIDPtr = &s
 		}
 
 		sortby := ctx.Query("sortby")
@@ -1085,23 +1082,20 @@ func (p *ProductHandler) FindLowViewProductItems(ctx *gin.Context) {
 	keyword := ctx.Query("q")
 	var catIDPtr, brandIDPtr, locIDPtr *string
 
+	// category_id/brand_id/location_id are typed-prefix string IDs (e.g.
+	// "cat_00003"), never numeric — a strconv.ParseUint check here would
+	// always fail for every real ID and silently drop the filter.
 	if cid := ctx.Query("category_id"); cid != "" {
-		if _, err := strconv.ParseUint(cid, 10, 64); err == nil {
-			s := cid
-			catIDPtr = &s
-		}
+		s := cid
+		catIDPtr = &s
 	}
 	if bid := ctx.Query("brand_id"); bid != "" {
-		if _, err := strconv.ParseUint(bid, 10, 64); err == nil {
-			s := bid
-			brandIDPtr = &s
-		}
+		s := bid
+		brandIDPtr = &s
 	}
 	if lid := ctx.Query("location_id"); lid != "" {
-		if _, err := strconv.ParseUint(lid, 10, 64); err == nil {
-			s := lid
-			locIDPtr = &s
-		}
+		s := lid
+		locIDPtr = &s
 	}
 
 	sortby := ctx.Query("sortby")
@@ -1203,8 +1197,8 @@ func (h *ProductHandler) SearchProducts(c *gin.Context) {
 		keyword = c.Query("name")
 	}
 
-	// Parse numeric filter IDs (category_id, brand_id, location_id, department_id) as unsigned integers.
-	// The DB uses numeric IDs for these fields; parsing as UUIDs caused type mismatches.
+	// category_id/brand_id/location_id/department_id/shop_id are typed-prefix
+	// string IDs (e.g. "cat_00003"), never numeric — pass them through as-is.
 	var catIDPtr, brandIDPtr, locIDPtr, shopIDPtr, deptIDPtr *string
 	if cid := c.Query("category_id"); cid != "" {
 		s := cid
@@ -1263,6 +1257,10 @@ func (h *ProductHandler) SearchProducts(c *gin.Context) {
 		}
 	}
 
+	// trending=true sorts most-viewed products first (overrides default
+	// relevance/geo/recency ordering); trending=false (or omitted) changes nothing.
+	trending := c.Query("trending") == "true"
+
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 
@@ -1291,7 +1289,7 @@ func (h *ProductHandler) SearchProducts(c *gin.Context) {
 		Offset: offsetUint64,
 	}
 
-	products, err := h.productUseCase.SearchProducts(c, keyword, catIDPtr, deptIDPtr, brandIDPtr, locIDPtr, shopIDPtr, latitude, longitude, radius, pincode, int(pagination.Limit), int(pagination.Offset))
+	products, err := h.productUseCase.SearchProducts(c, keyword, catIDPtr, deptIDPtr, brandIDPtr, locIDPtr, shopIDPtr, latitude, longitude, radius, pincode, trending, int(pagination.Limit), int(pagination.Offset))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

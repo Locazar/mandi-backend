@@ -367,15 +367,15 @@ func (c *adminDatabase) CreateAdvertisement(ctx context.Context, ad domain.Adver
 	}
 	query := `INSERT INTO advertisements
 		(id, title, content, image_url, target_url, start_date, end_date, created_at, updated_at,
-		 created_by_admin, admin_id, area_targeted, pincode_targeted, latitude, longitude, distance_km,
+		 created_by_admin, admin_id, area_targeted, pincode_targeted, phone, latitude, longitude, distance_km,
 		 status, priority, audience, department_id, category_id)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)`
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)`
 
 	err := c.DB.Exec(query,
 		ad.ID, ad.Title, ad.Content, ad.ImageURL, ad.TargetURL,
 		ad.StartDate, ad.EndDate, time.Now(), time.Now(),
 		ad.CreatedByAdmin, ad.AdminID,
-		ad.AreaTargeted, ad.PincodeTargeted, ad.Latitude, ad.Longitude, ad.DistanceKM,
+		ad.AreaTargeted, ad.PincodeTargeted, ad.Phone, ad.Latitude, ad.Longitude, ad.DistanceKM,
 		ad.Status, ad.Priority, ad.Audience, ad.DepartmentID, ad.CategoryID,
 	).Error
 
@@ -456,15 +456,15 @@ func (c *adminDatabase) UpdateAdvertisement(ctx context.Context, ad domain.Adver
 		area_targeted = $8, pincode_targeted = $9,
 		latitude = $10, longitude = $11, distance_km = $12,
 		status = $13, priority = $14,
-		audience = $15, department_id = $16, category_id = $17
-		WHERE id = $18`
+		audience = $15, department_id = $16, category_id = $17, phone = $18
+		WHERE id = $19`
 
 	err := c.DB.Exec(query,
 		ad.Title, ad.Content, ad.ImageURL, ad.TargetURL,
 		ad.StartDate, ad.EndDate, time.Now(),
 		ad.AreaTargeted, ad.PincodeTargeted, ad.Latitude, ad.Longitude, ad.DistanceKM,
 		ad.Status, ad.Priority,
-		ad.Audience, ad.DepartmentID, ad.CategoryID,
+		ad.Audience, ad.DepartmentID, ad.CategoryID, ad.Phone,
 		ad.ID,
 	).Error
 
@@ -988,10 +988,10 @@ func (c *adminDatabase) CreateSubscriptionPlan(ctx context.Context, plan domain.
 		plan.PriceMonthly.Currency = "INR"
 	}
 	err := c.DB.WithContext(ctx).Exec(`INSERT INTO subscription_plans
-		(id, name, price_monthly_amount_minor, price_monthly_currency, duration_days, is_active)
-		VALUES ($1,$2,$3,$4,$5,$6)`,
+		(id, name, price_monthly_amount_minor, price_monthly_currency, duration_days, is_active, description, features)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
 		plan.ID, plan.Name, plan.PriceMonthly.AmountMinor, plan.PriceMonthly.Currency,
-		plan.DurationDays, plan.IsActive,
+		plan.DurationDays, plan.IsActive, plan.Description, plan.Features,
 	).Error
 	return plan, err
 }
@@ -1002,10 +1002,10 @@ func (c *adminDatabase) UpdateSubscriptionPlan(ctx context.Context, plan domain.
 	}
 	result := c.DB.WithContext(ctx).Exec(`UPDATE subscription_plans
 		SET name = $2, price_monthly_amount_minor = $3, price_monthly_currency = $4,
-		    duration_days = $5, is_active = $6
+		    duration_days = $5, is_active = $6, description = $7, features = $8
 		WHERE id = $1`,
 		plan.ID, plan.Name, plan.PriceMonthly.AmountMinor, plan.PriceMonthly.Currency,
-		plan.DurationDays, plan.IsActive,
+		plan.DurationDays, plan.IsActive, plan.Description, plan.Features,
 	)
 	if result.Error != nil {
 		return plan, result.Error
@@ -1186,7 +1186,8 @@ func (c *adminDatabase) GetAllShops(ctx context.Context, pagination request.Pagi
 	limit := pagination.Limit
 	offset := pagination.Offset
 
-	query := `SELECT sd.*, (EXISTS (SELECT 1 FROM shop_offers so WHERE so.shop_id = sd.id)) as has_offers FROM shop_details sd ORDER BY sd.created_at DESC LIMIT $1 OFFSET $2`
+	query := `SELECT sd.*, (EXISTS (SELECT 1 FROM shop_offers so WHERE so.shop_id = sd.id)) as has_offers, a.product_limit
+		FROM shop_details sd LEFT JOIN admins a ON a.id = sd.admin_id ORDER BY sd.created_at DESC LIMIT $1 OFFSET $2`
 	err = c.DB.Raw(query, limit, offset).Scan(&shops).Error
 	for i := range shops {
 		c.decryptShopPII(&shops[i])
@@ -1197,7 +1198,8 @@ func (c *adminDatabase) GetAllShops(ctx context.Context, pagination request.Pagi
 // SearchShops filters shops by phone, pincode, city, and/or radius (km) around a point.
 // Empty filters are ignored; all provided filters are ANDed together.
 func (c *adminDatabase) SearchShops(ctx context.Context, filter request.ShopSearch) (shops []domain.ShopDetails, err error) {
-	query := `SELECT sd.*, (EXISTS (SELECT 1 FROM shop_offers so WHERE so.shop_id = sd.id)) as has_offers FROM shop_details sd WHERE 1=1`
+	query := `SELECT sd.*, (EXISTS (SELECT 1 FROM shop_offers so WHERE so.shop_id = sd.id)) as has_offers, a.product_limit
+		FROM shop_details sd LEFT JOIN admins a ON a.id = sd.admin_id WHERE 1=1`
 	args := []interface{}{}
 	i := 1
 
@@ -1242,6 +1244,41 @@ func (c *adminDatabase) SearchShops(ctx context.Context, filter request.ShopSear
 		c.decryptShopPII(&shops[j])
 	}
 	return shops, err
+}
+
+// GetShopConflicts finds pairs of onboarded shops whose pinned locations sit
+// within radiusMeters of each other. Distance uses the equirectangular
+// approximation (accurate enough at this scale) rather than full haversine,
+// since candidate pairs are pre-filtered to the same pincode to keep the
+// self-join cheap.
+func (c *adminDatabase) GetShopConflicts(ctx context.Context, radiusMeters float64) (conflicts []domain.ShopConflict, err error) {
+	query := `
+		SELECT
+			a.id AS shop_a_id, a.shop_name AS shop_a_name, a.admin_id AS shop_a_admin,
+			b.id AS shop_b_id, b.shop_name AS shop_b_name, b.admin_id AS shop_b_admin,
+			a.city AS city, a.pincode AS pincode,
+			(6371000 * acos(least(1.0,
+				cos(radians(a.latitude)) * cos(radians(b.latitude)) *
+				cos(radians(b.longitude) - radians(a.longitude)) +
+				sin(radians(a.latitude)) * sin(radians(b.latitude))
+			))) AS distance_m,
+			GREATEST(a.created_at, b.created_at) AS detected_at
+		FROM shop_details a
+		JOIN shop_details b
+			ON a.id < b.id
+			AND a.pincode = b.pincode
+		WHERE a.latitude != 0 AND a.longitude != 0
+			AND b.latitude != 0 AND b.longitude != 0
+			AND a.deleted_at IS NULL AND b.deleted_at IS NULL
+			AND (6371000 * acos(least(1.0,
+				cos(radians(a.latitude)) * cos(radians(b.latitude)) *
+				cos(radians(b.longitude) - radians(a.longitude)) +
+				sin(radians(a.latitude)) * sin(radians(b.latitude))
+			))) <= $1
+		ORDER BY detected_at DESC`
+
+	err = c.DB.Raw(query, radiusMeters).Scan(&conflicts).Error
+	return conflicts, err
 }
 
 func (c *adminDatabase) GetShopByID(ctx context.Context, shopID string) (shop domain.ShopDetails, err error) {
@@ -1560,6 +1597,19 @@ func (c *adminDatabase) GetAdminByID(ctx context.Context, adminID string) (domai
 	return admin, nil
 }
 
+// UpdateSellerProductLimit sets the max product-item quota (admins.product_limit)
+// for a seller, enforced in ProductUseCase.SaveProductItem.
+func (c *adminDatabase) UpdateSellerProductLimit(ctx context.Context, adminID string, limit int) error {
+	result := c.DB.WithContext(ctx).Model(&domain.Admin{}).Where("id = ?", adminID).Update("product_limit", limit)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return domain.NotFoundError("seller not found")
+	}
+	return nil
+}
+
 func (a *adminDatabase) GetDashboardStats(ctx context.Context) (domain.DashboardStats, error) {
 	var stats domain.DashboardStats
 
@@ -1853,4 +1903,117 @@ func (c *adminDatabase) DeleteShopReferral(ctx context.Context, referralID strin
 		return gorm.ErrRecordNotFound
 	}
 	return nil
+}
+
+// ── Category requests ────────────────────────────────────────────────────
+
+func (c *adminDatabase) CreateCategoryRequest(ctx context.Context, req domain.CategoryRequest) (domain.CategoryRequest, error) {
+	if err := c.DB.WithContext(ctx).Create(&req).Error; err != nil {
+		return domain.CategoryRequest{}, err
+	}
+	return req, nil
+}
+
+func (c *adminDatabase) ListCategoryRequests(ctx context.Context, status string, pagination request.Pagination) ([]domain.CategoryRequest, error) {
+	var requests []domain.CategoryRequest
+	query := c.DB.WithContext(ctx).Model(&domain.CategoryRequest{})
+	if status != "" {
+		query = query.Where("status = ?", status)
+	}
+	if err := query.
+		Order("created_at DESC").
+		Offset(int(pagination.Offset)).
+		Limit(int(pagination.Limit)).
+		Find(&requests).Error; err != nil {
+		return nil, err
+	}
+	c.attachCategoryRequestNames(ctx, requests)
+	return requests, nil
+}
+
+func (c *adminDatabase) ListCategoryRequestsByAdmin(ctx context.Context, adminID string, pagination request.Pagination) ([]domain.CategoryRequest, error) {
+	var requests []domain.CategoryRequest
+	if err := c.DB.WithContext(ctx).
+		Where("admin_id = ?", adminID).
+		Order("created_at DESC").
+		Offset(int(pagination.Offset)).
+		Limit(int(pagination.Limit)).
+		Find(&requests).Error; err != nil {
+		return nil, err
+	}
+	return requests, nil
+}
+
+func (c *adminDatabase) GetCategoryRequestByID(ctx context.Context, id string) (domain.CategoryRequest, error) {
+	var req domain.CategoryRequest
+	if err := c.DB.WithContext(ctx).Where("id = ?", id).First(&req).Error; err != nil {
+		return domain.CategoryRequest{}, err
+	}
+	return req, nil
+}
+
+func (c *adminDatabase) UpdateCategoryRequestStatus(ctx context.Context, id string, status domain.CategoryRequestStatus, adminResponse string) error {
+	result := c.DB.WithContext(ctx).Model(&domain.CategoryRequest{}).
+		Where("id = ?", id).
+		Updates(map[string]interface{}{
+			"status":         status,
+			"admin_response": adminResponse,
+		})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+// attachCategoryRequestNames batch-populates the transient SellerName/ShopName
+// display fields for admin-portal's list view — two grouped queries instead
+// of N+1 per-row lookups.
+func (c *adminDatabase) attachCategoryRequestNames(ctx context.Context, requests []domain.CategoryRequest) {
+	if len(requests) == 0 {
+		return
+	}
+	adminIDs := make([]string, 0, len(requests))
+	shopIDs := make([]string, 0, len(requests))
+	for _, r := range requests {
+		adminIDs = append(adminIDs, r.AdminID)
+		if r.ShopID != "" {
+			shopIDs = append(shopIDs, r.ShopID)
+		}
+	}
+
+	adminNames := map[string]string{}
+	var admins []struct {
+		ID       string
+		FullName string
+	}
+	if err := c.DB.WithContext(ctx).Table("admins").
+		Select("id, full_name").Where("id IN ?", adminIDs).Find(&admins).Error; err == nil {
+		for _, a := range admins {
+			adminNames[a.ID] = a.FullName
+		}
+	}
+
+	shopNames := map[string]string{}
+	if len(shopIDs) > 0 {
+		var shops []struct {
+			ID       string
+			ShopName string
+		}
+		if err := c.DB.WithContext(ctx).Table("shop_details").
+			Select("id, shop_name").Where("id IN ?", shopIDs).Find(&shops).Error; err == nil {
+			for _, s := range shops {
+				shopNames[s.ID] = s.ShopName
+			}
+		}
+	}
+
+	for i := range requests {
+		requests[i].SellerName = adminNames[requests[i].AdminID]
+		if requests[i].ShopID != "" {
+			requests[i].ShopName = shopNames[requests[i].ShopID]
+		}
+	}
 }

@@ -660,7 +660,6 @@ func (c *UserHandler) SearchShopList(ctx *gin.Context) {
 	}
 
 	response.ResolveShopsImages(c.cloudService, shops)
-
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully found shops", shops)
 }
 

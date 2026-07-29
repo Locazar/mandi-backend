@@ -61,13 +61,14 @@ type ProductRepository interface {
 	FindAllProductItemIDsByProductIDAndVariationOptionID(ctx context.Context, productID, variationOptionID string) ([]string, error)
 	SaveProductConfiguration(ctx context.Context, productItemID, variationOptionID string) error
 	SaveProductItem(ctx context.Context, productItem request.ProductItem, adminID string, shopID string) (productItemID string, err error)
+	CountProductItemsByShopID(ctx context.Context, shopID string) (count int64, err error)
 	UpdateProductItem(ctx context.Context, productItemID string, productItem request.ProductItem) error
 	UpdateProductItemStock(ctx context.Context, productItemID string, inStock bool) error
 	// product item image
 	FindAllProductItemImages(ctx context.Context, productItemID string) (images []string, err error)
 	SaveProductItemImage(ctx context.Context, productItemId string, image domain.ProductItemImage) error
 
-	SearchProducts(ctx context.Context, keyword string, categoryID, departmentID, brandID, locationID *string, shopID *string, latitude, longitude, radius float64, pincode *uint, pagination request.Pagination) (products []response.ProductItems, err error)
+	SearchProducts(ctx context.Context, keyword string, categoryID, departmentID, brandID, locationID *string, shopID *string, latitude, longitude, radius float64, pincode *uint, trending bool, pagination request.Pagination) (products []response.ProductItems, err error)
 
 	// department
 	SaveDepartment(ctx context.Context, department request.Department) error

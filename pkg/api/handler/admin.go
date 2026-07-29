@@ -553,6 +553,7 @@ func (c *adminHandler) RejectShop(ctx *gin.Context) {
 //	@Param			priority			formData	string	false	"high | medium | low"
 //	@Param			area_targeted		formData	string	false	"Target area name"
 //	@Param			pincode_targeted	formData	string	false	"Target pincode"
+//	@Param			phone				formData	string	false	"Contact phone number"
 //	@Param			latitude			formData	number	false	"Latitude"
 //	@Param			longitude			formData	number	false	"Longitude"
 //	@Param			distance_km			formData	number	false	"Radius in km"
@@ -639,6 +640,7 @@ func (c *adminHandler) CreateAdvertisement(ctx *gin.Context) {
 		Priority:        priority,
 		AreaTargeted:    ctx.PostForm("area_targeted"),
 		PincodeTargeted: ctx.PostForm("pincode_targeted"),
+		Phone:           ctx.PostForm("phone"),
 		Latitude:        lat,
 		Longitude:       lng,
 		DistanceKM:      dist,
@@ -758,6 +760,7 @@ func (c *adminHandler) GetAllAdvertisements(ctx *gin.Context) {
 //	@Param			priority			formData	string	false	"high | medium | low"
 //	@Param			area_targeted		formData	string	false	"Target area"
 //	@Param			pincode_targeted	formData	string	false	"Target pincode"
+//	@Param			phone				formData	string	false	"Contact phone number"
 //	@Param			latitude			formData	number	false	"Latitude"
 //	@Param			longitude			formData	number	false	"Longitude"
 //	@Param			distance_km			formData	number	false	"Radius km"
@@ -800,6 +803,9 @@ func (c *adminHandler) UpdateAdvertisement(ctx *gin.Context) {
 	}
 	if v := ctx.PostForm("pincode_targeted"); v != "" {
 		existing.PincodeTargeted = v
+	}
+	if v := ctx.PostForm("phone"); v != "" {
+		existing.Phone = v
 	}
 	if v := ctx.PostForm("latitude"); v != "" {
 		if f, e := strconv.ParseFloat(v, 64); e == nil {
@@ -1558,6 +1564,45 @@ func (c *adminHandler) UpdateGlobalConfig(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Config updated", updated)
 }
 
+// GetOnboardingCopy godoc
+//
+//	@summary		Get the seller onboarding wizard's admin-editable text/copy
+//	@Security		BearerAuth
+//	@Id				GetOnboardingCopy
+//	@Tags			App Configs
+//	@Router			/admin/onboarding-copy [get]
+//	@Success		200	{object}	response.Response{}
+func (c *adminHandler) GetOnboardingCopy(ctx *gin.Context) {
+	copyObj, err := c.adminUseCase.GetOnboardingWizardCopy(ctx)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to fetch onboarding copy", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Onboarding copy fetched", copyObj)
+}
+
+// UpdateOnboardingCopy godoc
+//
+//	@summary		Update the seller onboarding wizard's admin-editable text/copy
+//	@Security		BearerAuth
+//	@Id				UpdateOnboardingCopy
+//	@Tags			App Configs
+//	@Router			/admin/onboarding-copy [put]
+//	@Success		200	{object}	response.Response{}
+func (c *adminHandler) UpdateOnboardingCopy(ctx *gin.Context) {
+	var body domain.OnboardingWizardCopy
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	updated, err := c.adminUseCase.UpdateOnboardingWizardCopy(ctx, body)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to update onboarding copy", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Onboarding copy updated", updated)
+}
+
 // GetHelpSettings godoc
 //
 //	@summary		Get help center contact settings (admin panel)
@@ -1974,6 +2019,41 @@ func (h *adminHandler) SearchShops(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully searched shops", shops)
 }
 
+// UpdateSellerProductLimit godoc
+//
+//	@summary		Set a seller's product upload limit
+//	@Security		BearerAuth
+//	@Description	API for admin panel to cap how many product items a seller may upload in total
+//	@Id				UpdateSellerProductLimit
+//	@Tags			Admin Seller
+//	@Param			admin_id		path	string	true	"Seller (admin) ID"
+//	@Param			product_limit	body	object	true	"{\"product_limit\": 100}"
+//	@Router			/admin/sellers/{admin_id}/product-limit [put]
+//	@Success		200	{object}	response.Response{}	"Successfully updated product limit"
+//	@Failure		400	{object}	response.Response{}	"invalid input"
+func (a *adminHandler) UpdateSellerProductLimit(ctx *gin.Context) {
+	adminID := ctx.Param("admin_id")
+	if adminID == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "admin_id is required", nil, nil)
+		return
+	}
+
+	var body struct {
+		ProductLimit int `json:"product_limit" binding:"min=0"`
+	}
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "invalid request body", err, nil)
+		return
+	}
+
+	if err := a.adminUseCase.UpdateSellerProductLimit(ctx, adminID, body.ProductLimit); err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "failed to update seller product limit", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully updated product limit", nil)
+}
+
 // GetShopByID godoc
 //
 //	@summary		Get shop by ID
@@ -1986,6 +2066,33 @@ func (h *adminHandler) SearchShops(ctx *gin.Context) {
 //	@Success		200	{object}	response.Response{}	"Successfully got shop by ID"
 //	@Failure		400	{object}	response.Response{}	"Invalid shop ID"
 //	@Failure		500	{object}	response.Response{}	"Failed to get shop by ID"
+// GetShopConflicts godoc
+//
+//	@summary		Get shops onboarded within conflicting distance of each other
+//	@Security		BearerAuth
+//	@Description	API for admin to find pairs of shops whose pinned locations fall within radius_m of each other
+//	@Id				GetShopConflicts
+//	@Tags			Admin Shop
+//	@Param			radius_m	query	number	false	"Detection radius in meters (default 10)"
+//	@Router			/admin/shops/conflicts [get]
+//	@Success		200	{object}	response.Response{}	"Successfully got shop conflicts"
+//	@Failure		500	{object}	response.Response{}	"Failed to get shop conflicts"
+func (h *adminHandler) GetShopConflicts(ctx *gin.Context) {
+	radiusMeters := 10.0
+	if raw := ctx.Query("radius_m"); raw != "" {
+		if parsed, err := strconv.ParseFloat(raw, 64); err == nil && parsed > 0 {
+			radiusMeters = parsed
+		}
+	}
+
+	conflicts, err := h.adminUseCase.GetShopConflicts(ctx, radiusMeters)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get shop conflicts", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully got shop conflicts", conflicts)
+}
+
 func (h *adminHandler) GetShopByID(ctx *gin.Context) {
 	shopIDStr := ctx.Param("shop_id")
 	if shopIDStr == "" {
@@ -3199,6 +3306,78 @@ func (a *adminHandler) DeleteRole(ctx *gin.Context) {
 		return
 	}
 	response.SuccessResponse(ctx, http.StatusOK, "Role deleted successfully")
+}
+
+// ── Category requests ────────────────────────────────────────────────────
+
+type categoryRequestBody struct {
+	DepartmentName string `json:"department_name" binding:"required"`
+	CategoryName   string `json:"category_name"`
+	Note           string `json:"note"`
+}
+
+// CreateCategoryRequest — a seller asking for a department/category that
+// isn't in the existing list. Surfaced from the seller-app "More" section.
+func (a *adminHandler) CreateCategoryRequest(ctx *gin.Context) {
+	callerID := a.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	var body categoryRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	created, err := a.adminUseCase.CreateCategoryRequest(ctx, callerID, domain.CategoryRequest{
+		DepartmentName: body.DepartmentName,
+		CategoryName:   body.CategoryName,
+		Note:           body.Note,
+	})
+	if err != nil {
+		a.handleAppErr(ctx, "Failed to submit category request", err)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Request submitted — we'll review it soon", created)
+}
+
+// ListCategoryRequests — admin-portal review queue. Optional ?status=pending|approved|rejected filter.
+func (a *adminHandler) ListCategoryRequests(ctx *gin.Context) {
+	callerID := a.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	pagination := request.GetPagination(ctx)
+	requests, err := a.adminUseCase.ListCategoryRequests(ctx, callerID, ctx.Query("status"), pagination)
+	if err != nil {
+		a.handleAppErr(ctx, "Failed to list category requests", err)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Category requests", requests)
+}
+
+// ListMyCategoryRequests — a seller viewing the status of their own requests.
+func (a *adminHandler) ListMyCategoryRequests(ctx *gin.Context) {
+	callerID := a.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	pagination := request.GetPagination(ctx)
+	requests, err := a.adminUseCase.ListMyCategoryRequests(ctx, callerID, pagination)
+	if err != nil {
+		a.handleAppErr(ctx, "Failed to load your requests", err)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Your category requests", requests)
+}
+
+// UpdateCategoryRequestStatus — admin-portal approves/rejects a request.
+func (a *adminHandler) UpdateCategoryRequestStatus(ctx *gin.Context) {
+	callerID := a.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	var body struct {
+		Status        string `json:"status" binding:"required"`
+		AdminResponse string `json:"admin_response"`
+	}
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
+		return
+	}
+	status := domain.CategoryRequestStatus(body.Status)
+	if err := a.adminUseCase.UpdateCategoryRequestStatus(ctx, callerID, ctx.Param("request_id"), status, body.AdminResponse); err != nil {
+		a.handleAppErr(ctx, "Failed to update category request", err)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Category request updated")
 }
 
 // ── Sales Executive referral program ───────────────────────────────────────

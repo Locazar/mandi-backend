@@ -23,6 +23,7 @@ type AdminUseCase interface {
 	GetFullSalesReport(ctx context.Context, requestData request.SalesReport) (salesReport []response.SalesReport, err error)
 	VerifyShop(ctx context.Context, verify request.ShopVerification) error
 	GetVerificationStatus(ctx context.Context, adminId string) (domain.Admin, domain.ShopVerification, error)
+	UpdateSellerProductLimit(ctx context.Context, adminID string, limit int) error
 
 	// SubmitShopForReview is the seller's "submit for verification" action —
 	// moves the shop to under_review. ApproveShop/RejectShop are the admin's
@@ -76,6 +77,8 @@ type AdminUseCase interface {
 	// Global app config (single structured config used by client apps)
 	GetGlobalConfig(ctx context.Context) (domain.GlobalAppConfig, error)
 	UpdateGlobalConfig(ctx context.Context, cfg domain.GlobalAppConfig) (domain.GlobalAppConfig, error)
+	GetOnboardingWizardCopy(ctx context.Context) (domain.OnboardingWizardCopy, error)
+	UpdateOnboardingWizardCopy(ctx context.Context, copy domain.OnboardingWizardCopy) (domain.OnboardingWizardCopy, error)
 
 	// Help center (contact settings + FAQs)
 	GetHelpSettings(ctx context.Context) (domain.HelpSettings, error)
@@ -95,6 +98,7 @@ type AdminUseCase interface {
 	CreateShop(ctx context.Context, shop domain.ShopDetails) (domain.ShopDetails, error)
 	GetAllShops(ctx context.Context, pagination request.Pagination) (shops []domain.ShopDetails, err error)
 	SearchShops(ctx context.Context, filter request.ShopSearch) ([]domain.ShopDetails, error)
+	GetShopConflicts(ctx context.Context, radiusMeters float64) ([]domain.ShopConflict, error)
 	GetAdminByID(ctx context.Context, adminID string) (domain.Admin, error)
 	GetShopByID(ctx context.Context, shopID string) (shop domain.ShopDetails, err error)
 	UpdateShop(ctx context.Context, shop map[string]interface{}, shopId string) (map[string]interface{}, error)
@@ -158,6 +162,13 @@ type AdminUseCase interface {
 	// called on account deletion so an already-issued token can't keep
 	// working against a deleted account until it naturally expires.
 	RevokeAdminSessions(ctx context.Context, adminID string) error
+
+	// Category requests: a seller asking for a department/category that
+	// isn't in the existing list.
+	CreateCategoryRequest(ctx context.Context, callerID string, req domain.CategoryRequest) (domain.CategoryRequest, error)
+	ListCategoryRequests(ctx context.Context, callerID, status string, pagination request.Pagination) ([]domain.CategoryRequest, error)
+	ListMyCategoryRequests(ctx context.Context, callerID string, pagination request.Pagination) ([]domain.CategoryRequest, error)
+	UpdateCategoryRequestStatus(ctx context.Context, callerID, requestID string, status domain.CategoryRequestStatus, adminResponse string) error
 }
 
 // GetCategory(ctx context.Context) (helper.Category, any)

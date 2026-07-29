@@ -1092,6 +1092,51 @@ func (c *adminUseCase) UpdateGlobalConfig(ctx context.Context, cfg domain.Global
 	return cfg, nil
 }
 
+// GetOnboardingWizardCopy returns the admin-editable text shown across the
+// seller-app's shop-onboarding wizard, falling back to the shipped defaults
+// if nothing has been saved yet.
+func (c *adminUseCase) GetOnboardingWizardCopy(ctx context.Context) (domain.OnboardingWizardCopy, error) {
+	row, err := c.adminRepo.GetAppConfigByKey(ctx, domain.OnboardingWizardCopyKey)
+	if err != nil {
+		return domain.DefaultOnboardingWizardCopy(), nil
+	}
+	var copyObj domain.OnboardingWizardCopy
+	if err := json.Unmarshal([]byte(row.Value), &copyObj); err != nil {
+		return domain.DefaultOnboardingWizardCopy(), fmt.Errorf("stored onboarding wizard copy is corrupt: %w", err)
+	}
+	return copyObj, nil
+}
+
+// UpdateOnboardingWizardCopy persists the full onboarding wizard copy object
+// as a single JSON blob, creating the underlying app_configs row on first save.
+func (c *adminUseCase) UpdateOnboardingWizardCopy(ctx context.Context, copyObj domain.OnboardingWizardCopy) (domain.OnboardingWizardCopy, error) {
+	encoded, err := json.Marshal(copyObj)
+	if err != nil {
+		return domain.OnboardingWizardCopy{}, fmt.Errorf("failed to encode onboarding wizard copy: %w", err)
+	}
+
+	row := domain.AppConfig{
+		ConfigKey:   domain.OnboardingWizardCopyKey,
+		Value:       string(encoded),
+		Description: "Seller onboarding wizard text/copy — managed via admin-portal Onboarding Copy page",
+		Enabled:     true,
+	}
+
+	existing, err := c.adminRepo.GetAppConfigByKey(ctx, domain.OnboardingWizardCopyKey)
+	if err != nil {
+		if _, err := c.adminRepo.CreateAppConfig(ctx, row); err != nil {
+			return domain.OnboardingWizardCopy{}, err
+		}
+		return copyObj, nil
+	}
+
+	row.ID = existing.ID
+	if _, err := c.adminRepo.UpdateAppConfig(ctx, row); err != nil {
+		return domain.OnboardingWizardCopy{}, err
+	}
+	return copyObj, nil
+}
+
 // Help center (contact settings + FAQs)
 
 func validateHelpSettings(s domain.HelpSettings) error {
@@ -1359,6 +1404,13 @@ func (c *adminUseCase) SearchShops(ctx context.Context, filter request.ShopSearc
 	return c.adminRepo.SearchShops(ctx, filter)
 }
 
+func (c *adminUseCase) GetShopConflicts(ctx context.Context, radiusMeters float64) ([]domain.ShopConflict, error) {
+	if radiusMeters <= 0 {
+		radiusMeters = 10
+	}
+	return c.adminRepo.GetShopConflicts(ctx, radiusMeters)
+}
+
 func (c *adminUseCase) GetAllShops(ctx context.Context, pagination request.Pagination) (shops []domain.ShopDetails, err error) {
 	shops, err = c.adminRepo.GetAllShops(ctx, pagination)
 	if err != nil {
@@ -1374,6 +1426,18 @@ func (c *adminUseCase) GetShopByID(ctx context.Context, shopID string) (shop dom
 	}
 	return shop, nil
 }
+// UpdateSellerProductLimit lets the admin panel cap how many product items a
+// seller may upload in total; enforced in ProductUseCase.SaveProductItem.
+func (c *adminUseCase) UpdateSellerProductLimit(ctx context.Context, adminID string, limit int) error {
+	if limit < 0 {
+		return fmt.Errorf("product limit must not be negative")
+	}
+	if err := c.adminRepo.UpdateSellerProductLimit(ctx, adminID, limit); err != nil {
+		return fmt.Errorf("failed to update seller product limit \nerror:%v", err.Error())
+	}
+	return nil
+}
+
 func (c *adminUseCase) UpdateShop(ctx context.Context, shop map[string]interface{}, shopId string) (map[string]interface{}, error) {
 	updatedShop, err := c.adminRepo.UpdateShop(ctx, shop, shopId)
 	if err != nil {
@@ -1541,6 +1605,75 @@ func (c *adminUseCase) CountShopsAttachedToPlatformUser(ctx context.Context, pla
 
 func (c *adminUseCase) RevokeAdminSessions(ctx context.Context, adminID string) error {
 	return c.adminRepo.DeleteRefreshSessionByUserID(ctx, adminID)
+}
+
+// ── Category requests ────────────────────────────────────────────────────
+
+// CreateCategoryRequest is open to any authenticated caller (sellers are
+// the intended requester — surfaced from the seller-app "More" section) —
+// no role restriction beyond being logged in.
+func (c *adminUseCase) CreateCategoryRequest(ctx context.Context, callerID string, req domain.CategoryRequest) (domain.CategoryRequest, error) {
+	if callerID == "" {
+		return domain.CategoryRequest{}, domain.UnauthorizedError("session required")
+	}
+	if req.DepartmentName == "" {
+		return domain.CategoryRequest{}, domain.ValidationError("department_name", "is required")
+	}
+	req.AdminID = callerID
+	req.Status = domain.CategoryRequestPending
+	req.AdminResponse = ""
+
+	// Best-effort: attach the caller's shop if they have one, so admin-portal
+	// can show which shop asked. Not required — a brand-new seller mid-onboarding
+	// may not have a shop yet.
+	if shop, err := c.adminRepo.GetShopByOwnerID(ctx, callerID); err == nil && shop.ID != "" {
+		req.ShopID = shop.ID
+	}
+
+	return c.adminRepo.CreateCategoryRequest(ctx, req)
+}
+
+// ListCategoryRequests is admin-portal only — the caller must be a platform
+// user (any assigned role); fine-grained read/write permission on top of
+// that is enforced by the RequirePermission route middleware.
+func (c *adminUseCase) ListCategoryRequests(ctx context.Context, callerID, status string, pagination request.Pagination) ([]domain.CategoryRequest, error) {
+	caller, err := c.adminRepo.GetAdminByID(ctx, callerID)
+	if err != nil || caller.ID == "" {
+		return nil, domain.NotFoundError("caller admin")
+	}
+	if caller.Role == "" {
+		return nil, domain.ForbiddenError("only platform users can list category requests")
+	}
+	return c.adminRepo.ListCategoryRequests(ctx, status, pagination)
+}
+
+// ListMyCategoryRequests lets a seller see the status of their own past
+// requests (e.g. from the seller-app "More" section).
+func (c *adminUseCase) ListMyCategoryRequests(ctx context.Context, callerID string, pagination request.Pagination) ([]domain.CategoryRequest, error) {
+	if callerID == "" {
+		return nil, domain.UnauthorizedError("session required")
+	}
+	return c.adminRepo.ListCategoryRequestsByAdmin(ctx, callerID, pagination)
+}
+
+func (c *adminUseCase) UpdateCategoryRequestStatus(ctx context.Context, callerID, requestID string, status domain.CategoryRequestStatus, adminResponse string) error {
+	caller, err := c.adminRepo.GetAdminByID(ctx, callerID)
+	if err != nil || caller.ID == "" {
+		return domain.NotFoundError("caller admin")
+	}
+	if caller.Role == "" {
+		return domain.ForbiddenError("only platform users can review category requests")
+	}
+	if !status.IsValid() {
+		return domain.ValidationError("status", "must be pending, approved, or rejected")
+	}
+	if err := c.adminRepo.UpdateCategoryRequestStatus(ctx, requestID, status, adminResponse); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return domain.NotFoundError("category request")
+		}
+		return err
+	}
+	return nil
 }
 
 func (c *adminUseCase) CreateShopReferral(ctx context.Context, callerID string, body domain.ShopReferral) (domain.ShopReferral, error) {

@@ -146,6 +146,19 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			roles.DELETE("/:role_id", adminHandler.DeleteRole)
 		}
 
+		// Category requests: a seller asking for a department/category
+		// that's missing (seller-app "More" section). Create/mine are
+		// shared with seller-app (no RequirePermission — sellers carry a
+		// blank role and would bypass it anyway, but kept explicit here for
+		// clarity); the review-queue list/update are admin-portal only.
+		categoryRequests := api.Group("/category-requests")
+		{
+			categoryRequests.POST("/", middleware.TrimSpaces(), adminHandler.CreateCategoryRequest)
+			categoryRequests.GET("/mine", adminHandler.ListMyCategoryRequests)
+			categoryRequests.GET("/", adminHandler.RequirePermission(domain.PermCanManageCatalog), adminHandler.ListCategoryRequests)
+			categoryRequests.PATCH("/:request_id/status", adminHandler.RequirePermission(domain.PermCanManageCatalog), middleware.TrimSpaces(), adminHandler.UpdateCategoryRequestStatus)
+		}
+
 		// Sales Executive referral program — CRUD over the shop<->platform
 		// user attachments created automatically when a seller enters a
 		// valid referral coupon ID during shop onboarding (see CreateShop).
@@ -397,6 +410,11 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		api.GET("/config", adminHandler.RequirePermission(domain.PermCanManageSettings), adminHandler.GetGlobalConfig)
 		api.PUT("/config", adminHandler.RequirePermission(domain.PermCanManageSettings), middleware.TrimSpaces(), adminHandler.UpdateGlobalConfig)
 
+		// Seller onboarding wizard text/copy — single JSON blob (see also the
+		// public GET /api/onboarding-copy registered directly in server.go)
+		api.GET("/onboarding-copy", adminHandler.RequirePermission(domain.PermCanManageSettings), adminHandler.GetOnboardingCopy)
+		api.PUT("/onboarding-copy", adminHandler.RequirePermission(domain.PermCanManageSettings), middleware.TrimSpaces(), adminHandler.UpdateOnboardingCopy)
+
 		// help center — contact settings + FAQs (managed from the admin panel)
 		help := api.Group("/help", adminHandler.RequirePermission(domain.PermCanManageSettings))
 		{
@@ -425,11 +443,17 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		}
 
 		// Shop details
+		sellers := api.Group("/sellers", adminHandler.RequirePermission(domain.PermCanManageAdmins))
+		{
+			sellers.PUT("/:admin_id/product-limit", middleware.TrimSpaces(), adminHandler.UpdateSellerProductLimit)
+		}
+
 		shop := api.Group("/shops")
 		{
 			shop.POST("/", adminHandler.CreateShop)
 			shop.GET("/", adminHandler.GetAllShops)
 			shop.GET("/search", adminHandler.SearchShops)
+			shop.GET("/conflicts", adminHandler.GetShopConflicts)
 			shop.GET("/:shop_id", adminHandler.GetShopByID)
 			shop.PUT("/", adminHandler.UpdateShop)
 			shop.PUT("/:shop_id", adminHandler.UploadShopById)
@@ -557,6 +581,16 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			trainingVideos.POST("", sellerGuideHandler.UploadTrainingVideo)
 			trainingVideos.PUT("", sellerGuideHandler.ReplaceTrainingVideo)
 			trainingVideos.DELETE("", sellerGuideHandler.DeleteTrainingVideo)
+		}
+
+		// Product upload guide video management (per-department, with a
+		// "default" folder used as fallback for departments with none).
+		productUploadGuideVideos := api.Group("/product-upload-guide-videos")
+		{
+			productUploadGuideVideos.GET("", sellerGuideHandler.GetProductUploadGuideVideos)
+			productUploadGuideVideos.POST("", sellerGuideHandler.UploadProductUploadGuideVideo)
+			productUploadGuideVideos.PUT("", sellerGuideHandler.ReplaceProductUploadGuideVideo)
+			productUploadGuideVideos.DELETE("", sellerGuideHandler.DeleteProductUploadGuideVideo)
 		}
 	}
 }
