@@ -31,6 +31,10 @@ type ShopDetails struct {
 	// are opted in unless they explicitly uncheck the consent box.
 	PhoneVisibleConsent bool `json:"phone_visible_consent" gorm:"not null;default:true" binding:"omitempty"`
 
+	// PreferredLanguage is the seller's chosen onboarding language code (e.g.
+	// "hi"), captured by the feature-flagged language picker. Optional.
+	PreferredLanguage string `json:"preferred_language" gorm:"size:10" binding:"omitempty"`
+
 	ShopDescription      string           `json:"shop_description" gorm:"type:text" binding:"omitempty"`
 	ShopVerificationDocs string           `json:"shop_verification_docs" gorm:"type:text;" binding:"omitempty"`
 	Document_Type        ShopDocumentType `json:"document_type" gorm:"size:50" binding:"omitempty"`

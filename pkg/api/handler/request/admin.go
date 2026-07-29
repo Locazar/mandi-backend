@@ -22,8 +22,10 @@ type AddressRequest struct {
 	Pincode      string `json:"pincode"`
 	Latitude     string `json:"latitude"`
 	Longitude    string `json:"longitude"`
-	CreatedAt    string `json:"created_at"`
-	UpdatedAt    string `json:"updated_at"`
+	// PreferredLanguage is the seller's chosen onboarding language code (optional).
+	PreferredLanguage string `json:"preferred_language" binding:"omitempty"`
+	CreatedAt         string `json:"created_at"`
+	UpdatedAt         string `json:"updated_at"`
 }
 
 type VerifyShopDocumentRequest struct {
