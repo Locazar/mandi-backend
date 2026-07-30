@@ -1493,7 +1493,7 @@ func (c *adminHandler) UpdateGlobalConfig(ctx *gin.Context) {
 //	@Router			/admin/onboarding-copy [get]
 //	@Success		200	{object}	response.Response{}
 func (c *adminHandler) GetOnboardingCopy(ctx *gin.Context) {
-	copyObj, err := c.adminUseCase.GetOnboardingWizardCopy(ctx)
+	copyObj, err := c.adminUseCase.GetOnboardingWizardCopy(ctx, ctx.Query("lang"))
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to fetch onboarding copy", err, nil)
 		return
@@ -1515,7 +1515,7 @@ func (c *adminHandler) UpdateOnboardingCopy(ctx *gin.Context) {
 		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
 		return
 	}
-	updated, err := c.adminUseCase.UpdateOnboardingWizardCopy(ctx, body)
+	updated, err := c.adminUseCase.UpdateOnboardingWizardCopy(ctx, ctx.Query("lang"), body)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to update onboarding copy", err, nil)
 		return
