@@ -241,7 +241,11 @@ func (uc *notificationUseCase) SendPushNotification(ctx context.Context, req req
 	// Both paths failed — surface a clear, actionable error.
 	// If Postgres found no tokens (not a DB error), the owner simply has no registered devices.
 	if pgErr == nil && len(tokens) == 0 {
-		return fmt.Errorf("no active FCM device tokens registered for %s %q — the seller's app must be opened at least once to register a device token", req.OwnerType, req.OwnerID)
+		appName := "seller app"
+		if req.OwnerType == "user" {
+			appName = "customer app"
+		}
+		return fmt.Errorf("no active FCM device tokens registered for %s %q — the %s must be opened and logged into at least once to register a device token", req.OwnerType, req.OwnerID, appName)
 	}
 	// Both paths errored — combine the messages.
 	if pgErr != nil {
