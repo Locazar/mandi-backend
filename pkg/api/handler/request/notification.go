@@ -73,6 +73,18 @@ type SendPushRequest struct {
 	EventType string `json:"event_type" binding:"omitempty"`
 }
 
+// SendBroadcastRequest triggers a topic broadcast to a whole audience (e.g. all
+// customer-app devices) in a single FCM call — no per-user token lookup.
+type SendBroadcastRequest struct {
+	Title string `json:"title" binding:"required,min=1,max=100"`
+	Body  string `json:"body" binding:"required,min=1,max=500"`
+	// Audience selects the topic. Optional — defaults to "all_users" (all
+	// customer-app devices). Allowed: "all_users" | "all_sellers".
+	Audience string `json:"audience" binding:"omitempty,oneof=all_users all_sellers"`
+	// Data is an optional map of key-value pairs delivered alongside the notification.
+	Data map[string]string `json:"data" binding:"omitempty"`
+}
+
 type NotificationRadiusRequest struct {
 	Latitude  float64 `json:"latitude" binding:"required"`
 	Longitude float64 `json:"longitude" binding:"required"`

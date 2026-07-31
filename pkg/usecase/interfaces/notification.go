@@ -21,6 +21,9 @@ type NotificationUseCase interface {
 	// FCM push delivery
 	SendPushNotification(ctx context.Context, req request.SendPushRequest) error
 
+	// SendBroadcast delivers a notification to a whole audience via an FCM topic.
+	SendBroadcast(ctx context.Context, req request.SendBroadcastRequest) error
+
 	// StartFirestoreWatcher launches background Firestore listeners for the
 	// given rules.  It returns immediately; watchers run until ctx is cancelled.
 	// Pass nil to use the default e-commerce rules (orders, products, shops,

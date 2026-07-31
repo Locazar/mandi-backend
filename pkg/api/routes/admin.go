@@ -497,6 +497,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		{
 			notification.GET("/sendToUsersInRadius", adminHandler.SendNotificationToUsersInRadius)
 			notification.POST("/push", notificationHandler.SendPushNotification)
+			notification.POST("/broadcast", notificationHandler.SendBroadcastNotification)
 			notification.POST("/images", adminHandler.UploadNotificationImage)
 			notification.GET("/images", adminHandler.ListNotificationImages)
 		}

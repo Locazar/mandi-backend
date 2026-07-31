@@ -257,6 +257,23 @@ func (uc *notificationUseCase) SendPushNotification(ctx context.Context, req req
 	return fsErr
 }
 
+// SendBroadcast delivers a notification to a whole audience via an FCM topic.
+// One call reaches every subscribed device regardless of login state.
+func (uc *notificationUseCase) SendBroadcast(ctx context.Context, req request.SendBroadcastRequest) error {
+	topic := req.Audience
+	if topic == "" {
+		topic = "all_users" // default audience: all customer-app devices
+	}
+	data := req.Data
+	if data == nil {
+		data = map[string]string{}
+	}
+	if err := uc.fcmPush.SendToTopic(ctx, topic, req.Title, req.Body, data); err != nil {
+		return fmt.Errorf("failed to broadcast to topic %q: %w", topic, err)
+	}
+	return nil
+}
+
 // SendPushToUserOnOrderUpdate is a convenience helper called by the order usecase
 // after an order status change.  It builds the payload and delegates to SendPushNotification.
 func SendPushToUserOnOrderUpdate(ctx context.Context, uc service.NotificationUseCase, userID string, orderID string, newStatus string) {
