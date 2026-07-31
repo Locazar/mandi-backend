@@ -63,6 +63,10 @@ func (m *mockPushSender) SendToOwnerViaFirestore(_ context.Context, _, _, _, _ s
 	return m.sendToOwnerViaFirestoreErr
 }
 
+func (m *mockPushSender) SendToTopic(_ context.Context, _, _, _ string, _ map[string]string) error {
+	return nil
+}
+
 func (m *mockPushSender) SaveTokenToFirestore(_ context.Context, collection, ownerID, token, _ string) error {
 	m.savedToFirestore = true
 	m.savedFirestoreCollection = collection
