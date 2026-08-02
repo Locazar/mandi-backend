@@ -150,6 +150,21 @@ func (r *subscriptionDatabase) GetGSTRateBasisPoints(ctx context.Context) (int, 
 	return cfg.GSTRateBasisPoints, nil
 }
 
+// FindAllPaidOrdersWithoutInvoice returns paid orders that have no invoice
+// yet, oldest paid first so backfilled numbers run chronologically.
+func (r *subscriptionDatabase) FindAllPaidOrdersWithoutInvoice(ctx context.Context) ([]domain.BillingOrder, error) {
+	var orders []domain.BillingOrder
+	err := r.db.WithContext(ctx).
+		Model(&domain.SubscriptionOrder{}).
+		Select("subscription_orders.*, subscription_plans.name AS plan_name").
+		Joins("LEFT JOIN subscription_plans ON subscription_plans.id = subscription_orders.plan_id").
+		Joins("LEFT JOIN subscription_invoices ON subscription_invoices.subscription_order_id = subscription_orders.id").
+		Where("subscription_orders.status = ? AND subscription_invoices.id IS NULL", domain.SubStatusPaid).
+		Order("subscription_orders.paid_at ASC").
+		Scan(&orders).Error
+	return orders, err
+}
+
 func (r *subscriptionDatabase) Transaction(fn func(repo interfaces.SubscriptionRepository) error) error {
 	trx := r.db.Begin()
 	repo := &subscriptionDatabase{db: trx}

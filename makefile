@@ -28,6 +28,11 @@ run: ## Start application
 seed: ## Seed platform admin accounts (idempotent — skips existing emails)
 	$(GOCMD) run ./cmd/seed/main.go
 
+backfill-invoices: ## Issue invoices for already-paid subscription orders (run BEFORE going live)
+	go run ./cmd/backfill-invoices --dry-run
+	@echo ""
+	@echo "Review the above, then run: go run ./cmd/backfill-invoices"
+
 run-no-lint: ## Start application without lint checks
 	$(GOCMD) run ./cmd/api/main.go
 
