@@ -5,7 +5,6 @@ import (
 
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
-	"gorm.io/gorm"
 )
 
 type InvoiceRepository interface {
@@ -25,8 +24,4 @@ type InvoiceRepository interface {
 	// SetInvoicePDF records the rendered PDF's object key. The only mutation
 	// permitted on an issued invoice.
 	SetInvoicePDF(ctx context.Context, invoiceID, objectKey string) error
-
-	// WithTx returns a repository bound to an existing transaction, so invoice
-	// issuance can join the subscription payment transaction.
-	WithTx(tx *gorm.DB) InvoiceRepository
 }

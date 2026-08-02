@@ -11,8 +11,6 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	request "github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	domain "github.com/rohit221990/mandi-backend/pkg/domain"
-	interfaces "github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
-	gorm "gorm.io/gorm"
 )
 
 // MockInvoiceRepository is a mock of InvoiceRepository interface.
@@ -170,18 +168,4 @@ func (m *MockInvoiceRepository) UpdateCompanyBillingProfile(ctx context.Context,
 func (mr *MockInvoiceRepositoryMockRecorder) UpdateCompanyBillingProfile(ctx, profile interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateCompanyBillingProfile", reflect.TypeOf((*MockInvoiceRepository)(nil).UpdateCompanyBillingProfile), ctx, profile)
-}
-
-// WithTx mocks base method.
-func (m *MockInvoiceRepository) WithTx(tx *gorm.DB) interfaces.InvoiceRepository {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "WithTx", tx)
-	ret0, _ := ret[0].(interfaces.InvoiceRepository)
-	return ret0
-}
-
-// WithTx indicates an expected call of WithTx.
-func (mr *MockInvoiceRepositoryMockRecorder) WithTx(tx interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WithTx", reflect.TypeOf((*MockInvoiceRepository)(nil).WithTx), tx)
 }

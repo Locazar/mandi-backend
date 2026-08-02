@@ -52,6 +52,20 @@ func provideCryptoService(cfg config.Config) (*crypto.Service, error) {
 	return crypto.NewService(keys, cfg.PIIEncryptionActiveKey)
 }
 
+// provideSkipOTPValidation and provideSkipOTPValidationVariadic exist solely so
+// Wire can resolve the plain-bool and variadic-bool skipOTPValidation
+// parameters on NewAdminUseCase/NewMobileAuthUseCase and NewAuthUseCase
+// respectively. Both read the same cfg.SkipOTPValidation value; this is not a
+// behaviour change, only a name Wire's provider graph can attach to. Wire
+// treats a trailing `...bool` parameter as requiring a []bool provider.
+func provideSkipOTPValidation(cfg config.Config) bool {
+	return cfg.SkipOTPValidation
+}
+
+func provideSkipOTPValidationVariadic(cfg config.Config) []bool {
+	return []bool{cfg.SkipOTPValidation}
+}
+
 func provideAlertRuleRegistry() *alert_engine.RuleRegistry {
 	registry := alert_engine.NewRuleRegistry()
 	// Register default rules
@@ -86,6 +100,10 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 
 		// alert engine
 		provideAlertRuleRegistry,
+
+		// shared config-derived values Wire cannot infer automatically
+		provideSkipOTPValidation,
+		provideSkipOTPValidationVariadic,
 
 		// middleware
 		middleware.NewMiddleware,

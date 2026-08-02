@@ -53,10 +53,6 @@ func (r *invoiceDatabase) UpdateCompanyBillingProfile(ctx context.Context, profi
 	return r.GetCompanyBillingProfile(ctx)
 }
 
-func (r *invoiceDatabase) WithTx(tx *gorm.DB) interfaces.InvoiceRepository {
-	return &invoiceDatabase{db: tx}
-}
-
 // AllocateInvoiceSequence reserves the next sequence for a financial year in a
 // single upsert-returning statement. Doing it in one statement is what makes it
 // safe: Postgres takes a row lock for the duration, so concurrent callers
