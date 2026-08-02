@@ -9,6 +9,8 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	request "github.com/rohit221990/mandi-backend/pkg/api/handler/request"
+	response "github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	domain "github.com/rohit221990/mandi-backend/pkg/domain"
 )
 
@@ -35,6 +37,21 @@ func (m *MockInvoiceUseCase) EXPECT() *MockInvoiceUseCaseMockRecorder {
 	return m.recorder
 }
 
+// GenerateAndStorePDF mocks base method.
+func (m *MockInvoiceUseCase) GenerateAndStorePDF(ctx context.Context, inv domain.Invoice) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GenerateAndStorePDF", ctx, inv)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GenerateAndStorePDF indicates an expected call of GenerateAndStorePDF.
+func (mr *MockInvoiceUseCaseMockRecorder) GenerateAndStorePDF(ctx, inv interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GenerateAndStorePDF", reflect.TypeOf((*MockInvoiceUseCase)(nil).GenerateAndStorePDF), ctx, inv)
+}
+
 // GetCompanyBillingProfile mocks base method.
 func (m *MockInvoiceUseCase) GetCompanyBillingProfile(ctx context.Context) (domain.CompanyBillingProfile, error) {
 	m.ctrl.T.Helper()
@@ -48,6 +65,51 @@ func (m *MockInvoiceUseCase) GetCompanyBillingProfile(ctx context.Context) (doma
 func (mr *MockInvoiceUseCaseMockRecorder) GetCompanyBillingProfile(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCompanyBillingProfile", reflect.TypeOf((*MockInvoiceUseCase)(nil).GetCompanyBillingProfile), ctx)
+}
+
+// GetInvoiceDownload mocks base method.
+func (m *MockInvoiceUseCase) GetInvoiceDownload(ctx context.Context, invoiceID, requesterUserID string, isAdmin bool) (response.InvoiceDownloadResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetInvoiceDownload", ctx, invoiceID, requesterUserID, isAdmin)
+	ret0, _ := ret[0].(response.InvoiceDownloadResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetInvoiceDownload indicates an expected call of GetInvoiceDownload.
+func (mr *MockInvoiceUseCaseMockRecorder) GetInvoiceDownload(ctx, invoiceID, requesterUserID, isAdmin interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInvoiceDownload", reflect.TypeOf((*MockInvoiceUseCase)(nil).GetInvoiceDownload), ctx, invoiceID, requesterUserID, isAdmin)
+}
+
+// ListInvoicesForAdmin mocks base method.
+func (m *MockInvoiceUseCase) ListInvoicesForAdmin(ctx context.Context, filter domain.InvoiceFilter) ([]response.InvoiceListItem, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListInvoicesForAdmin", ctx, filter)
+	ret0, _ := ret[0].([]response.InvoiceListItem)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListInvoicesForAdmin indicates an expected call of ListInvoicesForAdmin.
+func (mr *MockInvoiceUseCaseMockRecorder) ListInvoicesForAdmin(ctx, filter interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListInvoicesForAdmin", reflect.TypeOf((*MockInvoiceUseCase)(nil).ListInvoicesForAdmin), ctx, filter)
+}
+
+// ListInvoicesForUser mocks base method.
+func (m *MockInvoiceUseCase) ListInvoicesForUser(ctx context.Context, userID string, pagination request.Pagination) ([]response.InvoiceListItem, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListInvoicesForUser", ctx, userID, pagination)
+	ret0, _ := ret[0].([]response.InvoiceListItem)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListInvoicesForUser indicates an expected call of ListInvoicesForUser.
+func (mr *MockInvoiceUseCaseMockRecorder) ListInvoicesForUser(ctx, userID, pagination interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListInvoicesForUser", reflect.TypeOf((*MockInvoiceUseCase)(nil).ListInvoicesForUser), ctx, userID, pagination)
 }
 
 // UpdateCompanyBillingProfile mocks base method.

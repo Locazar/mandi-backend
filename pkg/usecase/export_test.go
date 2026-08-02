@@ -2,10 +2,45 @@ package usecase
 
 import (
 	"context"
+	"errors"
 
+	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
+	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
 )
+
+// noopInvoiceUseCase satisfies service.InvoiceUseCase for tests that drive
+// issueInvoiceForPaidOrder directly and don't care about PDF generation. Its
+// GenerateAndStorePDF errors rather than panicking, so the background
+// goroutine issueInvoiceForPaidOrder launches after a successful issuance logs
+// a failure and returns, same as it would against a real renderer/cloud that
+// isn't configured — it never crashes the test process.
+type noopInvoiceUseCase struct{}
+
+func (noopInvoiceUseCase) GetCompanyBillingProfile(ctx context.Context) (domain.CompanyBillingProfile, error) {
+	return domain.CompanyBillingProfile{}, errors.New("noopInvoiceUseCase: not implemented")
+}
+
+func (noopInvoiceUseCase) UpdateCompanyBillingProfile(ctx context.Context, profile domain.CompanyBillingProfile) (domain.CompanyBillingProfile, error) {
+	return domain.CompanyBillingProfile{}, errors.New("noopInvoiceUseCase: not implemented")
+}
+
+func (noopInvoiceUseCase) GenerateAndStorePDF(ctx context.Context, inv domain.Invoice) (string, error) {
+	return "", errors.New("noopInvoiceUseCase: pdf generation not configured in test")
+}
+
+func (noopInvoiceUseCase) GetInvoiceDownload(ctx context.Context, invoiceID, requesterUserID string, isAdmin bool) (response.InvoiceDownloadResponse, error) {
+	return response.InvoiceDownloadResponse{}, errors.New("noopInvoiceUseCase: not implemented")
+}
+
+func (noopInvoiceUseCase) ListInvoicesForUser(ctx context.Context, userID string, pagination request.Pagination) ([]response.InvoiceListItem, error) {
+	return nil, errors.New("noopInvoiceUseCase: not implemented")
+}
+
+func (noopInvoiceUseCase) ListInvoicesForAdmin(ctx context.Context, filter domain.InvoiceFilter) ([]response.InvoiceListItem, error) {
+	return nil, errors.New("noopInvoiceUseCase: not implemented")
+}
 
 // This file exists solely to give subscription_payment_integration_test.go
 // (package usecase_test) access to subscriptionPaymentUseCase's unexported
@@ -32,6 +67,7 @@ func NewTestSubscriptionPaymentUseCase(
 		subRepo:     subRepo,
 		invoiceRepo: invoiceRepo,
 		adminRepo:   adminRepo,
+		invoiceUC:   noopInvoiceUseCase{},
 	}
 }
 

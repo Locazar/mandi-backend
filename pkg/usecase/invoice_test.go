@@ -44,7 +44,7 @@ func TestGetCompanyBillingProfile(t *testing.T) {
 			repo := mockrepo.NewMockInvoiceRepository(ctrl)
 			tc.buildStub(repo)
 
-			uc := NewInvoiceUseCase(repo, nil, nil)
+			uc := NewInvoiceUseCase(repo, nil, nil, nil, nil)
 			got, err := uc.GetCompanyBillingProfile(context.Background())
 
 			if tc.wantErr {
@@ -71,7 +71,7 @@ func TestUpdateCompanyBillingProfile(t *testing.T) {
 			return p, nil
 		})
 
-	uc := NewInvoiceUseCase(repo, nil, nil)
+	uc := NewInvoiceUseCase(repo, nil, nil, nil, nil)
 	got, err := uc.UpdateCompanyBillingProfile(context.Background(), in)
 
 	assert.NoError(t, err)

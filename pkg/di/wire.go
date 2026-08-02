@@ -22,6 +22,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/service/crypto"
 	elasticsearch "github.com/rohit221990/mandi-backend/pkg/service/elasticsearch"
 	"github.com/rohit221990/mandi-backend/pkg/service/graphics"
+	invoicesvc "github.com/rohit221990/mandi-backend/pkg/service/invoice"
 	"github.com/rohit221990/mandi-backend/pkg/service/otp"
 	"github.com/rohit221990/mandi-backend/pkg/service/sms"
 	"github.com/rohit221990/mandi-backend/pkg/service/token"
@@ -94,6 +95,9 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 
 		// graphics
 		graphics.NewGraphicsService,
+
+		// invoice PDF rendering
+		invoicesvc.NewPDFRenderer,
 
 		// PII field encryption
 		provideCryptoService,

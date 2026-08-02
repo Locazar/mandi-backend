@@ -36,6 +36,7 @@ type subscriptionPaymentUseCase struct {
 	userRepo    repoIface.UserRepository
 	invoiceRepo repoIface.InvoiceRepository
 	adminRepo   repoIface.AdminRepository
+	invoiceUC   service.InvoiceUseCase
 	config      config.Config
 }
 
@@ -45,6 +46,7 @@ func NewSubscriptionPaymentUseCase(
 	userRepo repoIface.UserRepository,
 	invoiceRepo repoIface.InvoiceRepository,
 	adminRepo repoIface.AdminRepository,
+	invoiceUC service.InvoiceUseCase,
 	cfg config.Config,
 ) service.SubscriptionPaymentUseCase {
 	return &subscriptionPaymentUseCase{
@@ -53,6 +55,7 @@ func NewSubscriptionPaymentUseCase(
 		userRepo:    userRepo,
 		invoiceRepo: invoiceRepo,
 		adminRepo:   adminRepo,
+		invoiceUC:   invoiceUC,
 		config:      cfg,
 	}
 }
@@ -360,6 +363,24 @@ func (uc *subscriptionPaymentUseCase) issueInvoiceForPaidOrder(
 
 	log.Printf("[INVOICE_ISSUED] invoice_number=%s order_id=%s user_id=%s",
 		inv.InvoiceNumber, order.ID, order.UserID)
+
+	// PDF generation runs in the background and is best-effort: the invoice row
+	// is already durable, and the download path re-renders on demand if this
+	// never completes. A PDF failure must never fail the payment or block the
+	// HTTP response that already succeeded by this point.
+	go func() {
+		bgCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		defer cancel()
+
+		key, err := uc.invoiceUC.GenerateAndStorePDF(bgCtx, inv)
+		if err != nil {
+			log.Printf("[INVOICE_PDF] render failed invoice=%s: %v", inv.InvoiceNumber, err)
+			return
+		}
+		if err := uc.invoiceRepo.SetInvoicePDF(bgCtx, inv.ID, key); err != nil {
+			log.Printf("[INVOICE_PDF] key persist failed invoice=%s: %v", inv.InvoiceNumber, err)
+		}
+	}()
 }
 
 // isDuplicateInvoiceError reports whether err is a unique-constraint violation

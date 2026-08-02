@@ -20,6 +20,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/service/crypto"
 	"github.com/rohit221990/mandi-backend/pkg/service/elasticsearch"
 	"github.com/rohit221990/mandi-backend/pkg/service/graphics"
+	"github.com/rohit221990/mandi-backend/pkg/service/invoice"
 	"github.com/rohit221990/mandi-backend/pkg/service/otp"
 	"github.com/rohit221990/mandi-backend/pkg/service/sms"
 	"github.com/rohit221990/mandi-backend/pkg/service/token"
@@ -115,7 +116,9 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	bannerUserHandler := handler.NewBannerUserHandler(bannerUseCase, cloudService)
 	subscriptionRepository := repository.NewSubscriptionRepository(gormDB)
 	invoiceRepository := repository.NewInvoiceRepository(gormDB)
-	subscriptionPaymentUseCase := usecase.NewSubscriptionPaymentUseCase(subscriptionRepository, paymentRepository, userRepository, invoiceRepository, adminRepository, cfg)
+	renderer := invoice.NewPDFRenderer()
+	invoiceUseCase := usecase.NewInvoiceUseCase(invoiceRepository, subscriptionRepository, adminRepository, renderer, cloudService)
+	subscriptionPaymentUseCase := usecase.NewSubscriptionPaymentUseCase(subscriptionRepository, paymentRepository, userRepository, invoiceRepository, adminRepository, invoiceUseCase, cfg)
 	subscriptionPaymentHandler := handler.NewSubscriptionPaymentHandler(subscriptionPaymentUseCase)
 	subscriptionUseCase := usecase.NewSubscriptionUseCase(subscriptionRepository, userRepository)
 	subscriptionHandler := handler.NewSubscriptionHandler(subscriptionUseCase)
@@ -135,7 +138,6 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	mobileAuthUseCase := usecase.NewMobileAuthUseCase(mobileAuthRepository, mobileOTPService, twoFactorSMSService, tokenService, bool2)
 	handlerHandler := handler.NewHandler(mobileAuthUseCase)
 	aiHandler := handler.NewAIHandler(client)
-	invoiceUseCase := usecase.NewInvoiceUseCase(invoiceRepository, subscriptionRepository, adminRepository)
 	invoiceHandler := handler.NewInvoiceHandler(invoiceUseCase)
 	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler, jobHandler, jobCategoryHandler, platformUserHandler, handlerHandler, aiHandler, invoiceHandler)
 	return serverHTTP, nil
