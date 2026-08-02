@@ -58,6 +58,7 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 	platformUserHandler handlerInterface.PlatformUserHandler,
 	mobileAuthHandler handlerInterface.OTPAuthRequestHandler,
 	aiHandler *handler.AIHandler,
+	invoiceHandler handlerInterface.InvoiceHandler,
 ) *ServerHTTP {
 
 	engine := gin.New()
@@ -127,7 +128,7 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 	routes.SellerGuideRoutes(engine.Group("/api"), sellerGuideHandler)
 	routes.AdminRoutes(engine.Group("/api/admin"), authHandler, middleware, adminHandler,
 		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler, promotionHandler, fcmTokenHandler, notificationHandler, alertHandler, uiHandler, alertTemplateHandler,
-		jobHandler, jobCategoryHandler, platformUserHandler, mobileAuthHandler, sellerGuideHandler)
+		jobHandler, jobCategoryHandler, platformUserHandler, mobileAuthHandler, sellerGuideHandler, invoiceHandler)
 	routes.UIRoutes(engine.Group("/api/web"), middleware, uiHandler)
 	routes.AIRoutes(engine.Group("/api"), aiHandler)
 

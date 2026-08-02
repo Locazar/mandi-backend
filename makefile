@@ -69,6 +69,8 @@ mockgen: # Generate mock files for the test
 	mockgen -source=pkg/service/token/token.go -destination=pkg/mock/mockservice/token_mock.go -package=mockservice
 	mockgen -source=pkg/usecase/interfaces/auth.go -destination=pkg/mock/mockusecase/auth_mock.go -package=mockusecase
 	mockgen -source=pkg/usecase/interfaces/platform_user.go -destination=pkg/mock/mockusecase/platform_user_mock.go -package=mockusecase
+	mockgen -source=pkg/repository/interfaces/invoice.go -destination=pkg/mock/mockrepo/invoice_mock.go -package=mockrepo
+	mockgen -source=pkg/usecase/interfaces/invoice.go -destination=pkg/mock/mockusecase/invoice_mock.go -package=mockusecase
 
 docker-up: ## To up the docker compose file
 	docker-compose up 

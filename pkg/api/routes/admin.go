@@ -21,6 +21,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 	platformUserHandler handlerInterface.PlatformUserHandler,
 	mobileAuthHandler handlerInterface.OTPAuthRequestHandler,
 	sellerGuideHandler handlerInterface.SellerGuideHandler,
+	invoiceHandler handlerInterface.InvoiceHandler,
 ) {
 
 	auth := api.Group("/auth")
@@ -440,6 +441,14 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		{
 			subscriptionPricing.GET("/gst", adminHandler.GetSubscriptionGSTConfig)
 			subscriptionPricing.PUT("/gst", middleware.TrimSpaces(), adminHandler.UpdateSubscriptionGSTConfig)
+		}
+
+		// Company billing profile — the issuer details printed on every
+		// subscription invoice (admin panel)
+		companyBillingProfile := api.Group("/company-billing-profile", adminHandler.RequirePermission(domain.PermCanManageSettings))
+		{
+			companyBillingProfile.GET("", invoiceHandler.GetCompanyBillingProfile)
+			companyBillingProfile.PUT("", middleware.TrimSpaces(), invoiceHandler.UpdateCompanyBillingProfile)
 		}
 
 		// Shop details
