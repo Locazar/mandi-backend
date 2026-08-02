@@ -31,9 +31,9 @@ func NewHandler(mobileAuthUseCase interfaces.MobileAuthUseCase) *Handler {
 // @Accept			json
 // @Produce		json
 // @Param			request	body		request.OTPLogin	true	"Phone number for OTP send"
-// @Success		200		{object}	response.SuccessResponse
-// @Failure		400		{object}	response.ErrorResponse
-// @Failure		500		{object}	response.ErrorResponse
+// @Success		200		{object}	response.Response
+// @Failure		400		{object}	response.Response
+// @Failure		500		{object}	response.Response
 // @Router			/seller/signup/otp/send [post]
 func (h *Handler) SellerSignUpOtpSend(ctx *gin.Context) {
 	var body request.OTPLogin
@@ -63,9 +63,9 @@ func (h *Handler) SellerSignUpOtpSend(ctx *gin.Context) {
 // @Accept			json
 // @Produce		json
 // @Param			request	body		request.VerifyOTPRequest	true	"Phone number and OTP to verify"
-// @Success		200		{object}	response.SuccessResponse
-// @Failure		400		{object}	response.ErrorResponse
-// @Failure		500		{object}	response.ErrorResponse
+// @Success		200		{object}	response.Response
+// @Failure		400		{object}	response.Response
+// @Failure		500		{object}	response.Response
 // @Router			/seller/signup/otp/verify [post]
 func (h *Handler) SellerSignUpOtpVerify(ctx *gin.Context) {
 	var body request.VerifyOTPRequest
