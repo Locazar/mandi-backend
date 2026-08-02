@@ -252,20 +252,28 @@ func (h *QRCodeHandler) Redirect(ctx *gin.Context) {
 // download without knowing server topology.
 func (h *QRCodeHandler) enrich(ctx *gin.Context, qr *domain.QRCode) {
 	qr.ShortURL = h.shortURL(ctx, qr.ShortCode)
-	qr.QRImageURL = h.requestBase(ctx) + "/api/admin/qr-codes/" + qr.ID + "/image.png"
+	qr.QRImageURL = h.base(ctx) + "/api/admin/qr-codes/" + qr.ID + "/image.png"
 }
 
 // shortURL is what the QR actually encodes: the public redirect link.
 func (h *QRCodeHandler) shortURL(ctx *gin.Context, code string) string {
-	base := h.publicBaseURL
-	if base == "" {
-		base = h.requestBase(ctx)
+	return h.base(ctx) + "/r/" + code
+}
+
+// base is the origin used to build both the short link and the image URL. It
+// prefers the configured PublicBaseURL (set this to the public HTTPS origin in
+// production) and only falls back to deriving it from the request when unset.
+func (h *QRCodeHandler) base(ctx *gin.Context) string {
+	if h.publicBaseURL != "" {
+		return h.publicBaseURL
 	}
-	return base + "/r/" + code
+	return h.requestBase(ctx)
 }
 
 // requestBase derives scheme://host from the incoming request, honouring a
-// reverse-proxy's X-Forwarded-Proto.
+// reverse-proxy's X-Forwarded-Proto. Behind a TLS-terminating proxy that does
+// not forward that header the scheme can come out http, which is why setting
+// PublicBaseURL is recommended in production.
 func (h *QRCodeHandler) requestBase(ctx *gin.Context) string {
 	scheme := "http"
 	if proto := ctx.GetHeader("X-Forwarded-Proto"); proto != "" {
