@@ -147,3 +147,12 @@ type InvoiceNumberSequence struct {
 }
 
 func (InvoiceNumberSequence) TableName() string { return "invoice_number_sequences" }
+
+// InvoiceFilter narrows an admin invoice listing. Zero values mean "no filter".
+type InvoiceFilter struct {
+	UserID string
+	From   *time.Time
+	To     *time.Time
+	Limit  int
+	Offset int
+}

@@ -9,7 +9,10 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	request "github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	domain "github.com/rohit221990/mandi-backend/pkg/domain"
+	interfaces "github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
+	gorm "gorm.io/gorm"
 )
 
 // MockInvoiceRepository is a mock of InvoiceRepository interface.
@@ -35,6 +38,81 @@ func (m *MockInvoiceRepository) EXPECT() *MockInvoiceRepositoryMockRecorder {
 	return m.recorder
 }
 
+// AllocateInvoiceSequence mocks base method.
+func (m *MockInvoiceRepository) AllocateInvoiceSequence(ctx context.Context, financialYear string) (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AllocateInvoiceSequence", ctx, financialYear)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AllocateInvoiceSequence indicates an expected call of AllocateInvoiceSequence.
+func (mr *MockInvoiceRepositoryMockRecorder) AllocateInvoiceSequence(ctx, financialYear interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AllocateInvoiceSequence", reflect.TypeOf((*MockInvoiceRepository)(nil).AllocateInvoiceSequence), ctx, financialYear)
+}
+
+// CreateInvoice mocks base method.
+func (m *MockInvoiceRepository) CreateInvoice(ctx context.Context, inv domain.Invoice) (domain.Invoice, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateInvoice", ctx, inv)
+	ret0, _ := ret[0].(domain.Invoice)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateInvoice indicates an expected call of CreateInvoice.
+func (mr *MockInvoiceRepositoryMockRecorder) CreateInvoice(ctx, inv interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateInvoice", reflect.TypeOf((*MockInvoiceRepository)(nil).CreateInvoice), ctx, inv)
+}
+
+// FindInvoiceByID mocks base method.
+func (m *MockInvoiceRepository) FindInvoiceByID(ctx context.Context, invoiceID string) (domain.Invoice, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindInvoiceByID", ctx, invoiceID)
+	ret0, _ := ret[0].(domain.Invoice)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindInvoiceByID indicates an expected call of FindInvoiceByID.
+func (mr *MockInvoiceRepositoryMockRecorder) FindInvoiceByID(ctx, invoiceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindInvoiceByID", reflect.TypeOf((*MockInvoiceRepository)(nil).FindInvoiceByID), ctx, invoiceID)
+}
+
+// FindInvoiceBySubscriptionOrderID mocks base method.
+func (m *MockInvoiceRepository) FindInvoiceBySubscriptionOrderID(ctx context.Context, orderID string) (domain.Invoice, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindInvoiceBySubscriptionOrderID", ctx, orderID)
+	ret0, _ := ret[0].(domain.Invoice)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindInvoiceBySubscriptionOrderID indicates an expected call of FindInvoiceBySubscriptionOrderID.
+func (mr *MockInvoiceRepositoryMockRecorder) FindInvoiceBySubscriptionOrderID(ctx, orderID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindInvoiceBySubscriptionOrderID", reflect.TypeOf((*MockInvoiceRepository)(nil).FindInvoiceBySubscriptionOrderID), ctx, orderID)
+}
+
+// FindInvoicesByUserID mocks base method.
+func (m *MockInvoiceRepository) FindInvoicesByUserID(ctx context.Context, userID string, pagination request.Pagination) ([]domain.Invoice, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindInvoicesByUserID", ctx, userID, pagination)
+	ret0, _ := ret[0].([]domain.Invoice)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindInvoicesByUserID indicates an expected call of FindInvoicesByUserID.
+func (mr *MockInvoiceRepositoryMockRecorder) FindInvoicesByUserID(ctx, userID, pagination interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindInvoicesByUserID", reflect.TypeOf((*MockInvoiceRepository)(nil).FindInvoicesByUserID), ctx, userID, pagination)
+}
+
 // GetCompanyBillingProfile mocks base method.
 func (m *MockInvoiceRepository) GetCompanyBillingProfile(ctx context.Context) (domain.CompanyBillingProfile, error) {
 	m.ctrl.T.Helper()
@@ -50,6 +128,35 @@ func (mr *MockInvoiceRepositoryMockRecorder) GetCompanyBillingProfile(ctx interf
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCompanyBillingProfile", reflect.TypeOf((*MockInvoiceRepository)(nil).GetCompanyBillingProfile), ctx)
 }
 
+// ListInvoices mocks base method.
+func (m *MockInvoiceRepository) ListInvoices(ctx context.Context, filter domain.InvoiceFilter) ([]domain.Invoice, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListInvoices", ctx, filter)
+	ret0, _ := ret[0].([]domain.Invoice)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListInvoices indicates an expected call of ListInvoices.
+func (mr *MockInvoiceRepositoryMockRecorder) ListInvoices(ctx, filter interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListInvoices", reflect.TypeOf((*MockInvoiceRepository)(nil).ListInvoices), ctx, filter)
+}
+
+// SetInvoicePDF mocks base method.
+func (m *MockInvoiceRepository) SetInvoicePDF(ctx context.Context, invoiceID, objectKey string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetInvoicePDF", ctx, invoiceID, objectKey)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetInvoicePDF indicates an expected call of SetInvoicePDF.
+func (mr *MockInvoiceRepositoryMockRecorder) SetInvoicePDF(ctx, invoiceID, objectKey interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetInvoicePDF", reflect.TypeOf((*MockInvoiceRepository)(nil).SetInvoicePDF), ctx, invoiceID, objectKey)
+}
+
 // UpdateCompanyBillingProfile mocks base method.
 func (m *MockInvoiceRepository) UpdateCompanyBillingProfile(ctx context.Context, profile domain.CompanyBillingProfile) (domain.CompanyBillingProfile, error) {
 	m.ctrl.T.Helper()
@@ -63,4 +170,18 @@ func (m *MockInvoiceRepository) UpdateCompanyBillingProfile(ctx context.Context,
 func (mr *MockInvoiceRepositoryMockRecorder) UpdateCompanyBillingProfile(ctx, profile interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateCompanyBillingProfile", reflect.TypeOf((*MockInvoiceRepository)(nil).UpdateCompanyBillingProfile), ctx, profile)
+}
+
+// WithTx mocks base method.
+func (m *MockInvoiceRepository) WithTx(tx *gorm.DB) interfaces.InvoiceRepository {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WithTx", tx)
+	ret0, _ := ret[0].(interfaces.InvoiceRepository)
+	return ret0
+}
+
+// WithTx indicates an expected call of WithTx.
+func (mr *MockInvoiceRepositoryMockRecorder) WithTx(tx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WithTx", reflect.TypeOf((*MockInvoiceRepository)(nil).WithTx), tx)
 }
