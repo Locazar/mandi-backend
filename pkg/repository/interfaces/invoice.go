@@ -16,11 +16,14 @@ type InvoiceRepository interface {
 	// AllocateInvoiceSequence atomically reserves the next number for the given
 	// financial year. Safe under concurrency; never returns a duplicate.
 	//
-	// Exported for the backfill command (cmd/backfill-invoices), which has no
-	// use for CreateInvoiceWithSequence's callback shape. New callers on the
-	// live payment path should prefer CreateInvoiceWithSequence: calling this
-	// and CreateInvoice separately can burn a sequence number — required to be
-	// gapless — if the insert fails after the number is already committed.
+	// No production caller uses this directly anymore — both the live payment
+	// path and the backfill command use CreateInvoiceWithSequence, which wraps
+	// this same allocation and the insert in one transaction so a failed
+	// insert doesn't burn the number. This method is kept exported only
+	// because TestAllocateInvoiceSequenceIsConcurrencySafe exercises it
+	// directly to prove the underlying upsert is race-safe. Do not call it on
+	// its own to issue an invoice — that's the exact bug
+	// CreateInvoiceWithSequence exists to prevent.
 	AllocateInvoiceSequence(ctx context.Context, financialYear string) (int, error)
 	CreateInvoice(ctx context.Context, inv domain.Invoice) (domain.Invoice, error)
 	// CreateInvoiceWithSequence allocates the next sequence number for

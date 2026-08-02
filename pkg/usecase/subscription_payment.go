@@ -306,7 +306,11 @@ func (uc *subscriptionPaymentUseCase) issueInvoiceForPaidOrder(
 		// invoice can never be corrected, whereas a skipped one is recoverable
 		// via cmd/backfill-invoices, which refuses to run under the same
 		// condition (see its LegalName check).
-		log.Printf("[INVOICE_PROFILE_MISSING] order_id=%s user_id=%s err=%v", order.ID, order.UserID, err)
+		reason := "legal_name is blank"
+		if err != nil {
+			reason = err.Error()
+		}
+		log.Printf("[INVOICE_PROFILE_MISSING] order_id=%s user_id=%s reason=%s", order.ID, order.UserID, reason)
 		return
 	}
 

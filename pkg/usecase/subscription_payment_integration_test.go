@@ -12,6 +12,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"github.com/rohit221990/mandi-backend/pkg/repository"
 	"github.com/rohit221990/mandi-backend/pkg/usecase"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -227,4 +228,72 @@ func TestIssueInvoiceForPaidOrderIsIdempotent(t *testing.T) {
 	require.NoError(t, db.First(&after, "subscription_order_id = ?", order.ID).Error)
 	require.Equal(t, first.ID, after.ID)
 	require.Equal(t, first.InvoiceNumber, after.InvoiceNumber)
+}
+
+// TestIssueInvoiceForPaidOrderSkipsWhenBillingProfileIsBlank guards the fix
+// for a real bug: the live path used to issue an invoice with a blank issuer
+// (no legal name, GSTIN, or address) when the billing profile lookup failed
+// or the seeded profile's LegalName was blank — a permanently uncorrectable
+// statutory document, since subscription_invoices is insert-only. It must
+// skip issuance instead (recoverable later via the backfill command).
+//
+// Temporarily blanks the shared singleton company_billing_profile row for
+// the duration of the test and restores it in cleanup, since that row is
+// shared across the whole test session.
+func TestIssueInvoiceForPaidOrderSkipsWhenBillingProfileIsBlank(t *testing.T) {
+	db := integrationDB(t)
+	ctx := context.Background()
+
+	var originalLegalName string
+	require.NoError(t, db.Raw("SELECT legal_name FROM company_billing_profile WHERE id = 'cbp_default'").
+		Scan(&originalLegalName).Error)
+	require.NoError(t, db.Exec("UPDATE company_billing_profile SET legal_name = '' WHERE id = 'cbp_default'").Error)
+	t.Cleanup(func() {
+		db.Exec("UPDATE company_billing_profile SET legal_name = ? WHERE id = 'cbp_default'", originalLegalName)
+	})
+
+	subRepo := repository.NewSubscriptionRepository(db)
+	invoiceRepo := repository.NewInvoiceRepository(db)
+	adminRepo := repository.NewAdminRepository(db, nil)
+	uc := usecase.NewTestSubscriptionPaymentUseCase(subRepo, invoiceRepo, adminRepo)
+
+	userID := domain.NewID(domain.PrefixAdmin)
+	plan := domain.SubscriptionPlan{
+		Name:         fmt.Sprintf("Blank Profile Test Plan %s", domain.NewID(domain.PrefixSubscPlan)),
+		PriceMonthly: domain.INR(149900),
+		DurationDays: 90,
+		IsActive:     true,
+		Features:     pq.StringArray{},
+	}
+	require.NoError(t, db.Create(&plan).Error)
+
+	paidAt := time.Now()
+	paymentID := "pay_" + domain.NewID(domain.PrefixSubscOrder)
+	order := domain.SubscriptionOrder{
+		UserID:             userID,
+		PlanID:             plan.ID,
+		Price:              domain.INR(149900),
+		GSTRateBasisPoints: 1800,
+		GSTAmount:          domain.INR(22866),
+		RazorpayOrderID:    "order_" + domain.NewID(domain.PrefixSubscOrder),
+		Status:             domain.SubStatusPaid,
+		RazorpayPaymentID:  &paymentID,
+		PaidAt:             &paidAt,
+	}
+	order, err := subRepo.CreateSubscriptionOrder(ctx, order)
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		db.Exec("DELETE FROM subscription_invoices WHERE subscription_order_id = ?", order.ID)
+		db.Exec("DELETE FROM subscription_orders WHERE id = ?", order.ID)
+		db.Exec("DELETE FROM subscription_plans WHERE id = ?", plan.ID)
+	})
+
+	uc.IssueInvoiceForPaidOrder(ctx, order, plan, paymentID)
+
+	var count int64
+	require.NoError(t, db.Model(&domain.Invoice{}).
+		Where("subscription_order_id = ?", order.ID).Count(&count).Error)
+	assert.Equal(t, int64(0), count,
+		"no invoice should be issued when the billing profile has a blank legal name")
 }
