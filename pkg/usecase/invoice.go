@@ -64,23 +64,32 @@ const invoiceURLTTL = 15 * time.Minute
 // non-fatal: the invoice row is already durable and the download path will
 // re-render on demand.
 func (uc *invoiceUseCase) GenerateAndStorePDF(ctx context.Context, inv domain.Invoice) (string, error) {
-	profile, err := uc.invoiceRepo.GetCompanyBillingProfile(ctx)
-	if err != nil {
-		log.Printf("[INVOICE_PDF] profile lookup failed, rendering without logo: %v", err)
-	}
-
-	logo := uc.fetchLogo(ctx, profile.LogoObjectKey)
+	// Reads the logo key snapshotted on the invoice at issue time, not the
+	// live CompanyBillingProfile — a logo changed after issuance must not
+	// change how an already-issued invoice re-renders (e.g. on the lost-
+	// object self-heal path in GetInvoiceDownload).
+	logo := uc.fetchLogo(ctx, inv.SellerLogoObjectKey)
 
 	pdfBytes, err := uc.renderer.Render(ctx, inv, logo)
 	if err != nil {
 		return "", fmt.Errorf("render invoice %s: %w", inv.InvoiceNumber, err)
 	}
 
+	// Filename is deliberately omitted. buildKey uses it verbatim when set, and
+	// inv.FileName() is derived from the public, sequential invoice number
+	// (LZ-2026-27-000042.pdf) — a guessable key would let anyone enumerate
+	// every seller's tax invoice directly from the bucket, bypassing both the
+	// ownership check in GetInvoiceDownload and the admin permission gate,
+	// since Visibility is not enforced by SaveBytes (no ACL is set; this
+	// bucket also serves public content elsewhere). Omitting it makes buildKey
+	// fall back to a random UUID key, matching the only other
+	// VisibilityPrivate caller in this codebase (UploadProfileImage in
+	// pkg/usecase/user.go). The human-readable name is still delivered
+	// separately via InvoiceDownloadResponse.FileName.
 	key, err := uc.cloud.SaveBytes(ctx, pdfBytes, cloud.SaveOptions{
 		Namespace:   "invoices",
 		Visibility:  cloud.VisibilityPrivate,
 		ContentType: "application/pdf",
-		Filename:    inv.FileName(),
 	})
 	if err != nil {
 		return "", fmt.Errorf("upload invoice %s: %w", inv.InvoiceNumber, err)
@@ -104,7 +113,16 @@ func (uc *invoiceUseCase) fetchLogo(ctx context.Context, objectKey string) []byt
 }
 
 // GetInvoiceDownload returns a short-lived presigned URL for the invoice PDF,
-// re-rendering and backfilling the object when the cache is empty or lost.
+// re-rendering and backfilling the object when PDFObjectKey is empty (never
+// rendered — e.g. the background render after payment hasn't finished yet, or
+// failed). This does NOT detect an object that was rendered once and then
+// deleted or lost from storage out of band: PresignedURL is a local signing
+// operation and never checks whether the key still resolves to a real object,
+// so a stale-but-present key returns a URL that will 404. Recovering from
+// that would need an existence check (e.g. HeadObject) before every presign,
+// which was left out deliberately — it adds a network round trip to every
+// download for a case (an object manually deleted from S3) that isn't
+// expected to happen in normal operation.
 func (uc *invoiceUseCase) GetInvoiceDownload(ctx context.Context, invoiceID, requesterUserID string, isAdmin bool) (response.InvoiceDownloadResponse, error) {
 	inv, err := uc.invoiceRepo.FindInvoiceByID(ctx, invoiceID)
 	if err != nil {

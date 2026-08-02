@@ -79,6 +79,9 @@ CREATE TABLE IF NOT EXISTS subscription_invoices (
     seller_address          TEXT,
     seller_sac_code         VARCHAR(12),
     place_of_supply         VARCHAR(128),
+    seller_footer_note      TEXT,
+    seller_jurisdiction     VARCHAR(100),
+    seller_logo_object_key  VARCHAR(512),
 
     buyer_shop_id           VARCHAR(32),
     buyer_name              VARCHAR(255),

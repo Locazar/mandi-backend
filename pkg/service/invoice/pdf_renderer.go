@@ -322,12 +322,18 @@ func drawFooter(pdf *fpdf.Fpdf, inv domain.Invoice) {
 	pdf.SetLineWidth(0.2)
 	pdf.Line(marginLeft, y, pageWidth-marginRight, y)
 
+	footer := inv.SellerFooterNote
+	if footer == "" {
+		footer = "Prices are inclusive of GST. Computer-generated invoice — no signature required."
+	}
+	if inv.SellerJurisdiction != "" {
+		footer += " Subject to " + inv.SellerJurisdiction + " jurisdiction."
+	}
+
 	pdf.SetXY(marginLeft, y+3)
 	pdf.SetFont(fontFamily, "", 7.5)
 	pdf.SetTextColor(102, 102, 102)
-	pdf.MultiCell(contentW-45, 3.6,
-		"Prices are inclusive of GST. Computer-generated invoice — no signature required.",
-		"", "L", false)
+	pdf.MultiCell(contentW-45, 3.6, footer, "", "L", false)
 
 	// Signature block, right-aligned.
 	sigX := pageWidth - marginRight - 42

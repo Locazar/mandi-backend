@@ -54,6 +54,8 @@ func baseBuildInput() BuildInvoiceInput {
 			Country:             "India",
 			SACCode:             "998599",
 			InvoiceNumberPrefix: "LZ",
+			FooterNote:          "Custom footer set by an admin.",
+			Jurisdiction:        "Bengaluru",
 		},
 		SequenceNumber: 42,
 	}
@@ -91,6 +93,11 @@ func TestBuildInvoiceSnapshots(t *testing.T) {
 	assert.Equal(t, "29AABCL1234M1Z7", inv.SellerGSTIN)
 	assert.Equal(t, "998599", inv.SellerSACCode)
 	assert.Equal(t, "Karnataka (29)", inv.PlaceOfSupply)
+	// FooterNote/Jurisdiction must be snapshotted from the profile at issue
+	// time, same as every other issuer field — otherwise an admin editing
+	// them in the portal has no effect on any invoice, issued or future.
+	assert.Equal(t, "Custom footer set by an admin.", inv.SellerFooterNote)
+	assert.Equal(t, "Bengaluru", inv.SellerJurisdiction)
 
 	assert.Equal(t, "shp_8f2ac91b", inv.BuyerShopID)
 	assert.Equal(t, "Sharma Kirana Store", inv.BuyerName)

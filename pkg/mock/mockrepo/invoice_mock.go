@@ -66,6 +66,21 @@ func (mr *MockInvoiceRepositoryMockRecorder) CreateInvoice(ctx, inv interface{})
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateInvoice", reflect.TypeOf((*MockInvoiceRepository)(nil).CreateInvoice), ctx, inv)
 }
 
+// CreateInvoiceWithSequence mocks base method.
+func (m *MockInvoiceRepository) CreateInvoiceWithSequence(ctx context.Context, financialYear string, build func(int) domain.Invoice) (domain.Invoice, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateInvoiceWithSequence", ctx, financialYear, build)
+	ret0, _ := ret[0].(domain.Invoice)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateInvoiceWithSequence indicates an expected call of CreateInvoiceWithSequence.
+func (mr *MockInvoiceRepositoryMockRecorder) CreateInvoiceWithSequence(ctx, financialYear, build interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateInvoiceWithSequence", reflect.TypeOf((*MockInvoiceRepository)(nil).CreateInvoiceWithSequence), ctx, financialYear, build)
+}
+
 // FindInvoiceByID mocks base method.
 func (m *MockInvoiceRepository) FindInvoiceByID(ctx context.Context, invoiceID string) (domain.Invoice, error) {
 	m.ctrl.T.Helper()

@@ -252,3 +252,38 @@ func TestFormatINR(t *testing.T) {
 	assert.Equal(t, "0.00", formatINR(domain.INR(0)))
 	assert.Equal(t, "12,34,567.89", formatINR(domain.INR(123456789))) // Indian grouping
 }
+
+// TestRenderUsesInvoiceFooterNoteWhenSet guards a real bug: the footer was
+// previously a hardcoded string that ignored inv.SellerFooterNote entirely,
+// so an admin editing the "footer note" field in the portal had zero effect
+// on any rendered invoice — the field looked live but silently did nothing.
+func TestRenderUsesInvoiceFooterNoteWhenSet(t *testing.T) {
+	inv := sampleInvoice()
+	inv.SellerFooterNote = "This is a distinctive custom footer set by an admin."
+	inv.SellerJurisdiction = "Chennai"
+
+	r := NewPDFRenderer()
+	out, err := r.Render(context.Background(), inv, nil)
+	require.NoError(t, err)
+
+	assert.True(t, pdfContainsText(t, out, "This is a distinctive custom footer set by an admin."),
+		"custom SellerFooterNote did not appear in the rendered PDF")
+	assert.True(t, pdfContainsText(t, out, "Chennai"),
+		"SellerJurisdiction did not appear in the rendered PDF")
+}
+
+// TestRenderFallsBackToDefaultFooterWhenUnset covers invoices issued before
+// the footer/jurisdiction fields existed (or with a blank profile field) —
+// the renderer must still produce sensible boilerplate, not an empty footer.
+func TestRenderFallsBackToDefaultFooterWhenUnset(t *testing.T) {
+	inv := sampleInvoice()
+	inv.SellerFooterNote = ""
+	inv.SellerJurisdiction = ""
+
+	r := NewPDFRenderer()
+	out, err := r.Render(context.Background(), inv, nil)
+	require.NoError(t, err)
+
+	assert.True(t, pdfContainsText(t, out, "Computer-generated invoice"),
+		"default footer text should still appear when SellerFooterNote is unset")
+}

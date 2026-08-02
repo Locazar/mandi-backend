@@ -91,6 +91,17 @@ type Invoice struct {
 	SellerAddress   string `json:"seller_address" gorm:"type:text"`
 	SellerSACCode   string `json:"seller_sac_code" gorm:"size:12"`
 	PlaceOfSupply   string `json:"place_of_supply" gorm:"size:128"`
+	// SellerFooterNote and SellerJurisdiction snapshot CompanyBillingProfile's
+	// admin-editable FooterNote/Jurisdiction at issue time — without a
+	// snapshot, editing the profile would silently change nothing on already-
+	// printed invoices while appearing to work in the admin portal.
+	SellerFooterNote   string `json:"seller_footer_note" gorm:"type:text"`
+	SellerJurisdiction string `json:"seller_jurisdiction" gorm:"size:100"`
+	// SellerLogoObjectKey snapshots CompanyBillingProfile.LogoObjectKey at
+	// issue time. GenerateAndStorePDF reads this instead of the live profile,
+	// so a logo change after the fact cannot change how an already-issued
+	// invoice re-renders (e.g. after a lost-object self-heal).
+	SellerLogoObjectKey string `json:"seller_logo_object_key" gorm:"size:512"`
 
 	// Buyer snapshot (from ShopDetails at issue time). BuyerGSTIN is empty for
 	// sellers who onboarded with PAN/Aadhaar/licence instead of GSTIN.

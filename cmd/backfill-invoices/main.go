@@ -106,22 +106,20 @@ func main() {
 			continue
 		}
 
-		seq, err := invoiceRepo.AllocateInvoiceSequence(ctx, domain.FinancialYear(*paidAt))
-		if err != nil {
-			log.Printf("FAIL order=%s: allocate sequence: %v", order.ID, err)
-			failed++
-			continue
-		}
-
-		inv := usecase.BuildInvoice(usecase.BuildInvoiceInput{
-			Order:          order.SubscriptionOrder,
-			Plan:           plan,
-			Shop:           shop,
-			Profile:        profile,
-			SequenceNumber: seq,
+		// Allocate and insert in one transaction: a failed insert (a real DB
+		// error, not the duplicate case this loop can't reach since the query
+		// already excludes orders with an invoice) would otherwise burn the
+		// allocated number permanently in a series required to be gapless.
+		inv, err := invoiceRepo.CreateInvoiceWithSequence(ctx, domain.FinancialYear(*paidAt), func(seq int) domain.Invoice {
+			return usecase.BuildInvoice(usecase.BuildInvoiceInput{
+				Order:          order.SubscriptionOrder,
+				Plan:           plan,
+				Shop:           shop,
+				Profile:        profile,
+				SequenceNumber: seq,
+			})
 		})
-
-		if _, err := invoiceRepo.CreateInvoice(ctx, inv); err != nil {
+		if err != nil {
 			log.Printf("FAIL order=%s: create invoice: %v", order.ID, err)
 			failed++
 			continue

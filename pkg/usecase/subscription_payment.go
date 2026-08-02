@@ -297,9 +297,17 @@ func (uc *subscriptionPaymentUseCase) issueInvoiceForPaidOrder(
 	paymentID string,
 ) {
 	profile, err := uc.invoiceRepo.GetCompanyBillingProfile(ctx)
-	if err != nil {
-		// A missing profile must not cost the seller their subscription.
-		log.Printf("[INVOICE_PROFILE_MISSING] order_id=%s err=%v", order.ID, err)
+	if err != nil || profile.LegalName == "" {
+		// Unlike a missing shop (decoration on the buyer side of the invoice),
+		// a missing issuer profile means there is no legally valid invoice to
+		// issue at all — printing one with a blank legal name, GSTIN and
+		// address would be worse than not issuing it. Skip rather than issue a
+		// broken one: subscription_invoices rows are immutable, so a bad
+		// invoice can never be corrected, whereas a skipped one is recoverable
+		// via cmd/backfill-invoices, which refuses to run under the same
+		// condition (see its LegalName check).
+		log.Printf("[INVOICE_PROFILE_MISSING] order_id=%s user_id=%s err=%v", order.ID, order.UserID, err)
+		return
 	}
 
 	shop, err := uc.adminRepo.GetShopByOwnerID(ctx, order.UserID)
@@ -308,19 +316,13 @@ func (uc *subscriptionPaymentUseCase) issueInvoiceForPaidOrder(
 		shop = domain.ShopDetails{}
 	}
 
-	// Bail out before allocating a number if this order already has an invoice.
-	//
-	// Sequence allocation commits on its own now that issuance runs outside the
-	// payment transaction, so a number consumed by an insert that then fails the
-	// subscription_order_id unique index is burned — a gap in a sequence that is
-	// required to be gapless.
-	//
-	// Today no caller can reach that: markPaidAndActivate only calls this after
-	// its transaction commits, and UpdateSubscriptionOrderToPaid's
-	// `WHERE status='created'` guard rejects any second attempt before issuance
-	// is reached. This check is what makes issueInvoiceForPaidOrder safe to call
-	// from anywhere — a reconciler or a retry that does not go through the
-	// payment transaction — rather than load-bearing for the current paths.
+	// Cheap short-circuit if this order already has an invoice: skips a wasted
+	// transaction and a duplicate-key round trip. Not load-bearing for
+	// correctness — CreateInvoiceWithSequence's transaction makes a genuine
+	// race safe on its own (a duplicate-key insert rolls the sequence
+	// allocation back too, so nothing is burned) — but it makes
+	// issueInvoiceForPaidOrder idempotent by contract, which is what its name
+	// promises to any caller, present or future.
 	if existing, err := uc.invoiceRepo.FindInvoiceBySubscriptionOrderID(ctx, order.ID); err == nil && existing.ID != "" {
 		log.Printf("[INVOICE_ALREADY_ISSUED] invoice_number=%s order_id=%s user_id=%s",
 			existing.InvoiceNumber, order.ID, order.UserID)
@@ -336,22 +338,24 @@ func (uc *subscriptionPaymentUseCase) issueInvoiceForPaidOrder(
 		paidOrder.PaidAt = &now
 	}
 
-	seq, err := uc.invoiceRepo.AllocateInvoiceSequence(ctx, domain.FinancialYear(*paidOrder.PaidAt))
-	if err != nil {
-		log.Printf("[INVOICE_ISSUE_FAILED] step=allocate_sequence order_id=%s user_id=%s err=%v",
-			order.ID, order.UserID, err)
-		return
-	}
-
-	inv := BuildInvoice(BuildInvoiceInput{
-		Order:          paidOrder,
-		Plan:           plan,
-		Shop:           shop,
-		Profile:        profile,
-		SequenceNumber: seq,
+	// Allocate the sequence number and create the invoice in one transaction.
+	// subscription_invoices is required to have a gapless numbering series; a
+	// number consumed by an allocation whose insert then fails would otherwise
+	// be burned permanently (issuance runs outside the payment transaction, so
+	// nothing else rolls it back). Wrapping both in one transaction means a
+	// failed insert also undoes the allocation, so the number stays available
+	// for the very next attempt instead of leaving a hole in the series.
+	financialYear := domain.FinancialYear(*paidOrder.PaidAt)
+	inv, err := uc.invoiceRepo.CreateInvoiceWithSequence(ctx, financialYear, func(seq int) domain.Invoice {
+		return BuildInvoice(BuildInvoiceInput{
+			Order:          paidOrder,
+			Plan:           plan,
+			Shop:           shop,
+			Profile:        profile,
+			SequenceNumber: seq,
+		})
 	})
-
-	if _, err := uc.invoiceRepo.CreateInvoice(ctx, inv); err != nil {
+	if err != nil {
 		if isDuplicateInvoiceError(err) {
 			log.Printf("[INVOICE_ALREADY_ISSUED] order_id=%s user_id=%s", order.ID, order.UserID)
 			return

@@ -76,6 +76,30 @@ func (r *invoiceDatabase) CreateInvoice(ctx context.Context, inv domain.Invoice)
 	return inv, err
 }
 
+// CreateInvoiceWithSequence allocates the sequence number and creates the
+// invoice in one transaction. A failed insert (a real DB error, not just the
+// benign duplicate case the caller already tolerates) rolls the allocation
+// back too, so the number is available for the very next attempt rather than
+// permanently lost.
+func (r *invoiceDatabase) CreateInvoiceWithSequence(ctx context.Context, financialYear string, build func(sequence int) domain.Invoice) (domain.Invoice, error) {
+	var inv domain.Invoice
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var seq int
+		if err := tx.Raw(`
+			INSERT INTO invoice_number_sequences (financial_year, last_sequence)
+			VALUES (?, 1)
+			ON CONFLICT (financial_year)
+			DO UPDATE SET last_sequence = invoice_number_sequences.last_sequence + 1
+			RETURNING last_sequence`, financialYear).Scan(&seq).Error; err != nil {
+			return err
+		}
+
+		inv = build(seq)
+		return tx.Create(&inv).Error
+	})
+	return inv, err
+}
+
 func (r *invoiceDatabase) FindInvoiceByID(ctx context.Context, invoiceID string) (domain.Invoice, error) {
 	var inv domain.Invoice
 	err := r.db.WithContext(ctx).Where("id = ?", invoiceID).First(&inv).Error

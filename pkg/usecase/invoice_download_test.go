@@ -14,6 +14,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/service/cloud"
 	invoicesvc "github.com/rohit221990/mandi-backend/pkg/service/invoice"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 )
 
@@ -73,8 +74,11 @@ func TestGetInvoiceDownloadMapsMissingRowToSentinel(t *testing.T) {
 	assert.ErrorIs(t, err, ErrInvoiceNotFound)
 }
 
-// A lost or never-written S3 object must self-heal: re-render from the snapshot
-// and backfill the key rather than failing the download.
+// A never-rendered invoice (empty PDFObjectKey) must self-heal: re-render from
+// the snapshot and backfill the key rather than failing the download. Note
+// this covers "never rendered yet", not "rendered once, object since lost" —
+// PresignedURL never checks the object still exists (see GetInvoiceDownload's
+// doc comment), so a stale-but-present key is not covered by this test.
 func TestGetInvoiceDownloadRerendersWhenObjectKeyMissing(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -82,10 +86,11 @@ func TestGetInvoiceDownloadRerendersWhenObjectKeyMissing(t *testing.T) {
 	inv := storedInvoice()
 	inv.PDFObjectKey = ""
 
+	// GenerateAndStorePDF reads the logo key snapshotted on the invoice, not
+	// the live profile, so it never calls GetCompanyBillingProfile — no
+	// expectation set here.
 	repo := mockrepo.NewMockInvoiceRepository(ctrl)
 	repo.EXPECT().FindInvoiceByID(gomock.Any(), "inv_1").Return(inv, nil)
-	repo.EXPECT().GetCompanyBillingProfile(gomock.Any()).
-		Return(domain.CompanyBillingProfile{}, nil)
 	repo.EXPECT().SetInvoicePDF(gomock.Any(), "inv_1", "invoices/regenerated.pdf").Return(nil)
 
 	uc := newInvoiceUseCaseForTest(
@@ -104,9 +109,10 @@ func TestGenerateAndStorePDFFailureIsReported(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
+	// GenerateAndStorePDF reads the logo key snapshotted on the invoice, not
+	// the live profile, so it never calls GetCompanyBillingProfile — no
+	// expectation set here.
 	repo := mockrepo.NewMockInvoiceRepository(ctrl)
-	repo.EXPECT().GetCompanyBillingProfile(gomock.Any()).
-		Return(domain.CompanyBillingProfile{}, nil)
 
 	uc := newInvoiceUseCaseForTest(
 		repo,
@@ -116,6 +122,52 @@ func TestGenerateAndStorePDFFailureIsReported(t *testing.T) {
 
 	_, err := uc.GenerateAndStorePDF(context.Background(), storedInvoice())
 	assert.Error(t, err)
+}
+
+// TestGenerateAndStorePDFDoesNotUseAGuessableObjectKey guards a real exposure:
+// inv.FileName() ("LZ-2026-27-000042.pdf") is derived from the public,
+// sequential invoice number. cloud.buildKey uses SaveOptions.Filename verbatim
+// when it is set, and SaveOptions.Visibility is not enforced by SaveBytes (no
+// ACL is set — this codebase's only object store is a single bucket that also
+// serves public content elsewhere). Passing Filename would let anyone
+// enumerate every seller's tax invoice PDF directly from the bucket,
+// bypassing both GetInvoiceDownload's ownership check and the admin
+// permission gate entirely. The fix is to never pass Filename here, letting
+// the storage layer generate a random key.
+func TestGenerateAndStorePDFDoesNotUseAGuessableObjectKey(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	// GenerateAndStorePDF reads the logo key snapshotted on the invoice, not
+	// the live profile, so it never calls GetCompanyBillingProfile — no
+	// expectation set here.
+	repo := mockrepo.NewMockInvoiceRepository(ctrl)
+
+	spy := &spyCloud{stubCloud: stubCloud{key: "invoices/whatever.pdf"}}
+	uc := newInvoiceUseCaseForTest(repo, stubRenderer{out: []byte("%PDF-1.4\n%%EOF")}, spy)
+
+	inv := storedInvoice()
+	_, err := uc.GenerateAndStorePDF(context.Background(), inv)
+	require.NoError(t, err)
+
+	require.NotNil(t, spy.lastSaveOpts, "SaveBytes was never called")
+	assert.Empty(t, spy.lastSaveOpts.Filename,
+		"SaveOptions.Filename must be empty so the storage layer generates a "+
+			"random key — a filename derived from the public invoice number "+
+			"(here: %q) makes every invoice PDF guessable", inv.FileName())
+}
+
+// spyCloud wraps stubCloud to record the SaveOptions the code under test
+// actually passed to SaveBytes, so the test can assert on it directly rather
+// than inferring it from the (stubbed, not-really-computed) returned key.
+type spyCloud struct {
+	stubCloud
+	lastSaveOpts *cloud.SaveOptions
+}
+
+func (s *spyCloud) SaveBytes(ctx context.Context, data []byte, opts cloud.SaveOptions) (string, error) {
+	s.lastSaveOpts = &opts
+	return s.stubCloud.SaveBytes(ctx, data, opts)
 }
 
 type stubRenderer struct {
