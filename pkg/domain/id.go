@@ -94,6 +94,8 @@ const (
 	PrefixShopUpdate          IDPrefix = "shupd"
 	PrefixShopUpdateProduct   IDPrefix = "shupp"
 	PrefixLanguage            IDPrefix = "lang"
+	PrefixQRCode              IDPrefix = "qr"
+	PrefixQRScanEvent         IDPrefix = "qrsc"
 )
 
 // allPrefixes is the authoritative registry of every entity prefix. Used by
@@ -118,7 +120,7 @@ var allPrefixes = []IDPrefix{
 	PrefixJob, PrefixJobCategory, PrefixJobSubCategory, PrefixJobLocation,
 	PrefixJobFilter, PrefixJobCategoryFilter, PrefixJobCategoryLocation,
 	PrefixCategoryRequest, PrefixShopUpdate, PrefixShopUpdateProduct,
-	PrefixLanguage,
+	PrefixLanguage, PrefixQRCode, PrefixQRScanEvent,
 }
 
 // NewID returns a fresh typed-prefix identifier, e.g. "usr_x7k2q9m4p3...".
