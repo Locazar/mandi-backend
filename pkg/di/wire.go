@@ -52,6 +52,23 @@ func provideCryptoService(cfg config.Config) (*crypto.Service, error) {
 	return crypto.NewService(keys, cfg.PIIEncryptionActiveKey)
 }
 
+// provideSkipOTPValidation and provideSkipOTPValidationVariadic exist so Wire
+// can resolve the skipOTPValidation parameters on the usecase constructors.
+// NewAdminUseCase/NewMobileAuthUseCase take a plain bool; NewAuthUseCase takes a
+// trailing `...bool`, which Wire resolves as []bool. Both read the same
+// cfg.SkipOTPValidation, so this is a name for Wire's provider graph to attach
+// to, not a behaviour change.
+//
+// Without these, `wire` fails with "no provider found for bool" / "for []bool"
+// and cannot regenerate wire_gen.go at all.
+func provideSkipOTPValidation(cfg config.Config) bool {
+	return cfg.SkipOTPValidation
+}
+
+func provideSkipOTPValidationVariadic(cfg config.Config) []bool {
+	return []bool{cfg.SkipOTPValidation}
+}
+
 func provideAlertRuleRegistry() *alert_engine.RuleRegistry {
 	registry := alert_engine.NewRuleRegistry()
 	// Register default rules
@@ -86,6 +103,9 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 
 		// alert engine
 		provideAlertRuleRegistry,
+		// config-derived scalars Wire cannot infer on its own
+		provideSkipOTPValidation,
+		provideSkipOTPValidationVariadic,
 
 		// middleware
 		middleware.NewMiddleware,
