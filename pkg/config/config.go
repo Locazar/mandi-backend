@@ -305,5 +305,10 @@ func LoadConfig() (config Config, err error) {
 		log.Println("[deprecation] AWS_* env vars are being used as fallback for object storage; set S3_* vars before Phase G")
 	}
 
+	if config.RazorPayWebhookSecret == "" {
+		log.Println("[WARN] RAZORPAY_WEBHOOK_SECRET is not set — Razorpay webhooks will be rejected, " +
+			"so subscriptions and invoices will not be issued for payments completed after the app closes")
+	}
+
 	return config, nil
 }

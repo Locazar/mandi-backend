@@ -1230,6 +1230,41 @@ definitions:
     - category_offer_id
     - offer_id
     type: object
+  request.UpdateCompanyBillingProfileRequest:
+    properties:
+      address_line1:
+        type: string
+      address_line2:
+        type: string
+      city:
+        type: string
+      country:
+        type: string
+      footer_note:
+        type: string
+      gstin:
+        type: string
+      invoice_number_prefix:
+        type: string
+      jurisdiction:
+        type: string
+      legal_name:
+        type: string
+      logo_object_key:
+        type: string
+      pan:
+        type: string
+      pincode:
+        type: string
+      sac_code:
+        type: string
+      state:
+        type: string
+      state_code:
+        type: string
+    required:
+    - legal_name
+    type: object
   request.UpdateOrder:
     properties:
       order_status:
@@ -3636,6 +3671,53 @@ paths:
       summary: Add a new subcategory (Admin)
       tags:
       - Admin Category
+  /admin/company-billing-profile:
+    get:
+      description: Returns the issuer details printed on every subscription invoice
+      operationId: GetCompanyBillingProfile
+      responses:
+        "200":
+          description: Successfully retrieved company billing profile
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to retrieve company billing profile
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get company billing profile (Admin)
+      tags:
+      - Admin Invoice
+    put:
+      description: Updates the issuer details printed on future subscription invoices.
+        Already-issued invoices are unaffected.
+      operationId: UpdateCompanyBillingProfile
+      parameters:
+      - description: Billing profile
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateCompanyBillingProfileRequest'
+      responses:
+        "200":
+          description: Successfully updated company billing profile
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to update company billing profile
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Update company billing profile (Admin)
+      tags:
+      - Admin Invoice
   /admin/config:
     get:
       operationId: GetGlobalConfig
@@ -6231,6 +6313,62 @@ paths:
       summary: Save a new sub type attribute
       tags:
       - Admin Products
+  /admin/subscription-invoices:
+    get:
+      description: Lists subscription tax invoices with optional user and date-range
+        filters
+      operationId: ListInvoices
+      parameters:
+      - description: Filter by subscriber id
+        in: query
+        name: user_id
+        type: string
+      - description: Start date, RFC3339 or YYYY-MM-DD
+        in: query
+        name: from
+        type: string
+      - description: End date, RFC3339 or YYYY-MM-DD
+        in: query
+        name: to
+        type: string
+      responses:
+        "200":
+          description: Successfully retrieved invoices
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid date filter
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: List all invoices (Admin)
+      tags:
+      - Admin Invoice
+  /admin/subscription-invoices/{invoice_id}/download:
+    get:
+      description: Returns a short-lived presigned URL for any seller's invoice PDF
+      operationId: AdminDownloadInvoice
+      parameters:
+      - description: Invoice ID
+        in: path
+        name: invoice_id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Successfully generated download link
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Invoice not found
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Download any invoice (Admin)
+      tags:
+      - Admin Invoice
   /admin/subscription-plans:
     get:
       operationId: ListSubscriptionPlans
@@ -10086,6 +10224,52 @@ paths:
       security:
       - BearerAuth: []
       summary: Create subscription order (User)
+      tags:
+      - User Subscription
+  /subscriptions/invoices:
+    get:
+      description: Returns the authenticated seller's tax invoices, most recent first
+      operationId: ListMyInvoices
+      responses:
+        "200":
+          description: Successfully retrieved invoices
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to retrieve invoices
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: List my invoices (User)
+      tags:
+      - User Subscription
+  /subscriptions/invoices/{invoice_id}/download:
+    get:
+      description: Returns a short-lived presigned URL for the invoice PDF
+      operationId: DownloadInvoice
+      parameters:
+      - description: Invoice ID
+        in: path
+        name: invoice_id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Successfully generated download link
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: Invoice belongs to another user
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Invoice not found
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Download an invoice (User)
       tags:
       - User Subscription
   /subscriptions/payment-failed:

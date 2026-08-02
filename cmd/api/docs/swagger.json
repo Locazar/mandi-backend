@@ -3039,6 +3039,79 @@
                 }
             }
         },
+        "/admin/company-billing-profile": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the issuer details printed on every subscription invoice",
+                "tags": [
+                    "Admin Invoice"
+                ],
+                "summary": "Get company billing profile (Admin)",
+                "operationId": "GetCompanyBillingProfile",
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved company billing profile",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve company billing profile",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Updates the issuer details printed on future subscription invoices. Already-issued invoices are unaffected.",
+                "tags": [
+                    "Admin Invoice"
+                ],
+                "summary": "Update company billing profile (Admin)",
+                "operationId": "UpdateCompanyBillingProfile",
+                "parameters": [
+                    {
+                        "description": "Billing profile",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.UpdateCompanyBillingProfileRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully updated company billing profile",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to update company billing profile",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/config": {
             "get": {
                 "security": [
@@ -7115,6 +7188,93 @@
                     },
                     "500": {
                         "description": "Failed to save sub type attribute",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/subscription-invoices": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Lists subscription tax invoices with optional user and date-range filters",
+                "tags": [
+                    "Admin Invoice"
+                ],
+                "summary": "List all invoices (Admin)",
+                "operationId": "ListInvoices",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by subscriber id",
+                        "name": "user_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start date, RFC3339 or YYYY-MM-DD",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End date, RFC3339 or YYYY-MM-DD",
+                        "name": "to",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved invoices",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid date filter",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/subscription-invoices/{invoice_id}/download": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a short-lived presigned URL for any seller's invoice PDF",
+                "tags": [
+                    "Admin Invoice"
+                ],
+                "summary": "Download any invoice (Admin)",
+                "operationId": "AdminDownloadInvoice",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Invoice ID",
+                        "name": "invoice_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully generated download link",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Invoice not found",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -13054,6 +13214,79 @@
                 }
             }
         },
+        "/subscriptions/invoices": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the authenticated seller's tax invoices, most recent first",
+                "tags": [
+                    "User Subscription"
+                ],
+                "summary": "List my invoices (User)",
+                "operationId": "ListMyInvoices",
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved invoices",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve invoices",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/subscriptions/invoices/{invoice_id}/download": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a short-lived presigned URL for the invoice PDF",
+                "tags": [
+                    "User Subscription"
+                ],
+                "summary": "Download an invoice (User)",
+                "operationId": "DownloadInvoice",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Invoice ID",
+                        "name": "invoice_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully generated download link",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Invoice belongs to another user",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Invoice not found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/subscriptions/payment-failed": {
             "post": {
                 "security": [
@@ -15042,6 +15275,59 @@
                     "type": "string"
                 },
                 "offer_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "request.UpdateCompanyBillingProfileRequest": {
+            "type": "object",
+            "required": [
+                "legal_name"
+            ],
+            "properties": {
+                "address_line1": {
+                    "type": "string"
+                },
+                "address_line2": {
+                    "type": "string"
+                },
+                "city": {
+                    "type": "string"
+                },
+                "country": {
+                    "type": "string"
+                },
+                "footer_note": {
+                    "type": "string"
+                },
+                "gstin": {
+                    "type": "string"
+                },
+                "invoice_number_prefix": {
+                    "type": "string"
+                },
+                "jurisdiction": {
+                    "type": "string"
+                },
+                "legal_name": {
+                    "type": "string"
+                },
+                "logo_object_key": {
+                    "type": "string"
+                },
+                "pan": {
+                    "type": "string"
+                },
+                "pincode": {
+                    "type": "string"
+                },
+                "sac_code": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                },
+                "state_code": {
                     "type": "string"
                 }
             }
