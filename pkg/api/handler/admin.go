@@ -2054,18 +2054,6 @@ func (a *adminHandler) UpdateSellerProductLimit(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully updated product limit", nil)
 }
 
-// GetShopByID godoc
-//
-//	@summary		Get shop by ID
-//	@Security		BearerAuth
-//	@Description	API for admin to get shop details by shop ID
-//	@Id				GetShopByID
-//	@Tags			Admin Shop
-//	@Param			shop_id	path	int	true	"Shop ID"
-//	@Router			/admin/shops/{shop_id} [get]
-//	@Success		200	{object}	response.Response{}	"Successfully got shop by ID"
-//	@Failure		400	{object}	response.Response{}	"Invalid shop ID"
-//	@Failure		500	{object}	response.Response{}	"Failed to get shop by ID"
 // GetShopConflicts godoc
 //
 //	@summary		Get shops onboarded within conflicting distance of each other
@@ -2093,6 +2081,18 @@ func (h *adminHandler) GetShopConflicts(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully got shop conflicts", conflicts)
 }
 
+// GetShopByID godoc
+//
+//	@summary		Get shop by ID
+//	@Security		BearerAuth
+//	@Description	API for admin to get shop details by shop ID
+//	@Id				GetShopByID
+//	@Tags			Admin Shop
+//	@Param			shop_id	path	int	true	"Shop ID"
+//	@Router			/admin/shops/{shop_id} [get]
+//	@Success		200	{object}	response.Response{}	"Successfully got shop by ID"
+//	@Failure		400	{object}	response.Response{}	"Invalid shop ID"
+//	@Failure		500	{object}	response.Response{}	"Failed to get shop by ID"
 func (h *adminHandler) GetShopByID(ctx *gin.Context) {
 	shopIDStr := ctx.Param("shop_id")
 	if shopIDStr == "" {

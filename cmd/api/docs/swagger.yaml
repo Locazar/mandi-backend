@@ -51,10 +51,32 @@ definitions:
         type: string
       pincode:
         type: string
+      product_limit:
+        description: |-
+          ProductLimit is the maximum number of product items a seller's shops
+          may have in total. Enforced on product-item upload (see
+          ProductUseCase.SaveProductItem); admin-editable per seller.
+        type: integer
       profile_image_url:
+        type: string
+      referral_coupon_id:
+        description: |-
+          ReferralCouponID is the unique code a super admin assigns when creating
+          a Sales Executive platform user. Sellers optionally enter this code
+          during shop onboarding; a match attaches their shop to this exec (see
+          ShopReferral) for commission and reporting. Empty for accounts that
+          aren't Sales Executives. Uniqueness (when non-empty) is enforced by a
+          partial unique index — see migration 000020.
         type: string
       role:
         $ref: '#/definitions/domain.AdminRole'
+      shops_onboarded_count:
+        description: |-
+          ShopsOnboardedCount is the number of active ShopReferral attachments
+          for this admin's ReferralCouponID — i.e. shops that entered this
+          Sales Executive's referral code during onboarding. Output-only,
+          populated by ListAdmins/GetMyPermissions; never persisted.
+        type: integer
       start_date:
         type: string
       state:
@@ -92,74 +114,6 @@ definitions:
     - AdminStatusActive
     - AdminStatusInactive
     - AdminStatusSuspended
-  domain.Advertisement:
-    properties:
-      admin_id:
-        type: string
-      area_targeted:
-        type: string
-      content:
-        type: string
-      created_at:
-        type: string
-      created_by:
-        type: string
-      created_by_admin:
-        type: string
-      distance_km:
-        type: number
-      end_date:
-        type: string
-      id:
-        type: string
-      image_url:
-        type: string
-      latitude:
-        type: number
-      longitude:
-        type: number
-      pincode_targeted:
-        type: string
-      priority:
-        $ref: '#/definitions/domain.AdvertisementPriority'
-      start_date:
-        type: string
-      status:
-        $ref: '#/definitions/domain.AdvertisementStatus'
-      target_url:
-        type: string
-      title:
-        type: string
-      updated_at:
-        type: string
-      updated_by:
-        type: string
-    required:
-    - content
-    - end_date
-    - start_date
-    - title
-    type: object
-  domain.AdvertisementPriority:
-    enum:
-    - high
-    - medium
-    - low
-    type: string
-    x-enum-varnames:
-    - AdvertisementPriorityHigh
-    - AdvertisementPriorityMedium
-    - AdvertisementPriorityLow
-  domain.AdvertisementStatus:
-    enum:
-    - active
-    - inactive
-    - expired
-    type: string
-    x-enum-varnames:
-    - AdvertisementStatusActive
-    - AdvertisementStatusInactive
-    - AdvertisementStatusExpired
   domain.FcmToken:
     properties:
       admin_id:
@@ -315,9 +269,33 @@ definitions:
         type: string
       phone:
         type: string
+      phone_visible_consent:
+        description: |-
+          PhoneVisibleConsent records the seller's opt-in, given on the first
+          onboarding step right after phone OTP verification, to show Phone to
+          customers on the shop listing ("visible to customers to discover you").
+          Defaults to true (both here and in the DB column default) — sellers
+          are opted in unless they explicitly uncheck the consent box.
+        type: boolean
       photo_shop_verification:
         type: boolean
       pincode:
+        type: string
+      product_limit:
+        description: |-
+          ProductLimit is the owning seller's admins.product_limit, joined in for
+          admin-panel display/edit; not a real shop_details column.
+        type: integer
+      referral_coupon_id:
+        description: |-
+          ReferralCouponID (input-only, not persisted here) is the optional
+          referral code the seller enters on the final onboarding step. A match
+          against an Admin.ReferralCouponID creates a ShopReferral row instead
+          of a shop_details column, so re-submits never need to mutate this
+          table. ReferralStatus (output-only) reports the outcome back to the
+          client: "attached" or "invalid"; empty when no code was submitted.
+        type: string
+      referral_status:
         type: string
       shop_description:
         type: string
@@ -359,11 +337,15 @@ definitions:
     - active
     - inactive
     - suspended
+    - under_review
+    - rejected
     type: string
     x-enum-varnames:
     - ShopStatusActive
     - ShopStatusInactive
     - ShopStatusSuspended
+    - ShopStatusUnderReview
+    - ShopStatusRejected
   domain.ShopType:
     enum:
     - retail
@@ -400,6 +382,15 @@ definitions:
         type: boolean
     required:
     - admin_id
+    type: object
+  pincode.Details:
+    properties:
+      city:
+        type: string
+      district:
+        type: string
+      state:
+        type: string
     type: object
   request.AICompareImagesRequest:
     properties:
@@ -551,8 +542,20 @@ definitions:
     properties:
       category_name:
         type: string
+      department_id:
+        type: string
+      icon:
+        type: string
+      image_url:
+        type: string
+      is_active:
+        type: boolean
+      sort_order:
+        type: integer
     required:
     - category_name
+    - department_id
+    - image_url
     type: object
   request.CategoryImage:
     properties:
@@ -658,8 +661,22 @@ definitions:
         maxLength: 25
         minLength: 3
         type: string
+      icon:
+        type: string
+      image_url:
+        type: string
+      is_active:
+        type: boolean
+      slug:
+        maxLength: 25
+        minLength: 3
+        type: string
+      sort_order:
+        type: integer
     required:
     - department_name
+    - image_url
+    - slug
     type: object
   request.EditAddress:
     properties:
@@ -759,7 +776,6 @@ definitions:
         type: string
     required:
     - age
-    - email
     - first_name
     - last_name
     - phone
@@ -1023,6 +1039,26 @@ definitions:
     - close_time
     - open_time
     type: object
+  request.ShopRatingAndReviewRequest:
+    properties:
+      comments:
+        description: 'Optional: comments text'
+        type: string
+      customer_id:
+        description: 'Optional: customer ID'
+        type: string
+      rating:
+        description: 'Optional: rating from 1-5'
+        maximum: 5
+        minimum: 1
+        type: integer
+      review:
+        description: 'Optional: review text'
+        type: string
+      shop_id:
+        description: 'Optional: shop ID (can also come from URL)'
+        type: string
+    type: object
   request.ShopRatingRequest:
     properties:
       rating:
@@ -1032,12 +1068,36 @@ definitions:
     required:
     - rating
     type: object
+  request.ShopRejection:
+    properties:
+      remark:
+        type: string
+    required:
+    - remark
+    type: object
   request.ShopReviewRequest:
     properties:
       review:
         type: string
     required:
     - review
+    type: object
+  request.ShopVerification:
+    properties:
+      address_proof_verification:
+        type: boolean
+      business_doc_verification:
+        type: boolean
+      identity_doc_verification:
+        type: boolean
+      photo_shop_verification:
+        type: boolean
+      shop_id:
+        type: string
+      updated_at:
+        type: string
+    required:
+    - shop_id
     type: object
   request.ShoppingFeedback:
     properties:
@@ -1064,11 +1124,35 @@ definitions:
     - rating
     - shop_order_id
     type: object
+  request.SignupOtpSend:
+    properties:
+      full_name:
+        type: string
+      mobile:
+        type: string
+      password:
+        type: string
+      phone:
+        type: string
+    type: object
   request.SubCategory:
     properties:
+      category_id:
+        type: string
+      department_id:
+        type: string
+      image_url:
+        type: string
+      is_active:
+        type: boolean
+      sort_order:
+        type: integer
       sub_category_name:
         type: string
     required:
+    - category_id
+    - department_id
+    - image_url
     - sub_category_name
     type: object
   request.SubTypeAttribute:
@@ -1200,6 +1284,13 @@ definitions:
     - product_id
     - product_name
     type: object
+  request.UpdateProductItemStock:
+    properties:
+      stock:
+        type: boolean
+    required:
+    - stock
+    type: object
   request.UpdateProductOffer:
     properties:
       offer_id:
@@ -1245,6 +1336,21 @@ definitions:
         type: array
     required:
     - variation_value
+    type: object
+  request.VerifyOTPRequest:
+    properties:
+      otp:
+        type: string
+      phone:
+        maxLength: 15
+        minLength: 10
+        type: string
+      session_id:
+        type: string
+    required:
+    - otp
+    - phone
+    - session_id
     type: object
   request.VerifySubscriptionPaymentRequest:
     properties:
@@ -1448,6 +1554,8 @@ definitions:
         items:
           type: string
         type: array
+      is_subscribed:
+        type: boolean
       main_category_name:
         type: string
       offer_products:
@@ -1963,81 +2071,467 @@ paths:
       summary: api for admin to upload profile image
       tags:
       - Admin Account
-  /admin/advertisements:
+  /admin/advertisement-pricing:
     get:
-      description: API for admin to get all advertisements
-      operationId: GetAllAdvertisements
-      parameters:
-      - description: Page Number
-        in: query
-        name: page_number
-        type: integer
-      - description: Count
-        in: query
-        name: count
-        type: integer
+      operationId: GetAdvertisementPricing
       responses:
         "200":
-          description: Successfully got all advertisements
+          description: OK
           schema:
             $ref: '#/definitions/response.Response'
-        "204":
-          description: No advertisements found
+      security:
+      - BearerAuth: []
+      summary: Get advertisement pricing configuration (plans + charges)
+      tags:
+      - Advertisement Pricing
+  /admin/advertisement-pricing/config:
+    put:
+      operationId: UpdateAdvertisementPricingConfig
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Update GST/platform-fee percentages
+      tags:
+      - Advertisement Pricing
+  /admin/advertisement-pricing/plans:
+    post:
+      operationId: CreateAdvertisementPlan
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Create an advertisement price plan
+      tags:
+      - Advertisement Pricing
+  /admin/advertisement-pricing/plans/{plan_id}:
+    delete:
+      operationId: DeleteAdvertisementPlan
+      parameters:
+      - description: Plan ID
+        in: path
+        name: plan_id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Delete an advertisement price plan
+      tags:
+      - Advertisement Pricing
+    put:
+      operationId: UpdateAdvertisementPlan
+      parameters:
+      - description: Plan ID
+        in: path
+        name: plan_id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Update an advertisement price plan
+      tags:
+      - Advertisement Pricing
+  /admin/advertisement-requests:
+    get:
+      operationId: GetAllAdvertisementRequests
+      parameters:
+      - description: Only the caller's own requests
+        in: query
+        name: mine
+        type: boolean
+      responses:
+        "200":
+          description: OK
           schema:
             $ref: '#/definitions/response.Response'
         "500":
-          description: Failed to get all advertisements
+          description: Internal Server Error
           schema:
             $ref: '#/definitions/response.Response'
       security:
       - BearerAuth: []
-      summary: Get all advertisements
+      summary: List advertisement requests
+      tags:
+      - Advertisement Requests
+    post:
+      operationId: CreateAdvertisementRequest
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Create an advertisement request (seller)
+      tags:
+      - Advertisement Requests
+  /admin/advertisement-requests/{request_id}:
+    delete:
+      operationId: DeleteAdvertisementRequest
+      parameters:
+      - description: Advertisement request ID
+        in: path
+        name: request_id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Delete an advertisement request
+      tags:
+      - Advertisement Requests
+    get:
+      operationId: GetAdvertisementRequestByID
+      parameters:
+      - description: Advertisement request ID
+        in: path
+        name: request_id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get one advertisement request
+      tags:
+      - Advertisement Requests
+    put:
+      operationId: UpdateAdvertisementRequest
+      parameters:
+      - description: Advertisement request ID
+        in: path
+        name: request_id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Update an advertisement request (status/comment or details)
+      tags:
+      - Advertisement Requests
+  /admin/advertisement-requests/{request_id}/create-order:
+    post:
+      operationId: CreateAdvertisementPaymentOrder
+      parameters:
+      - description: Advertisement request ID
+        in: path
+        name: request_id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Create a Razorpay order for an approved advertisement request
+      tags:
+      - Advertisement Requests
+  /admin/advertisement-requests/{request_id}/invoice:
+    get:
+      operationId: GetAdvertisementRequestInvoice
+      parameters:
+      - description: Advertisement request ID
+        in: path
+        name: request_id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get invoice (GST + charges breakdown) for an approved request
+      tags:
+      - Advertisement Requests
+  /admin/advertisement-requests/payment-failed:
+    post:
+      operationId: AdvertisementPaymentFailed
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Record a failed advertisement payment attempt
+      tags:
+      - Advertisement Requests
+  /admin/advertisement-requests/pricing:
+    get:
+      operationId: GetAdvertisementPricePlans
+      parameters:
+      - description: Start date (YYYY-MM-DD)
+        in: query
+        name: start_date
+        required: true
+        type: string
+      - description: End date (YYYY-MM-DD)
+        in: query
+        name: end_date
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get advertisement price plans for a date range
+      tags:
+      - Advertisement Requests
+  /admin/advertisement-requests/verify-payment:
+    post:
+      operationId: VerifyAdvertisementPayment
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "402":
+          description: Payment Required
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Verify a Razorpay payment for an advertisement request
+      tags:
+      - Advertisement Requests
+  /admin/advertisements:
+    get:
+      description: Returns all advertisements with optional filters. All filters are
+        optional and can be combined.
+      operationId: GetAllAdvertisements
+      parameters:
+      - description: Page number
+        in: query
+        name: page_number
+        type: integer
+      - description: Items per page
+        in: query
+        name: count
+        type: integer
+      - description: Filter by department ID
+        in: query
+        name: department_id
+        type: string
+      - description: Filter by category ID
+        in: query
+        name: category_id
+        type: string
+      - description: Filter by targeted pincode
+        in: query
+        name: pincode_targeted
+        type: string
+      - description: Latitude for geo proximity filter (requires longitude and distance_km)
+        in: query
+        name: latitude
+        type: number
+      - description: Longitude for geo proximity filter (requires latitude and distance_km)
+        in: query
+        name: longitude
+        type: number
+      - description: Radius in km for geo proximity filter (requires latitude and
+          longitude)
+        in: query
+        name: distance_km
+        type: number
+      - description: Filter by status (active|inactive|expired)
+        in: query
+        name: status
+        type: string
+      - description: Filter by audience (customer|seller)
+        in: query
+        name: audience
+        type: string
+      - description: Filter by priority (high|medium|low)
+        in: query
+        name: priority
+        type: string
+      - description: Filter by admin ID
+        in: query
+        name: admin_id
+        type: string
+      - description: Filter ads whose start_date >= this date (YYYY-MM-DD or RFC3339)
+        in: query
+        name: start_date
+        type: string
+      - description: Filter ads whose end_date <= this date (YYYY-MM-DD or RFC3339)
+        in: query
+        name: end_date
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: List advertisements (Admin)
       tags:
       - Advertisement Management
     post:
+      consumes:
+      - multipart/form-data
       operationId: CreateAdvertisement
       parameters:
-      - description: inputs
-        in: body
-        name: input
+      - description: Title
+        in: formData
+        name: title
         required: true
-        schema:
-          $ref: '#/definitions/domain.Advertisement'
+        type: string
+      - description: Content / description
+        in: formData
+        name: content
+        required: true
+        type: string
+      - description: Click-through URL
+        in: formData
+        name: target_url
+        type: string
+      - description: Start date (RFC3339)
+        in: formData
+        name: start_date
+        required: true
+        type: string
+      - description: End date (RFC3339)
+        in: formData
+        name: end_date
+        required: true
+        type: string
+      - description: active | inactive | expired
+        in: formData
+        name: status
+        type: string
+      - description: high | medium | low
+        in: formData
+        name: priority
+        type: string
+      - description: Target area name
+        in: formData
+        name: area_targeted
+        type: string
+      - description: Target pincode
+        in: formData
+        name: pincode_targeted
+        type: string
+      - description: Contact phone number
+        in: formData
+        name: phone
+        type: string
+      - description: Latitude
+        in: formData
+        name: latitude
+        type: number
+      - description: Longitude
+        in: formData
+        name: longitude
+        type: number
+      - description: Radius in km
+        in: formData
+        name: distance_km
+        type: number
+      - description: Banner image
+        in: formData
+        name: photo
+        type: file
+      produces:
+      - application/json
       responses:
-        "200":
-          description: Successfully created advertisement
+        "201":
+          description: Created
           schema:
             $ref: '#/definitions/response.Response'
         "400":
-          description: invalid input
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
           schema:
             $ref: '#/definitions/response.Response'
       security:
       - BearerAuth: []
-      summary: api for admin to create advertisement
-      tags:
-      - Advertisement Management
-    put:
-      operationId: UpdateAdvertisement
-      parameters:
-      - description: inputs
-        in: body
-        name: input
-        required: true
-        schema:
-          $ref: '#/definitions/domain.Advertisement'
-      responses:
-        "200":
-          description: Successfully updated advertisement
-          schema:
-            $ref: '#/definitions/response.Response'
-        "400":
-          description: invalid input
-          schema:
-            $ref: '#/definitions/response.Response'
-      security:
-      - BearerAuth: []
-      summary: api for admin to update advertisement
+      summary: Create advertisement (Admin)
       tags:
       - Advertisement Management
   /admin/advertisements/{advertisement_id}:
@@ -2051,20 +2545,106 @@ paths:
         type: string
       responses:
         "200":
-          description: Successfully deleted advertisement
+          description: OK
           schema:
             $ref: '#/definitions/response.Response'
         "400":
-          description: invalid advertisement ID
+          description: Bad Request
           schema:
             $ref: '#/definitions/response.Response'
         "500":
-          description: Failed to delete advertisement
+          description: Internal Server Error
           schema:
             $ref: '#/definitions/response.Response'
       security:
       - BearerAuth: []
-      summary: api for admin to delete advertisement
+      summary: Delete advertisement (Admin)
+      tags:
+      - Advertisement Management
+    put:
+      consumes:
+      - multipart/form-data
+      operationId: UpdateAdvertisement
+      parameters:
+      - description: Advertisement ID
+        in: path
+        name: advertisement_id
+        required: true
+        type: string
+      - description: Title
+        in: formData
+        name: title
+        type: string
+      - description: Content
+        in: formData
+        name: content
+        type: string
+      - description: Click-through URL
+        in: formData
+        name: target_url
+        type: string
+      - description: Start date
+        in: formData
+        name: start_date
+        type: string
+      - description: End date
+        in: formData
+        name: end_date
+        type: string
+      - description: active | inactive | expired
+        in: formData
+        name: status
+        type: string
+      - description: high | medium | low
+        in: formData
+        name: priority
+        type: string
+      - description: Target area
+        in: formData
+        name: area_targeted
+        type: string
+      - description: Target pincode
+        in: formData
+        name: pincode_targeted
+        type: string
+      - description: Contact phone number
+        in: formData
+        name: phone
+        type: string
+      - description: Latitude
+        in: formData
+        name: latitude
+        type: number
+      - description: Longitude
+        in: formData
+        name: longitude
+        type: number
+      - description: Radius km
+        in: formData
+        name: distance_km
+        type: number
+      - description: New banner image (omit to keep existing)
+        in: formData
+        name: photo
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Update advertisement (Admin)
       tags:
       - Advertisement Management
   /admin/alert-templates:
@@ -2240,6 +2820,69 @@ paths:
       summary: Seed default templates (Admin)
       tags:
       - Admin AlertTemplates
+  /admin/app-configs:
+    get:
+      operationId: ListAppConfigs
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: List app configs
+      tags:
+      - App Configs
+    post:
+      operationId: CreateAppConfig
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Create app config
+      tags:
+      - App Configs
+  /admin/app-configs/{config_id}:
+    delete:
+      operationId: DeleteAppConfig
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Delete app config
+      tags:
+      - App Configs
+    put:
+      operationId: UpdateAppConfig
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Update app config
+      tags:
+      - App Configs
+  /admin/app-configs/{config_key}:
+    get:
+      operationId: GetAppConfigByKey
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get app config by key
+      tags:
+      - App Configs
   /admin/attributes/{attribute_id}/options:
     post:
       consumes:
@@ -2431,6 +3074,35 @@ paths:
       summary: Verify OTP for Admin Signup
       tags:
       - Admin Authentication
+  /admin/auth/signup/otp/send:
+    post:
+      description: Sends an OTP to the seller's mobile. Creates the seller if new
+        (full_name/password), otherwise resends for login. Returns otp_id used on
+        verify.
+      operationId: SellerSignupOtpSend
+      parameters:
+      - description: Phone (mobile/phone) and optional full_name/password
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.SignupOtpSend'
+      responses:
+        "200":
+          description: OTP sent
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to send OTP
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Send signup/login OTP (Seller)
+      tags:
+      - Seller Authentication
   /admin/brands:
     get:
       description: API for admin to find all brands
@@ -2582,6 +3254,113 @@ paths:
       summary: Save Brand
       tags:
       - Admin Brand
+  /admin/catalog/categories/{category_id}/sub-categories/{sub_category_id}/attributes/{attribute_id}:
+    delete:
+      parameters:
+      - description: Attribute ID
+        in: path
+        name: attribute_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Delete sub type attribute
+      tags:
+      - Admin Products
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Sub Category ID
+        in: path
+        name: sub_category_id
+        required: true
+        type: string
+      - description: Attribute ID
+        in: path
+        name: attribute_id
+        required: true
+        type: string
+      - description: Updated attribute
+        in: body
+        name: attribute
+        required: true
+        schema:
+          $ref: '#/definitions/request.SubTypeAttribute'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Update sub type attribute
+      tags:
+      - Admin Products
+  /admin/catalog/categories/{category_id}/sub-categories/{sub_category_id}/attributes/{attribute_id}/options/{option_id}:
+    delete:
+      parameters:
+      - description: Option ID
+        in: path
+        name: option_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Delete sub type attribute option
+      tags:
+      - Admin Products
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Option ID
+        in: path
+        name: option_id
+        required: true
+        type: string
+      - description: Updated option
+        in: body
+        name: option
+        required: true
+        schema:
+          $ref: '#/definitions/request.SubTypeAttributeOption'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Update sub type attribute option
+      tags:
+      - Admin Products
   /admin/categories:
     get:
       consumes:
@@ -2857,6 +3636,32 @@ paths:
       summary: Add a new subcategory (Admin)
       tags:
       - Admin Category
+  /admin/config:
+    get:
+      operationId: GetGlobalConfig
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get the structured global app config (CDN, feature flags, HTTP, image
+        upload, AI)
+      tags:
+      - App Configs
+    put:
+      operationId: UpdateGlobalConfig
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Update the structured global app config
+      tags:
+      - App Configs
   /admin/coupons:
     get:
       description: API for admin to get all coupons
@@ -2962,6 +3767,53 @@ paths:
       summary: Save a new department
       tags:
       - Admin Products
+  /admin/departments/{department_id}:
+    put:
+      consumes:
+      - multipart/form-data
+      description: Accepts multipart/form-data with department_name, sort_order, is_active,
+        and an optional photo file.
+      parameters:
+      - description: Department ID
+        in: path
+        name: department_id
+        required: true
+        type: string
+      - description: Department name
+        in: formData
+        name: department_name
+        required: true
+        type: string
+      - description: Sort order
+        in: formData
+        name: sort_order
+        type: integer
+      - description: Is active
+        in: formData
+        name: is_active
+        type: boolean
+      - description: Department image
+        in: formData
+        name: photo
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Update an existing department
+      tags:
+      - Admin Products
   /admin/fcm/token:
     delete:
       consumes:
@@ -3034,6 +3886,80 @@ paths:
       summary: Save an FCM device token
       tags:
       - Admin FCM
+  /admin/feature-flags:
+    get:
+      operationId: ListFeatureFlags
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: List feature flags with metadata (admin panel)
+      tags:
+      - Feature Flags
+    post:
+      operationId: CreateFeatureFlag
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Create a feature flag
+      tags:
+      - Feature Flags
+  /admin/feature-flags/{flag_id}:
+    delete:
+      operationId: DeleteFeatureFlag
+      parameters:
+      - description: Feature flag ID
+        in: path
+        name: flag_id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Delete a feature flag
+      tags:
+      - Feature Flags
+    put:
+      operationId: UpdateFeatureFlag
+      parameters:
+      - description: Feature flag ID
+        in: path
+        name: flag_id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Update a feature flag
+      tags:
+      - Feature Flags
   /admin/graphics/offer-preview:
     post:
       description: API for admin to generate offer image preview for testing
@@ -3063,6 +3989,116 @@ paths:
       summary: Generate Offer Image Preview (Admin)
       tags:
       - Admin Graphics
+  /admin/help/faqs:
+    get:
+      operationId: ListHelpFAQs
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: List all FAQs, including inactive (admin panel)
+      tags:
+      - Help Center
+    post:
+      operationId: CreateHelpFAQ
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Create a help FAQ (admin panel)
+      tags:
+      - Help Center
+  /admin/help/faqs/{faq_id}:
+    delete:
+      operationId: DeleteHelpFAQ
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Delete a help FAQ (admin panel)
+      tags:
+      - Help Center
+    put:
+      operationId: UpdateHelpFAQ
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Update a help FAQ (admin panel)
+      tags:
+      - Help Center
+  /admin/help/settings:
+    get:
+      operationId: GetHelpSettings
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get help center contact settings (admin panel)
+      tags:
+      - Help Center
+    put:
+      operationId: UpdateHelpSettings
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Update help center contact settings (admin panel)
+      tags:
+      - Help Center
+  /admin/items/{product_item_id}/stock:
+    patch:
+      consumes:
+      - application/json
+      description: Toggle a product item's in-stock / out-of-stock status.
+      parameters:
+      - description: Product Item ID
+        in: path
+        name: product_item_id
+        required: true
+        type: string
+      - description: Stock status
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateProductItemStock'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully updated stock status
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to update stock status
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Update product item stock status
+      tags:
+      - Products
   /admin/items/shop/{shop_id}:
     get:
       consumes:
@@ -3091,6 +4127,69 @@ paths:
       summary: Get product items by shop ID (Admin)
       tags:
       - Admin Products
+  /admin/me:
+    get:
+      operationId: GetMyPermissions
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get the authenticated admin's identity, role, and resolved permission
+        set
+      tags:
+      - Admin Roles
+  /admin/notifications/images:
+    get:
+      operationId: ListNotificationImages
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Images fetched
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to list images
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: List previously uploaded notification images
+      tags:
+      - Notification
+    post:
+      consumes:
+      - multipart/form-data
+      operationId: UploadNotificationImage
+      parameters:
+      - description: Image to upload
+        in: formData
+        name: photo
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Image uploaded
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Upload failed
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Upload an image for use in push notifications
+      tags:
+      - Notification
   /admin/notifications/radius:
     get:
       operationId: SendNotificationToUsersInRadius
@@ -3512,6 +4611,31 @@ paths:
       summary: Apply an offer to a shop
       tags:
       - Admin Offers
+  /admin/onboarding-copy:
+    get:
+      operationId: GetOnboardingCopy
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get the seller onboarding wizard's admin-editable text/copy
+      tags:
+      - App Configs
+    put:
+      operationId: UpdateOnboardingCopy
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Update the seller onboarding wizard's admin-editable text/copy
+      tags:
+      - App Configs
   /admin/orders/:
     put:
       description: API for admin to change order status
@@ -3745,6 +4869,27 @@ paths:
       summary: Get payment methods (Admin)
       tags:
       - Admin Payment
+  /admin/platform-users/{admin_id}/shops:
+    get:
+      description: A Sales Executive may only view their own shops; a super admin
+        may view any executive's shops.
+      operationId: ListShopsForSalesExecutive
+      parameters:
+      - description: Platform user (Sales Executive) ID
+        in: path
+        name: admin_id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Attached shops fetched
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: List shops attached to a Sales Executive (a platform user)
+      tags:
+      - Admin Referrals
   /admin/products:
     get:
       description: API for admin to get all products
@@ -4312,6 +5457,142 @@ paths:
       summary: Get promotion types by category ID
       tags:
       - Admin Promotions
+  /admin/referrals:
+    get:
+      operationId: ListShopReferrals
+      parameters:
+      - description: Page Number
+        in: query
+        name: page_number
+        type: integer
+      - description: Count
+        in: query
+        name: count
+        type: integer
+      responses:
+        "200":
+          description: Referrals fetched
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: List all shop referral attachments
+      tags:
+      - Admin Referrals
+    post:
+      description: Super-admin-only. Sellers normally get attached automatically by
+        submitting a referral_coupon_id when creating their shop.
+      operationId: CreateShopReferral
+      responses:
+        "201":
+          description: Referral created
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Manually attach a shop to a Sales Executive
+      tags:
+      - Admin Referrals
+  /admin/referrals/{referral_id}:
+    delete:
+      operationId: DeleteShopReferral
+      responses:
+        "200":
+          description: Referral deleted
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Delete a referral attachment
+      tags:
+      - Admin Referrals
+    get:
+      operationId: GetShopReferral
+      responses:
+        "200":
+          description: Referral fetched
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get a single referral attachment
+      tags:
+      - Admin Referrals
+    put:
+      operationId: UpdateShopReferral
+      responses:
+        "200":
+          description: Referral updated
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Update a referral attachment (status or reassignment)
+      tags:
+      - Admin Referrals
+  /admin/roles:
+    get:
+      operationId: ListRoles
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: List every admin-portal role with its permissions
+      tags:
+      - Admin Roles
+    post:
+      operationId: CreateRole
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Create a custom admin-portal role
+      tags:
+      - Admin Roles
+  /admin/roles/{role_id}:
+    delete:
+      operationId: DeleteRole
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Delete a custom role (built-in roles and roles still assigned to admins
+        can't be deleted)
+      tags:
+      - Admin Roles
+    get:
+      operationId: GetRole
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get a single role with its permissions
+      tags:
+      - Admin Roles
+    put:
+      operationId: UpdateRole
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Update a role's label and/or permission set
+      tags:
+      - Admin Roles
   /admin/sales:
     get:
       description: API for admin to get all sales report for a specific period in
@@ -4352,6 +5633,37 @@ paths:
       summary: Get full sales report (Admin)
       tags:
       - Admin Sales
+  /admin/sellers/{admin_id}/product-limit:
+    put:
+      description: API for admin panel to cap how many product items a seller may
+        upload in total
+      operationId: UpdateSellerProductLimit
+      parameters:
+      - description: Seller (admin) ID
+        in: path
+        name: admin_id
+        required: true
+        type: string
+      - description: '{\'
+        in: body
+        name: product_limit
+        required: true
+        schema:
+          type: object
+      responses:
+        "200":
+          description: Successfully updated product limit
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Set a seller's product upload limit
+      tags:
+      - Admin Seller
   /admin/shop-time:
     get:
       operationId: GetShopTime
@@ -4534,6 +5846,58 @@ paths:
       summary: API for admin to update shop by ID
       tags:
       - Admin Shop
+  /admin/shops/{shop_id}/approve:
+    post:
+      operationId: ApproveShop
+      parameters:
+      - description: Shop ID
+        in: path
+        name: shop_id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Shop approved
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: api for admin to approve a shop and make it live to customers
+      tags:
+      - Admin Shop
+  /admin/shops/{shop_id}/reject:
+    post:
+      operationId: RejectShop
+      parameters:
+      - description: Shop ID
+        in: path
+        name: shop_id
+        required: true
+        type: string
+      - description: inputs
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.ShopRejection'
+      responses:
+        "200":
+          description: Shop rejected
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: api for admin to reject a shop with a remark
+      tags:
+      - Admin Shop
   /admin/shops/business-document/upload:
     post:
       operationId: UploadBusinessDocument
@@ -4563,6 +5927,30 @@ paths:
       summary: api for admin to upload a business document
       tags:
       - Admin Shop
+  /admin/shops/conflicts:
+    get:
+      description: API for admin to find pairs of shops whose pinned locations fall
+        within radius_m of each other
+      operationId: GetShopConflicts
+      parameters:
+      - description: Detection radius in meters (default 10)
+        in: query
+        name: radius_m
+        type: number
+      responses:
+        "200":
+          description: Successfully got shop conflicts
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to get shop conflicts
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get shops onboarded within conflicting distance of each other
+      tags:
+      - Admin Shop
   /admin/shops/owner/{owner_id}:
     get:
       description: API for admin to get shop details by owner ID
@@ -4589,6 +5977,113 @@ paths:
       security:
       - BearerAuth: []
       summary: Get shop by owner ID
+      tags:
+      - Admin Shop
+  /admin/shops/phone/send-otp:
+    post:
+      operationId: SendShopPhoneChangeOtp
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Send an OTP to a new phone number before it can be saved to the shop
+        profile
+      tags:
+      - Admin Shop
+  /admin/shops/phone/verify-otp:
+    post:
+      operationId: VerifyShopPhoneChangeOtp
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid or expired OTP
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Verify the OTP for a new phone number and save it to the shop profile
+      tags:
+      - Admin Shop
+  /admin/shops/search:
+    get:
+      description: API for admin to search shops by phone, pincode, city, name, or
+        radius around a point
+      operationId: SearchShops
+      parameters:
+      - description: Phone number (partial match)
+        in: query
+        name: phone
+        type: string
+      - description: Pincode (exact match)
+        in: query
+        name: pincode
+        type: string
+      - description: City (partial match)
+        in: query
+        name: city
+        type: string
+      - description: Shop or owner name (partial match)
+        in: query
+        name: search
+        type: string
+      - description: Latitude for radius filter
+        in: query
+        name: lat
+        type: number
+      - description: Longitude for radius filter
+        in: query
+        name: lng
+        type: number
+      - description: Radius in km around lat/lng
+        in: query
+        name: radius_km
+        type: number
+      - description: Max results (default 50, max 200)
+        in: query
+        name: limit
+        type: integer
+      responses:
+        "200":
+          description: Successfully searched shops
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to search shops
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Search shops with filters
+      tags:
+      - Admin Shop
+  /admin/shops/submit-for-review:
+    post:
+      operationId: SubmitShopForReview
+      parameters:
+      - description: inputs
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.ShopVerification'
+      responses:
+        "200":
+          description: Shop submitted for review
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: api for a seller to submit their shop for admin review
       tags:
       - Admin Shop
   /admin/shops/verify:
@@ -4736,6 +6231,113 @@ paths:
       summary: Save a new sub type attribute
       tags:
       - Admin Products
+  /admin/subscription-plans:
+    get:
+      operationId: ListSubscriptionPlans
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: List subscription plans (admin panel)
+      tags:
+      - Subscription Plans
+    post:
+      operationId: CreateSubscriptionPlan
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Create a subscription plan
+      tags:
+      - Subscription Plans
+  /admin/subscription-plans/{plan_id}:
+    delete:
+      operationId: DeleteSubscriptionPlan
+      parameters:
+      - description: Plan ID
+        in: path
+        name: plan_id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Delete a subscription plan (fails if referenced by orders; deactivate
+        instead)
+      tags:
+      - Subscription Plans
+    put:
+      operationId: UpdateSubscriptionPlan
+      parameters:
+      - description: Plan ID
+        in: path
+        name: plan_id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Update a subscription plan
+      tags:
+      - Subscription Plans
+  /admin/subscription-pricing/gst:
+    get:
+      operationId: GetSubscriptionGSTConfig
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get the current subscription GST rate
+      tags:
+      - Subscription Pricing
+    put:
+      description: Accepts either gst_rate_percent (e.g. 18) or gst_rate_basis_points
+        (e.g. 1800); percent wins if both are sent. Only affects subscriptions purchased
+        after the change — existing orders keep their snapshotted rate.
+      operationId: UpdateSubscriptionGSTConfig
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Update the subscription GST rate
+      tags:
+      - Subscription Pricing
   /admin/users:
     get:
       description: API for admin to get all user details
@@ -4791,6 +6393,61 @@ paths:
       summary: api for admin to block or unblock user
       tags:
       - Admin User
+  /advertisements/active:
+    get:
+      description: Returns currently active advertisements for display inside the
+        app.
+      operationId: GetActiveAdvertisements
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Get active advertisements (public)
+      tags:
+      - Advertisement Management
+  /advertisements/active/filter:
+    get:
+      description: Returns active ads filtered by lat/lng/radius, pincode, and app
+        type (seller|customer).
+      operationId: GetActiveAdvertisementsFiltered
+      parameters:
+      - description: Latitude of the user
+        in: query
+        name: lat
+        type: number
+      - description: Longitude of the user
+        in: query
+        name: lng
+        type: number
+      - description: Search radius in km (default 10)
+        in: query
+        name: radius
+        type: number
+      - description: User pincode
+        in: query
+        name: pincode
+        type: string
+      - description: 'App type: seller or customer'
+        in: query
+        name: app_type
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Get active advertisements with location/audience filters
+      tags:
+      - Advertisement Management
   /ai/compare-images:
     post:
       consumes:
@@ -6173,6 +7830,17 @@ paths:
       summary: Get department by ID
       tags:
       - Products
+  /feature-flags:
+    get:
+      operationId: GetFeatureFlagsObject
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Get feature flags as a key→enabled object (clients)
+      tags:
+      - Feature Flags
   /feedback/shop:
     post:
       description: API for user to submit shopping feedback for an order
@@ -6567,6 +8235,17 @@ paths:
       summary: Autocomplete suggestions across all entity types
       tags:
       - Global Search
+  /help:
+    get:
+      operationId: GetHelpCenter
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Get combined help center content (public — no auth)
+      tags:
+      - Help Center
   /items/{product_item_id}:
     delete:
       consumes:
@@ -7078,6 +8757,34 @@ paths:
       summary: Get payment methods (User)
       tags:
       - User Payment
+  /pincode/{pincode}:
+    get:
+      parameters:
+      - description: 6-digit Indian PIN code
+        in: path
+        name: pincode
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/pincode.Details'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Look up city/district/state for an Indian PIN code
+      tags:
+      - pincode
   /products:
     get:
       description: API for user to get all products
@@ -7846,6 +9553,66 @@ paths:
       summary: Get all reviews for a shop (User)
       tags:
       - User Review
+  /seller/signup/otp/send:
+    post:
+      consumes:
+      - application/json
+      description: API for seller to send OTP for signup
+      parameters:
+      - description: Phone number for OTP send
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/request.OTPLogin'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Send OTP for Seller Signup
+      tags:
+      - Seller Authentication
+  /seller/signup/otp/verify:
+    post:
+      consumes:
+      - application/json
+      description: API for seller to verify OTP for signup
+      parameters:
+      - description: Phone number and OTP to verify
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/request.VerifyOTPRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Verify OTP for Seller Signup
+      tags:
+      - Seller Authentication
   /shop-offers:
     get:
       description: API for user to get shop offers within a date range
@@ -8001,6 +9768,94 @@ paths:
       summary: Get sellers by radius (User)
       tags:
       - User Profile
+  /social/feedback/shop/{shop_id}:
+    get:
+      operationId: GetShopFeedback
+      parameters:
+      - description: Shop ID
+        in: path
+        name: shop_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: Successfully got shop feedback
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid shop ID
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to get feedback
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get combined feedback (rating and review) for a shop (User)
+      tags:
+      - User Feedback
+    post:
+      consumes:
+      - application/json
+      operationId: SaveShopRatingAndReview
+      parameters:
+      - description: Shop ID
+        in: path
+        name: shop_id
+        required: true
+        type: integer
+      - description: Rating and Review payload (all fields optional)
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.ShopRatingAndReviewRequest'
+      responses:
+        "200":
+          description: Successfully saved rating and review
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to save rating and review
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Create or update shop rating and review in a single API call (User)
+      tags:
+      - User Feedback
+  /social/feedback/shop/{shop_id}/summary:
+    get:
+      operationId: GetShopFeedbackSummary
+      parameters:
+      - description: Shop ID
+        in: path
+        name: shop_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: Successfully got feedback summary
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Invalid shop ID
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to get feedback summary
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get feedback summary for a shop (average rating and count) (User)
+      tags:
+      - User Feedback
   /social/follow/{id}:
     get:
       operationId: GetFollowedShops
@@ -8185,6 +10040,25 @@ paths:
       summary: Get all sub type attributes
       tags:
       - Products
+  /subscriptions/billing-history:
+    get:
+      description: Returns the authenticated user's paid subscription payments (most
+        recent first) with per-order GST-inclusive split
+      operationId: GetBillingHistory
+      responses:
+        "200":
+          description: Billing history
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Failed to get billing history
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get billing history (User)
+      tags:
+      - User Subscription
   /subscriptions/create-order:
     post:
       description: Creates a Razorpay order for a subscription plan
