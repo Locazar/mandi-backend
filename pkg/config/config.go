@@ -62,6 +62,12 @@ type Config struct {
 	S3SecretKey     string `mapstructure:"S3_SECRET_KEY"`
 	S3PublicBaseURL string `mapstructure:"S3_PUBLIC_BASE_URL"`
 
+	// PublicBaseURL is the externally reachable origin printed QR redirects point
+	// at (e.g. https://api.locazar.com). Optional: when blank, the QR handler
+	// falls back to the incoming request's scheme+host, so local/dev works with
+	// no config. Additive — absence never fails startup.
+	PublicBaseURL string `mapstructure:"PUBLIC_BASE_URL"`
+
 	SharedUploadsPath string `mapstructure:"SHARED_UPLOADS_PATH"`
 
 	ElasticsearchURL string `mapstructure:"ELASTICSEARCH_URL"`
@@ -155,6 +161,7 @@ var envsNames = []string{
 	"GOAUTH_CLIENT_ID", "GOAUTH_CLIENT_SECRET", "GOAUTH_CALL_BACK_URL", //goath
 	"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_REGION", "AWS_BUCKET_NAME", // legacy aws fallback
 	"S3_ENDPOINT", "S3_REGION", "S3_BUCKET", "S3_ACCESS_KEY", "S3_SECRET_KEY", "S3_PUBLIC_BASE_URL", // object storage
+	"PUBLIC_BASE_URL",     // public origin for QR redirect links (optional)
 	"SHARED_UPLOADS_PATH", // shared uploads directory (deprecated)
 	"ELASTICSEARCH_URL",   // elasticsearch
 	"AI_SERVICE_URL",      // ai service

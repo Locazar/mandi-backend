@@ -132,6 +132,9 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	languageRepository := repository.NewLanguageRepository(gormDB)
 	languageUseCase := usecase.NewLanguageUseCase(languageRepository)
 	languageHandler := handler.NewLanguageHandler(languageUseCase)
+	qrCodeRepository := repository.NewQRCodeRepository(gormDB)
+	qrCodeUseCase := usecase.NewQRCodeUseCase(qrCodeRepository)
+	qrCodeHandler := handler.NewQRCodeHandler(qrCodeUseCase, cfg.PublicBaseURL)
 	sqlDB, err := provideSQLDB(gormDB)
 	if err != nil {
 		return nil, err
@@ -140,7 +143,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	mobileAuthUseCase := usecase.NewMobileAuthUseCase(mobileAuthRepository, mobileOTPService, twoFactorSMSService, tokenService, cfg.SkipOTPValidation)
 	mobileAuthHandler := handler.NewHandler(mobileAuthUseCase)
 	aiHandler := handler.NewAIHandler(client)
-	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler, jobHandler, jobCategoryHandler, platformUserHandler, mobileAuthHandler, aiHandler, shopUpdateHandler, languageHandler)
+	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler, jobHandler, jobCategoryHandler, platformUserHandler, mobileAuthHandler, aiHandler, shopUpdateHandler, languageHandler, qrCodeHandler)
 	return serverHTTP, nil
 }
 
