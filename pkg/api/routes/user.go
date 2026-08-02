@@ -16,6 +16,7 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 	subscriptionPaymentHandler handlerInterface.SubscriptionPaymentHandler,
 	subscriptionHandler handlerInterface.SubscriptionHandler,
 	searchHandler handlerInterface.SearchHandler,
+	invoiceHandler handlerInterface.InvoiceHandler,
 ) {
 
 	// Global Search — public, no auth required
@@ -408,6 +409,8 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 			subscription.POST("/start-trial", subscriptionHandler.StartTrial)
 			subscription.GET("/plans", subscriptionHandler.GetPaidPlans)
 			subscription.GET("/billing-history", subscriptionHandler.GetBillingHistory)
+			subscription.GET("/invoices", invoiceHandler.ListMyInvoices)
+			subscription.GET("/invoices/:invoice_id/download", invoiceHandler.DownloadInvoice)
 		}
 	}
 }

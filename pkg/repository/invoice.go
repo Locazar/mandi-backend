@@ -145,3 +145,22 @@ func (r *invoiceDatabase) SetInvoicePDF(ctx context.Context, invoiceID, objectKe
 			"pdf_generated_at": now,
 		}).Error
 }
+
+func (r *invoiceDatabase) FindInvoiceNumbersByOrderIDs(ctx context.Context, orderIDs []string) (map[string]domain.Invoice, error) {
+	out := make(map[string]domain.Invoice, len(orderIDs))
+	if len(orderIDs) == 0 {
+		return out, nil
+	}
+
+	invoices := []domain.Invoice{}
+	err := r.db.WithContext(ctx).
+		Where("subscription_order_id IN ?", orderIDs).
+		Find(&invoices).Error
+	if err != nil {
+		return nil, err
+	}
+	for _, inv := range invoices {
+		out[inv.SubscriptionOrderID] = inv
+	}
+	return out, nil
+}

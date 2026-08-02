@@ -120,7 +120,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	invoiceUseCase := usecase.NewInvoiceUseCase(invoiceRepository, subscriptionRepository, adminRepository, renderer, cloudService)
 	subscriptionPaymentUseCase := usecase.NewSubscriptionPaymentUseCase(subscriptionRepository, paymentRepository, userRepository, invoiceRepository, adminRepository, invoiceUseCase, cfg)
 	subscriptionPaymentHandler := handler.NewSubscriptionPaymentHandler(subscriptionPaymentUseCase)
-	subscriptionUseCase := usecase.NewSubscriptionUseCase(subscriptionRepository, userRepository)
+	subscriptionUseCase := usecase.NewSubscriptionUseCase(subscriptionRepository, userRepository, invoiceRepository)
 	subscriptionHandler := handler.NewSubscriptionHandler(subscriptionUseCase)
 	sellerGuideHandler := handler.NewSellerGuideHandler(cloudService)
 	jobService := usecase.NewJobService(gormDB)

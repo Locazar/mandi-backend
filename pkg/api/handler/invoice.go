@@ -9,6 +9,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	usecaseIface "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
+	"github.com/rohit221990/mandi-backend/pkg/utils"
 )
 
 type invoiceHandler struct {
@@ -81,4 +82,50 @@ func (h *invoiceHandler) UpdateCompanyBillingProfile(ctx *gin.Context) {
 		return
 	}
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully updated company billing profile", updated)
+}
+
+// ListMyInvoices godoc
+//
+//	@Summary		List my invoices (User)
+//	@Security		BearerAuth
+//	@Description	Returns the authenticated seller's tax invoices, most recent first
+//	@Tags			User Subscription
+//	@Id				ListMyInvoices
+//	@Router			/subscriptions/invoices [get]
+//	@Success		200	{object}	response.Response{}	"Successfully retrieved invoices"
+//	@Failure		500	{object}	response.Response{}	"Failed to retrieve invoices"
+func (h *invoiceHandler) ListMyInvoices(ctx *gin.Context) {
+	userID := utils.GetUserIdFromContext(ctx)
+	pagination := request.GetPagination(ctx)
+
+	invoices, err := h.invoiceUseCase.ListInvoicesForUser(ctx, userID, pagination)
+	if err != nil {
+		errResponse(ctx, "Failed to retrieve invoices", err)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved invoices", invoices)
+}
+
+// DownloadInvoice godoc
+//
+//	@Summary		Download an invoice (User)
+//	@Security		BearerAuth
+//	@Description	Returns a short-lived presigned URL for the invoice PDF
+//	@Tags			User Subscription
+//	@Id				DownloadInvoice
+//	@Param			invoice_id	path	string	true	"Invoice ID"
+//	@Router			/subscriptions/invoices/{invoice_id}/download [get]
+//	@Success		200	{object}	response.Response{}	"Successfully generated download link"
+//	@Failure		403	{object}	response.Response{}	"Invoice belongs to another user"
+//	@Failure		404	{object}	response.Response{}	"Invoice not found"
+func (h *invoiceHandler) DownloadInvoice(ctx *gin.Context) {
+	userID := utils.GetUserIdFromContext(ctx)
+	invoiceID := ctx.Param("invoice_id")
+
+	result, err := h.invoiceUseCase.GetInvoiceDownload(ctx, invoiceID, userID, false)
+	if err != nil {
+		errResponse(ctx, "Failed to generate invoice download link", err)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully generated download link", result)
 }

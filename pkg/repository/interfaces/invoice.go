@@ -24,4 +24,7 @@ type InvoiceRepository interface {
 	// SetInvoicePDF records the rendered PDF's object key. The only mutation
 	// permitted on an issued invoice.
 	SetInvoicePDF(ctx context.Context, invoiceID, objectKey string) error
+	// FindInvoiceNumbersByOrderIDs returns invoices keyed by subscription order
+	// id, so billing history can be decorated in one query rather than N.
+	FindInvoiceNumbersByOrderIDs(ctx context.Context, orderIDs []string) (map[string]domain.Invoice, error)
 }
