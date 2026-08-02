@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	handlerInterface "github.com/rohit221990/mandi-backend/pkg/api/handler/interfaces"
@@ -128,4 +129,84 @@ func (h *invoiceHandler) DownloadInvoice(ctx *gin.Context) {
 		return
 	}
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully generated download link", result)
+}
+
+// ListInvoices godoc
+//
+//	@Summary		List all invoices (Admin)
+//	@Security		BearerAuth
+//	@Description	Lists subscription tax invoices with optional user and date-range filters
+//	@Tags			Admin Invoice
+//	@Id				ListInvoices
+//	@Param			user_id	query	string	false	"Filter by subscriber id"
+//	@Param			from	query	string	false	"Start date, RFC3339 or YYYY-MM-DD"
+//	@Param			to		query	string	false	"End date, RFC3339 or YYYY-MM-DD"
+//	@Router			/admin/subscription-invoices [get]
+//	@Success		200	{object}	response.Response{}	"Successfully retrieved invoices"
+//	@Failure		400	{object}	response.Response{}	"Invalid date filter"
+func (h *invoiceHandler) ListInvoices(ctx *gin.Context) {
+	pagination := request.GetPagination(ctx)
+
+	filter := domain.InvoiceFilter{
+		UserID: ctx.Query("user_id"),
+		Limit:  int(pagination.Limit),
+		Offset: int(pagination.Offset),
+	}
+
+	if raw := ctx.Query("from"); raw != "" {
+		t, err := parseFilterDate(raw)
+		if err != nil {
+			response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid 'from' date", err, nil)
+			return
+		}
+		filter.From = &t
+	}
+	if raw := ctx.Query("to"); raw != "" {
+		t, err := parseFilterDate(raw)
+		if err != nil {
+			response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid 'to' date", err, nil)
+			return
+		}
+		// Make the range inclusive of the whole end day.
+		endOfDay := t.Add(24*time.Hour - time.Nanosecond)
+		filter.To = &endOfDay
+	}
+
+	invoices, err := h.invoiceUseCase.ListInvoicesForAdmin(ctx, filter)
+	if err != nil {
+		errResponse(ctx, "Failed to retrieve invoices", err)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully retrieved invoices", invoices)
+}
+
+// AdminDownloadInvoice godoc
+//
+//	@Summary		Download any invoice (Admin)
+//	@Security		BearerAuth
+//	@Description	Returns a short-lived presigned URL for any seller's invoice PDF
+//	@Tags			Admin Invoice
+//	@Id				AdminDownloadInvoice
+//	@Param			invoice_id	path	string	true	"Invoice ID"
+//	@Router			/admin/subscription-invoices/{invoice_id}/download [get]
+//	@Success		200	{object}	response.Response{}	"Successfully generated download link"
+//	@Failure		404	{object}	response.Response{}	"Invoice not found"
+func (h *invoiceHandler) AdminDownloadInvoice(ctx *gin.Context) {
+	invoiceID := ctx.Param("invoice_id")
+
+	result, err := h.invoiceUseCase.GetInvoiceDownload(ctx, invoiceID, "", true)
+	if err != nil {
+		errResponse(ctx, "Failed to generate invoice download link", err)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully generated download link", result)
+}
+
+// parseFilterDate accepts both a plain date and a full RFC3339 timestamp, so
+// the admin UI can send either.
+func parseFilterDate(raw string) (time.Time, error) {
+	if t, err := time.Parse(time.RFC3339, raw); err == nil {
+		return t, nil
+	}
+	return time.Parse("2006-01-02", raw)
 }

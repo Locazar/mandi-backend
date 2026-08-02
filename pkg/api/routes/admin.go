@@ -451,6 +451,14 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			companyBillingProfile.PUT("", middleware.TrimSpaces(), invoiceHandler.UpdateCompanyBillingProfile)
 		}
 
+		// Subscription invoices — admin listing and download of any
+		// seller's tax invoice (admin panel)
+		subscriptionInvoices := api.Group("/subscription-invoices", adminHandler.RequirePermission(domain.PermCanManageSettings))
+		{
+			subscriptionInvoices.GET("", invoiceHandler.ListInvoices)
+			subscriptionInvoices.GET("/:invoice_id/download", invoiceHandler.AdminDownloadInvoice)
+		}
+
 		// Shop details
 		sellers := api.Group("/sellers", adminHandler.RequirePermission(domain.PermCanManageAdmins))
 		{

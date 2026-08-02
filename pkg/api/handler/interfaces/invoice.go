@@ -7,4 +7,6 @@ type InvoiceHandler interface {
 	UpdateCompanyBillingProfile(ctx *gin.Context)
 	ListMyInvoices(ctx *gin.Context)
 	DownloadInvoice(ctx *gin.Context)
+	ListInvoices(ctx *gin.Context)
+	AdminDownloadInvoice(ctx *gin.Context)
 }
