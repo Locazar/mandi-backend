@@ -8,10 +8,7 @@ package di
 
 import (
 	"database/sql"
-
-	"gorm.io/gorm"
-
-	http "github.com/rohit221990/mandi-backend/pkg/api"
+	"github.com/rohit221990/mandi-backend/pkg/api"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler"
 	"github.com/rohit221990/mandi-backend/pkg/api/middleware"
 	"github.com/rohit221990/mandi-backend/pkg/config"
@@ -27,6 +24,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/service/sms"
 	"github.com/rohit221990/mandi-backend/pkg/service/token"
 	"github.com/rohit221990/mandi-backend/pkg/usecase"
+	"gorm.io/gorm"
 )
 
 // Injectors from wire.go:
@@ -47,10 +45,12 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	otpAuth := otp.NewOtpAuth(cfg)
 	mobileOTPService := otp.NewMobileOTPService()
 	twoFactorSMSService := provideTwoFactorSMSService(cfg)
-	authUseCase := usecase.NewAuthUseCase(authRepository, tokenService, userRepository, adminRepository, otpAuth, mobileOTPService, twoFactorSMSService, cfg.SkipOTPValidation)
+	v := provideSkipOTPValidationVariadic(cfg)
+	authUseCase := usecase.NewAuthUseCase(authRepository, tokenService, userRepository, adminRepository, otpAuth, mobileOTPService, twoFactorSMSService, v...)
 	authHandler := handler.NewAuthHandler(authUseCase, cfg, tokenService)
 	middlewareMiddleware := middleware.NewMiddleware(tokenService)
-	adminUseCase := usecase.NewAdminUseCase(adminRepository, userRepository, authRepository, otpAuth, tokenService, mobileOTPService, twoFactorSMSService, cfg.SkipOTPValidation, cfg)
+	bool2 := provideSkipOTPValidation(cfg)
+	adminUseCase := usecase.NewAdminUseCase(adminRepository, userRepository, authRepository, otpAuth, tokenService, mobileOTPService, twoFactorSMSService, bool2, cfg)
 	shopTimeRepository := repository.NewShopTimeRepository(gormDB)
 	shopTimeUseCase := usecase.NewShopTimeUseCase(shopTimeRepository)
 	cloudService, err := cloud.NewObjectStorageService(cfg)
@@ -131,10 +131,10 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		return nil, err
 	}
 	mobileAuthRepository := repository.NewMobileAuthRepository(sqlDB)
-	mobileAuthUseCase := usecase.NewMobileAuthUseCase(mobileAuthRepository, mobileOTPService, twoFactorSMSService, tokenService, cfg.SkipOTPValidation)
-	mobileAuthHandler := handler.NewHandler(mobileAuthUseCase)
+	mobileAuthUseCase := usecase.NewMobileAuthUseCase(mobileAuthRepository, mobileOTPService, twoFactorSMSService, tokenService, bool2)
+	handlerHandler := handler.NewHandler(mobileAuthUseCase)
 	aiHandler := handler.NewAIHandler(client)
-	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler, jobHandler, jobCategoryHandler, platformUserHandler, mobileAuthHandler, aiHandler)
+	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler, jobHandler, jobCategoryHandler, platformUserHandler, handlerHandler, aiHandler)
 	return serverHTTP, nil
 }
 
@@ -162,6 +162,23 @@ func provideCryptoService(cfg config.Config) (*crypto.Service, error) {
 		return nil, err
 	}
 	return crypto.NewService(keys, cfg.PIIEncryptionActiveKey)
+}
+
+// provideSkipOTPValidation and provideSkipOTPValidationVariadic exist so Wire
+// can resolve the skipOTPValidation parameters on the usecase constructors.
+// NewAdminUseCase/NewMobileAuthUseCase take a plain bool; NewAuthUseCase takes a
+// trailing `...bool`, which Wire resolves as []bool. Both read the same
+// cfg.SkipOTPValidation, so this is a name for Wire's provider graph to attach
+// to, not a behaviour change.
+//
+// Without these, `wire` fails with "no provider found for bool" / "for []bool"
+// and cannot regenerate wire_gen.go at all.
+func provideSkipOTPValidation(cfg config.Config) bool {
+	return cfg.SkipOTPValidation
+}
+
+func provideSkipOTPValidationVariadic(cfg config.Config) []bool {
+	return []bool{cfg.SkipOTPValidation}
 }
 
 func provideAlertRuleRegistry() *alert_engine.RuleRegistry {
