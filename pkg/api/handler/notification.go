@@ -102,6 +102,33 @@ func (h *NotificationHandler) SendPushNotification(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Push notification sent successfully")
 }
 
+// SendBroadcastNotification godoc
+//
+//	@Summary		Broadcast a push notification to a whole audience (topic)
+//	@Security		BearerAuth
+//	@ID				SendBroadcastNotification
+//	@Tags			Notification
+//	@Accept			json
+//	@Produce		json
+//	@Param			input	body	request.SendBroadcastRequest	true	"Broadcast payload"
+//	@Router			/notifications/broadcast [post]
+//	@Success		200	{object}	response.Response{}	"Broadcast sent"
+//	@Failure		400	{object}	response.Response{}	"Invalid input"
+//	@Failure		500	{object}	response.Response{}	"Internal server error"
+func (h *NotificationHandler) SendBroadcastNotification(ctx *gin.Context) {
+	var req request.SendBroadcastRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Validation failed", err, nil)
+		return
+	}
+	// Background context so delivery completes even if the client disconnects.
+	if err := h.notificationUsecase.SendBroadcast(context.Background(), req); err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to send broadcast", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Broadcast sent successfully")
+}
+
 // SaveNotification godoc
 //
 //	@Summary		Save a notification record

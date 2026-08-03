@@ -1477,6 +1477,26 @@ func (c *adminDatabase) UploadShopDocument(ctx context.Context, shopID string, d
 	return c.DB.Exec(query, documentType, encDocValue, time.Now(), shopID).Error
 }
 
+// VerifyBusinessPAN stores a format-checked PAN number against the shop's
+// dedicated pan_number column (distinct from the generic document_value used
+// by the other OTP-based document types). No third-party lookup happens
+// here — an admin still approves it manually via identity_doc_verification.
+func (c *adminDatabase) VerifyBusinessPAN(ctx context.Context, shopID string, panNumber string) error {
+	encPAN, err := c.encrypt(panNumber)
+	if err != nil {
+		return err
+	}
+	query := `UPDATE shop_details SET pan_number = $1, document_type = 'pan', updated_at = $2 WHERE admin_id = $3`
+	return c.DB.Exec(query, encPAN, time.Now(), shopID).Error
+}
+
+// SavePANImages stores the seller-uploaded PAN card front/back image URLs
+// against the shop, for admin review alongside the PAN number itself.
+func (c *adminDatabase) SavePANImages(ctx context.Context, shopID string, frontURL string, backURL string) error {
+	query := `UPDATE shop_details SET pan_front_image_url = $1, pan_back_image_url = $2, updated_at = $3 WHERE admin_id = $4`
+	return c.DB.Exec(query, frontURL, backURL, time.Now(), shopID).Error
+}
+
 func (c *adminDatabase) UploadAddress(ctx context.Context, adminId string, address request.AddressRequest) error {
 	// Parse latitude and longitude from string to float64
 	latitude, err := strconv.ParseFloat(address.Latitude, 64)
@@ -1490,8 +1510,8 @@ func (c *adminDatabase) UploadAddress(ctx context.Context, adminId string, addre
 	}
 
 	//insert or update address in shop_details table
-	query := `INSERT INTO shop_details (id, admin_id, shop_name, owner_name, phone, address_line1, address_line2, city, state, pincode, latitude, longitude, created_at, updated_at)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+	query := `INSERT INTO shop_details (id, admin_id, shop_name, owner_name, phone, address_line1, address_line2, city, state, pincode, latitude, longitude, preferred_language, created_at, updated_at)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 	ON CONFLICT (admin_id) DO UPDATE SET
 		shop_name = EXCLUDED.shop_name,
 		owner_name = EXCLUDED.owner_name,
@@ -1503,10 +1523,12 @@ func (c *adminDatabase) UploadAddress(ctx context.Context, adminId string, addre
 		pincode = EXCLUDED.pincode,
 		latitude = EXCLUDED.latitude,
 		longitude = EXCLUDED.longitude,
+		-- Don't clobber a previously-chosen language with an empty value.
+		preferred_language = COALESCE(NULLIF(EXCLUDED.preferred_language, ''), shop_details.preferred_language),
 		updated_at = EXCLUDED.updated_at`
 
 	err = c.DB.Exec(query, domain.NewID(domain.PrefixShop), adminId, address.ShopName, address.OwnerName, address.Phone, address.AddressLine1, address.AddressLine2, address.City, address.State, address.Pincode,
-		latitude, longitude, time.Now(), time.Now()).Error
+		latitude, longitude, address.PreferredLanguage, time.Now(), time.Now()).Error
 
 	return err
 }

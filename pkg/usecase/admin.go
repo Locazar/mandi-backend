@@ -1092,10 +1092,33 @@ func (c *adminUseCase) UpdateGlobalConfig(ctx context.Context, cfg domain.Global
 	return cfg, nil
 }
 
+// onboardingCopyKey returns the app_configs key holding the onboarding copy for
+// a language. Empty/"en" maps to the base key (backward-compatible — that's
+// where the original English copy already lives); other languages get a
+// per-locale suffix, e.g. "onboarding_wizard_copy:hi".
+func onboardingCopyKey(lang string) string {
+	lang = strings.ToLower(strings.TrimSpace(lang))
+	if lang == "" || lang == "en" {
+		return domain.OnboardingWizardCopyKey
+	}
+	return domain.OnboardingWizardCopyKey + ":" + lang
+}
+
 // GetOnboardingWizardCopy returns the admin-editable text shown across the
-// seller-app's shop-onboarding wizard, falling back to the shipped defaults
-// if nothing has been saved yet.
-func (c *adminUseCase) GetOnboardingWizardCopy(ctx context.Context) (domain.OnboardingWizardCopy, error) {
+// seller-app's shop-onboarding wizard for the requested language, falling back
+// to the base (English) copy and then the shipped defaults.
+func (c *adminUseCase) GetOnboardingWizardCopy(ctx context.Context, lang string) (domain.OnboardingWizardCopy, error) {
+	// Requested language first (if it's not the base key)…
+	if key := onboardingCopyKey(lang); key != domain.OnboardingWizardCopyKey {
+		if row, err := c.adminRepo.GetAppConfigByKey(ctx, key); err == nil {
+			var copyObj domain.OnboardingWizardCopy
+			if err := json.Unmarshal([]byte(row.Value), &copyObj); err == nil {
+				return copyObj, nil
+			}
+		}
+		// …else fall through to the base copy below.
+	}
+
 	row, err := c.adminRepo.GetAppConfigByKey(ctx, domain.OnboardingWizardCopyKey)
 	if err != nil {
 		return domain.DefaultOnboardingWizardCopy(), nil
@@ -1107,22 +1130,24 @@ func (c *adminUseCase) GetOnboardingWizardCopy(ctx context.Context) (domain.Onbo
 	return copyObj, nil
 }
 
-// UpdateOnboardingWizardCopy persists the full onboarding wizard copy object
-// as a single JSON blob, creating the underlying app_configs row on first save.
-func (c *adminUseCase) UpdateOnboardingWizardCopy(ctx context.Context, copyObj domain.OnboardingWizardCopy) (domain.OnboardingWizardCopy, error) {
+// UpdateOnboardingWizardCopy persists the full onboarding wizard copy object for
+// a language as a single JSON blob, creating the underlying app_configs row on
+// first save.
+func (c *adminUseCase) UpdateOnboardingWizardCopy(ctx context.Context, lang string, copyObj domain.OnboardingWizardCopy) (domain.OnboardingWizardCopy, error) {
 	encoded, err := json.Marshal(copyObj)
 	if err != nil {
 		return domain.OnboardingWizardCopy{}, fmt.Errorf("failed to encode onboarding wizard copy: %w", err)
 	}
 
+	key := onboardingCopyKey(lang)
 	row := domain.AppConfig{
-		ConfigKey:   domain.OnboardingWizardCopyKey,
+		ConfigKey:   key,
 		Value:       string(encoded),
 		Description: "Seller onboarding wizard text/copy — managed via admin-portal Onboarding Copy page",
 		Enabled:     true,
 	}
 
-	existing, err := c.adminRepo.GetAppConfigByKey(ctx, domain.OnboardingWizardCopyKey)
+	existing, err := c.adminRepo.GetAppConfigByKey(ctx, key)
 	if err != nil {
 		if _, err := c.adminRepo.CreateAppConfig(ctx, row); err != nil {
 			return domain.OnboardingWizardCopy{}, err
@@ -1496,6 +1521,22 @@ func (c *adminUseCase) UploadShopDocument(ctx context.Context, shopID string, do
 	}
 	return nil
 }
+func (c *adminUseCase) VerifyBusinessPAN(ctx context.Context, shopID string, panNumber string) error {
+	err := c.adminRepo.VerifyBusinessPAN(ctx, shopID, panNumber)
+	if err != nil {
+		return fmt.Errorf("failed to verify business PAN \nerror:%v", err.Error())
+	}
+	return nil
+}
+
+func (c *adminUseCase) SavePANImages(ctx context.Context, shopID string, frontURL string, backURL string) error {
+	err := c.adminRepo.SavePANImages(ctx, shopID, frontURL, backURL)
+	if err != nil {
+		return fmt.Errorf("failed to save PAN images \nerror:%v", err.Error())
+	}
+	return nil
+}
+
 func (c *adminUseCase) UploadAddress(ctx context.Context, adminId string, address request.AddressRequest) error {
 	err := c.adminRepo.UploadAddress(ctx, adminId, address)
 	if err != nil {

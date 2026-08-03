@@ -77,8 +77,8 @@ type AdminUseCase interface {
 	// Global app config (single structured config used by client apps)
 	GetGlobalConfig(ctx context.Context) (domain.GlobalAppConfig, error)
 	UpdateGlobalConfig(ctx context.Context, cfg domain.GlobalAppConfig) (domain.GlobalAppConfig, error)
-	GetOnboardingWizardCopy(ctx context.Context) (domain.OnboardingWizardCopy, error)
-	UpdateOnboardingWizardCopy(ctx context.Context, copy domain.OnboardingWizardCopy) (domain.OnboardingWizardCopy, error)
+	GetOnboardingWizardCopy(ctx context.Context, lang string) (domain.OnboardingWizardCopy, error)
+	UpdateOnboardingWizardCopy(ctx context.Context, lang string, copy domain.OnboardingWizardCopy) (domain.OnboardingWizardCopy, error)
 
 	// Help center (contact settings + FAQs)
 	GetHelpSettings(ctx context.Context) (domain.HelpSettings, error)
@@ -108,6 +108,8 @@ type AdminUseCase interface {
 	UploadAdminProfileImage(ctx context.Context, adminID string, imagePath string, shopId string) (string, error)
 	DecodeTokenData(tokenString string) string
 	UploadShopDocument(ctx context.Context, shopID string, documentType string, documentValue string) error
+	VerifyBusinessPAN(ctx context.Context, shopID string, panNumber string) error
+	SavePANImages(ctx context.Context, shopID string, frontURL string, backURL string) error
 	UploadAddress(ctx context.Context, adminId string, address request.AddressRequest) error
 	VerifyShopDocument(ctx context.Context, otp string) error
 	UploadAdminDocumentOtpSend(ctx context.Context, adminId string, documentType string, documentValue string) error

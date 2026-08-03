@@ -22,12 +22,20 @@ type AddressRequest struct {
 	Pincode      string `json:"pincode"`
 	Latitude     string `json:"latitude"`
 	Longitude    string `json:"longitude"`
-	CreatedAt    string `json:"created_at"`
-	UpdatedAt    string `json:"updated_at"`
+	// PreferredLanguage is the seller's chosen onboarding language code (optional).
+	PreferredLanguage string `json:"preferred_language" binding:"omitempty"`
+	CreatedAt         string `json:"created_at"`
+	UpdatedAt         string `json:"updated_at"`
 }
 
 type VerifyShopDocumentRequest struct {
 	OTP           string `json:"otp" binding:"required"`
 	DocumentValue string `json:"document_value" binding:"required"`
 	DocumentType  string `json:"document_type" binding:"required"`
+}
+
+// PANVerifyRequest keeps the seller-app's exact "panNumber" JSON key rather
+// than this file's usual snake_case convention.
+type PANVerifyRequest struct {
+	PANNumber string `json:"panNumber" binding:"required"`
 }

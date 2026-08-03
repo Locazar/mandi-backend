@@ -489,6 +489,8 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 				document.POST("/send-otp", adminHandler.UploadShopDocument)
 				document.POST("/verify-otp", adminHandler.VerifyShopDocument)
 				document.POST("/upload", middleware.AuthenticateAdmin(), adminHandler.UploadBusinessDocument)
+				document.POST("/verify-pan", adminHandler.VerifyBusinessPAN)
+				document.POST("/upload-pan-images", adminHandler.UploadPANImages)
 			}
 
 			address := shop.Group("/address-details")
@@ -515,6 +517,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		{
 			notification.GET("/sendToUsersInRadius", adminHandler.SendNotificationToUsersInRadius)
 			notification.POST("/push", notificationHandler.SendPushNotification)
+			notification.POST("/broadcast", notificationHandler.SendBroadcastNotification)
 			notification.POST("/images", adminHandler.UploadNotificationImage)
 			notification.GET("/images", adminHandler.ListNotificationImages)
 		}

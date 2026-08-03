@@ -157,6 +157,15 @@ func enquiryRecipientResolver(docData map[string]interface{}) (notifyUser bool, 
 			return true, false // seller finalised → notify buyer
 		case "client", "customer", "user", "buyer":
 			return false, true // buyer finalised → notify seller
+		// cmd/enquiry-autoreject sets these when a side went silent past the
+		// configured timeout — the *other* side (who was waiting) is notified,
+		// same routing as an explicit accept/reject by that actor.
+		case "system_seller_timeout":
+			return true, false // seller went quiet → notify buyer
+		case "system_customer_timeout":
+			return false, true // buyer went quiet → notify seller
+		case "system_inactivity_timeout":
+			return true, true // ambiguous turn (in_progress/counter_offer) → notify both
 		default:
 			return true, true // actor unknown → notify both
 		}

@@ -33,6 +33,13 @@ func provideElasticURL(cfg config.Config) string {
 	return cfg.ElasticsearchURL
 }
 
+// provideQRCodeHandler wires the QR handler with the public origin from config.
+// A dedicated provider (vs. a bare string) avoids ambiguity with other
+// string-returning providers in the graph.
+func provideQRCodeHandler(uc *usecase.QRCodeUseCase, cfg config.Config) *handler.QRCodeHandler {
+	return handler.NewQRCodeHandler(uc, cfg.PublicBaseURL)
+}
+
 func provideSQLDB(gormDB *gorm.DB) (*sql.DB, error) {
 	return gormDB.DB()
 }
@@ -134,6 +141,9 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		repository.NewAlertRepository,
 		repository.NewPlatformUserRepository,
 		repository.NewInvoiceRepository,
+		repository.NewShopUpdateRepository,
+		repository.NewLanguageRepository,
+		repository.NewQRCodeRepository,
 
 		//usecase — constructors that return interface directly need no Bind;
 		//          constructors that return *concrete need Bind
@@ -160,6 +170,9 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		usecase.NewBannerUseCase,
 		usecase.NewPlatformUserUseCase,
 		usecase.NewInvoiceUseCase,
+		usecase.NewShopUpdateUseCase,
+		usecase.NewLanguageUseCase,
+		usecase.NewQRCodeUseCase,
 
 		// handler
 		handler.NewAuthHandler,
@@ -198,6 +211,9 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		usecase.NewJobCategoryService,
 		wire.Bind(new(handler.JobCategoryService), new(*usecase.JobCategoryService)),
 		handler.NewPlatformUserHandler,
+		handler.NewShopUpdateHandler,
+		handler.NewLanguageHandler,
+		provideQRCodeHandler,
 
 		// mobile OTP auth (seller signup)
 		provideSQLDB,

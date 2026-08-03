@@ -14,6 +14,7 @@ type NotificationHandler interface {
 	GetNotificationsBy(ctx *gin.Context)
 	MarkNotificationAsRead(ctx *gin.Context)
 	SendPushNotification(ctx *gin.Context)
+	SendBroadcastNotification(ctx *gin.Context)
 
 	// Backward compat alias
 	GenerateFCMToken(ctx *gin.Context)

@@ -30,6 +30,7 @@ require (
 	github.com/markbates/goth v1.77.0
 	github.com/nrednav/cuid2 v1.1.0
 	github.com/razorpay/razorpay-go v0.0.0-20230410044935-943abe07d4c1
+	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/spf13/viper v1.16.0
 	github.com/stretchr/testify v1.11.1
 	github.com/stripe/stripe-go/v72 v72.122.0

@@ -130,6 +130,15 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	platformUserRepository := repository.NewPlatformUserRepository(gormDB)
 	platformUserUseCase := usecase.NewPlatformUserUseCase(platformUserRepository, adminUseCase)
 	platformUserHandler := handler.NewPlatformUserHandler(platformUserUseCase, adminUseCase)
+	shopUpdateRepository := repository.NewShopUpdateRepository(gormDB)
+	shopUpdateUseCase := usecase.NewShopUpdateUseCase(shopUpdateRepository)
+	shopUpdateHandler := handler.NewShopUpdateHandler(shopUpdateUseCase, cloudService)
+	languageRepository := repository.NewLanguageRepository(gormDB)
+	languageUseCase := usecase.NewLanguageUseCase(languageRepository)
+	languageHandler := handler.NewLanguageHandler(languageUseCase)
+	qrCodeRepository := repository.NewQRCodeRepository(gormDB)
+	qrCodeUseCase := usecase.NewQRCodeUseCase(qrCodeRepository)
+	qrCodeHandler := handler.NewQRCodeHandler(qrCodeUseCase, cfg.PublicBaseURL)
 	sqlDB, err := provideSQLDB(gormDB)
 	if err != nil {
 		return nil, err
@@ -140,6 +149,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	aiHandler := handler.NewAIHandler(client)
 	invoiceHandler := handler.NewInvoiceHandler(invoiceUseCase)
 	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler, jobHandler, jobCategoryHandler, platformUserHandler, handlerHandler, aiHandler, invoiceHandler)
+	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler, jobHandler, jobCategoryHandler, platformUserHandler, mobileAuthHandler, aiHandler, shopUpdateHandler, languageHandler, qrCodeHandler)
 	return serverHTTP, nil
 }
 

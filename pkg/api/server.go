@@ -59,6 +59,9 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 	mobileAuthHandler handlerInterface.OTPAuthRequestHandler,
 	aiHandler *handler.AIHandler,
 	invoiceHandler handlerInterface.InvoiceHandler,
+	shopUpdateHandler *handler.ShopUpdateHandler,
+	languageHandler *handler.LanguageHandler,
+	qrCodeHandler *handler.QRCodeHandler,
 ) *ServerHTTP {
 
 	engine := gin.New()
@@ -125,6 +128,10 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 	routes.UserRoutes(engine.Group("/api"), authHandler, middleware, userHandler, cartHandler,
 		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler, notificationHandler, promotionHandler, subscriptionPaymentHandler, subscriptionHandler, searchHandler, invoiceHandler)
 	routes.UserBannerRoutes(engine.Group("/api"), bannerUserHandler)
+	routes.ShopUpdateRoutes(engine.Group("/api"), middleware, adminHandler, shopUpdateHandler)
+	// QR redirects: public /r/:code on the root engine + admin CRUD under /api.
+	routes.QRCodeRoutes(engine, engine.Group("/api"), middleware, adminHandler, qrCodeHandler)
+	routes.LanguageRoutes(engine.Group("/api"), middleware, languageHandler)
 	routes.SellerGuideRoutes(engine.Group("/api"), sellerGuideHandler)
 	routes.AdminRoutes(engine.Group("/api/admin"), authHandler, middleware, adminHandler,
 		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler, promotionHandler, fcmTokenHandler, notificationHandler, alertHandler, uiHandler, alertTemplateHandler,
