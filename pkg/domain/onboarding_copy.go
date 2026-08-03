@@ -63,6 +63,12 @@ type OnboardingLocationCopy struct {
 	GetLocationButton        string `json:"getLocationButton"`
 	UpdateLocationButton     string `json:"updateLocationButton"`
 	LocationSuccessToast     string `json:"locationSuccessToast"`
+	// Shown as a confirm dialog before capturing GPS (onboarding + profile
+	// update) so the seller only pins coordinates while physically at the shop.
+	LocationConfirmTitle        string `json:"locationConfirmTitle"`
+	LocationConfirmBody         string `json:"locationConfirmBody"`
+	LocationConfirmConfirmLabel string `json:"locationConfirmConfirmLabel"`
+	LocationConfirmCancelLabel  string `json:"locationConfirmCancelLabel"`
 }
 
 type OnboardingCategoryCopy struct {
@@ -163,6 +169,10 @@ func DefaultOnboardingWizardCopy() OnboardingWizardCopy {
 			GetLocationButton:        "Get current location",
 			UpdateLocationButton:     "Update location",
 			LocationSuccessToast:     "Location Update successfully!",
+			LocationConfirmTitle:        "Are you at your shop right now?",
+			LocationConfirmBody:         "This saves your current location as your shop's location, so nearby customers can find you. Please make sure you're standing at your shop before continuing.",
+			LocationConfirmConfirmLabel: "Yes, I'm at my shop",
+			LocationConfirmCancelLabel:  "Not now",
 		},
 		Category: OnboardingCategoryCopy{
 			Title:        "What kind of store do you run?",
