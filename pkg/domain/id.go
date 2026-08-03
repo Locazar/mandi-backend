@@ -91,6 +91,8 @@ const (
 	PrefixJobCategoryFilter   IDPrefix = "jcflt"
 	PrefixJobCategoryLocation IDPrefix = "jcloc"
 	PrefixCategoryRequest     IDPrefix = "catrq"
+	PrefixInvoice             IDPrefix = "inv"
+	PrefixCompanyProfile      IDPrefix = "cbp"
 	PrefixShopUpdate          IDPrefix = "shupd"
 	PrefixShopUpdateProduct   IDPrefix = "shupp"
 	PrefixLanguage            IDPrefix = "lang"
@@ -119,6 +121,7 @@ var allPrefixes = []IDPrefix{
 	PrefixMobileUser, PrefixOtpSession,
 	PrefixJob, PrefixJobCategory, PrefixJobSubCategory, PrefixJobLocation,
 	PrefixJobFilter, PrefixJobCategoryFilter, PrefixJobCategoryLocation,
+	PrefixCategoryRequest, PrefixInvoice, PrefixCompanyProfile,
 	PrefixCategoryRequest, PrefixShopUpdate, PrefixShopUpdateProduct,
 	PrefixLanguage, PrefixQRCode, PrefixQRScanEvent,
 }

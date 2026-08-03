@@ -12,6 +12,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/razorpay/razorpay-go"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
@@ -22,12 +23,20 @@ import (
 	"gorm.io/gorm"
 )
 
+// uniqueViolationSQLState is Postgres's SQLSTATE code for a unique-constraint
+// violation (23505). Used as the fallback duplicate-invoice check when the
+// driver error hasn't been translated into gorm.ErrDuplicatedKey.
+const uniqueViolationSQLState = "23505"
+
 const subscriptionOrderExpiryMinutes = 30
 
 type subscriptionPaymentUseCase struct {
 	subRepo     repoIface.SubscriptionRepository
 	paymentRepo repoIface.PaymentRepository
 	userRepo    repoIface.UserRepository
+	invoiceRepo repoIface.InvoiceRepository
+	adminRepo   repoIface.AdminRepository
+	invoiceUC   service.InvoiceUseCase
 	config      config.Config
 }
 
@@ -35,12 +44,18 @@ func NewSubscriptionPaymentUseCase(
 	subRepo repoIface.SubscriptionRepository,
 	paymentRepo repoIface.PaymentRepository,
 	userRepo repoIface.UserRepository,
+	invoiceRepo repoIface.InvoiceRepository,
+	adminRepo repoIface.AdminRepository,
+	invoiceUC service.InvoiceUseCase,
 	cfg config.Config,
 ) service.SubscriptionPaymentUseCase {
 	return &subscriptionPaymentUseCase{
 		subRepo:     subRepo,
 		paymentRepo: paymentRepo,
 		userRepo:    userRepo,
+		invoiceRepo: invoiceRepo,
+		adminRepo:   adminRepo,
+		invoiceUC:   invoiceUC,
 		config:      cfg,
 	}
 }
@@ -202,26 +217,7 @@ func (uc *subscriptionPaymentUseCase) VerifySubscriptionPayment(ctx context.Cont
 		return response.SubscriptionVerificationResponse{}, fmt.Errorf("find plan: %w", err)
 	}
 
-	orderID := order.ID
-	err = uc.subRepo.Transaction(func(trxRepo repoIface.SubscriptionRepository) error {
-		if err := trxRepo.UpdateSubscriptionOrderToPaid(ctx, order.ID, req.PaymentID); err != nil {
-			return err
-		}
-		// Deactivate any active trial before activating paid subscription
-		if err := trxRepo.DeactivateTrialSubscription(ctx, userID); err != nil {
-			return err
-		}
-		now := time.Now()
-		return trxRepo.ActivateSubscription(ctx, domain.UserSubscription{
-			UserID:              userID,
-			PlanID:              order.PlanID,
-			SubscriptionOrderID: &orderID,
-			StartDate:           now,
-			EndDate:             now.AddDate(0, 0, int(plan.DurationDays)),
-			IsActive:            true,
-		})
-	})
-	if err != nil {
+	if err := uc.markPaidAndActivate(ctx, order, plan, req.PaymentID); err != nil {
 		return response.SubscriptionVerificationResponse{}, fmt.Errorf("activate subscription: %w", err)
 	}
 
@@ -230,6 +226,189 @@ func (uc *subscriptionPaymentUseCase) VerifySubscriptionPayment(ctx context.Cont
 		Plan:        plan.Name,
 		ActivatedAt: time.Now().Format(time.RFC3339),
 	}, nil
+}
+
+// markPaidAndActivate is the single implementation of "this payment succeeded".
+// Both the synchronous verify path and the webhook path call it, so they cannot
+// drift apart.
+//
+// Only the payment-critical steps run inside a transaction: marking the order
+// paid, deactivating any trial, and activating the subscription. If that
+// transaction fails, the payment genuinely did not complete and the error
+// propagates to the caller.
+//
+// Invoice issuance happens AFTER the transaction commits, in
+// issueInvoiceForPaidOrder. It is deliberately kept out of the transaction: an
+// invoice write failure must never roll back an already-captured payment,
+// leaving the order stuck at status='created' while Razorpay holds the money.
+// That is unrecoverable. A missing invoice, by contrast, is recoverable — it
+// can be backfilled — so issueInvoiceForPaidOrder is written to never fail the
+// payment; see its docs for how it stays safe against duplicate issuance.
+func (uc *subscriptionPaymentUseCase) markPaidAndActivate(
+	ctx context.Context,
+	order domain.SubscriptionOrder,
+	plan domain.SubscriptionPlan,
+	paymentID string,
+) error {
+	orderID := order.ID
+
+	if err := uc.subRepo.Transaction(func(repo repoIface.SubscriptionRepository) error {
+		if err := repo.UpdateSubscriptionOrderToPaid(ctx, order.ID, paymentID); err != nil {
+			return err
+		}
+		if err := repo.DeactivateTrialSubscription(ctx, order.UserID); err != nil {
+			return err
+		}
+
+		now := time.Now()
+		if err := repo.ActivateSubscription(ctx, domain.UserSubscription{
+			UserID:              order.UserID,
+			PlanID:              order.PlanID,
+			SubscriptionOrderID: &orderID,
+			StartDate:           now,
+			EndDate:             now.AddDate(0, 0, int(plan.DurationDays)),
+			IsActive:            true,
+		}); err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	uc.issueInvoiceForPaidOrder(ctx, order, plan, paymentID)
+	return nil
+}
+
+// issueInvoiceForPaidOrder issues the tax invoice for a payment that has
+// already been committed to the database. It runs outside the payment
+// transaction and must NEVER return an error that fails the payment — every
+// failure path here logs and returns.
+//
+// Duplicate protection: subscription_invoices.subscription_order_id is UNIQUE
+// (migration 000034), so if the webhook and the synchronous verify path race
+// each other into this function for the same order, the loser's CreateInvoice
+// hits a unique-constraint violation. That is treated as success — the
+// invoice already exists — not as an error.
+func (uc *subscriptionPaymentUseCase) issueInvoiceForPaidOrder(
+	ctx context.Context,
+	order domain.SubscriptionOrder,
+	plan domain.SubscriptionPlan,
+	paymentID string,
+) {
+	profile, err := uc.invoiceRepo.GetCompanyBillingProfile(ctx)
+	if err != nil || profile.LegalName == "" {
+		// Unlike a missing shop (decoration on the buyer side of the invoice),
+		// a missing issuer profile means there is no legally valid invoice to
+		// issue at all — printing one with a blank legal name, GSTIN and
+		// address would be worse than not issuing it. Skip rather than issue a
+		// broken one: subscription_invoices rows are immutable, so a bad
+		// invoice can never be corrected, whereas a skipped one is recoverable
+		// via cmd/backfill-invoices, which refuses to run under the same
+		// condition (see its LegalName check).
+		reason := "legal_name is blank"
+		if err != nil {
+			reason = err.Error()
+		}
+		log.Printf("[INVOICE_PROFILE_MISSING] order_id=%s user_id=%s reason=%s", order.ID, order.UserID, reason)
+		return
+	}
+
+	shop, err := uc.adminRepo.GetShopByOwnerID(ctx, order.UserID)
+	if err != nil {
+		log.Printf("[INVOICE_SHOP_LOOKUP_FAILED] order_id=%s user_id=%s err=%v", order.ID, order.UserID, err)
+		shop = domain.ShopDetails{}
+	}
+
+	// Cheap short-circuit if this order already has an invoice: skips a wasted
+	// transaction and a duplicate-key round trip. Not load-bearing for
+	// correctness — CreateInvoiceWithSequence's transaction makes a genuine
+	// race safe on its own (a duplicate-key insert rolls the sequence
+	// allocation back too, so nothing is burned) — but it makes
+	// issueInvoiceForPaidOrder idempotent by contract, which is what its name
+	// promises to any caller, present or future.
+	if existing, err := uc.invoiceRepo.FindInvoiceBySubscriptionOrderID(ctx, order.ID); err == nil && existing.ID != "" {
+		log.Printf("[INVOICE_ALREADY_ISSUED] invoice_number=%s order_id=%s user_id=%s",
+			existing.InvoiceNumber, order.ID, order.UserID)
+		return
+	}
+
+	// The order in hand may still have PaidAt unset (the transaction set it in
+	// the database), so stamp it for the snapshot.
+	now := time.Now()
+	paidOrder := order
+	paidOrder.RazorpayPaymentID = &paymentID
+	if paidOrder.PaidAt == nil {
+		paidOrder.PaidAt = &now
+	}
+
+	// Allocate the sequence number and create the invoice in one transaction.
+	// subscription_invoices is required to have a gapless numbering series; a
+	// number consumed by an allocation whose insert then fails would otherwise
+	// be burned permanently (issuance runs outside the payment transaction, so
+	// nothing else rolls it back). Wrapping both in one transaction means a
+	// failed insert also undoes the allocation, so the number stays available
+	// for the very next attempt instead of leaving a hole in the series.
+	financialYear := domain.FinancialYear(*paidOrder.PaidAt)
+	inv, err := uc.invoiceRepo.CreateInvoiceWithSequence(ctx, financialYear, func(seq int) domain.Invoice {
+		return BuildInvoice(BuildInvoiceInput{
+			Order:          paidOrder,
+			Plan:           plan,
+			Shop:           shop,
+			Profile:        profile,
+			SequenceNumber: seq,
+		})
+	})
+	if err != nil {
+		if isDuplicateInvoiceError(err) {
+			log.Printf("[INVOICE_ALREADY_ISSUED] order_id=%s user_id=%s", order.ID, order.UserID)
+			return
+		}
+		log.Printf("[INVOICE_ISSUE_FAILED] step=create_invoice order_id=%s user_id=%s err=%v",
+			order.ID, order.UserID, err)
+		return
+	}
+
+	log.Printf("[INVOICE_ISSUED] invoice_number=%s order_id=%s user_id=%s",
+		inv.InvoiceNumber, order.ID, order.UserID)
+
+	// PDF generation runs in the background and is best-effort: the invoice row
+	// is already durable, and the download path re-renders on demand if this
+	// never completes. A PDF failure must never fail the payment or block the
+	// HTTP response that already succeeded by this point.
+	go func() {
+		bgCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		defer cancel()
+
+		key, err := uc.invoiceUC.GenerateAndStorePDF(bgCtx, inv)
+		if err != nil {
+			log.Printf("[INVOICE_PDF] render failed invoice=%s: %v", inv.InvoiceNumber, err)
+			return
+		}
+		if err := uc.invoiceRepo.SetInvoicePDF(bgCtx, inv.ID, key); err != nil {
+			log.Printf("[INVOICE_PDF] key persist failed invoice=%s: %v", inv.InvoiceNumber, err)
+		}
+	}()
+}
+
+// isDuplicateInvoiceError reports whether err is a unique-constraint violation
+// on subscription_invoices.subscription_order_id — i.e. an invoice for this
+// order already exists. Prefers the typed gorm sentinel; falls back to
+// inspecting the underlying Postgres error for setups where the driver error
+// hasn't been translated (gorm's postgres driver only does that translation
+// when TranslateError is enabled).
+func isDuplicateInvoiceError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, gorm.ErrDuplicatedKey) {
+		return true
+	}
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		return pgErr.Code == uniqueViolationSQLState
+	}
+	return false
 }
 
 // HandlePaymentFailure logs a payment failure without changing order state.
@@ -310,25 +489,10 @@ func (uc *subscriptionPaymentUseCase) HandleWebhook(ctx context.Context, signatu
 		return fmt.Errorf("find plan: %w", err)
 	}
 
-	webhookOrderID := order.ID
-	return uc.subRepo.Transaction(func(trxRepo repoIface.SubscriptionRepository) error {
-		if err := trxRepo.UpdateSubscriptionOrderToPaid(ctx, order.ID, paymentID); err != nil {
-			return err
-		}
-		// Deactivate any active trial before activating paid subscription
-		if err := trxRepo.DeactivateTrialSubscription(ctx, order.UserID); err != nil {
-			return err
-		}
-		now := time.Now()
-		return trxRepo.ActivateSubscription(ctx, domain.UserSubscription{
-			UserID:              order.UserID,
-			PlanID:              order.PlanID,
-			SubscriptionOrderID: &webhookOrderID,
-			StartDate:           now,
-			EndDate:             now.AddDate(0, 0, int(plan.DurationDays)),
-			IsActive:            true,
-		})
-	})
+	if err := uc.markPaidAndActivate(ctx, order, plan, paymentID); err != nil {
+		return fmt.Errorf("activate subscription: %w", err)
+	}
+	return nil
 }
 
 // verifySignature performs HMAC-SHA256 signature verification.

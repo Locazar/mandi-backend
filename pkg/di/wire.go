@@ -22,6 +22,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/service/crypto"
 	elasticsearch "github.com/rohit221990/mandi-backend/pkg/service/elasticsearch"
 	"github.com/rohit221990/mandi-backend/pkg/service/graphics"
+	invoicesvc "github.com/rohit221990/mandi-backend/pkg/service/invoice"
 	"github.com/rohit221990/mandi-backend/pkg/service/otp"
 	"github.com/rohit221990/mandi-backend/pkg/service/sms"
 	"github.com/rohit221990/mandi-backend/pkg/service/token"
@@ -59,6 +60,20 @@ func provideCryptoService(cfg config.Config) (*crypto.Service, error) {
 	return crypto.NewService(keys, cfg.PIIEncryptionActiveKey)
 }
 
+// provideSkipOTPValidation and provideSkipOTPValidationVariadic exist solely so
+// Wire can resolve the plain-bool and variadic-bool skipOTPValidation
+// parameters on NewAdminUseCase/NewMobileAuthUseCase and NewAuthUseCase
+// respectively. Both read the same cfg.SkipOTPValidation value; this is not a
+// behaviour change, only a name Wire's provider graph can attach to. Wire
+// treats a trailing `...bool` parameter as requiring a []bool provider.
+func provideSkipOTPValidation(cfg config.Config) bool {
+	return cfg.SkipOTPValidation
+}
+
+func provideSkipOTPValidationVariadic(cfg config.Config) []bool {
+	return []bool{cfg.SkipOTPValidation}
+}
+
 func provideAlertRuleRegistry() *alert_engine.RuleRegistry {
 	registry := alert_engine.NewRuleRegistry()
 	// Register default rules
@@ -88,11 +103,18 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		// graphics
 		graphics.NewGraphicsService,
 
+		// invoice PDF rendering
+		invoicesvc.NewPDFRenderer,
+
 		// PII field encryption
 		provideCryptoService,
 
 		// alert engine
 		provideAlertRuleRegistry,
+
+		// shared config-derived values Wire cannot infer automatically
+		provideSkipOTPValidation,
+		provideSkipOTPValidationVariadic,
 
 		// middleware
 		middleware.NewMiddleware,
@@ -118,6 +140,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		repository.NewNotificationRepository,
 		repository.NewAlertRepository,
 		repository.NewPlatformUserRepository,
+		repository.NewInvoiceRepository,
 		repository.NewShopUpdateRepository,
 		repository.NewLanguageRepository,
 		repository.NewQRCodeRepository,
@@ -146,6 +169,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		usecase.NewAlertTemplateUseCase,
 		usecase.NewBannerUseCase,
 		usecase.NewPlatformUserUseCase,
+		usecase.NewInvoiceUseCase,
 		usecase.NewShopUpdateUseCase,
 		usecase.NewLanguageUseCase,
 		usecase.NewQRCodeUseCase,
@@ -201,6 +225,8 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		wire.Bind(new(interfaces.OTPAuthRequestHandler), new(*handler.Handler)),
 		// ai service proxy
 		handler.NewAIHandler,
+
+		handler.NewInvoiceHandler,
 
 		http.NewServerHTTP,
 	)

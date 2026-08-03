@@ -800,8 +800,9 @@ func (p *ProductHandler) GetAllProductItemsUser() func(*gin.Context) {
 }
 
 // same functionality of get all product items for admin and user.
-// customerView=true applies the subscription visibility gate (customer-facing);
-// admin/seller callers pass false so a lapsed seller still sees their own items.
+// customerView=true applies the shop-status and subscription visibility gates
+// (customer-facing); admin/seller callers pass false so a seller still sees
+// their own items while awaiting approval or with a lapsed subscription.
 func (p *ProductHandler) getAllProductItems(adminID string, customerView bool) func(ctx *gin.Context) {
 	return func(ctx *gin.Context) {
 

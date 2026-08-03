@@ -26,6 +26,18 @@ func TestVerificationStatusIsValid(t *testing.T) {
 	}
 }
 
+func TestShopStatusIsValid(t *testing.T) {
+	valid := []ShopStatusType{ShopStatusActive, ShopStatusInactive, ShopStatusSuspended, ShopStatusUnderReview, ShopStatusRejected}
+	for _, s := range valid {
+		if !s.IsValid() {
+			t.Errorf("%q should be valid", s)
+		}
+	}
+	if ShopStatusType("pending_review").IsValid() {
+		t.Error("pending_review should be invalid (use under_review)")
+	}
+}
+
 func TestAdvertisementEnumsIsValid(t *testing.T) {
 	if !AdvertisementStatusExpired.IsValid() || !AdvertisementPriorityHigh.IsValid() {
 		t.Error("expected expired/high to be valid")

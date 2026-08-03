@@ -91,6 +91,10 @@ func (u *userRepoAdapter) SaveShopFeedback(ctx context.Context, userID string, s
 	return nil
 }
 
+func (u *userRepoAdapter) GetShopFeedbackList(ctx context.Context, shopID string) ([]domain.ShopSocial, error) {
+	return nil, nil
+}
+
 func TestUserLogin(t *testing.T) {
 
 	tests := []struct {

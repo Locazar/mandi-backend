@@ -8,10 +8,7 @@ package di
 
 import (
 	"database/sql"
-
-	"gorm.io/gorm"
-
-	http "github.com/rohit221990/mandi-backend/pkg/api"
+	"github.com/rohit221990/mandi-backend/pkg/api"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler"
 	"github.com/rohit221990/mandi-backend/pkg/api/middleware"
 	"github.com/rohit221990/mandi-backend/pkg/config"
@@ -23,10 +20,12 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/service/crypto"
 	"github.com/rohit221990/mandi-backend/pkg/service/elasticsearch"
 	"github.com/rohit221990/mandi-backend/pkg/service/graphics"
+	"github.com/rohit221990/mandi-backend/pkg/service/invoice"
 	"github.com/rohit221990/mandi-backend/pkg/service/otp"
 	"github.com/rohit221990/mandi-backend/pkg/service/sms"
 	"github.com/rohit221990/mandi-backend/pkg/service/token"
 	"github.com/rohit221990/mandi-backend/pkg/usecase"
+	"gorm.io/gorm"
 )
 
 // Injectors from wire.go:
@@ -47,10 +46,12 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	otpAuth := otp.NewOtpAuth(cfg)
 	mobileOTPService := otp.NewMobileOTPService()
 	twoFactorSMSService := provideTwoFactorSMSService(cfg)
-	authUseCase := usecase.NewAuthUseCase(authRepository, tokenService, userRepository, adminRepository, otpAuth, mobileOTPService, twoFactorSMSService, cfg.SkipOTPValidation)
+	v := provideSkipOTPValidationVariadic(cfg)
+	authUseCase := usecase.NewAuthUseCase(authRepository, tokenService, userRepository, adminRepository, otpAuth, mobileOTPService, twoFactorSMSService, v...)
 	authHandler := handler.NewAuthHandler(authUseCase, cfg, tokenService)
 	middlewareMiddleware := middleware.NewMiddleware(tokenService)
-	adminUseCase := usecase.NewAdminUseCase(adminRepository, userRepository, authRepository, otpAuth, tokenService, mobileOTPService, twoFactorSMSService, cfg.SkipOTPValidation, cfg)
+	bool2 := provideSkipOTPValidation(cfg)
+	adminUseCase := usecase.NewAdminUseCase(adminRepository, userRepository, authRepository, otpAuth, tokenService, mobileOTPService, twoFactorSMSService, bool2, cfg)
 	shopTimeRepository := repository.NewShopTimeRepository(gormDB)
 	shopTimeUseCase := usecase.NewShopTimeUseCase(shopTimeRepository)
 	cloudService, err := cloud.NewObjectStorageService(cfg)
@@ -114,9 +115,12 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	bannerUseCase := usecase.NewBannerUseCase(bannerRepository)
 	bannerUserHandler := handler.NewBannerUserHandler(bannerUseCase, cloudService)
 	subscriptionRepository := repository.NewSubscriptionRepository(gormDB)
-	subscriptionPaymentUseCase := usecase.NewSubscriptionPaymentUseCase(subscriptionRepository, paymentRepository, userRepository, cfg)
+	invoiceRepository := repository.NewInvoiceRepository(gormDB)
+	renderer := invoice.NewPDFRenderer()
+	invoiceUseCase := usecase.NewInvoiceUseCase(invoiceRepository, subscriptionRepository, adminRepository, renderer, cloudService)
+	subscriptionPaymentUseCase := usecase.NewSubscriptionPaymentUseCase(subscriptionRepository, paymentRepository, userRepository, invoiceRepository, adminRepository, invoiceUseCase, cfg)
 	subscriptionPaymentHandler := handler.NewSubscriptionPaymentHandler(subscriptionPaymentUseCase)
-	subscriptionUseCase := usecase.NewSubscriptionUseCase(subscriptionRepository, userRepository)
+	subscriptionUseCase := usecase.NewSubscriptionUseCase(subscriptionRepository, userRepository, invoiceRepository)
 	subscriptionHandler := handler.NewSubscriptionHandler(subscriptionUseCase)
 	sellerGuideHandler := handler.NewSellerGuideHandler(cloudService)
 	jobService := usecase.NewJobService(gormDB)
@@ -140,9 +144,11 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		return nil, err
 	}
 	mobileAuthRepository := repository.NewMobileAuthRepository(sqlDB)
-	mobileAuthUseCase := usecase.NewMobileAuthUseCase(mobileAuthRepository, mobileOTPService, twoFactorSMSService, tokenService, cfg.SkipOTPValidation)
-	mobileAuthHandler := handler.NewHandler(mobileAuthUseCase)
+	mobileAuthUseCase := usecase.NewMobileAuthUseCase(mobileAuthRepository, mobileOTPService, twoFactorSMSService, tokenService, bool2)
+	handlerHandler := handler.NewHandler(mobileAuthUseCase)
 	aiHandler := handler.NewAIHandler(client)
+	invoiceHandler := handler.NewInvoiceHandler(invoiceUseCase)
+	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler, jobHandler, jobCategoryHandler, platformUserHandler, handlerHandler, aiHandler, invoiceHandler)
 	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler, jobHandler, jobCategoryHandler, platformUserHandler, mobileAuthHandler, aiHandler, shopUpdateHandler, languageHandler, qrCodeHandler)
 	return serverHTTP, nil
 }
@@ -171,6 +177,20 @@ func provideCryptoService(cfg config.Config) (*crypto.Service, error) {
 		return nil, err
 	}
 	return crypto.NewService(keys, cfg.PIIEncryptionActiveKey)
+}
+
+// provideSkipOTPValidation and provideSkipOTPValidationVariadic exist solely so
+// Wire can resolve the plain-bool and variadic-bool skipOTPValidation
+// parameters on NewAdminUseCase/NewMobileAuthUseCase and NewAuthUseCase
+// respectively. Both read the same cfg.SkipOTPValidation value; this is not a
+// behaviour change, only a name Wire's provider graph can attach to. Wire
+// treats a trailing `...bool` parameter as requiring a []bool provider.
+func provideSkipOTPValidation(cfg config.Config) bool {
+	return cfg.SkipOTPValidation
+}
+
+func provideSkipOTPValidationVariadic(cfg config.Config) []bool {
+	return []bool{cfg.SkipOTPValidation}
 }
 
 func provideAlertRuleRegistry() *alert_engine.RuleRegistry {

@@ -36,14 +36,16 @@ func (s ShopType) IsValid() bool {
 type ShopStatusType string
 
 const (
-	ShopStatusActive    ShopStatusType = "active"
-	ShopStatusInactive  ShopStatusType = "inactive"
-	ShopStatusSuspended ShopStatusType = "suspended"
+	ShopStatusActive      ShopStatusType = "active"
+	ShopStatusInactive    ShopStatusType = "inactive"
+	ShopStatusSuspended   ShopStatusType = "suspended"
+	ShopStatusUnderReview ShopStatusType = "under_review"
+	ShopStatusRejected    ShopStatusType = "rejected"
 )
 
 func (s ShopStatusType) IsValid() bool {
 	switch s {
-	case ShopStatusActive, ShopStatusInactive, ShopStatusSuspended:
+	case ShopStatusActive, ShopStatusInactive, ShopStatusSuspended, ShopStatusUnderReview, ShopStatusRejected:
 		return true
 	}
 	return false

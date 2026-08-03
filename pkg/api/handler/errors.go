@@ -77,6 +77,9 @@ var sentinelStatus = map[error]int{
 	usecase.ErrBrandAlreadyExist: http.StatusConflict,
 	// alert / shop
 	usecase.ErrShopNotFound: http.StatusNotFound,
+	// invoice
+	usecase.ErrInvoiceNotFound: http.StatusNotFound,
+	usecase.ErrInvoiceNotOwned: http.StatusForbidden,
 }
 
 // errResponse writes a structured error response for usecase errors.

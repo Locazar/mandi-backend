@@ -25,6 +25,13 @@ type AdminUseCase interface {
 	GetVerificationStatus(ctx context.Context, adminId string) (domain.Admin, domain.ShopVerification, error)
 	UpdateSellerProductLimit(ctx context.Context, adminID string, limit int) error
 
+	// SubmitShopForReview is the seller's "submit for verification" action —
+	// moves the shop to under_review. ApproveShop/RejectShop are the admin's
+	// explicit go-live decision, and reindex/notify as a side effect.
+	SubmitShopForReview(ctx context.Context, verify request.ShopVerification) error
+	ApproveShop(ctx context.Context, shopID string) error
+	RejectShop(ctx context.Context, shopID, remark string) error
+
 	CreateAdvertisement(ctx context.Context, ad domain.Advertisement) (domain.Advertisement, error)
 	GetAllAdvertisements(ctx context.Context, pagination request.Pagination, filter domain.AdvertisementFilter) (ads []domain.Advertisement, err error)
 	GetAdvertisementByID(ctx context.Context, advertisementID string) (domain.Advertisement, error)

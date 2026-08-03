@@ -21,6 +21,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 	platformUserHandler handlerInterface.PlatformUserHandler,
 	mobileAuthHandler handlerInterface.OTPAuthRequestHandler,
 	sellerGuideHandler handlerInterface.SellerGuideHandler,
+	invoiceHandler handlerInterface.InvoiceHandler,
 ) {
 
 	auth := api.Group("/auth")
@@ -442,6 +443,22 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			subscriptionPricing.PUT("/gst", middleware.TrimSpaces(), adminHandler.UpdateSubscriptionGSTConfig)
 		}
 
+		// Company billing profile — the issuer details printed on every
+		// subscription invoice (admin panel)
+		companyBillingProfile := api.Group("/company-billing-profile", adminHandler.RequirePermission(domain.PermCanManageSettings))
+		{
+			companyBillingProfile.GET("", invoiceHandler.GetCompanyBillingProfile)
+			companyBillingProfile.PUT("", middleware.TrimSpaces(), invoiceHandler.UpdateCompanyBillingProfile)
+		}
+
+		// Subscription invoices — admin listing and download of any
+		// seller's tax invoice (admin panel)
+		subscriptionInvoices := api.Group("/subscription-invoices", adminHandler.RequirePermission(domain.PermCanManageSettings))
+		{
+			subscriptionInvoices.GET("", invoiceHandler.ListInvoices)
+			subscriptionInvoices.GET("/:invoice_id/download", invoiceHandler.AdminDownloadInvoice)
+		}
+
 		// Shop details
 		sellers := api.Group("/sellers", adminHandler.RequirePermission(domain.PermCanManageAdmins))
 		{
@@ -459,6 +476,9 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			shop.PUT("/:shop_id", adminHandler.UploadShopById)
 			shop.GET("/shop_details", adminHandler.GetShopByOwnerID)
 			shop.POST("/verify", adminHandler.VerifyShop)
+			shop.POST("/submit-for-review", adminHandler.SubmitShopForReview)
+			shop.POST("/:shop_id/approve", adminHandler.ApproveShop)
+			shop.POST("/:shop_id/reject", adminHandler.RejectShop)
 			shop.GET("/verify-status", adminHandler.GetVerificationStatus)
 
 			shop.POST("/upload-profile-image", middleware.AuthenticateAdmin(), adminHandler.UploadAdminProfileImage)

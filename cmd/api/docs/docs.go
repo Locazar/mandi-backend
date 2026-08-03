@@ -600,54 +600,29 @@ const docTemplate = `{
                 }
             }
         },
-        "/admin/advertisements": {
+        "/admin/advertisement-pricing": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "API for admin to get all advertisements",
                 "tags": [
-                    "Advertisement Management"
+                    "Advertisement Pricing"
                 ],
-                "summary": "Get all advertisements",
-                "operationId": "GetAllAdvertisements",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Page Number",
-                        "name": "page_number",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Count",
-                        "name": "count",
-                        "in": "query"
-                    }
-                ],
+                "summary": "Get advertisement pricing configuration (plans + charges)",
+                "operationId": "GetAdvertisementPricing",
                 "responses": {
                     "200": {
-                        "description": "Successfully got all advertisements",
-                        "schema": {
-                            "$ref": "#/definitions/response.Response"
-                        }
-                    },
-                    "204": {
-                        "description": "No advertisements found",
-                        "schema": {
-                            "$ref": "#/definitions/response.Response"
-                        }
-                    },
-                    "500": {
-                        "description": "Failed to get all advertisements",
+                        "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
                     }
                 }
-            },
+            }
+        },
+        "/admin/advertisement-pricing/config": {
             "put": {
                 "security": [
                     {
@@ -655,30 +630,155 @@ const docTemplate = `{
                     }
                 ],
                 "tags": [
-                    "Advertisement Management"
+                    "Advertisement Pricing"
                 ],
-                "summary": "api for admin to update advertisement",
-                "operationId": "UpdateAdvertisement",
-                "parameters": [
-                    {
-                        "description": "inputs",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/domain.Advertisement"
-                        }
-                    }
-                ],
+                "summary": "Update GST/platform-fee percentages",
+                "operationId": "UpdateAdvertisementPricingConfig",
                 "responses": {
                     "200": {
-                        "description": "Successfully updated advertisement",
+                        "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
                     },
                     "400": {
-                        "description": "invalid input",
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/advertisement-pricing/plans": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Advertisement Pricing"
+                ],
+                "summary": "Create an advertisement price plan",
+                "operationId": "CreateAdvertisementPlan",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/advertisement-pricing/plans/{plan_id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Advertisement Pricing"
+                ],
+                "summary": "Update an advertisement price plan",
+                "operationId": "UpdateAdvertisementPlan",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Plan ID",
+                        "name": "plan_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Advertisement Pricing"
+                ],
+                "summary": "Delete an advertisement price plan",
+                "operationId": "DeleteAdvertisementPlan",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Plan ID",
+                        "name": "plan_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/advertisement-requests": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Advertisement Requests"
+                ],
+                "summary": "List advertisement requests",
+                "operationId": "GetAllAdvertisementRequests",
+                "parameters": [
+                    {
+                        "type": "boolean",
+                        "description": "Only the caller's own requests",
+                        "name": "mine",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -692,30 +792,537 @@ const docTemplate = `{
                     }
                 ],
                 "tags": [
-                    "Advertisement Management"
+                    "Advertisement Requests"
                 ],
-                "summary": "api for admin to create advertisement",
-                "operationId": "CreateAdvertisement",
-                "parameters": [
-                    {
-                        "description": "inputs",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/domain.Advertisement"
-                        }
-                    }
-                ],
+                "summary": "Create an advertisement request (seller)",
+                "operationId": "CreateAdvertisementRequest",
                 "responses": {
-                    "200": {
-                        "description": "Successfully created advertisement",
+                    "201": {
+                        "description": "Created",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
                     },
                     "400": {
-                        "description": "invalid input",
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/advertisement-requests/payment-failed": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Advertisement Requests"
+                ],
+                "summary": "Record a failed advertisement payment attempt",
+                "operationId": "AdvertisementPaymentFailed",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/advertisement-requests/pricing": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Advertisement Requests"
+                ],
+                "summary": "Get advertisement price plans for a date range",
+                "operationId": "GetAdvertisementPricePlans",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Start date (YYYY-MM-DD)",
+                        "name": "start_date",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "End date (YYYY-MM-DD)",
+                        "name": "end_date",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/advertisement-requests/verify-payment": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Advertisement Requests"
+                ],
+                "summary": "Verify a Razorpay payment for an advertisement request",
+                "operationId": "VerifyAdvertisementPayment",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "402": {
+                        "description": "Payment Required",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/advertisement-requests/{request_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Advertisement Requests"
+                ],
+                "summary": "Get one advertisement request",
+                "operationId": "GetAdvertisementRequestByID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Advertisement request ID",
+                        "name": "request_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Advertisement Requests"
+                ],
+                "summary": "Update an advertisement request (status/comment or details)",
+                "operationId": "UpdateAdvertisementRequest",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Advertisement request ID",
+                        "name": "request_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Advertisement Requests"
+                ],
+                "summary": "Delete an advertisement request",
+                "operationId": "DeleteAdvertisementRequest",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Advertisement request ID",
+                        "name": "request_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/advertisement-requests/{request_id}/create-order": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Advertisement Requests"
+                ],
+                "summary": "Create a Razorpay order for an approved advertisement request",
+                "operationId": "CreateAdvertisementPaymentOrder",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Advertisement request ID",
+                        "name": "request_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/advertisement-requests/{request_id}/invoice": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Advertisement Requests"
+                ],
+                "summary": "Get invoice (GST + charges breakdown) for an approved request",
+                "operationId": "GetAdvertisementRequestInvoice",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Advertisement request ID",
+                        "name": "request_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/advertisements": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns all advertisements with optional filters. All filters are optional and can be combined.",
+                "tags": [
+                    "Advertisement Management"
+                ],
+                "summary": "List advertisements (Admin)",
+                "operationId": "GetAllAdvertisements",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page number",
+                        "name": "page_number",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page",
+                        "name": "count",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by department ID",
+                        "name": "department_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by category ID",
+                        "name": "category_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by targeted pincode",
+                        "name": "pincode_targeted",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Latitude for geo proximity filter (requires longitude and distance_km)",
+                        "name": "latitude",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Longitude for geo proximity filter (requires latitude and distance_km)",
+                        "name": "longitude",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Radius in km for geo proximity filter (requires latitude and longitude)",
+                        "name": "distance_km",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by status (active|inactive|expired)",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by audience (customer|seller)",
+                        "name": "audience",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by priority (high|medium|low)",
+                        "name": "priority",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by admin ID",
+                        "name": "admin_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter ads whose start_date \u003e= this date (YYYY-MM-DD or RFC3339)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter ads whose end_date \u003c= this date (YYYY-MM-DD or RFC3339)",
+                        "name": "end_date",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Advertisement Management"
+                ],
+                "summary": "Create advertisement (Admin)",
+                "operationId": "CreateAdvertisement",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Title",
+                        "name": "title",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Content / description",
+                        "name": "content",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Click-through URL",
+                        "name": "target_url",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start date (RFC3339)",
+                        "name": "start_date",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "End date (RFC3339)",
+                        "name": "end_date",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "active | inactive | expired",
+                        "name": "status",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "high | medium | low",
+                        "name": "priority",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Target area name",
+                        "name": "area_targeted",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Target pincode",
+                        "name": "pincode_targeted",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Contact phone number",
+                        "name": "phone",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Latitude",
+                        "name": "latitude",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Longitude",
+                        "name": "longitude",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Radius in km",
+                        "name": "distance_km",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "Banner image",
+                        "name": "photo",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -724,6 +1331,137 @@ const docTemplate = `{
             }
         },
         "/admin/advertisements/{advertisement_id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Advertisement Management"
+                ],
+                "summary": "Update advertisement (Admin)",
+                "operationId": "UpdateAdvertisement",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Advertisement ID",
+                        "name": "advertisement_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Title",
+                        "name": "title",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Content",
+                        "name": "content",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Click-through URL",
+                        "name": "target_url",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start date",
+                        "name": "start_date",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End date",
+                        "name": "end_date",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "active | inactive | expired",
+                        "name": "status",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "high | medium | low",
+                        "name": "priority",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Target area",
+                        "name": "area_targeted",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Target pincode",
+                        "name": "pincode_targeted",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Contact phone number",
+                        "name": "phone",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Latitude",
+                        "name": "latitude",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Longitude",
+                        "name": "longitude",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Radius km",
+                        "name": "distance_km",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "New banner image (omit to keep existing)",
+                        "name": "photo",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
             "delete": {
                 "security": [
                     {
@@ -733,7 +1471,7 @@ const docTemplate = `{
                 "tags": [
                     "Advertisement Management"
                 ],
-                "summary": "api for admin to delete advertisement",
+                "summary": "Delete advertisement (Admin)",
                 "operationId": "DeleteAdvertisement",
                 "parameters": [
                     {
@@ -746,19 +1484,19 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Successfully deleted advertisement",
+                        "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
                     },
                     "400": {
-                        "description": "invalid advertisement ID",
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
                     },
                     "500": {
-                        "description": "Failed to delete advertisement",
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -1031,6 +1769,112 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/app-configs": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "App Configs"
+                ],
+                "summary": "List app configs",
+                "operationId": "ListAppConfigs",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "App Configs"
+                ],
+                "summary": "Create app config",
+                "operationId": "CreateAppConfig",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/app-configs/{config_id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "App Configs"
+                ],
+                "summary": "Update app config",
+                "operationId": "UpdateAppConfig",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "App Configs"
+                ],
+                "summary": "Delete app config",
+                "operationId": "DeleteAppConfig",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/app-configs/{config_key}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "App Configs"
+                ],
+                "summary": "Get app config by key",
+                "operationId": "GetAppConfigByKey",
+                "responses": {
+                    "200": {
+                        "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -1338,6 +2182,47 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/auth/signup/otp/send": {
+            "post": {
+                "description": "Sends an OTP to the seller's mobile. Creates the seller if new (full_name/password), otherwise resends for login. Returns otp_id used on verify.",
+                "tags": [
+                    "Seller Authentication"
+                ],
+                "summary": "Send signup/login OTP (Seller)",
+                "operationId": "SellerSignupOtpSend",
+                "parameters": [
+                    {
+                        "description": "Phone (mobile/phone) and optional full_name/password",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.SignupOtpSend"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OTP sent",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to send OTP",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/brands": {
             "get": {
                 "security": [
@@ -1567,6 +2452,169 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "failed to delete brand",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/catalog/categories/{category_id}/sub-categories/{sub_category_id}/attributes/{attribute_id}": {
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Products"
+                ],
+                "summary": "Update sub type attribute",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Sub Category ID",
+                        "name": "sub_category_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Attribute ID",
+                        "name": "attribute_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Updated attribute",
+                        "name": "attribute",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.SubTypeAttribute"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Products"
+                ],
+                "summary": "Delete sub type attribute",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Attribute ID",
+                        "name": "attribute_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/catalog/categories/{category_id}/sub-categories/{sub_category_id}/attributes/{attribute_id}/options/{option_id}": {
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Products"
+                ],
+                "summary": "Update sub type attribute option",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Option ID",
+                        "name": "option_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Updated option",
+                        "name": "option",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.SubTypeAttributeOption"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Products"
+                ],
+                "summary": "Delete sub type attribute option",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Option ID",
+                        "name": "option_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -1999,6 +3047,121 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/company-billing-profile": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the issuer details printed on every subscription invoice",
+                "tags": [
+                    "Admin Invoice"
+                ],
+                "summary": "Get company billing profile (Admin)",
+                "operationId": "GetCompanyBillingProfile",
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved company billing profile",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve company billing profile",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Updates the issuer details printed on future subscription invoices. Already-issued invoices are unaffected.",
+                "tags": [
+                    "Admin Invoice"
+                ],
+                "summary": "Update company billing profile (Admin)",
+                "operationId": "UpdateCompanyBillingProfile",
+                "parameters": [
+                    {
+                        "description": "Billing profile",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.UpdateCompanyBillingProfileRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully updated company billing profile",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to update company billing profile",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/config": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "App Configs"
+                ],
+                "summary": "Get the structured global app config (CDN, feature flags, HTTP, image upload, AI)",
+                "operationId": "GetGlobalConfig",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "App Configs"
+                ],
+                "summary": "Update the structured global app config",
+                "operationId": "UpdateGlobalConfig",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/coupons": {
             "get": {
                 "security": [
@@ -2164,6 +3327,75 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/departments/{department_id}": {
+            "put": {
+                "description": "Accepts multipart/form-data with department_name, sort_order, is_active, and an optional photo file.",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Products"
+                ],
+                "summary": "Update an existing department",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Department ID",
+                        "name": "department_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Department name",
+                        "name": "department_name",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Sort order",
+                        "name": "sort_order",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Is active",
+                        "name": "is_active",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "Department image",
+                        "name": "photo",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/fcm/token": {
             "post": {
                 "security": [
@@ -2278,6 +3510,126 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/feature-flags": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Feature Flags"
+                ],
+                "summary": "List feature flags with metadata (admin panel)",
+                "operationId": "ListFeatureFlags",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Feature Flags"
+                ],
+                "summary": "Create a feature flag",
+                "operationId": "CreateFeatureFlag",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/feature-flags/{flag_id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Feature Flags"
+                ],
+                "summary": "Update a feature flag",
+                "operationId": "UpdateFeatureFlag",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Feature flag ID",
+                        "name": "flag_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Feature Flags"
+                ],
+                "summary": "Delete a feature flag",
+                "operationId": "DeleteFeatureFlag",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Feature flag ID",
+                        "name": "flag_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/graphics/offer-preview": {
             "post": {
                 "security": [
@@ -2324,6 +3676,132 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/help/faqs": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Help Center"
+                ],
+                "summary": "List all FAQs, including inactive (admin panel)",
+                "operationId": "ListHelpFAQs",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Help Center"
+                ],
+                "summary": "Create a help FAQ (admin panel)",
+                "operationId": "CreateHelpFAQ",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/help/faqs/{faq_id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Help Center"
+                ],
+                "summary": "Update a help FAQ (admin panel)",
+                "operationId": "UpdateHelpFAQ",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Help Center"
+                ],
+                "summary": "Delete a help FAQ (admin panel)",
+                "operationId": "DeleteHelpFAQ",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/help/settings": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Help Center"
+                ],
+                "summary": "Get help center contact settings (admin panel)",
+                "operationId": "GetHelpSettings",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Help Center"
+                ],
+                "summary": "Update help center contact settings (admin panel)",
+                "operationId": "UpdateHelpSettings",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/items/shop/{shop_id}": {
             "get": {
                 "security": [
@@ -2360,6 +3838,159 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Failed to get product items",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/items/{product_item_id}/stock": {
+            "patch": {
+                "description": "Toggle a product item's in-stock / out-of-stock status.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Update product item stock status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Product Item ID",
+                        "name": "product_item_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Stock status",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.UpdateProductItemStock"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully updated stock status",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to update stock status",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/me": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Admin Roles"
+                ],
+                "summary": "Get the authenticated admin's identity, role, and resolved permission set",
+                "operationId": "GetMyPermissions",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/notifications/images": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notification"
+                ],
+                "summary": "List previously uploaded notification images",
+                "operationId": "ListNotificationImages",
+                "responses": {
+                    "200": {
+                        "description": "Images fetched",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to list images",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notification"
+                ],
+                "summary": "Upload an image for use in push notifications",
+                "operationId": "UploadNotificationImage",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "Image to upload",
+                        "name": "photo",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Image uploaded",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Upload failed",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -3034,6 +4665,48 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/onboarding-copy": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "App Configs"
+                ],
+                "summary": "Get the seller onboarding wizard's admin-editable text/copy",
+                "operationId": "GetOnboardingCopy",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "App Configs"
+                ],
+                "summary": "Update the seller onboarding wizard's admin-editable text/copy",
+                "operationId": "UpdateOnboardingCopy",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/orders/": {
             "put": {
                 "security": [
@@ -3395,6 +5068,38 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Successfully retrieved all payment methods",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/platform-users/{admin_id}/shops": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "A Sales Executive may only view their own shops; a super admin may view any executive's shops.",
+                "tags": [
+                    "Admin Referrals"
+                ],
+                "summary": "List shops attached to a Sales Executive (a platform user)",
+                "operationId": "ListShopsForSalesExecutive",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Platform user (Sales Executive) ID",
+                        "name": "admin_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Attached shops fetched",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -4281,6 +5986,229 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/referrals": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Admin Referrals"
+                ],
+                "summary": "List all shop referral attachments",
+                "operationId": "ListShopReferrals",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page Number",
+                        "name": "page_number",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Count",
+                        "name": "count",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Referrals fetched",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Super-admin-only. Sellers normally get attached automatically by submitting a referral_coupon_id when creating their shop.",
+                "tags": [
+                    "Admin Referrals"
+                ],
+                "summary": "Manually attach a shop to a Sales Executive",
+                "operationId": "CreateShopReferral",
+                "responses": {
+                    "201": {
+                        "description": "Referral created",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/referrals/{referral_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Admin Referrals"
+                ],
+                "summary": "Get a single referral attachment",
+                "operationId": "GetShopReferral",
+                "responses": {
+                    "200": {
+                        "description": "Referral fetched",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Admin Referrals"
+                ],
+                "summary": "Update a referral attachment (status or reassignment)",
+                "operationId": "UpdateShopReferral",
+                "responses": {
+                    "200": {
+                        "description": "Referral updated",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Admin Referrals"
+                ],
+                "summary": "Delete a referral attachment",
+                "operationId": "DeleteShopReferral",
+                "responses": {
+                    "200": {
+                        "description": "Referral deleted",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/roles": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Admin Roles"
+                ],
+                "summary": "List every admin-portal role with its permissions",
+                "operationId": "ListRoles",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Admin Roles"
+                ],
+                "summary": "Create a custom admin-portal role",
+                "operationId": "CreateRole",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/roles/{role_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Admin Roles"
+                ],
+                "summary": "Get a single role with its permissions",
+                "operationId": "GetRole",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Admin Roles"
+                ],
+                "summary": "Update a role's label and/or permission set",
+                "operationId": "UpdateRole",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Admin Roles"
+                ],
+                "summary": "Delete a custom role (built-in roles and roles still assigned to admins can't be deleted)",
+                "operationId": "DeleteRole",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/sales": {
             "get": {
                 "security": [
@@ -4335,6 +6263,53 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "failed to get sales report",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/sellers/{admin_id}/product-limit": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "API for admin panel to cap how many product items a seller may upload in total",
+                "tags": [
+                    "Admin Seller"
+                ],
+                "summary": "Set a seller's product upload limit",
+                "operationId": "UpdateSellerProductLimit",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Seller (admin) ID",
+                        "name": "admin_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "{\\",
+                        "name": "product_limit",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully updated product limit",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid input",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -4582,6 +6557,43 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/shops/conflicts": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "API for admin to find pairs of shops whose pinned locations fall within radius_m of each other",
+                "tags": [
+                    "Admin Shop"
+                ],
+                "summary": "Get shops onboarded within conflicting distance of each other",
+                "operationId": "GetShopConflicts",
+                "parameters": [
+                    {
+                        "type": "number",
+                        "description": "Detection radius in meters (default 10)",
+                        "name": "radius_m",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully got shop conflicts",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to get shop conflicts",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/shops/owner/{owner_id}": {
             "get": {
                 "security": [
@@ -4619,6 +6631,174 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Failed to get shop by owner ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/shops/phone/send-otp": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Admin Shop"
+                ],
+                "summary": "Send an OTP to a new phone number before it can be saved to the shop profile",
+                "operationId": "SendShopPhoneChangeOtp",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/shops/phone/verify-otp": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Admin Shop"
+                ],
+                "summary": "Verify the OTP for a new phone number and save it to the shop profile",
+                "operationId": "VerifyShopPhoneChangeOtp",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid or expired OTP",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/shops/search": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "API for admin to search shops by phone, pincode, city, name, or radius around a point",
+                "tags": [
+                    "Admin Shop"
+                ],
+                "summary": "Search shops with filters",
+                "operationId": "SearchShops",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Phone number (partial match)",
+                        "name": "phone",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Pincode (exact match)",
+                        "name": "pincode",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "City (partial match)",
+                        "name": "city",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Shop or owner name (partial match)",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Latitude for radius filter",
+                        "name": "lat",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Longitude for radius filter",
+                        "name": "lng",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Radius in km around lat/lng",
+                        "name": "radius_km",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Max results (default 50, max 200)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully searched shops",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to search shops",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/shops/submit-for-review": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Admin Shop"
+                ],
+                "summary": "api for a seller to submit their shop for admin review",
+                "operationId": "SubmitShopForReview",
+                "parameters": [
+                    {
+                        "description": "inputs",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.ShopVerification"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Shop submitted for review",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid input",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -4747,6 +6927,89 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/shops/{shop_id}/approve": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Admin Shop"
+                ],
+                "summary": "api for admin to approve a shop and make it live to customers",
+                "operationId": "ApproveShop",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Shop ID",
+                        "name": "shop_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Shop approved",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/shops/{shop_id}/reject": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Admin Shop"
+                ],
+                "summary": "api for admin to reject a shop with a remark",
+                "operationId": "RejectShop",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Shop ID",
+                        "name": "shop_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "inputs",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.ShopRejection"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Shop rejected",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid input",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -4940,6 +7203,262 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/subscription-invoices": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Lists subscription tax invoices with optional user and date-range filters",
+                "tags": [
+                    "Admin Invoice"
+                ],
+                "summary": "List all invoices (Admin)",
+                "operationId": "ListInvoices",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by subscriber id",
+                        "name": "user_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start date, RFC3339 or YYYY-MM-DD",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End date, RFC3339 or YYYY-MM-DD",
+                        "name": "to",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved invoices",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid date filter",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/subscription-invoices/{invoice_id}/download": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a short-lived presigned URL for any seller's invoice PDF",
+                "tags": [
+                    "Admin Invoice"
+                ],
+                "summary": "Download any invoice (Admin)",
+                "operationId": "AdminDownloadInvoice",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Invoice ID",
+                        "name": "invoice_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully generated download link",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Invoice not found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/subscription-plans": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Subscription Plans"
+                ],
+                "summary": "List subscription plans (admin panel)",
+                "operationId": "ListSubscriptionPlans",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Subscription Plans"
+                ],
+                "summary": "Create a subscription plan",
+                "operationId": "CreateSubscriptionPlan",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/subscription-plans/{plan_id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Subscription Plans"
+                ],
+                "summary": "Update a subscription plan",
+                "operationId": "UpdateSubscriptionPlan",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Plan ID",
+                        "name": "plan_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Subscription Plans"
+                ],
+                "summary": "Delete a subscription plan (fails if referenced by orders; deactivate instead)",
+                "operationId": "DeleteSubscriptionPlan",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Plan ID",
+                        "name": "plan_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/subscription-pricing/gst": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Subscription Pricing"
+                ],
+                "summary": "Get the current subscription GST rate",
+                "operationId": "GetSubscriptionGSTConfig",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Accepts either gst_rate_percent (e.g. 18) or gst_rate_basis_points (e.g. 1800); percent wins if both are sent. Only affects subscriptions purchased after the change — existing orders keep their snapshotted rate.",
+                "tags": [
+                    "Subscription Pricing"
+                ],
+                "summary": "Update the subscription GST rate",
+                "operationId": "UpdateSubscriptionGSTConfig",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/users": {
             "get": {
                 "security": [
@@ -5021,6 +7540,86 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/advertisements/active": {
+            "get": {
+                "description": "Returns currently active advertisements for display inside the app.",
+                "tags": [
+                    "Advertisement Management"
+                ],
+                "summary": "Get active advertisements (public)",
+                "operationId": "GetActiveAdvertisements",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/advertisements/active/filter": {
+            "get": {
+                "description": "Returns active ads filtered by lat/lng/radius, pincode, and app type (seller|customer).",
+                "tags": [
+                    "Advertisement Management"
+                ],
+                "summary": "Get active advertisements with location/audience filters",
+                "operationId": "GetActiveAdvertisementsFiltered",
+                "parameters": [
+                    {
+                        "type": "number",
+                        "description": "Latitude of the user",
+                        "name": "lat",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Longitude of the user",
+                        "name": "lng",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Search radius in km (default 10)",
+                        "name": "radius",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "User pincode",
+                        "name": "pincode",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "App type: seller or customer",
+                        "name": "app_type",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -7150,6 +9749,23 @@ const docTemplate = `{
                 }
             }
         },
+        "/feature-flags": {
+            "get": {
+                "tags": [
+                    "Feature Flags"
+                ],
+                "summary": "Get feature flags as a key→enabled object (clients)",
+                "operationId": "GetFeatureFlagsObject",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/feedback/shop": {
             "post": {
                 "security": [
@@ -7732,6 +10348,23 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/help": {
+            "get": {
+                "tags": [
+                    "Help Center"
+                ],
+                "summary": "Get combined help center content (public — no auth)",
+                "operationId": "GetHelpCenter",
+                "responses": {
+                    "200": {
+                        "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -8542,6 +11175,49 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Successfully retrieved all payment methods",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/pincode/{pincode}": {
+            "get": {
+                "tags": [
+                    "pincode"
+                ],
+                "summary": "Look up city/district/state for an Indian PIN code",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "6-digit Indian PIN code",
+                        "name": "pincode",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/pincode.Details"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -9718,6 +12394,98 @@ const docTemplate = `{
                 }
             }
         },
+        "/seller/signup/otp/send": {
+            "post": {
+                "description": "API for seller to send OTP for signup",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Seller Authentication"
+                ],
+                "summary": "Send OTP for Seller Signup",
+                "parameters": [
+                    {
+                        "description": "Phone number for OTP send",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.OTPLogin"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/seller/signup/otp/verify": {
+            "post": {
+                "description": "API for seller to verify OTP for signup",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Seller Authentication"
+                ],
+                "summary": "Verify OTP for Seller Signup",
+                "parameters": [
+                    {
+                        "description": "Phone number and OTP to verify",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.VerifyOTPRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/shop-offers": {
             "get": {
                 "security": [
@@ -9944,6 +12712,145 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Failed to get sellers by radius",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/social/feedback/shop/{shop_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "User Feedback"
+                ],
+                "summary": "Get combined feedback (rating and review) for a shop (User)",
+                "operationId": "GetShopFeedback",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Shop ID",
+                        "name": "shop_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully got shop feedback",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid shop ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to get feedback",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User Feedback"
+                ],
+                "summary": "Create or update shop rating and review in a single API call (User)",
+                "operationId": "SaveShopRatingAndReview",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Shop ID",
+                        "name": "shop_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Rating and Review payload (all fields optional)",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.ShopRatingAndReviewRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully saved rating and review",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to save rating and review",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/social/feedback/shop/{shop_id}/summary": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "User Feedback"
+                ],
+                "summary": "Get feedback summary for a shop (average rating and count) (User)",
+                "operationId": "GetShopFeedbackSummary",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Shop ID",
+                        "name": "shop_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully got feedback summary",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid shop ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to get feedback summary",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -10240,6 +13147,35 @@ const docTemplate = `{
                 }
             }
         },
+        "/subscriptions/billing-history": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the authenticated user's paid subscription payments (most recent first) with per-order GST-inclusive split",
+                "tags": [
+                    "User Subscription"
+                ],
+                "summary": "Get billing history (User)",
+                "operationId": "GetBillingHistory",
+                "responses": {
+                    "200": {
+                        "description": "Billing history",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to get billing history",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/subscriptions/create-order": {
             "post": {
                 "security": [
@@ -10279,6 +13215,79 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Failed to create subscription order",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/subscriptions/invoices": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the authenticated seller's tax invoices, most recent first",
+                "tags": [
+                    "User Subscription"
+                ],
+                "summary": "List my invoices (User)",
+                "operationId": "ListMyInvoices",
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved invoices",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve invoices",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/subscriptions/invoices/{invoice_id}/download": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a short-lived presigned URL for the invoice PDF",
+                "tags": [
+                    "User Subscription"
+                ],
+                "summary": "Download an invoice (User)",
+                "operationId": "DownloadInvoice",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Invoice ID",
+                        "name": "invoice_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully generated download link",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Invoice belongs to another user",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Invoice not found",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -10637,11 +13646,23 @@ const docTemplate = `{
                 "pincode": {
                     "type": "string"
                 },
+                "product_limit": {
+                    "description": "ProductLimit is the maximum number of product items a seller's shops\nmay have in total. Enforced on product-item upload (see\nProductUseCase.SaveProductItem); admin-editable per seller.",
+                    "type": "integer"
+                },
                 "profile_image_url": {
+                    "type": "string"
+                },
+                "referral_coupon_id": {
+                    "description": "ReferralCouponID is the unique code a super admin assigns when creating\na Sales Executive platform user. Sellers optionally enter this code\nduring shop onboarding; a match attaches their shop to this exec (see\nShopReferral) for commission and reporting. Empty for accounts that\naren't Sales Executives. Uniqueness (when non-empty) is enforced by a\npartial unique index — see migration 000020.",
                     "type": "string"
                 },
                 "role": {
                     "$ref": "#/definitions/domain.AdminRole"
+                },
+                "shops_onboarded_count": {
+                    "description": "ShopsOnboardedCount is the number of active ShopReferral attachments\nfor this admin's ReferralCouponID — i.e. shops that entered this\nSales Executive's referral code during onboarding. Output-only,\npopulated by ListAdmins/GetMyPermissions; never persisted.",
+                    "type": "integer"
                 },
                 "start_date": {
                     "type": "string"
@@ -10691,103 +13712,6 @@ const docTemplate = `{
                 "AdminStatusActive",
                 "AdminStatusInactive",
                 "AdminStatusSuspended"
-            ]
-        },
-        "domain.Advertisement": {
-            "type": "object",
-            "required": [
-                "content",
-                "end_date",
-                "start_date",
-                "title"
-            ],
-            "properties": {
-                "admin_id": {
-                    "type": "string"
-                },
-                "area_targeted": {
-                    "type": "string"
-                },
-                "content": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "created_by": {
-                    "type": "string"
-                },
-                "created_by_admin": {
-                    "type": "string"
-                },
-                "distance_km": {
-                    "type": "number"
-                },
-                "end_date": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "image_url": {
-                    "type": "string"
-                },
-                "latitude": {
-                    "type": "number"
-                },
-                "longitude": {
-                    "type": "number"
-                },
-                "pincode_targeted": {
-                    "type": "string"
-                },
-                "priority": {
-                    "$ref": "#/definitions/domain.AdvertisementPriority"
-                },
-                "start_date": {
-                    "type": "string"
-                },
-                "status": {
-                    "$ref": "#/definitions/domain.AdvertisementStatus"
-                },
-                "target_url": {
-                    "type": "string"
-                },
-                "title": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "updated_by": {
-                    "type": "string"
-                }
-            }
-        },
-        "domain.AdvertisementPriority": {
-            "type": "string",
-            "enum": [
-                "high",
-                "medium",
-                "low"
-            ],
-            "x-enum-varnames": [
-                "AdvertisementPriorityHigh",
-                "AdvertisementPriorityMedium",
-                "AdvertisementPriorityLow"
-            ]
-        },
-        "domain.AdvertisementStatus": {
-            "type": "string",
-            "enum": [
-                "active",
-                "inactive",
-                "expired"
-            ],
-            "x-enum-varnames": [
-                "AdvertisementStatusActive",
-                "AdvertisementStatusInactive",
-                "AdvertisementStatusExpired"
             ]
         },
         "domain.FcmToken": {
@@ -11008,10 +13932,25 @@ const docTemplate = `{
                 "phone": {
                     "type": "string"
                 },
+                "phone_visible_consent": {
+                    "description": "PhoneVisibleConsent records the seller's opt-in, given on the first\nonboarding step right after phone OTP verification, to show Phone to\ncustomers on the shop listing (\"visible to customers to discover you\").\nDefaults to true (both here and in the DB column default) — sellers\nare opted in unless they explicitly uncheck the consent box.",
+                    "type": "boolean"
+                },
                 "photo_shop_verification": {
                     "type": "boolean"
                 },
                 "pincode": {
+                    "type": "string"
+                },
+                "product_limit": {
+                    "description": "ProductLimit is the owning seller's admins.product_limit, joined in for\nadmin-panel display/edit; not a real shop_details column.",
+                    "type": "integer"
+                },
+                "referral_coupon_id": {
+                    "description": "ReferralCouponID (input-only, not persisted here) is the optional\nreferral code the seller enters on the final onboarding step. A match\nagainst an Admin.ReferralCouponID creates a ShopReferral row instead\nof a shop_details column, so re-submits never need to mutate this\ntable. ReferralStatus (output-only) reports the outcome back to the\nclient: \"attached\" or \"invalid\"; empty when no code was submitted.",
+                    "type": "string"
+                },
+                "referral_status": {
                     "type": "string"
                 },
                 "shop_description": {
@@ -11069,12 +14008,16 @@ const docTemplate = `{
             "enum": [
                 "active",
                 "inactive",
-                "suspended"
+                "suspended",
+                "under_review",
+                "rejected"
             ],
             "x-enum-varnames": [
                 "ShopStatusActive",
                 "ShopStatusInactive",
-                "ShopStatusSuspended"
+                "ShopStatusSuspended",
+                "ShopStatusUnderReview",
+                "ShopStatusRejected"
             ]
         },
         "domain.ShopType": {
@@ -11128,6 +14071,20 @@ const docTemplate = `{
                 },
                 "verification_status": {
                     "type": "boolean"
+                }
+            }
+        },
+        "pincode.Details": {
+            "type": "object",
+            "properties": {
+                "city": {
+                    "type": "string"
+                },
+                "district": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
                 }
             }
         },
@@ -11351,11 +14308,28 @@ const docTemplate = `{
         "request.Category": {
             "type": "object",
             "required": [
-                "category_name"
+                "category_name",
+                "department_id",
+                "image_url"
             ],
             "properties": {
                 "category_name": {
                     "type": "string"
+                },
+                "department_id": {
+                    "type": "string"
+                },
+                "icon": {
+                    "type": "string"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "sort_order": {
+                    "type": "integer"
                 }
             }
         },
@@ -11502,13 +14476,32 @@ const docTemplate = `{
         "request.Department": {
             "type": "object",
             "required": [
-                "department_name"
+                "department_name",
+                "image_url",
+                "slug"
             ],
             "properties": {
                 "department_name": {
                     "type": "string",
                     "maxLength": 25,
                     "minLength": 3
+                },
+                "icon": {
+                    "type": "string"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "slug": {
+                    "type": "string",
+                    "maxLength": 25,
+                    "minLength": 3
+                },
+                "sort_order": {
+                    "type": "integer"
                 }
             }
         },
@@ -11617,7 +14610,6 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "age",
-                "email",
                 "first_name",
                 "last_name",
                 "phone"
@@ -12017,6 +15009,33 @@ const docTemplate = `{
                 }
             }
         },
+        "request.ShopRatingAndReviewRequest": {
+            "type": "object",
+            "properties": {
+                "comments": {
+                    "description": "Optional: comments text",
+                    "type": "string"
+                },
+                "customer_id": {
+                    "description": "Optional: customer ID",
+                    "type": "string"
+                },
+                "rating": {
+                    "description": "Optional: rating from 1-5",
+                    "type": "integer",
+                    "maximum": 5,
+                    "minimum": 1
+                },
+                "review": {
+                    "description": "Optional: review text",
+                    "type": "string"
+                },
+                "shop_id": {
+                    "description": "Optional: shop ID (can also come from URL)",
+                    "type": "string"
+                }
+            }
+        },
         "request.ShopRatingRequest": {
             "type": "object",
             "required": [
@@ -12030,6 +15049,17 @@ const docTemplate = `{
                 }
             }
         },
+        "request.ShopRejection": {
+            "type": "object",
+            "required": [
+                "remark"
+            ],
+            "properties": {
+                "remark": {
+                    "type": "string"
+                }
+            }
+        },
         "request.ShopReviewRequest": {
             "type": "object",
             "required": [
@@ -12037,6 +15067,32 @@ const docTemplate = `{
             ],
             "properties": {
                 "review": {
+                    "type": "string"
+                }
+            }
+        },
+        "request.ShopVerification": {
+            "type": "object",
+            "required": [
+                "shop_id"
+            ],
+            "properties": {
+                "address_proof_verification": {
+                    "type": "boolean"
+                },
+                "business_doc_verification": {
+                    "type": "boolean"
+                },
+                "identity_doc_verification": {
+                    "type": "boolean"
+                },
+                "photo_shop_verification": {
+                    "type": "boolean"
+                },
+                "shop_id": {
+                    "type": "string"
+                },
+                "updated_at": {
                     "type": "string"
                 }
             }
@@ -12076,12 +15132,47 @@ const docTemplate = `{
                 }
             }
         },
+        "request.SignupOtpSend": {
+            "type": "object",
+            "properties": {
+                "full_name": {
+                    "type": "string"
+                },
+                "mobile": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                }
+            }
+        },
         "request.SubCategory": {
             "type": "object",
             "required": [
+                "category_id",
+                "department_id",
+                "image_url",
                 "sub_category_name"
             ],
             "properties": {
+                "category_id": {
+                    "type": "string"
+                },
+                "department_id": {
+                    "type": "string"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
                 "sub_category_name": {
                     "type": "string"
                 }
@@ -12196,6 +15287,59 @@ const docTemplate = `{
                 }
             }
         },
+        "request.UpdateCompanyBillingProfileRequest": {
+            "type": "object",
+            "required": [
+                "legal_name"
+            ],
+            "properties": {
+                "address_line1": {
+                    "type": "string"
+                },
+                "address_line2": {
+                    "type": "string"
+                },
+                "city": {
+                    "type": "string"
+                },
+                "country": {
+                    "type": "string"
+                },
+                "footer_note": {
+                    "type": "string"
+                },
+                "gstin": {
+                    "type": "string"
+                },
+                "invoice_number_prefix": {
+                    "type": "string"
+                },
+                "jurisdiction": {
+                    "type": "string"
+                },
+                "legal_name": {
+                    "type": "string"
+                },
+                "logo_object_key": {
+                    "type": "string"
+                },
+                "pan": {
+                    "type": "string"
+                },
+                "pincode": {
+                    "type": "string"
+                },
+                "sac_code": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                },
+                "state_code": {
+                    "type": "string"
+                }
+            }
+        },
         "request.UpdateOrder": {
             "type": "object",
             "required": [
@@ -12272,6 +15416,17 @@ const docTemplate = `{
                 }
             }
         },
+        "request.UpdateProductItemStock": {
+            "type": "object",
+            "required": [
+                "stock"
+            ],
+            "properties": {
+                "stock": {
+                    "type": "boolean"
+                }
+            }
+        },
         "request.UpdateProductOffer": {
             "type": "object",
             "required": [
@@ -12340,6 +15495,27 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "request.VerifyOTPRequest": {
+            "type": "object",
+            "required": [
+                "otp",
+                "phone",
+                "session_id"
+            ],
+            "properties": {
+                "otp": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string",
+                    "maxLength": 15,
+                    "minLength": 10
+                },
+                "session_id": {
+                    "type": "string"
                 }
             }
         },
@@ -12648,6 +15824,9 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "is_subscribed": {
+                    "type": "boolean"
                 },
                 "main_category_name": {
                     "type": "string"

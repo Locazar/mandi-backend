@@ -59,6 +59,10 @@ type BillingPaymentResponse struct {
 	RazorpayPaymentID  *string `json:"razorpay_payment_id"`
 	RazorpayOrderID    string  `json:"razorpay_order_id"`
 	PaidAt             string  `json:"paid_at"`
+	// InvoiceID and InvoiceNumber are empty for payments predating invoicing or
+	// not yet backfilled — clients must hide the download action when empty.
+	InvoiceID     string `json:"invoice_id,omitempty"`
+	InvoiceNumber string `json:"invoice_number,omitempty"`
 }
 
 // BillingHistoryResponse is the payload for GET /subscriptions/billing-history.

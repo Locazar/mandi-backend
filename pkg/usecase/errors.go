@@ -108,4 +108,8 @@ var (
 
 	// alert
 	ErrShopNotFound = errors.New("seller has no shop registered")
+
+	// invoice
+	ErrInvoiceNotFound = errors.New("invoice not found")
+	ErrInvoiceNotOwned = errors.New("invoice does not belong to this user")
 )

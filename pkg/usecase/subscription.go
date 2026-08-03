@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"log"
 	"math"
 	"time"
 
@@ -16,17 +17,20 @@ import (
 const freeTrialPlanName = "Free Trial"
 
 type subscriptionUseCase struct {
-	subRepo  repoIface.SubscriptionRepository
-	userRepo repoIface.UserRepository
+	subRepo     repoIface.SubscriptionRepository
+	userRepo    repoIface.UserRepository
+	invoiceRepo repoIface.InvoiceRepository
 }
 
 func NewSubscriptionUseCase(
 	subRepo repoIface.SubscriptionRepository,
 	userRepo repoIface.UserRepository,
+	invoiceRepo repoIface.InvoiceRepository,
 ) service.SubscriptionUseCase {
 	return &subscriptionUseCase{
-		subRepo:  subRepo,
-		userRepo: userRepo,
+		subRepo:     subRepo,
+		userRepo:    userRepo,
+		invoiceRepo: invoiceRepo,
 	}
 }
 
@@ -165,6 +169,18 @@ func (uc *subscriptionUseCase) GetBillingHistory(ctx context.Context, userID str
 		return response.BillingHistoryResponse{}, err
 	}
 
+	orderIDs := make([]string, 0, len(orders))
+	for _, o := range orders {
+		orderIDs = append(orderIDs, o.ID)
+	}
+	// One query for all invoices rather than N — billing history is a list view.
+	invoicesByOrder, err := uc.invoiceRepo.FindInvoiceNumbersByOrderIDs(ctx, orderIDs)
+	if err != nil {
+		// Billing history is still useful without download links.
+		log.Printf("[BILLING_HISTORY] invoice lookup failed for user %s: %v", userID, err)
+		invoicesByOrder = map[string]domain.Invoice{}
+	}
+
 	payments := make([]response.BillingPaymentResponse, 0, len(orders))
 	for _, o := range orders {
 		amountMinor := o.Price.AmountMinor
@@ -174,6 +190,11 @@ func (uc *subscriptionUseCase) GetBillingHistory(ctx context.Context, userID str
 		paidAt := ""
 		if o.PaidAt != nil {
 			paidAt = o.PaidAt.UTC().Format(time.RFC3339)
+		}
+
+		invoiceID, invoiceNumber := "", ""
+		if inv, ok := invoicesByOrder[o.ID]; ok {
+			invoiceID, invoiceNumber = inv.ID, inv.InvoiceNumber
 		}
 
 		payments = append(payments, response.BillingPaymentResponse{
@@ -189,6 +210,8 @@ func (uc *subscriptionUseCase) GetBillingHistory(ctx context.Context, userID str
 			RazorpayPaymentID:  o.RazorpayPaymentID,
 			RazorpayOrderID:    o.RazorpayOrderID,
 			PaidAt:             paidAt,
+			InvoiceID:          invoiceID,
+			InvoiceNumber:      invoiceNumber,
 		})
 	}
 

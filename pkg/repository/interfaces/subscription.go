@@ -28,5 +28,8 @@ type SubscriptionRepository interface {
 	// back to 1800 if the row is somehow missing, matching the previous
 	// hardcoded env-var default, so a missing row never breaks checkout.
 	GetGSTRateBasisPoints(ctx context.Context) (int, error)
+	// FindAllPaidOrdersWithoutInvoice returns paid orders that have no invoice
+	// yet, oldest paid first so backfilled numbers run chronologically.
+	FindAllPaidOrdersWithoutInvoice(ctx context.Context) ([]domain.BillingOrder, error)
 	Transaction(fn func(repo SubscriptionRepository) error) error
 }
