@@ -271,12 +271,24 @@ func (c *adminDatabase) VerifyShop(ctx context.Context, shopVerification request
 	// The shop_details row already exists from onboarding — verification
 	// updates it by its own id, not by the calling admin's id (the caller
 	// is the platform admin performing verification, not the shop owner).
+	//
+	// shop_status drives customer visibility, so it must follow the admin's
+	// verification decision: the shop goes live ('active') only when both
+	// mandatory checks pass ($1 = photo_shop_verification && address_proof_
+	// verification, computed in the usecase). Otherwise it stays 'under_review'
+	// (hidden). A 'suspended' shop is a separate moderation state and is never
+	// silently re-activated by a verify save.
 	updateQuery := `UPDATE shop_details SET
 	shop_verification_status = $1,
 	photo_shop_verification = $2,
 	business_doc_verification = $3,
 	identity_doc_verification = $4,
 	address_proof_verification = $5,
+	shop_status = CASE
+		WHEN $1 THEN 'active'
+		WHEN shop_status = 'suspended' THEN 'suspended'
+		ELSE 'under_review'
+	END,
 	updated_at = $6
 	WHERE id = $7`
 	result := c.DB.Exec(updateQuery, verificationStatus, shopVerification.Photo_Shop_Verification, shopVerification.Business_Doc_Verification, shopVerification.Identity_Doc_Verification, shopVerification.Address_Proof_Verification, time.Now(), shopVerification.ShopId)
