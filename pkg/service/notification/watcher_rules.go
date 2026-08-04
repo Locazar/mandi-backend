@@ -382,6 +382,11 @@ func enquiryMessageBuilder(doc map[string]interface{}, changes []WatchFieldChang
 	statusMessage := func(status string) (string, string) {
 		askQuantity := enquiryDocString(doc, "askQuantity", "ask_quantity")
 		availability := enquiryDocString(doc, "availability")
+		availabilityNorm := strings.ToLower(strings.TrimSpace(availability))
+		productName := enquiryDocString(doc, "productName", "product_name")
+		if strings.TrimSpace(productName) == "" {
+			productName = "This product"
+		}
 		sellerInitialPrice := formatPrice(doc["sellerInitialPrice"])
 		customerNegotiatedPrice := formatPrice(doc["customerNegotiatedPrice"])
 		sellerFinalPrice := formatPrice(doc["sellerFinalPrice"])
@@ -401,6 +406,11 @@ func enquiryMessageBuilder(doc map[string]interface{}, changes []WatchFieldChang
 			}
 			return "Price Request Pending", strings.Join(parts, " ")
 		case "pending_customer_price":
+			// Seller marked the product "available soon" (out of stock) rather
+			// than quoting a live price — tell the customer to follow the shop.
+			if availabilityNorm == "soon" || availabilityNorm == "available_soon" {
+				return "Out of Stock", fmt.Sprintf("%s is currently out of stock. We'll notify you as soon as it's back, Please Follow the shop!", productName)
+			}
 			if sellerInitialPrice != "" {
 				return "Seller Price Shared", fmt.Sprintf("The seller has shared an initial price of Rs. %s for %s.", sellerInitialPrice, enquiryRef)
 			}
@@ -430,6 +440,12 @@ func enquiryMessageBuilder(doc map[string]interface{}, changes []WatchFieldChang
 			}
 			return "Deal Accepted", msg + "."
 		case "completed_rejected":
+			// Seller marked the product "not available" (this closes the enquiry
+			// as completed_rejected) — it's an availability outcome, not a price
+			// rejection, so don't say "Deal has been rejected".
+			if availabilityNorm == "not_available" || availabilityNorm == "unavailable" {
+				return "Product Unavailable", fmt.Sprintf("%s is currently unavailable at our store. We apologize for the inconvenience.", productName)
+			}
 			msg := "Deal has been rejected"
 			if acceptedPrice != "" {
 				msg += fmt.Sprintf(" at Rs. %s", acceptedPrice)

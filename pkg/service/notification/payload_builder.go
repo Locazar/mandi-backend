@@ -137,6 +137,11 @@ func (pb *PayloadBuilder) buildStatusNotification(change domain.FieldChange, fie
 	}
 
 	availabilityText := strings.TrimSpace(firstNonEmptyField(fields, "availability"))
+	availabilityNorm := strings.ToLower(availabilityText)
+	productName := strings.TrimSpace(firstNonEmptyField(fields, "productName", "product_name"))
+	if productName == "" {
+		productName = "This product"
+	}
 	askQuantity := strings.TrimSpace(firstNonEmptyField(fields, "askQuantity", "ask_quantity"))
 	sellerInitialPrice := formatPrice(fields["sellerInitialPrice"])
 	customerNegotiatedPrice := formatPrice(fields["customerNegotiatedPrice"])
@@ -160,6 +165,11 @@ func (pb *PayloadBuilder) buildStatusNotification(change domain.FieldChange, fie
 		}
 		return title, strings.Join(segments, " ")
 	case "pending_customer_price":
+		// Seller marked the product "available soon" (out of stock) instead of
+		// quoting a live price.
+		if availabilityNorm == "soon" || availabilityNorm == "available_soon" {
+			return "Out of Stock", fmt.Sprintf("%s is currently out of stock. We'll notify you as soon as it's back, Please Follow the shop!", productName)
+		}
 		title = "Seller Price Shared"
 		if sellerInitialPrice != "" {
 			return title, fmt.Sprintf("The seller has shared an initial price of %s.", sellerInitialPrice)
@@ -200,6 +210,11 @@ func (pb *PayloadBuilder) buildStatusNotification(change domain.FieldChange, fie
 		}
 		return title, body + "."
 	case "completed_rejected":
+		// Seller marked the product "not available" — an availability outcome,
+		// not a price rejection.
+		if availabilityNorm == "not_available" || availabilityNorm == "unavailable" {
+			return "Product Unavailable", fmt.Sprintf("%s is currently unavailable at our store. We apologize for the inconvenience.", productName)
+		}
 		title = "Deal Rejected"
 		body = "Deal has been rejected"
 		if acceptedPrice != "" {
