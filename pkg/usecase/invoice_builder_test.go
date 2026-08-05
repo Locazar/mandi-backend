@@ -42,15 +42,15 @@ func baseBuildInput() BuildInvoiceInput {
 			Document_Value: "29ABCDE1234F2Z5",
 		},
 		Profile: domain.CompanyBillingProfile{
-			LegalName:           "Locazar Technologies Pvt. Ltd.",
-			GSTIN:               "29AABCL1234M1Z7",
+			LegalName:           "Locazar EMarket Pvt. Ltd.",
+			GSTIN:               "08AAGCL8463P1ZN",
 			PAN:                 "AABCL1234M",
-			AddressLine1:        "No. 42, 3rd Floor, 12th Main",
-			AddressLine2:        "Indiranagar",
-			City:                "Bengaluru",
-			State:               "Karnataka",
+			AddressLine1:        "NR KRISHI MANDI",
+			AddressLine2:        "Gulabpura",
+			City:                "Bhilwara",
+			State:               "Rajasthan",
 			StateCode:           "29",
-			Pincode:             "560038",
+			Pincode:             "311021",
 			Country:             "India",
 			SACCode:             "998599",
 			InvoiceNumberPrefix: "LZ",
@@ -89,10 +89,10 @@ func TestBuildInvoiceNumbering(t *testing.T) {
 func TestBuildInvoiceSnapshots(t *testing.T) {
 	inv := BuildInvoice(baseBuildInput())
 
-	assert.Equal(t, "Locazar Technologies Pvt. Ltd.", inv.SellerLegalName)
-	assert.Equal(t, "29AABCL1234M1Z7", inv.SellerGSTIN)
+	assert.Equal(t, "Locazar EMarket Pvt. Ltd.", inv.SellerLegalName)
+	assert.Equal(t, "08AAGCL8463P1ZN", inv.SellerGSTIN)
 	assert.Equal(t, "998599", inv.SellerSACCode)
-	assert.Equal(t, "Karnataka (29)", inv.PlaceOfSupply)
+	assert.Equal(t, "Rajasthan (29)", inv.PlaceOfSupply)
 	// FooterNote/Jurisdiction must be snapshotted from the profile at issue
 	// time, same as every other issuer field — otherwise an admin editing
 	// them in the portal has no effect on any invoice, issued or future.

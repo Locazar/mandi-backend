@@ -38,10 +38,10 @@ INSERT INTO company_billing_profile (
     sac_code, logo_object_key, invoice_number_prefix, footer_note, jurisdiction
 ) VALUES (
     'cbp_default',
-    'Locazar Technologies Pvt. Ltd.',
-    '00XXXXX0000X0Z0',
+    'Locazar EMarket Pvt. Ltd.',
+    '08AAGCL8463P1ZN',
     'XXXXX0000X',
-    'Address line 1', '', 'Bengaluru', 'Karnataka', '29', '560038', 'India',
+    'NR KRISHI MANDI', 'Gulabpura', 'Bhilwara', 'Rajasthan', '29', '311021', 'India',
     '998599',
     'locazar_logo.jpg',
     'LZ',
