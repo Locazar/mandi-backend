@@ -1511,6 +1511,14 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 		whereClause += " AND " + SubscribedShopPredicate
 	}
 
+	// "Trending Now" is a curated customer carousel, so it must never surface a
+	// product whose shop isn't live/approved (shop_status != 'active', i.e. the
+	// shop shows as unavailable to customers). Scoped to trending on purpose so
+	// other search modes are untouched. ShopActivePredicate uses the sd alias.
+	if trending {
+		whereClause += " AND " + ShopActivePredicate
+	}
+
 	// If we have IDs from Elasticsearch, filter by them
 	if useElasticsearchResults && len(ids) > 0 {
 		placeholders := make([]string, len(ids))

@@ -184,10 +184,22 @@ func isInvalidTokenError(err error) bool {
 	if err == nil {
 		return false
 	}
-	s := err.Error()
-	return strings.Contains(s, "UNREGISTERED") ||
-		strings.Contains(s, "Requested entity was not found") ||
-		strings.Contains(s, "registration-token-not-registered")
+	// Typed SDK check first — the reliable way to detect a token FCM has dropped
+	// (app uninstalled / logged out / token rotated). Covers the common
+	// "NotRegistered" response that the string match below previously missed.
+	if messaging.IsUnregistered(err) {
+		return true
+	}
+	// Case-insensitive string fallback for wrapped errors where the typed value
+	// was lost. Note "NotRegistered" does NOT contain "unregistered", so it must
+	// be matched explicitly.
+	s := strings.ToLower(err.Error())
+	return strings.Contains(s, "unregistered") ||
+		strings.Contains(s, "notregistered") ||
+		strings.Contains(s, "not registered") ||
+		strings.Contains(s, "not-registered") ||
+		strings.Contains(s, "registration-token-not-registered") ||
+		strings.Contains(s, "requested entity was not found")
 }
 
 // SendToOwnerViaFirestore fetches active FCM tokens for the owner from Firestore,

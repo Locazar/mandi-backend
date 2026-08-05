@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS company_billing_profile (
     updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- TODO: replace every placeholder below with Localzar's real registered
+-- TODO: replace every placeholder below with Locazar's real registered
 -- details from the admin portal BEFORE going live. SAC 998599 ("Other support
 -- services n.e.c.") is a best-guess for a marketplace listing subscription —
 -- confirm with a CA.
@@ -38,12 +38,12 @@ INSERT INTO company_billing_profile (
     sac_code, logo_object_key, invoice_number_prefix, footer_note, jurisdiction
 ) VALUES (
     'cbp_default',
-    'Localzar Technologies Pvt. Ltd.',
+    'Locazar Technologies Pvt. Ltd.',
     '00XXXXX0000X0Z0',
     'XXXXX0000X',
     'Address line 1', '', 'Bengaluru', 'Karnataka', '29', '560038', 'India',
     '998599',
-    'locazar_icon.png',
+    'locazar_logo.jpg',
     'LZ',
     'Prices are inclusive of GST. Computer-generated invoice — no signature required.',
     'Bengaluru'
