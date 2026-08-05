@@ -1,5 +1,5 @@
 -- ============================================================
--- Localzar Mandi Backend — Comprehensive Seed
+-- Locazar Mandi Backend — Comprehensive Seed
 -- Targets the GORM AutoMigrate schema (bigint serial PKs)
 -- All test credentials: password = Test@1234
 -- ============================================================

@@ -22,10 +22,10 @@ func TestGetCompanyBillingProfile(t *testing.T) {
 				r.EXPECT().GetCompanyBillingProfile(gomock.Any()).
 					Return(domain.CompanyBillingProfile{
 						ID:        "cbp_default",
-						LegalName: "Localzar Technologies Pvt. Ltd.",
+						LegalName: "Locazar Technologies Pvt. Ltd.",
 					}, nil)
 			},
-			wantName: "Localzar Technologies Pvt. Ltd.",
+			wantName: "Locazar Technologies Pvt. Ltd.",
 		},
 		"repository error propagates": {
 			buildStub: func(r *mockrepo.MockInvoiceRepository) {

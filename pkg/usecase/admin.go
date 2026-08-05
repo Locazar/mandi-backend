@@ -462,7 +462,7 @@ func (c *adminUseCase) ApproveShop(ctx context.Context, shopID string) error {
 	}
 	c.notifyShopOwner(ctx, shopID,
 		"Your shop is live!",
-		"Congratulations — your shop has been approved and is now visible to customers on Localzar.",
+		"Congratulations — your shop has been approved and is now visible to customers on Locazar.",
 	)
 	return nil
 }

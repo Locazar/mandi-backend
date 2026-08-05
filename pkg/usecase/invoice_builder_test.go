@@ -42,7 +42,7 @@ func baseBuildInput() BuildInvoiceInput {
 			Document_Value: "29ABCDE1234F2Z5",
 		},
 		Profile: domain.CompanyBillingProfile{
-			LegalName:           "Localzar Technologies Pvt. Ltd.",
+			LegalName:           "Locazar Technologies Pvt. Ltd.",
 			GSTIN:               "29AABCL1234M1Z7",
 			PAN:                 "AABCL1234M",
 			AddressLine1:        "No. 42, 3rd Floor, 12th Main",
@@ -89,7 +89,7 @@ func TestBuildInvoiceNumbering(t *testing.T) {
 func TestBuildInvoiceSnapshots(t *testing.T) {
 	inv := BuildInvoice(baseBuildInput())
 
-	assert.Equal(t, "Localzar Technologies Pvt. Ltd.", inv.SellerLegalName)
+	assert.Equal(t, "Locazar Technologies Pvt. Ltd.", inv.SellerLegalName)
 	assert.Equal(t, "29AABCL1234M1Z7", inv.SellerGSTIN)
 	assert.Equal(t, "998599", inv.SellerSACCode)
 	assert.Equal(t, "Karnataka (29)", inv.PlaceOfSupply)

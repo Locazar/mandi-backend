@@ -28,7 +28,7 @@ func TestInvoiceIssuedDuringPaymentReconciles(t *testing.T) {
 		Order:          order,
 		Plan:           domain.SubscriptionPlan{Name: "3 Months", DurationDays: 90},
 		Shop:           domain.ShopDetails{ShopName: "Sharma Kirana Store"},
-		Profile:        domain.CompanyBillingProfile{LegalName: "Localzar", InvoiceNumberPrefix: "LZ"},
+		Profile:        domain.CompanyBillingProfile{LegalName: "Locazar", InvoiceNumberPrefix: "LZ"},
 		SequenceNumber: 1,
 	})
 
@@ -52,7 +52,7 @@ func TestBuildInvoiceToleratesEmptyShop(t *testing.T) {
 		},
 		Plan:           domain.SubscriptionPlan{Name: "1 Month", DurationDays: 30},
 		Shop:           domain.ShopDetails{}, // lookup failed
-		Profile:        domain.CompanyBillingProfile{LegalName: "Localzar", InvoiceNumberPrefix: "LZ"},
+		Profile:        domain.CompanyBillingProfile{LegalName: "Locazar", InvoiceNumberPrefix: "LZ"},
 		SequenceNumber: 7,
 	})
 

@@ -520,12 +520,12 @@ python3 scripts/generate_baseline_seed.py
 
 Expected output (approximate row counts from backup):
 ```
-Reading /Users/harsha/Developer/Localzar/mandi-backend/mandi_backup_20260604_074125.sql ...
+Reading /Users/harsha/Developer/Locazar/mandi-backend/mandi_backup_20260604_074125.sql ...
   departments=16, categories=170, sub_categories=~700
   variations=0, variation_options=0
   sub_type_attributes=~2570, sub_type_attribute_options=~16194
   brands=0
-Written to /Users/harsha/Developer/Localzar/mandi-backend/baseline_seed.sql
+Written to /Users/harsha/Developer/Locazar/mandi-backend/baseline_seed.sql
 ```
 
 - [ ] **Step 2: Sanity-check the output**

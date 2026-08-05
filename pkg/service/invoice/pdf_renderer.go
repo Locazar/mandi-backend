@@ -88,7 +88,7 @@ func drawHeader(pdf *fpdf.Fpdf, inv domain.Invoice, logoPNG []byte) {
 	pdf.SetXY(textX, y+1)
 	pdf.SetFont(fontFamily, "B", 17)
 	pdf.SetTextColor(headingR, headingG, headingB)
-	pdf.CellFormat(80, 7, "Localzar", "", 2, "L", false, 0, "")
+	pdf.CellFormat(80, 7, "Locazar", "", 2, "L", false, 0, "")
 
 	pdf.SetFont(fontFamily, "", 8)
 	pdf.SetTextColor(90, 90, 90)

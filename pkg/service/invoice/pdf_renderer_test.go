@@ -29,7 +29,7 @@ func sampleInvoice() domain.Invoice {
 		SequenceNumber:      42,
 		InvoiceDate:         paidAt,
 
-		SellerLegalName: "Localzar Technologies Pvt. Ltd.",
+		SellerLegalName: "Locazar Technologies Pvt. Ltd.",
 		SellerGSTIN:     "29AABCL1234M1Z7",
 		SellerPAN:       "AABCL1234M",
 		SellerAddress:   "No. 42, 3rd Floor, 12th Main\nIndiranagar\nBengaluru 560038\nKarnataka, India",

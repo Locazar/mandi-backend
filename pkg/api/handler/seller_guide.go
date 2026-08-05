@@ -79,7 +79,7 @@ func (h *SellerGuideHandler) GetPublicTrainingVideos(ctx *gin.Context) {
 // GetCategories GET /api/seller-guide/categories
 func (h *SellerGuideHandler) GetCategories(ctx *gin.Context) {
 	categories := []map[string]interface{}{
-		{"id": "1", "name": "Getting Started", "description": "Learn the basics of selling on Localzar"},
+		{"id": "1", "name": "Getting Started", "description": "Learn the basics of selling on Locazar"},
 		{"id": "2", "name": "Product Management", "description": "How to add and manage your products"},
 		{"id": "3", "name": "Orders & Fulfillment", "description": "Managing orders and delivery"},
 		{"id": "4", "name": "Promotions & Offers", "description": "Running promotions and creating offers"},
