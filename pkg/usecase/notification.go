@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"strconv"
@@ -229,6 +230,16 @@ func (uc *notificationUseCase) SendPushNotification(ctx context.Context, req req
 		if pgSendErr == nil {
 			return nil
 		}
+		// Every Postgres token was permanently unregistered (owner logged out /
+		// app uninstalled). Prune them so they stop causing failures on future
+		// sends, then fall through to the Firestore path.
+		if errors.Is(pgSendErr, notificationSvc.ErrAllTokensUnreachable) {
+			for _, t := range tokens {
+				if delErr := uc.notificationRepo.DeleteDeviceToken(ctx, req.OwnerID, req.OwnerType, t); delErr != nil {
+					log.Printf("WARN [SendPushNotification]: prune stale token for %s/%s failed: %v", req.OwnerType, req.OwnerID, delErr)
+				}
+			}
+		}
 	}
 
 	// Fallback: tokens from Firestore (populated by Cloud Functions or other services)
@@ -238,16 +249,23 @@ func (uc *notificationUseCase) SendPushNotification(ctx context.Context, req req
 		return nil
 	}
 
-	// Both paths failed — surface a clear, actionable error.
-	// If Postgres found no tokens (not a DB error), the owner simply has no registered devices.
-	if pgErr == nil && len(tokens) == 0 {
-		appName := "seller app"
-		if req.OwnerType == "user" {
-			appName = "customer app"
-		}
-		return fmt.Errorf("no active FCM device tokens registered for %s %q — the %s must be opened and logged into at least once to register a device token", req.OwnerType, req.OwnerID, appName)
+	// Decide whether this is simply "no reachable device right now" (the owner
+	// is logged out / has never registered a device) versus a genuine system
+	// error. The former must NOT fail the request: an admin firing a
+	// notification at a logged-out seller is a successful no-op — there is no
+	// offline queue for direct token pushes, so it is simply not delivered.
+	postgresNoDevice := pgErr == nil &&
+		(len(tokens) == 0 || errors.Is(pgSendErr, notificationSvc.ErrAllTokensUnreachable))
+	firestoreNoDevice := errors.Is(fsErr, notificationSvc.ErrNoActiveTokens) ||
+		errors.Is(fsErr, notificationSvc.ErrAllTokensUnreachable)
+
+	if postgresNoDevice && firestoreNoDevice {
+		log.Printf("INFO [SendPushNotification]: no active device for %s %q — nothing delivered (owner likely logged out)", req.OwnerType, req.OwnerID)
+		return nil
 	}
-	// Both paths errored — combine the messages.
+
+	// A genuine error occurred on at least one path (DB failure, FCM transport
+	// or auth error) — surface it.
 	if pgErr != nil {
 		return fmt.Errorf("failed to send push notification: postgres: %v; firestore: %v", pgErr, fsErr)
 	}

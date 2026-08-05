@@ -2,6 +2,7 @@ package notification
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -10,6 +11,18 @@ import (
 
 	"cloud.google.com/go/firestore"
 	"firebase.google.com/go/v4/messaging"
+)
+
+// Sentinel errors that distinguish "there is simply no reachable device right
+// now" from a genuine delivery failure. Callers can use errors.Is to treat the
+// former as a successful no-op — e.g. an admin sending to a seller who is logged
+// out, whose device tokens are all gone/unregistered, should not be an error.
+var (
+	// ErrNoActiveTokens means the owner has no registered device tokens.
+	ErrNoActiveTokens = errors.New("no active FCM tokens")
+	// ErrAllTokensUnreachable means every target token is permanently invalid
+	// (unregistered / app uninstalled / logged out), so nothing was delivered.
+	ErrAllTokensUnreachable = errors.New("all FCM tokens unreachable")
 )
 
 // PushSender is the interface for sending FCM push notifications.
@@ -140,16 +153,26 @@ func (s *FCMPushService) SendToTokens(
 		return fmt.Errorf("FCM multicast send: %w", err)
 	}
 
+	invalidCount := 0
 	if resp.FailureCount > 0 {
 		for i, r := range resp.Responses {
 			if !r.Success {
 				log.Printf("WARN: FCM send failed for token %s: %v", tokens[i], r.Error)
+				if isInvalidTokenError(r.Error) {
+					invalidCount++
+				}
 			}
 		}
 	}
 
 	log.Printf("INFO: FCM sent %d/%d successfully", resp.SuccessCount, len(tokens))
 	if resp.SuccessCount == 0 {
+		// Every token permanently invalid (owner logged out / uninstalled): signal
+		// with a sentinel so the caller can prune them and treat it as "no
+		// reachable device" instead of a hard failure.
+		if invalidCount == len(tokens) {
+			return fmt.Errorf("all %d token(s) unregistered: %w", len(tokens), ErrAllTokensUnreachable)
+		}
 		return fmt.Errorf("FCM multicast send: all %d token(s) failed, e.g. %v", len(tokens), resp.Responses[0].Error)
 	}
 	return nil
@@ -186,7 +209,7 @@ func (s *FCMPushService) SendToOwnerViaFirestore(
 		return fmt.Errorf("fetch tokens: %w", err)
 	}
 	if len(tokens) == 0 {
-		return fmt.Errorf("no active FCM tokens for %s/%s", ownerCollection, ownerID)
+		return fmt.Errorf("no active FCM tokens for %s/%s: %w", ownerCollection, ownerID, ErrNoActiveTokens)
 	}
 
 	imageURL := strings.TrimSpace(data["image_url"])
@@ -234,12 +257,14 @@ func (s *FCMPushService) SendToOwnerViaFirestore(
 		return fmt.Errorf("FCM multicast send: %w", err)
 	}
 
+	invalidCount := 0
 	for i, r := range resp.Responses {
 		if r.Success {
 			continue
 		}
 		log.Printf("WARN: FCM send failed for token %s: %v", tokens[i], r.Error)
 		if isInvalidTokenError(r.Error) {
+			invalidCount++
 			log.Printf("INFO: deactivating invalid FCM token for %s/%s", ownerCollection, ownerID)
 			_ = s.deactivateToken(ctx, ownerCollection, ownerID, tokens[i])
 		}
@@ -247,6 +272,11 @@ func (s *FCMPushService) SendToOwnerViaFirestore(
 
 	log.Printf("INFO: FCM sent %d/%d successfully to %s/%s", resp.SuccessCount, len(tokens), ownerCollection, ownerID)
 	if resp.SuccessCount == 0 {
+		// All invalid → the owner has no reachable device; the invalid tokens
+		// were just deactivated above. Signal with a sentinel, not a hard error.
+		if invalidCount == len(tokens) {
+			return fmt.Errorf("all %d token(s) unregistered for %s/%s: %w", len(tokens), ownerCollection, ownerID, ErrAllTokensUnreachable)
+		}
 		return fmt.Errorf("FCM multicast send: all %d token(s) failed for %s/%s, e.g. %v", len(tokens), ownerCollection, ownerID, resp.Responses[0].Error)
 	}
 	return nil

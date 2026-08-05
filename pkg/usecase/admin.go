@@ -377,7 +377,71 @@ func (c *adminUseCase) VerifyShop(ctx context.Context, verify request.ShopVerifi
 	if err != nil {
 		return fmt.Errorf("failed to update shop verification status \nerror:%v", err.Error())
 	}
+
+	// Notify the seller of the outcome of this verify save. The message reflects
+	// the exact combination of the four checks the admin just saved, so the
+	// seller always learns whether they're live, what's verified, and what's
+	// still pending — including when an admin turns a previously-passing check
+	// off (shop drops back to under_review). Best-effort: notifyShopOwner logs
+	// and swallows delivery errors so a push failure never fails the save.
+	title, body := shopVerificationMessage(verify)
+	c.notifyShopOwner(ctx, verify.ShopId, title, body)
 	return nil
+}
+
+// shopVerificationMessage builds the seller-facing push title/body for a verify
+// save, covering every combination of the four checks. Shop photo + shop
+// address are the two MANDATORY go-live checks (their AND drives shop_status =
+// active in the repository); business document + identity document are trust
+// documents that do not by themselves make a shop live.
+func shopVerificationMessage(v request.ShopVerification) (title, body string) {
+	photo := v.Photo_Shop_Verification
+	addr := v.Address_Proof_Verification
+	biz := v.Business_Doc_Verification
+	ident := v.Identity_Doc_Verification
+
+	yn := func(b bool) string {
+		if b {
+			return "verified ✓"
+		}
+		return "pending ✗"
+	}
+
+	switch {
+	// 1. All four verified → full welcome, shop is live.
+	case photo && addr && biz && ident:
+		return "🎉 Welcome to Locazar — your shop is fully verified!",
+			"Congratulations! Your shop photo, shop address, business document and identity document are all verified. Your shop is now LIVE and visible to customers. Welcome aboard — happy selling!"
+
+	// 2. Both mandatory checks pass → shop is live, one or both docs still pending.
+	case photo && addr:
+		b := "Great news! Your shop photo and shop address are verified, so your shop is now LIVE and visible to customers on Locazar."
+		switch {
+		case biz && !ident:
+			b += " Your business document is verified; your identity document is still pending."
+		case !biz && ident:
+			b += " Your identity document is verified; your business document is still pending."
+		default: // neither document verified
+			b += " Tip: verify your business and identity documents to build more trust with customers."
+		}
+		return "✅ Your shop is verified and live!", b + " Welcome aboard!"
+
+	// 3. Mandatory not met → shop stays under review (hidden from customers).
+	// This is also the path taken when an admin UN-verifies a check that had
+	// previously passed. The body lists all four so every combination — and
+	// every doc-only verification — produces its own tailored message.
+	default:
+		lead := "Your shop is currently under review and not visible to customers yet."
+		if biz && ident {
+			lead = "Your business document and identity document are verified. " + lead
+		}
+		return "⚠️ Action needed — shop verification pending",
+			fmt.Sprintf(
+				"%s Status — Shop photo: %s, Shop address: %s, Business document: %s, Identity document: %s. "+
+					"Your shop will go live once both your shop photo and shop address are verified — please make sure they are clear and valid.",
+				lead, yn(photo), yn(addr), yn(biz), yn(ident),
+			)
+	}
 }
 
 // SubmitShopForReview is the seller's own "submit for verification" action —

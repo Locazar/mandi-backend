@@ -57,6 +57,7 @@ stdout.log
 /mandi_backup.sql
 *.dump
 /query
+/seed
 
 # Temp directory
 /tmp
