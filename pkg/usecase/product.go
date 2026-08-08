@@ -16,6 +16,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/service/cloud"
+	notificationSvc "github.com/rohit221990/mandi-backend/pkg/service/notification"
 	service "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
 )
@@ -25,6 +26,10 @@ type productUseCase struct {
 	adminRepo    interfaces.AdminRepository
 	cloudService cloud.CloudService
 	DB           DBQuerier // Add this field for DB access
+	// followerNotifier fires a best-effort "new product" push to a shop's
+	// followers after a product is saved (at most once per shop per day). It is
+	// self-contained and never affects the product-add flow.
+	followerNotifier *notificationSvc.FollowerNotifier
 }
 
 type OfferUseCase struct {
@@ -150,6 +155,9 @@ func NewProductUseCase(productRepo interfaces.ProductRepository, adminRepo inter
 		adminRepo:    adminRepo,
 		cloudService: cloudService,
 		DB:           &GormDBAdapter{db: db},
+		followerNotifier: notificationSvc.NewFollowerNotifier(
+			db, notificationSvc.NewFCMPushService(),
+		),
 	}
 }
 
@@ -325,6 +333,24 @@ func (c *productUseCase) SaveProductItem(ctx context.Context, productItem reques
 	_, err = c.productRepo.SaveProductItem(ctx, productItem, adminID, shopID)
 	if err != nil {
 		return utils.PrependMessageToError(err, "failed to save product item")
+	}
+
+	// Product saved — as a separate, best-effort follow-up, notify the shop's
+	// followers about the new product (at most once per shop per day). Run
+	// fire-and-forget on a detached context so it never delays or fails the
+	// product-add response, and wrap it so a notifier panic can't crash the
+	// request goroutine.
+	if c.followerNotifier != nil {
+		notifier := c.followerNotifier
+		go func() {
+			defer func() { _ = recover() }()
+			notifier.NotifyNewProduct(
+				context.Background(),
+				shopID,
+				productItem.SubCategoryName,
+				productItem.ProductItemImages,
+			)
+		}()
 	}
 	return nil
 }
