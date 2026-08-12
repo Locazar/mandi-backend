@@ -52,6 +52,15 @@ type ProductItemImage struct {
 	UpdatedAt     time.Time   `json:"updated_at" gorm:"autoUpdateTime"`
 }
 
+// AllDepartmentName is the reserved name of a customer-only "aggregate"
+// department. An admin creates it as a normal department via the admin-portal;
+// the backend then hides it from the seller app and treats it as "no department
+// filter" for customer product/shop/category queries so the customer app sees
+// every department's products and shops through a single "All" entry. Deleting
+// the department in the admin-portal turns the feature off. Matched by name,
+// case-insensitive.
+const AllDepartmentName = "All"
+
 type Department struct {
 	ID         string `json:"id" gorm:"primaryKey;type:varchar(32)"`
 	Name       string `json:"department_name" gorm:"unique;not null" binding:"required,min=1,max=50"`
