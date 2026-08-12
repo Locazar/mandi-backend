@@ -64,6 +64,7 @@ type ProductHandler interface {
 	// department
 	SaveDepartment(ctx *gin.Context)
 	GetAllDepartments(ctx *gin.Context)
+	GetAllDepartmentsForSeller(ctx *gin.Context)
 	CreateDepartment(ctx *gin.Context)
 	UpdateDepartment(ctx *gin.Context)
 	DeleteDepartment(ctx *gin.Context)

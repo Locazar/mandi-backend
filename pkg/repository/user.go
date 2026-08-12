@@ -435,7 +435,10 @@ func (c *userDatabase) SearchShopList(ctx context.Context, reqData request.Searc
 	// Filter by department_id and/or category_id if provided (with AND condition)
 	// department_id and category_id are varchar(32) strings (e.g. "dept_00001"), not integers.
 	if reqData.DepartmentID != nil || reqData.CategoryID != nil {
-		deptProvided := reqData.DepartmentID != nil && *reqData.DepartmentID != ""
+		// The reserved customer-only "All" department aggregates every department:
+		// treat it as "no department filter" so all associated shops are returned.
+		deptProvided := reqData.DepartmentID != nil && *reqData.DepartmentID != "" &&
+			!IsAllDepartment(ctx, c.DB, *reqData.DepartmentID)
 		catProvided := reqData.CategoryID != nil && *reqData.CategoryID != ""
 
 		if deptProvided && catProvided {

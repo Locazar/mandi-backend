@@ -179,7 +179,8 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			department.POST("/", middleware.TrimSpaces(), productHandler.CreateDepartment)
 			department.PUT("/:department_id", middleware.TrimSpaces(), productHandler.UpdateDepartment)
 			department.DELETE("/:department_id", productHandler.DeleteDepartment)
-			department.GET("/", middleware.TrimSpaces(), productHandler.GetAllDepartments)
+			// Seller app: exclude the reserved customer-only "All" department.
+			department.GET("/", middleware.TrimSpaces(), productHandler.GetAllDepartmentsForSeller)
 
 			// category
 			category := department.Group("/:department_id/categories")

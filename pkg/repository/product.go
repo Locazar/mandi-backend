@@ -1594,7 +1594,9 @@ func (c *productDatabase) SearchProducts(ctx context.Context, keyword string, ca
 		paramIndex++
 	}
 
-	if departmentID != nil && *departmentID != "" {
+	// The reserved customer-only "All" department aggregates every department, so
+	// skip the department filter for it — the customer sees all products.
+	if departmentID != nil && *departmentID != "" && !IsAllDepartment(ctx, c.DB, *departmentID) {
 		whereClause += fmt.Sprintf(" AND pi.department_id = $%d", paramIndex)
 		params = append(params, *departmentID)
 		paramIndex++
@@ -1789,6 +1791,14 @@ func (c *productDatabase) GetAllSubCategories(ctx context.Context) (subCategorie
 }
 
 func (c *productDatabase) GetAllCategoriesByDepartmentID(ctx context.Context, brandID string) (categories []response.Category, err error) {
+	// The reserved customer-only "All" department aggregates every department, so
+	// return every category (across all departments) instead of filtering by one.
+	if IsAllDepartment(ctx, c.DB, brandID) {
+		allQuery := `SELECT id, name, image_url, icon FROM categories ORDER BY sort_order ASC`
+		err = c.DB.Raw(allQuery).Scan(&categories).Error
+		return
+	}
+
 	query := `SELECT id, name, image_url, icon FROM categories WHERE department_id = $1 ORDER BY sort_order ASC`
 	err = c.DB.Raw(query, brandID).Scan(&categories).Error
 
