@@ -137,24 +137,31 @@ func followerFirstNonBlank(ss []string) string {
 	return ""
 }
 
-// resolveFollowerImageURL turns a stored relative image path
+// resolveFollowerImageURL turns a stored relative product-image path
 // (e.g. "uploads/products/x.jpg") into an absolute URL so it renders in the
-// push. Absolute URLs pass through; if no public base is configured the image
-// is dropped and the push is sent text-only.
+// push. Absolute URLs pass through unchanged.
+//
+// "uploads/…" paths are served by the API host (StaticFS) — the same rule the
+// customer app's resolveImageUrl and the backend's normalizePublicImageURL use
+// (NOT the S3 base, which is only for bare object keys). We prefer an
+// env-configured public origin and fall back to the production API host so the
+// image still renders when the API server has no *_BASE_URL env set.
 func resolveFollowerImageURL(path string) string {
-	if path == "" {
+	p := strings.TrimSpace(strings.ReplaceAll(path, "\\", "/"))
+	if p == "" {
 		return ""
 	}
-	if strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") {
-		return path
+	if strings.HasPrefix(p, "http://") || strings.HasPrefix(p, "https://") {
+		return p
 	}
 	base := followerFirstNonBlank([]string{
 		os.Getenv("NOTIFICATION_PUBLIC_BASE_URL"),
 		os.Getenv("PUBLIC_BASE_URL"),
-		os.Getenv("S3_PUBLIC_BASE_URL"),
+		os.Getenv("API_BASE_URL"),
+		os.Getenv("APP_BASE_URL"),
 	})
 	if base == "" {
-		return ""
+		base = "https://api.locazar.com" // production API host serving /uploads
 	}
-	return strings.TrimRight(base, "/") + "/" + strings.TrimLeft(path, "/")
+	return strings.TrimRight(base, "/") + "/" + strings.TrimLeft(p, "/")
 }

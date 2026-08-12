@@ -222,8 +222,14 @@ func (uc *notificationUseCase) SendPushNotification(ctx context.Context, req req
 		data["event_type"] = req.EventType
 	}
 
+	// Seller FCM tokens are keyed by the SHOP id (Firestore sellers/{shopID} and
+	// the device-token rows), but callers such as the admin-portal pass the
+	// seller's admin/owner id. Resolve to the shop id so the tokens are actually
+	// found — otherwise the push silently reaches no device.
+	ownerID := uc.resolveTokenOwnerID(ctx, req.OwnerID, req.OwnerType)
+
 	// Primary path: tokens from Postgres
-	tokens, pgErr := uc.notificationRepo.GetActiveTokensByOwner(ctx, req.OwnerID, req.OwnerType)
+	tokens, pgErr := uc.notificationRepo.GetActiveTokensByOwner(ctx, ownerID, req.OwnerType)
 	var pgSendErr error
 	if pgErr == nil && len(tokens) > 0 {
 		pgSendErr = uc.fcmPush.SendToTokens(ctx, tokens, req.Title, req.Body, data)
@@ -235,8 +241,8 @@ func (uc *notificationUseCase) SendPushNotification(ctx context.Context, req req
 		// sends, then fall through to the Firestore path.
 		if errors.Is(pgSendErr, notificationSvc.ErrAllTokensUnreachable) {
 			for _, t := range tokens {
-				if delErr := uc.notificationRepo.DeleteDeviceToken(ctx, req.OwnerID, req.OwnerType, t); delErr != nil {
-					log.Printf("WARN [SendPushNotification]: prune stale token for %s/%s failed: %v", req.OwnerType, req.OwnerID, delErr)
+				if delErr := uc.notificationRepo.DeleteDeviceToken(ctx, ownerID, req.OwnerType, t); delErr != nil {
+					log.Printf("WARN [SendPushNotification]: prune stale token for %s/%s failed: %v", req.OwnerType, ownerID, delErr)
 				}
 			}
 		}
@@ -244,7 +250,7 @@ func (uc *notificationUseCase) SendPushNotification(ctx context.Context, req req
 
 	// Fallback: tokens from Firestore (populated by Cloud Functions or other services)
 	ownerCollection := ownerTypeToCollection(req.OwnerType)
-	fsErr := uc.fcmPush.SendToOwnerViaFirestore(ctx, ownerCollection, req.OwnerID, req.Title, req.Body, data)
+	fsErr := uc.fcmPush.SendToOwnerViaFirestore(ctx, ownerCollection, ownerID, req.Title, req.Body, data)
 	if fsErr == nil {
 		return nil
 	}
@@ -260,7 +266,7 @@ func (uc *notificationUseCase) SendPushNotification(ctx context.Context, req req
 		errors.Is(fsErr, notificationSvc.ErrAllTokensUnreachable)
 
 	if postgresNoDevice && firestoreNoDevice {
-		log.Printf("INFO [SendPushNotification]: no active device for %s %q — nothing delivered (owner likely logged out)", req.OwnerType, req.OwnerID)
+		log.Printf("INFO [SendPushNotification]: no active device for %s %q (token owner %q) — nothing delivered (owner likely logged out)", req.OwnerType, req.OwnerID, ownerID)
 		return nil
 	}
 
@@ -273,6 +279,29 @@ func (uc *notificationUseCase) SendPushNotification(ctx context.Context, req req
 		return fmt.Errorf("failed to send push notification: postgres tokens: %v; firestore: %v", pgSendErr, fsErr)
 	}
 	return fsErr
+}
+
+// resolveTokenOwnerID maps a push target to the id its FCM tokens are actually
+// stored under. Seller tokens live under the SHOP id (sellers/{shopID}); callers
+// (e.g. the admin-portal) may pass either the shop id OR the seller's
+// admin/owner id, so we match on both. Non-seller owners (users) are keyed by
+// their own id and pass through unchanged. Any miss falls back to the input so
+// behaviour never regresses.
+func (uc *notificationUseCase) resolveTokenOwnerID(ctx context.Context, ownerID, ownerType string) string {
+	if ownerType != "seller" || ownerID == "" || uc.db == nil {
+		return ownerID
+	}
+	var shopID string
+	err := uc.db.WithContext(ctx).
+		Table("shop_details").
+		Select("id").
+		Where("id = ? OR admin_id = ?", ownerID, ownerID).
+		Limit(1).
+		Scan(&shopID).Error
+	if err == nil && shopID != "" {
+		return shopID
+	}
+	return ownerID
 }
 
 // SendBroadcast delivers a notification to a whole audience via an FCM topic.
