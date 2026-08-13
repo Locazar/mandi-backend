@@ -179,8 +179,9 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			department.POST("/", middleware.TrimSpaces(), productHandler.CreateDepartment)
 			department.PUT("/:department_id", middleware.TrimSpaces(), productHandler.UpdateDepartment)
 			department.DELETE("/:department_id", productHandler.DeleteDepartment)
-			// Seller app: exclude the reserved customer-only "All" department.
-			department.GET("/", middleware.TrimSpaces(), productHandler.GetAllDepartmentsForSeller)
+			// Shared by admin-portal + seller app: admin-portal sees the reserved
+			// "All" department (to manage it), sellers don't (role-based).
+			department.GET("/", middleware.TrimSpaces(), productHandler.GetAllDepartmentsForAdmin)
 
 			// category
 			category := department.Group("/:department_id/categories")
