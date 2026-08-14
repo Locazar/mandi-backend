@@ -37,7 +37,7 @@ func provideElasticURL(cfg config.Config) string {
 // A dedicated provider (vs. a bare string) avoids ambiguity with other
 // string-returning providers in the graph.
 func provideQRCodeHandler(uc *usecase.QRCodeUseCase, cfg config.Config) *handler.QRCodeHandler {
-	return handler.NewQRCodeHandler(uc, cfg.PublicBaseURL)
+	return handler.NewQRCodeHandler(uc, cfg.PublicBaseURL, cfg.QRRedirectBaseURL)
 }
 
 func provideSQLDB(gormDB *gorm.DB) (*sql.DB, error) {
