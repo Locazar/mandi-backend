@@ -119,6 +119,7 @@ type AdminUseCase interface {
 	UserLogout(ctx context.Context, adminId string) error
 	GetShopSocialDetails(ctx context.Context, shopID string) ([]domain.ShopSocial, error)
 	GetDashboardStats(ctx context.Context) (domain.DashboardStats, error)
+	GetDashboardGrowth(ctx context.Context, days int) ([]domain.DashboardGrowthDay, error)
 
 	// Shop phone number change — OTP-gated so a new number can never be
 	// saved without proving ownership of it first.

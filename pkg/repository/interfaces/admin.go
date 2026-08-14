@@ -112,6 +112,7 @@ type AdminRepository interface {
 	DeleteRefreshSessionByUserID(ctx context.Context, adminId string) error
 	GetShopSocialDetails(ctx context.Context, shopID string) ([]domain.ShopSocial, error)
 	GetDashboardStats(ctx context.Context) (domain.DashboardStats, error)
+	GetDashboardGrowth(ctx context.Context, days int) ([]domain.DashboardGrowthDay, error)
 
 	// Shop phone number change (OTP-gated — see AdminUseCase.SendShopPhoneChangeOtp
 	// / VerifyShopPhoneChangeOtp). Deliberately separate from UpdateShop's

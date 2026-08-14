@@ -1690,6 +1690,16 @@ func (c *adminUseCase) GetAdminByID(ctx context.Context, adminID string) (domain
 	return c.adminRepo.GetAdminByID(ctx, adminID)
 }
 
+func (c *adminUseCase) GetDashboardGrowth(ctx context.Context, days int) ([]domain.DashboardGrowthDay, error) {
+	if days < 1 {
+		days = 7
+	}
+	if days > 31 {
+		days = 31
+	}
+	return c.adminRepo.GetDashboardGrowth(ctx, days)
+}
+
 func (c *adminUseCase) GetDashboardStats(ctx context.Context) (domain.DashboardStats, error) {
 	return c.adminRepo.GetDashboardStats(ctx)
 }

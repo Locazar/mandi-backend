@@ -109,6 +109,8 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		api.GET("/banner", offerHandler.GetBanners)
 		// Dashboard stats
 		api.GET("/dashboard/stats", adminHandler.GetDashboardStats)
+		// Dashboard growth series (per-day sellers/customers, default last 7 days)
+		api.GET("/dashboard/growth", adminHandler.GetDashboardGrowth)
 		// user side
 		user := api.Group("/users")
 		{
