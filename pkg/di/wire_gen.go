@@ -138,7 +138,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	languageHandler := handler.NewLanguageHandler(languageUseCase)
 	qrCodeRepository := repository.NewQRCodeRepository(gormDB)
 	qrCodeUseCase := usecase.NewQRCodeUseCase(qrCodeRepository)
-	qrCodeHandler := handler.NewQRCodeHandler(qrCodeUseCase, cfg.PublicBaseURL)
+	qrCodeHandler := handler.NewQRCodeHandler(qrCodeUseCase, cfg.PublicBaseURL, cfg.QRRedirectBaseURL)
 	sqlDB, err := provideSQLDB(gormDB)
 	if err != nil {
 		return nil, err

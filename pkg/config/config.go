@@ -68,6 +68,15 @@ type Config struct {
 	// no config. Additive — absence never fails startup.
 	PublicBaseURL string `mapstructure:"PUBLIC_BASE_URL"`
 
+	// QRRedirectBaseURL is the branded origin the *scannable* QR link is built on
+	// (e.g. https://locazar.com), so a scan shows a clean domain instead of the
+	// API host. That domain must route /r/:code to this API's resolver (see the
+	// website's Firebase redirect). Only the QR-encoded short link uses it; the
+	// QR image URL and everything else stay on the API host. Optional: when blank
+	// the short link falls back to PublicBaseURL / the request host (so local/dev
+	// keeps working). Additive — absence never fails startup.
+	QRRedirectBaseURL string `mapstructure:"QR_REDIRECT_BASE_URL"`
+
 	SharedUploadsPath string `mapstructure:"SHARED_UPLOADS_PATH"`
 
 	ElasticsearchURL string `mapstructure:"ELASTICSEARCH_URL"`
@@ -161,10 +170,11 @@ var envsNames = []string{
 	"GOAUTH_CLIENT_ID", "GOAUTH_CLIENT_SECRET", "GOAUTH_CALL_BACK_URL", //goath
 	"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_REGION", "AWS_BUCKET_NAME", // legacy aws fallback
 	"S3_ENDPOINT", "S3_REGION", "S3_BUCKET", "S3_ACCESS_KEY", "S3_SECRET_KEY", "S3_PUBLIC_BASE_URL", // object storage
-	"PUBLIC_BASE_URL",     // public origin for QR redirect links (optional)
-	"SHARED_UPLOADS_PATH", // shared uploads directory (deprecated)
-	"ELASTICSEARCH_URL",   // elasticsearch
-	"AI_SERVICE_URL",      // ai service
+	"PUBLIC_BASE_URL",      // public origin for QR redirect links (optional)
+	"QR_REDIRECT_BASE_URL", // branded origin the scannable QR link uses (optional)
+	"SHARED_UPLOADS_PATH",  // shared uploads directory (deprecated)
+	"ELASTICSEARCH_URL",    // elasticsearch
+	"AI_SERVICE_URL",       // ai service
 	// Firebase — either an ADC credentials file path or inline JSON
 	"GOOGLE_APPLICATION_CREDENTIALS",
 	"FIREBASE_CONFIG",

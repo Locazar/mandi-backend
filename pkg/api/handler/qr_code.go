@@ -21,16 +21,23 @@ import (
 // the public /r/:code redirect that scanners hit.
 type QRCodeHandler struct {
 	useCase *usecase.QRCodeUseCase
-	// publicBaseURL is the externally reachable origin the printed QR should
-	// point at (e.g. https://api.locazar.com). When blank we fall back to the
-	// request's own scheme+host, so local/dev still works without config.
+	// publicBaseURL is the externally reachable API origin used for the QR image
+	// URL and, by default, the redirect link (e.g. https://api.locazar.com). When
+	// blank we fall back to the request's own scheme+host, so local/dev still
+	// works without config.
 	publicBaseURL string
+	// redirectBaseURL is the branded origin the *scannable* short link is built on
+	// (e.g. https://locazar.com) so a scan shows a clean domain instead of the API
+	// host. That domain must route /r/:code to this API. When blank the short link
+	// falls back to publicBaseURL / the request host. Only shortURL uses it.
+	redirectBaseURL string
 }
 
-func NewQRCodeHandler(useCase *usecase.QRCodeUseCase, publicBaseURL string) *QRCodeHandler {
+func NewQRCodeHandler(useCase *usecase.QRCodeUseCase, publicBaseURL, redirectBaseURL string) *QRCodeHandler {
 	return &QRCodeHandler{
-		useCase:       useCase,
-		publicBaseURL: strings.TrimRight(strings.TrimSpace(publicBaseURL), "/"),
+		useCase:         useCase,
+		publicBaseURL:   strings.TrimRight(strings.TrimSpace(publicBaseURL), "/"),
+		redirectBaseURL: strings.TrimRight(strings.TrimSpace(redirectBaseURL), "/"),
 	}
 }
 
@@ -255,9 +262,20 @@ func (h *QRCodeHandler) enrich(ctx *gin.Context, qr *domain.QRCode) {
 	qr.QRImageURL = h.base(ctx) + "/api/admin/qr-codes/" + qr.ID + "/image.png"
 }
 
-// shortURL is what the QR actually encodes: the public redirect link.
+// shortURL is what the QR actually encodes: the public redirect link, on the
+// branded redirect origin when configured (else the API base).
 func (h *QRCodeHandler) shortURL(ctx *gin.Context, code string) string {
-	return h.base(ctx) + "/r/" + code
+	return h.redirectBase(ctx) + "/r/" + code
+}
+
+// redirectBase is the origin the scannable short link is built on. It prefers
+// the branded QRRedirectBaseURL (e.g. https://locazar.com) and falls back to the
+// API base (publicBaseURL / request host) when unset.
+func (h *QRCodeHandler) redirectBase(ctx *gin.Context) string {
+	if h.redirectBaseURL != "" {
+		return h.redirectBaseURL
+	}
+	return h.base(ctx)
 }
 
 // base is the origin used to build both the short link and the image URL. It
