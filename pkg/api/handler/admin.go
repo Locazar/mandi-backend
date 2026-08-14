@@ -3066,6 +3066,23 @@ func (a *adminHandler) GetDashboardStats(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "dashboard stats fetched", stats)
 }
 
+// GetDashboardGrowth returns a per-day seller/customer growth series (new
+// sign-ups + running totals) for the last N days (default 7, via ?days=).
+func (a *adminHandler) GetDashboardGrowth(ctx *gin.Context) {
+	days := 7
+	if v := strings.TrimSpace(ctx.Query("days")); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			days = n
+		}
+	}
+	series, err := a.adminUseCase.GetDashboardGrowth(ctx, days)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to fetch dashboard growth", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "dashboard growth fetched", gin.H{"days": series})
+}
+
 // notificationImageNamespace is the object-storage prefix under which images
 // uploaded for use in push notifications (welcome banners, frames, etc.) are kept.
 const notificationImageNamespace = "notifications"

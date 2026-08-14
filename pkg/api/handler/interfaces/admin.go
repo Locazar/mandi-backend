@@ -134,6 +134,7 @@ type AdminHandler interface {
 
 	// Dashboard
 	GetDashboardStats(ctx *gin.Context)
+	GetDashboardGrowth(ctx *gin.Context)
 
 	// Subscription GST configuration
 	GetSubscriptionGSTConfig(ctx *gin.Context)

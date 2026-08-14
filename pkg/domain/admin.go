@@ -504,3 +504,14 @@ type DashboardStats struct {
 	TotalRevenue         float64 `json:"total_revenue"`
 	TotalProducts        int64   `json:"total_products"`
 }
+
+// DashboardGrowthDay is one calendar day in the dashboard growth series:
+// new sign-ups that day plus the running (cumulative) totals as of end of that
+// day, for both sellers (admins) and customers (users).
+type DashboardGrowthDay struct {
+	Date           string `json:"date"` // YYYY-MM-DD
+	NewSellers     int64  `json:"new_sellers"`
+	SellersTotal   int64  `json:"sellers_total"`
+	NewCustomers   int64  `json:"new_customers"`
+	CustomersTotal int64  `json:"customers_total"`
+}

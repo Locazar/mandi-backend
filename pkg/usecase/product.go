@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -1303,6 +1304,47 @@ func (c *productUseCase) GetAllDepartments(ctx context.Context) ([]response.Depa
 		}
 	}
 	return resDepartments, nil
+}
+
+// GetAllDepartmentsForAdminCaller serves the shared /api/admin/departments
+// endpoint, which is used by BOTH the admin-portal and the seller app. The
+// reserved customer-only "All" department (domain.AllDepartmentName) must stay
+// visible to admin-portal users — who create, manage and delete it (the feature
+// on/off switch) — but be hidden from sellers, so the caller's admin role
+// decides.
+//
+// Sellers carry a blank admin role (role is a platform-user-only concept; see
+// migration 000025_fix_admins_role_default and adminHandler.RequirePermission),
+// while admin-portal users carry a named role (super_admin, catalog_manager, …).
+//
+// Fail-open: only a caller positively identified as a seller (blank role) has
+// "All" stripped. On a missing/unresolvable caller, or any roled admin-portal
+// user, the full list — including "All" — is returned, so the admin-portal can
+// never lose visibility of a real department. callerID is the admin id decoded
+// from the request token.
+func (c *productUseCase) GetAllDepartmentsForAdminCaller(ctx context.Context, callerID string) ([]response.Department, error) {
+	departments, err := c.GetAllDepartments(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if callerID == "" {
+		return departments, nil // no identity resolved — keep full list
+	}
+	caller, aerr := c.adminRepo.GetAdminByID(ctx, callerID)
+	if aerr != nil || string(caller.Role) != "" {
+		// Unknown caller, or a roled admin-portal user → keep "All".
+		return departments, nil
+	}
+
+	// Seller (blank role) → strip the reserved "All" department.
+	filtered := make([]response.Department, 0, len(departments))
+	for _, d := range departments {
+		if strings.EqualFold(strings.TrimSpace(d.Name), domain.AllDepartmentName) {
+			continue
+		}
+		filtered = append(filtered, d)
+	}
+	return filtered, nil
 }
 
 func (c *productUseCase) GetDepartmentByID(ctx context.Context, departmentID string) (response.Department, error) {

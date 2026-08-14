@@ -14,7 +14,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/disintegration/imaging"
@@ -1938,30 +1937,25 @@ func (a *ProductHandler) GetAllDepartments(ctx *gin.Context) {
 	})
 }
 
-// GetAllDepartmentsForSeller returns departments for the seller app, excluding
-// the reserved customer-only "All" aggregate department (domain.AllDepartmentName).
-// The customer endpoint (GetAllDepartments) still returns it; only the seller app
-// must not see it, so sellers can't list/select products under it.
-func (a *ProductHandler) GetAllDepartmentsForSeller(ctx *gin.Context) {
-	departments, err := a.productUseCase.GetAllDepartments(ctx)
+// GetAllDepartmentsForAdmin serves the shared /api/admin/departments endpoint,
+// which is used by BOTH the admin-portal and the seller app. The reserved
+// customer-only "All" department must stay visible to admin-portal users (who
+// create/manage/delete it) but be hidden from sellers. The caller's admin role
+// decides — see GetAllDepartmentsForAdminCaller. The customer endpoint
+// (GetAllDepartments) is unaffected and always returns "All".
+func (a *ProductHandler) GetAllDepartmentsForAdmin(ctx *gin.Context) {
+	callerID := a.tokenService.DecodeTokenData(ctx.GetHeader("Authorization"))
+	departments, err := a.productUseCase.GetAllDepartmentsForAdminCaller(ctx, callerID)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get departments", err, nil)
 		return
 	}
 
-	filtered := make([]response.Department, 0, len(departments))
-	for _, d := range departments {
-		if strings.EqualFold(strings.TrimSpace(d.Name), domain.AllDepartmentName) {
-			continue
-		}
-		filtered = append(filtered, d)
-	}
-
-	response.ResolveDepartmentsImages(a.cloudService, filtered)
+	response.ResolveDepartmentsImages(a.cloudService, departments)
 	ctx.JSON(http.StatusOK, response.Response{
 		Status:  true,
 		Message: "Successfully get all departments",
-		Data:    filtered,
+		Data:    departments,
 	})
 }
 

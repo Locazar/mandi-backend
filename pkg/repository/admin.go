@@ -1687,6 +1687,40 @@ func (a *adminDatabase) GetDashboardStats(ctx context.Context) (domain.Dashboard
 	return stats, nil
 }
 
+// GetDashboardGrowth returns one row per calendar day for the last `days` days
+// (inclusive of today, oldest first) with new sign-ups that day and the running
+// cumulative totals as of end of that day, for both sellers (admins) and
+// customers (users). generate_series fills days with zero sign-ups so the
+// series is always exactly `days` long with no gaps.
+func (a *adminDatabase) GetDashboardGrowth(ctx context.Context, days int) ([]domain.DashboardGrowthDay, error) {
+	if days < 1 {
+		days = 7
+	}
+
+	const query = `
+WITH day_series AS (
+    SELECT generate_series(
+        date_trunc('day', now()) - make_interval(days => $1 - 1),
+        date_trunc('day', now()),
+        interval '1 day'
+    ) AS d
+)
+SELECT
+    to_char(ds.d, 'YYYY-MM-DD') AS date,
+    (SELECT count(*) FROM admins a WHERE a.created_at >= ds.d AND a.created_at < ds.d + interval '1 day') AS new_sellers,
+    (SELECT count(*) FROM admins a WHERE a.created_at <  ds.d + interval '1 day')                          AS sellers_total,
+    (SELECT count(*) FROM users  u WHERE u.created_at >= ds.d AND u.created_at < ds.d + interval '1 day') AS new_customers,
+    (SELECT count(*) FROM users  u WHERE u.created_at <  ds.d + interval '1 day')                          AS customers_total
+FROM day_series ds
+ORDER BY ds.d ASC`
+
+	var out []domain.DashboardGrowthDay
+	if err := a.DB.WithContext(ctx).Raw(query, days).Scan(&out).Error; err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ── Roles & permissions ─────────────────────────────────────────────────────
 
 func (c *adminDatabase) CreateRole(ctx context.Context, role domain.Role, permissions []domain.RolePermissionGrant) (domain.Role, error) {
