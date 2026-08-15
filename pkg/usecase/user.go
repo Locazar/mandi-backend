@@ -295,6 +295,11 @@ func (c *userUserCase) GetSellersByPincode(ctx context.Context, reqData request.
 	return sellers, nil
 }
 
+// PublicListShops proxies the read-only public directory listing (no auth path).
+func (c *userUserCase) PublicListShops(ctx context.Context, city, category string, limit, offset int) ([]response.PublicShop, error) {
+	return c.userRepo.PublicListShops(ctx, city, category, limit, offset)
+}
+
 func (c *userUserCase) SearchShopList(ctx context.Context, reqData request.SearchShopListRequest) (shops []response.Shop, err error) {
 	shops, err = c.userRepo.SearchShopList(ctx, reqData)
 

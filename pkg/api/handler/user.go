@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -44,6 +45,33 @@ func (u *UserHandler) UserLogout(ctx *gin.Context) {
 	ctx.SetCookie("user-auth", "", -1, "", "", false, true)
 
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully logged out", nil)
+}
+
+// PublicListShops is the PUBLIC (no-auth) directory listing that powers the SEO
+// pages (locazar.com/{city}/{category}). GET /api/public/shops?city=&category=
+// &limit=&offset=. Returns only public-safe fields for active shops.
+func (u *UserHandler) PublicListShops(ctx *gin.Context) {
+	city := strings.TrimSpace(ctx.Query("city"))
+	category := strings.TrimSpace(ctx.Query("category"))
+
+	limit := 24
+	if v, err := strconv.Atoi(ctx.Query("limit")); err == nil && v > 0 {
+		limit = v
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	offset := 0
+	if v, err := strconv.Atoi(ctx.Query("offset")); err == nil && v > 0 {
+		offset = v
+	}
+
+	shops, err := u.userUseCase.PublicListShops(ctx, city, category, limit, offset)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to list shops", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "shops", shops)
 }
 
 // // CheckOutCart godoc

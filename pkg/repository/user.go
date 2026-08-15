@@ -372,6 +372,37 @@ func (c *userDatabase) FindSellersByPincode(ctx context.Context, reqData request
 	return sellers, err
 }
 
+// PublicListShops returns active shops for the public SEO directory pages,
+// optionally filtered by city and by category (department name). It is a NEW,
+// isolated, read-only query — it does NOT touch the authenticated customer
+// SearchShopList below — and selects only public-safe columns (phone only when
+// the seller opted in). Additive: nothing else depends on it.
+func (c *userDatabase) PublicListShops(ctx context.Context, city, category string, limit, offset int) (shops []response.PublicShop, err error) {
+	q := `SELECT sd.id, sd.shop_name, sd.city, sd.state, sd.pincode,
+		sd.shop_description AS description, sd.shop_image_url AS image_url,
+		sd.latitude, sd.longitude,
+		CASE WHEN sd.phone_visible_consent THEN sd.phone ELSE '' END AS phone
+	FROM shop_details sd
+	WHERE sd.shop_status = 'active'`
+	args := []interface{}{}
+	if city != "" {
+		q += " AND LOWER(sd.city) = LOWER(?)"
+		args = append(args, city)
+	}
+	if category != "" {
+		q += ` AND sd.id IN (
+			SELECT pi.shop_id FROM product_items pi
+			JOIN departments d ON d.id = pi.department_id
+			WHERE LOWER(d.name) = LOWER(?))`
+		args = append(args, category)
+	}
+	q += " ORDER BY sd.shop_verification_status DESC, sd.shop_name ASC LIMIT ? OFFSET ?"
+	args = append(args, limit, offset)
+
+	err = c.DB.WithContext(ctx).Raw(q, args...).Scan(&shops).Error
+	return
+}
+
 func (c *userDatabase) SearchShopList(ctx context.Context, reqData request.SearchShopListRequest) (shops []response.Shop, err error) {
 	paramIndex := 1
 	args := []interface{}{}

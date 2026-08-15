@@ -55,6 +55,11 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 	// Razorpay webhook — public, no auth middleware
 	api.POST("/webhook/razorpay", subscriptionPaymentHandler.HandleWebhook)
 
+	// Public directory listing for SEO pages (locazar.com/{city}/{category}) — no
+	// auth. Read-only, public-safe fields only. Additive; existing routes below
+	// are unaffected.
+	api.GET("/public/shops", userHandler.PublicListShops)
+
 	api.Use(middleware.AuthenticateUser())
 	{
 

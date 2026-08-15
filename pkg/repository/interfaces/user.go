@@ -41,6 +41,7 @@ type UserRepository interface {
 	FindSellersByRadius(ctx context.Context, reqData request.SellerRadiusRequest) (sellers []response.Shop, err error)
 	FindSellersByPincode(ctx context.Context, reqData request.SellerPincodeRequest) (sellers []response.Shop, err error)
 	SearchShopList(ctx context.Context, reqData request.SearchShopListRequest) (shops []response.Shop, err error)
+	PublicListShops(ctx context.Context, city, category string, limit, offset int) (shops []response.PublicShop, err error)
 	DeleteRefreshSessionByUserID(ctx context.Context, adminID string, userType string) error
 	FindShopByID(ctx context.Context, shopID string) (response.Shop, error)
 	GetShopSocialDetails(ctx context.Context, shopID string, userID string) (domain.ShopSocialSummary, error)

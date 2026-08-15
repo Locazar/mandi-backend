@@ -65,6 +65,11 @@ func (u *userRepoAdapter) FindSellersByRadius(ctx context.Context, req request.S
 	return nil, nil
 }
 
+func (u *userRepoAdapter) PublicListShops(ctx context.Context, city, category string, limit, offset int) ([]response.PublicShop, error) {
+	// Not used in these tests; return empty result.
+	return nil, nil
+}
+
 func (u *userRepoAdapter) UpdateAdminVerified(ctx context.Context, adminID string) error {
 	// Not used in these tests; return nil.
 	return nil
