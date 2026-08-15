@@ -28,6 +28,7 @@ type UserUseCase interface {
 	GetSellersByRadius(ctx context.Context, reqData request.SellerRadiusRequest) (sellers []response.Shop, err error)
 	GetSellersByPincode(ctx context.Context, reqData request.SellerPincodeRequest) (sellers []response.Shop, err error)
 	SearchShopList(ctx context.Context, reqData request.SearchShopListRequest) (shops []response.Shop, err error)
+	PublicListShops(ctx context.Context, city, category string, limit, offset int) ([]response.PublicShop, error)
 	GetProductItemsByDepartment(ctx context.Context, documentID string) ([]response.ProductItems, error)
 	GetProductItemsByCategory(ctx context.Context, categoryID string) ([]response.ProductItems, error)
 	GetProductItemsBySubCategory(ctx context.Context, subCategoryID string) ([]response.ProductItems, error)
