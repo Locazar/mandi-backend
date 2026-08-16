@@ -59,6 +59,7 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 	// auth. Read-only, public-safe fields only. Additive; existing routes below
 	// are unaffected.
 	api.GET("/public/shops", userHandler.PublicListShops)
+	api.GET("/public/products", userHandler.PublicListProducts)
 
 	api.Use(middleware.AuthenticateUser())
 	{

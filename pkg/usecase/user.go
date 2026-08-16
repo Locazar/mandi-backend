@@ -300,6 +300,11 @@ func (c *userUserCase) PublicListShops(ctx context.Context, city, category strin
 	return c.userRepo.PublicListShops(ctx, city, category, limit, offset)
 }
 
+// PublicListProducts proxies the read-only public product listing (no auth path).
+func (c *userUserCase) PublicListProducts(ctx context.Context, city, category, shopID string, limit, offset int) ([]response.PublicProduct, error) {
+	return c.userRepo.PublicListProducts(ctx, city, category, shopID, limit, offset)
+}
+
 func (c *userUserCase) SearchShopList(ctx context.Context, reqData request.SearchShopListRequest) (shops []response.Shop, err error) {
 	shops, err = c.userRepo.SearchShopList(ctx, reqData)
 

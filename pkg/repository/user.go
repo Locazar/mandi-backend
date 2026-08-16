@@ -403,6 +403,44 @@ func (c *userDatabase) PublicListShops(ctx context.Context, city, category strin
 	return
 }
 
+// PublicListProducts returns products for the public SEO directory pages,
+// optionally filtered by city, category (department name) and/or shop. NEW,
+// isolated, read-only query — it does not touch the authenticated product search.
+// Public-safe columns only; NO price, no seller PII. Active shops only.
+func (c *userDatabase) PublicListProducts(ctx context.Context, city, category, shopID string, limit, offset int) (products []response.PublicProduct, err error) {
+	q := `SELECT pi.id,
+		pi.sub_category_name AS name,
+		COALESCE(cat.name, '') AS category,
+		COALESCE(d.name, '') AS department,
+		COALESCE(pi.description, '') AS description,
+		COALESCE(pi.product_item_images[1], '') AS image_url,
+		sd.id AS shop_id, sd.shop_name, sd.city, sd.state,
+		pi.stock AS in_stock
+	FROM product_items pi
+	JOIN shop_details sd ON sd.id = pi.shop_id
+	LEFT JOIN categories cat ON cat.id = pi.category_id
+	LEFT JOIN departments d ON d.id = pi.department_id
+	WHERE sd.shop_status = 'active'`
+	args := []interface{}{}
+	if city != "" {
+		q += " AND LOWER(sd.city) = LOWER(?)"
+		args = append(args, city)
+	}
+	if category != "" {
+		q += " AND LOWER(d.name) = LOWER(?)"
+		args = append(args, category)
+	}
+	if shopID != "" {
+		q += " AND pi.shop_id = ?"
+		args = append(args, shopID)
+	}
+	q += " ORDER BY pi.updated_at DESC LIMIT ? OFFSET ?"
+	args = append(args, limit, offset)
+
+	err = c.DB.WithContext(ctx).Raw(q, args...).Scan(&products).Error
+	return
+}
+
 func (c *userDatabase) SearchShopList(ctx context.Context, reqData request.SearchShopListRequest) (shops []response.Shop, err error) {
 	paramIndex := 1
 	args := []interface{}{}
