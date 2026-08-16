@@ -60,6 +60,10 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 	// are unaffected.
 	api.GET("/public/shops", userHandler.PublicListShops)
 	api.GET("/public/products", userHandler.PublicListProducts)
+	// Public department list for the no-login web browse. Reuses GetAllDepartments,
+	// which only reads the token for a log line (never requires it) — safe to serve
+	// unauthenticated. Additive; the authenticated /departments route is unchanged.
+	api.GET("/public/departments", productHandler.GetAllDepartments)
 
 	api.Use(middleware.AuthenticateUser())
 	{
