@@ -70,6 +70,11 @@ func (u *userRepoAdapter) PublicListShops(ctx context.Context, city, category st
 	return nil, nil
 }
 
+func (u *userRepoAdapter) PublicListProducts(ctx context.Context, city, category, shopID string, limit, offset int) ([]response.PublicProduct, error) {
+	// Not used in these tests; return empty result.
+	return nil, nil
+}
+
 func (u *userRepoAdapter) UpdateAdminVerified(ctx context.Context, adminID string) error {
 	// Not used in these tests; return nil.
 	return nil

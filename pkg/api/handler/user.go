@@ -74,6 +74,34 @@ func (u *UserHandler) PublicListShops(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "shops", shops)
 }
 
+// PublicListProducts is the PUBLIC (no-auth) product directory that powers the
+// SEO product pages. GET /api/public/products?city=&category=&shop=&limit=&offset=.
+// Public-safe fields only (no price); active shops only.
+func (u *UserHandler) PublicListProducts(ctx *gin.Context) {
+	city := strings.TrimSpace(ctx.Query("city"))
+	category := strings.TrimSpace(ctx.Query("category"))
+	shopID := strings.TrimSpace(ctx.Query("shop"))
+
+	limit := 24
+	if v, err := strconv.Atoi(ctx.Query("limit")); err == nil && v > 0 {
+		limit = v
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	offset := 0
+	if v, err := strconv.Atoi(ctx.Query("offset")); err == nil && v > 0 {
+		offset = v
+	}
+
+	products, err := u.userUseCase.PublicListProducts(ctx, city, category, shopID, limit, offset)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to list products", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "products", products)
+}
+
 // // CheckOutCart godoc
 // // @summary api for cart checkout
 // // @description user can checkout user cart items
