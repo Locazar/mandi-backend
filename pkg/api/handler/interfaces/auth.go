@@ -8,6 +8,10 @@ type AuthHandler interface {
 	UserSignUp(ctx *gin.Context)
 	UserSignUpVerify(ctx *gin.Context)
 
+	// GuestLogin mints a read-only guest session token (no OTP/login) so
+	// anonymous visitors can browse. Additive; existing auth flows unchanged.
+	GuestLogin(ctx *gin.Context)
+
 	UserGoogleAuthInitialize(ctx *gin.Context)
 	UserGoogleAuthLoginPage(ctx *gin.Context)
 	UserGoogleAuthCallBack(ctx *gin.Context)

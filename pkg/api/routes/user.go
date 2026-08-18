@@ -48,6 +48,10 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 
 		auth.POST("/renew-access-token", authHandler.UserRenewAccessToken())
 
+		// Guest session for the no-login web browse: mints a read-only guest
+		// token so the app never calls the browse APIs unauthenticated. No OTP.
+		auth.POST("/guest", authHandler.GuestLogin)
+
 		// api.POST("/logout")
 
 	}
