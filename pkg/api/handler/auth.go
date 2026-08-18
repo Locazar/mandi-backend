@@ -16,6 +16,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"github.com/rohit221990/mandi-backend/pkg/service/token"
 	usecaseInterface "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
+	"github.com/rohit221990/mandi-backend/pkg/utils"
 )
 
 const (
@@ -35,6 +36,37 @@ func NewAuthHandler(authUsecase usecaseInterface.AuthUseCase, config config.Conf
 		config:       config,
 		tokenService: tokenService,
 	}
+}
+
+// GuestLogin godoc
+//
+//	@Summary		Create a guest session (no login)
+//	@Description	Mints a read-only guest access token so anonymous visitors can browse without OTP/login. Reuses the standard 30-day access token with a synthetic guest_<id> user id.
+//	@Id				GuestLogin
+//	@Tags			User Authentication
+//	@Router			/auth/guest [post]
+//	@Success		200	{object}	response.Response{data=response.TokenResponse}	"Guest session created"
+//	@Failure		500	{object}	response.Response{}								"Failed to create guest session"
+//
+// Additive: reuses the existing GenerateAccessToken path with a synthetic guest
+// user id. It touches no existing auth flow, and the guest id belongs to no real
+// user — only the public-safe, no-price browse handlers accept it.
+func (c *AuthHandler) GuestLogin(ctx *gin.Context) {
+	guestID := "guest_" + utils.GenerateUniqueString()
+
+	accessToken, err := c.authUseCase.GenerateAccessToken(ctx, usecaseInterface.GenerateTokenParams{
+		UserID:   guestID,
+		UserType: token.User,
+	})
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to create guest session", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "guest session created", response.TokenResponse{
+		AccessToken: accessToken,
+		UserID:      guestID,
+	})
 }
 
 // UserLogin godoc
