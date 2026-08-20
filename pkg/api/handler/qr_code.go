@@ -17,6 +17,29 @@ import (
 	"gorm.io/gorm"
 )
 
+// ── Branded short-link origin ────────────────────────────────────────────────
+
+// A printed QR is permanent: whatever origin it encodes is stuck on paper for
+// the life of the print run. So the branded short origin is a compiled-in
+// default rather than config-only — a missing QR_REDIRECT_BASE_URL must never
+// silently fall back to the API host and put api.locazar.com in front of a
+// customer.
+//
+// The value carries its own path prefix when the target domain needs one, and
+// must match that domain's forwarding rule:
+//
+//	"https://lzr.in"          -> lzr.in/ab12cd          (forward /:code   -> API /r/:code)
+//	"https://locazar.com/r"   -> locazar.com/r/ab12cd   (website/firebase.json, already live)
+//
+// Overridable at runtime via QR_REDIRECT_BASE_URL, which follows the same
+// "origin plus optional path" shape.
+const defaultQRRedirectBase = "https://locazar.com/r"
+
+// apiShortLinkPath is this API's own resolver path (routes.QRCodeRoutes
+// registers GET /r/:code). Used only as the last-resort fallback, when the
+// branded default above has been blanked out.
+const apiShortLinkPath = "/r"
+
 // QRCodeHandler serves dynamic QR redirects: admin CRUD + PNG rendering, plus
 // the public /r/:code redirect that scanners hit.
 type QRCodeHandler struct {
@@ -26,10 +49,12 @@ type QRCodeHandler struct {
 	// blank we fall back to the request's own scheme+host, so local/dev still
 	// works without config.
 	publicBaseURL string
-	// redirectBaseURL is the branded origin the *scannable* short link is built on
-	// (e.g. https://locazar.com) so a scan shows a clean domain instead of the API
-	// host. That domain must route /r/:code to this API. When blank the short link
-	// falls back to publicBaseURL / the request host. Only shortURL uses it.
+	// redirectBaseURL overrides the branded origin the *scannable* short link is
+	// built on, so a scan shows a clean domain instead of the API host. It carries
+	// its own path prefix when needed ("https://lzr.in", "https://locazar.com/r"),
+	// and that domain must forward to this API's /r/:code resolver. When blank the
+	// compiled-in defaultQRRedirectBase applies — not the API host. Only shortURL
+	// uses it.
 	redirectBaseURL string
 }
 
@@ -262,20 +287,34 @@ func (h *QRCodeHandler) enrich(ctx *gin.Context, qr *domain.QRCode) {
 	qr.QRImageURL = h.base(ctx) + "/api/admin/qr-codes/" + qr.ID + "/image.png"
 }
 
-// shortURL is what the QR actually encodes: the public redirect link, on the
-// branded redirect origin when configured (else the API base).
+// shortURL is what the QR actually encodes: the public redirect link, built on
+// the branded short origin. The base carries its own path when it needs one, so
+// the code is always joined with a single separator.
 func (h *QRCodeHandler) shortURL(ctx *gin.Context, code string) string {
-	return h.redirectBase(ctx) + "/r/" + code
+	return h.redirectBase(ctx) + "/" + code
 }
 
-// redirectBase is the origin the scannable short link is built on. It prefers
-// the branded QRRedirectBaseURL (e.g. https://locazar.com) and falls back to the
-// API base (publicBaseURL / request host) when unset.
+// redirectBase is the origin (plus any path prefix) the scannable short link is
+// built on, in precedence order:
+//
+//  1. QR_REDIRECT_BASE_URL — operator override, e.g. "http://localhost:8080/r"
+//     to point local scans back at this API's own resolver.
+//  2. defaultQRRedirectBase — the compiled-in branded origin. This is the
+//     normal production path and needs no configuration.
+//  3. the API base + the resolver's own path — reached only if the default
+//     above is blanked out, so the feature degrades to working links rather
+//     than broken ones.
+//
+// Note that (3) is what used to leak the API host into printed QRs whenever
+// QR_REDIRECT_BASE_URL was unset; the default at (2) now stands in front of it.
 func (h *QRCodeHandler) redirectBase(ctx *gin.Context) string {
 	if h.redirectBaseURL != "" {
 		return h.redirectBaseURL
 	}
-	return h.base(ctx)
+	if base := strings.TrimRight(strings.TrimSpace(defaultQRRedirectBase), "/"); base != "" {
+		return base
+	}
+	return h.base(ctx) + apiShortLinkPath
 }
 
 // base is the origin used to build both the short link and the image URL. It

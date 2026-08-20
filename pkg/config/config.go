@@ -68,13 +68,16 @@ type Config struct {
 	// no config. Additive — absence never fails startup.
 	PublicBaseURL string `mapstructure:"PUBLIC_BASE_URL"`
 
-	// QRRedirectBaseURL is the branded origin the *scannable* QR link is built on
-	// (e.g. https://locazar.com), so a scan shows a clean domain instead of the
-	// API host. That domain must route /r/:code to this API's resolver (see the
-	// website's Firebase redirect). Only the QR-encoded short link uses it; the
-	// QR image URL and everything else stay on the API host. Optional: when blank
-	// the short link falls back to PublicBaseURL / the request host (so local/dev
-	// keeps working). Additive — absence never fails startup.
+	// QRRedirectBaseURL overrides the branded origin the *scannable* QR link is
+	// built on, so a scan shows a clean domain instead of the API host. It carries
+	// its own path prefix when the target domain needs one ("https://lzr.in" or
+	// "https://locazar.com/r"), and that domain must forward to this API's
+	// /r/:code resolver. Only the QR-encoded short link uses it; the QR image URL
+	// and everything else stay on the API host. Optional: when blank the branded
+	// default compiled into the QR handler (defaultQRRedirectBase) applies rather
+	// than the API host, so an unset value can never leak api.locazar.com into a
+	// printed QR. Set it for local dev (e.g. http://localhost:8080/r). Additive —
+	// absence never fails startup.
 	QRRedirectBaseURL string `mapstructure:"QR_REDIRECT_BASE_URL"`
 
 	SharedUploadsPath string `mapstructure:"SHARED_UPLOADS_PATH"`
