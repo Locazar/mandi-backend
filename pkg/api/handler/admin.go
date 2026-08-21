@@ -220,7 +220,6 @@ func (c *adminHandler) setupTokenAndResponse(ctx *gin.Context, tokenUser token.U
 	}
 	log.Printf("Generating tokens for userID: %s, userType: %s", userID, tokenUser)
 	accessToken, err := c.adminUseCase.GenerateAccessToken(ctx, tokenParams)
-	log.Printf("Access token generation result for userID: %s, userType: %s, accessToken: %s, error: %v", userID, tokenUser, accessToken, err)
 	if err != nil {
 		log.Printf("Error generating access token for userID: %s, userType: %s, error: %v", userID, tokenUser, err)
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to generate access token", err, nil)

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -63,12 +64,16 @@ type ModerationResponse struct {
 	} `json:"error"`
 }
 
-func CheckNudity(path string) (bool, error) {
+// CheckNudity runs the uploaded image through Sightengine's moderation models.
+// It reports whether the image must be rejected and, when it must, a short
+// human-readable reason naming the category that tripped, so callers never tell
+// a seller "adult content" for a weapon or scam hit.
+func CheckNudity(path string) (bool, string, error) {
 	justFilename := filepath.Base(path)
 
 	file, err := os.Open(path)
 	if err != nil {
-		return false, fmt.Errorf("failed to open file: %w", err)
+		return false, "", fmt.Errorf("failed to open file: %w", err)
 	}
 	defer file.Close()
 
@@ -79,12 +84,12 @@ func CheckNudity(path string) (bool, error) {
 	// Add file to multipart form with key 'media'
 	part, err := writer.CreateFormFile("media", justFilename)
 	if err != nil {
-		return false, fmt.Errorf("failed to create form file: %w", err)
+		return false, "", fmt.Errorf("failed to create form file: %w", err)
 	}
 
 	_, err = io.Copy(part, file)
 	if err != nil {
-		return false, fmt.Errorf("failed to copy file: %w", err)
+		return false, "", fmt.Errorf("failed to copy file: %w", err)
 	}
 
 	// Add API parameters.
@@ -97,14 +102,14 @@ func CheckNudity(path string) (bool, error) {
 
 	err = writer.Close()
 	if err != nil {
-		return false, fmt.Errorf("failed to close writer: %w", err)
+		return false, "", fmt.Errorf("failed to close writer: %w", err)
 	}
 
 	// Build API request
 	apiURL := "https://api.sightengine.com/1.0/check.json"
 	req, err := http.NewRequest("POST", apiURL, payload)
 	if err != nil {
-		return false, fmt.Errorf("failed to create request: %w", err)
+		return false, "", fmt.Errorf("failed to create request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -112,28 +117,19 @@ func CheckNudity(path string) (bool, error) {
 	client := &http.Client{}
 	res, err := client.Do(req)
 	if err != nil {
-		return false, fmt.Errorf("failed to send request: %w", err)
+		return false, "", fmt.Errorf("failed to send request: %w", err)
 	}
 	defer res.Body.Close()
 
 	var result ModerationResponse
 	if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
-		return false, fmt.Errorf("failed to decode response: %w", err)
-	}
-
-	// Print the full response for debugging
-	fmt.Printf("Sightengine API Response: %+v\n", result)
-	fmt.Printf("Response Status: %s\n", result.Status)
-	if result.Status == "failure" {
-		fmt.Printf("Error Type: %s\n", result.Error.Type)
-		fmt.Printf("Error Code: %d\n", result.Error.Code)
-		fmt.Printf("Error Message: %s\n", result.Error.Message)
+		return false, "", fmt.Errorf("failed to decode response: %w", err)
 	}
 
 	// Fail closed: if Sightengine didn't return a clean success, we have no
 	// signal either way, so don't let the image through unmoderated.
 	if result.Status != "success" {
-		return false, fmt.Errorf(
+		return false, "", fmt.Errorf(
 			"moderation check failed: %s (code %d): %s",
 			result.Error.Type, result.Error.Code, result.Error.Message,
 		)
@@ -141,42 +137,60 @@ func CheckNudity(path string) (bool, error) {
 
 	const threshold = 0.5
 
+	// The scam model fires on text and graphics overlaid on the photo: stamped
+	// prices, phone numbers, "WhatsApp us", watermarks, collage borders. That
+	// is how most sellers shoot their catalogue, so at the 0.5 used for
+	// genuinely unsafe categories it rejects ordinary listings (a clean
+	// clothing photo scored 0.74). Only a near-certain score is worth blocking
+	// an upload over.
+	const scamThreshold = 0.9
+
+	reason := ""
+	switch {
 	// sexual_activity/sexual_display are clear indicators of adult content;
 	// erotica/very_suggestive are also strong indicators.
-	if result.Nudity.SexualActivity > threshold ||
-		result.Nudity.SexualDisplay > threshold ||
-		result.Nudity.Erotica > threshold ||
-		result.Nudity.VerySuggestive > threshold {
-		return true, nil
+	case result.Nudity.SexualActivity > threshold,
+		result.Nudity.SexualDisplay > threshold,
+		result.Nudity.Erotica > threshold,
+		result.Nudity.VerySuggestive > threshold:
+		reason = "adult content"
+
+	case result.Gore.Prob > threshold,
+		result.Violence.Prob > threshold,
+		result.SelfHarm.Prob > threshold:
+		reason = "violent or graphic content"
+
+	case result.WeaponFirearm > threshold, result.WeaponKnife > threshold:
+		reason = "weapons"
+
+	case result.Offensive.Prob > threshold,
+		result.Offensive.Nazi > threshold,
+		result.Offensive.Confederate > threshold,
+		result.Offensive.Supremacist > threshold,
+		result.Offensive.Terrorist > threshold:
+		reason = "offensive content"
+
+	case result.Scam.Prob > scamThreshold:
+		reason = "content that looks like a scam"
+
+	case result.Tobacco.Prob > threshold,
+		result.RecreationalDrug.Prob > threshold,
+		result.Alcohol.Prob > threshold:
+		reason = "tobacco, drugs or alcohol"
 	}
 
-	if result.Gore.Prob > threshold ||
-		result.Violence.Prob > threshold ||
-		result.SelfHarm.Prob > threshold {
-		return true, nil
+	if reason != "" {
+		// Log the scores behind a rejection so a false positive can be
+		// diagnosed without dumping the full response for every clean upload.
+		log.Printf("image moderation rejected %s: reason=%q nudity=%.2f/%.2f/%.2f/%.2f gore=%.2f violence=%.2f self-harm=%.2f weapon=%.2f/%.2f offensive=%.2f scam=%.2f tobacco=%.2f drug=%.2f alcohol=%.2f",
+			justFilename, reason,
+			result.Nudity.SexualActivity, result.Nudity.SexualDisplay, result.Nudity.Erotica, result.Nudity.VerySuggestive,
+			result.Gore.Prob, result.Violence.Prob, result.SelfHarm.Prob,
+			result.WeaponFirearm, result.WeaponKnife,
+			result.Offensive.Prob, result.Scam.Prob,
+			result.Tobacco.Prob, result.RecreationalDrug.Prob, result.Alcohol.Prob)
+		return true, reason, nil
 	}
 
-	if result.WeaponFirearm > threshold || result.WeaponKnife > threshold {
-		return true, nil
-	}
-
-	if result.Offensive.Prob > threshold ||
-		result.Offensive.Nazi > threshold ||
-		result.Offensive.Confederate > threshold ||
-		result.Offensive.Supremacist > threshold ||
-		result.Offensive.Terrorist > threshold {
-		return true, nil
-	}
-
-	if result.Scam.Prob > threshold {
-		return true, nil
-	}
-
-	if result.Tobacco.Prob > threshold ||
-		result.RecreationalDrug.Prob > threshold ||
-		result.Alcohol.Prob > threshold {
-		return true, nil
-	}
-
-	return false, nil // Safe
+	return false, "", nil // Safe
 }
