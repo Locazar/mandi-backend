@@ -2769,7 +2769,7 @@ func uploadProcessedToCloud(ctx context.Context, cs cloud.CloudService, processe
 	return objectKey, nil
 }
 
-// handleUpload runs the image-processing pipeline and adult-content moderation.
+// handleUpload runs the image-processing pipeline and content moderation.
 // Returns the absolute path to a temp file holding the processed JPEG; the
 // caller is responsible for cleaning it up (uploadProcessedToCloud does so).
 func handleUpload(fileHeader *multipart.FileHeader) (string, error) {
@@ -2777,14 +2777,14 @@ func handleUpload(fileHeader *multipart.FileHeader) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	isAdult, err := utils.CheckNudity(savedPath)
+	rejected, reason, err := utils.CheckNudity(savedPath)
 	if err != nil {
 		_ = os.Remove(savedPath)
-		return "", fmt.Errorf("failed to check nudity: %w", err)
+		return "", fmt.Errorf("failed to moderate image: %w", err)
 	}
-	if isAdult {
+	if rejected {
 		_ = os.Remove(savedPath)
-		return "", fmt.Errorf("image contains adult content and cannot be uploaded")
+		return "", fmt.Errorf("image was rejected because it appears to contain %s", reason)
 	}
 	return savedPath, nil
 }

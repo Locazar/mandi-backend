@@ -471,14 +471,24 @@ func (s *Service) SendToTokens(ctx context.Context, tokens []string, title, body
 
 		msg.Data = mergedData
 
-		// Apply product image to notification fields if provided in data.
-		imageURL := mergedData["image_url"]
+		// Apply the image to every platform block. buildMulticastMessage was
+		// called with an empty payload above, so each of these is currently "" —
+		// patching only Notification/Android (as this used to) left iOS and web
+		// with no image URL at all, while the Firestore fallback path set all
+		// four. Keep the two paths in step.
+		imageURL := strings.TrimSpace(mergedData["image_url"])
 		if imageURL == "" {
-			imageURL = mergedData["product_image_url"]
+			imageURL = strings.TrimSpace(mergedData["product_image_url"])
 		}
 		if imageURL != "" {
 			msg.Notification.ImageURL = imageURL
 			msg.Android.Notification.ImageURL = imageURL
+			if msg.APNS != nil && msg.APNS.FCMOptions != nil {
+				msg.APNS.FCMOptions.ImageURL = imageURL
+			}
+			if msg.Webpush != nil && msg.Webpush.Notification != nil {
+				msg.Webpush.Notification.Image = imageURL
+			}
 		}
 	}
 	resp, err := s.msgClient.SendEachForMulticast(ctx, msg)
