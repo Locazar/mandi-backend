@@ -45,21 +45,28 @@ type adminUseCase struct {
 	skipOTPValidation bool
 	config            config.Config
 	fcmPush           notificationSvc.PushSender
+	// nearbyShopNotifier fires a best-effort "new shop nearby" push to
+	// customers around a shop the first time it goes live. Nil-safe: a nil
+	// notifier simply means no broadcast.
+	nearbyShopNotifier *notificationSvc.NearbyShopNotifier
 }
 
-func NewAdminUseCase(repo interfaces.AdminRepository, userRepo interfaces.UserRepository, authRepo interfaces.AuthRepository, optAuth otp.OtpAuth, tokenService token.TokenService, otpService *otp.MobileOTPService, smsService *sms.TwoFactorSMSService, skipOTPValidation bool, cfg config.Config) service.AdminUseCase {
+func NewAdminUseCase(repo interfaces.AdminRepository, userRepo interfaces.UserRepository, authRepo interfaces.AuthRepository, optAuth otp.OtpAuth, tokenService token.TokenService, otpService *otp.MobileOTPService, smsService *sms.TwoFactorSMSService, skipOTPValidation bool, cfg config.Config, db *gorm.DB) service.AdminUseCase {
+
+	fcmPush := notificationSvc.NewFCMPushService()
 
 	return &adminUseCase{
-		adminRepo:         repo,
-		userRepo:          userRepo,
-		authRepo:          authRepo,
-		optAuth:           optAuth,
-		tokenService:      tokenService,
-		otpService:        otpService,
-		smsService:        smsService,
-		skipOTPValidation: skipOTPValidation,
-		config:            cfg,
-		fcmPush:           notificationSvc.NewFCMPushService(),
+		adminRepo:          repo,
+		userRepo:           userRepo,
+		authRepo:           authRepo,
+		optAuth:            optAuth,
+		tokenService:       tokenService,
+		otpService:         otpService,
+		smsService:         smsService,
+		skipOTPValidation:  skipOTPValidation,
+		config:             cfg,
+		fcmPush:            fcmPush,
+		nearbyShopNotifier: notificationSvc.NewNearbyShopNotifier(db, fcmPush),
 	}
 }
 
@@ -464,7 +471,27 @@ func (c *adminUseCase) ApproveShop(ctx context.Context, shopID string) error {
 		"Your shop is live!",
 		"Congratulations — your shop has been approved and is now visible to customers on Locazar.",
 	)
+	c.announceShopToNearbyCustomers(shopID)
 	return nil
+}
+
+// announceShopToNearbyCustomers tells customers near the shop that it has
+// opened, at most once per shop ever.
+//
+// Fire-and-forget on a detached context so it never delays or fails the
+// caller, and wrapped so a notifier panic cannot crash the request goroutine —
+// the same contract the product-add follower push uses. The notifier itself
+// re-checks that the shop is active and deduplicates, so calling this from
+// more than one lifecycle point is safe.
+func (c *adminUseCase) announceShopToNearbyCustomers(shopID string) {
+	if c.nearbyShopNotifier == nil {
+		return
+	}
+	notifier := c.nearbyShopNotifier
+	go func() {
+		defer func() { _ = recover() }()
+		notifier.NotifyNewShop(context.Background(), shopID)
+	}()
 }
 
 // RejectShop records the admin's decision not to approve the shop, along
@@ -1440,6 +1467,13 @@ func (c *adminUseCase) CreateShop(ctx context.Context, shop domain.ShopDetails) 
 	createdShop.ReferralStatus = c.attachShopReferral(ctx, createdShop.ID, createdShop.AdminID, shop.ReferralCouponID)
 	createdShop.ReferralCouponID = shop.ReferralCouponID
 
+	// Covers a shop created directly in the active state, which never passes
+	// through ApproveShop. A normal onboarding lands in 'under_review', where
+	// the notifier no-ops; the announcement then happens on approval. The
+	// once-ever dedup makes wiring both paths safe — note CreateShop upserts
+	// on admin_id, so this runs again every time a seller re-saves details.
+	c.announceShopToNearbyCustomers(createdShop.ID)
+
 	return createdShop, nil
 }
 
@@ -1515,6 +1549,7 @@ func (c *adminUseCase) GetShopByID(ctx context.Context, shopID string) (shop dom
 	}
 	return shop, nil
 }
+
 // UpdateSellerProductLimit lets the admin panel cap how many product items a
 // seller may upload in total; enforced in ProductUseCase.SaveProductItem.
 func (c *adminUseCase) UpdateSellerProductLimit(ctx context.Context, adminID string, limit int) error {

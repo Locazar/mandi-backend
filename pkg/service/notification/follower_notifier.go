@@ -147,6 +147,13 @@ func followerFirstNonBlank(ss []string) string {
 // env-configured public origin and fall back to the production API host so the
 // image still renders when the API server has no *_BASE_URL env set.
 func resolveFollowerImageURL(path string) string {
+	return resolvePublicNotificationImageURL(path)
+}
+
+// resolvePublicNotificationImageURL is the shared implementation: any
+// notification that carries a stored image path uses it so every push resolves
+// URLs the same way.
+func resolvePublicNotificationImageURL(path string) string {
 	p := strings.TrimSpace(strings.ReplaceAll(path, "\\", "/"))
 	if p == "" {
 		return ""

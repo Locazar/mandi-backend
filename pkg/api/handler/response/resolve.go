@@ -1,6 +1,10 @@
 package response
 
-import "github.com/rohit221990/mandi-backend/pkg/service/cloud"
+import (
+	"strings"
+
+	"github.com/rohit221990/mandi-backend/pkg/service/cloud"
+)
 
 // ResolveImages methods walk each image-bearing field and route it through
 // cloud.ResolveURL so that:
@@ -69,7 +73,18 @@ func (d *Department) ResolveImages(cs cloud.CloudService) {
 		return
 	}
 	d.ImageUrl = cloud.ResolveURL(cs, d.ImageUrl)
-	// Icon left as-is.
+	d.Icon = resolveIconURL(cs, d.Icon)
+}
+
+// resolveIconURL resolves an admin-uploaded icon object key to its public URL
+// while leaving legacy "uploads/icon/*.svg" rows exactly as stored. Clients
+// prefix those with the API base themselves, and ResolveURL would rewrite them
+// to a leading-slash form ("/uploads/...") that those clients no longer match.
+func resolveIconURL(cs cloud.CloudService, stored string) string {
+	if strings.HasPrefix(stored, "uploads/") {
+		return stored
+	}
+	return cloud.ResolveURL(cs, stored)
 }
 
 // --- Offer ------------------------------------------------------------------

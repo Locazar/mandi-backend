@@ -12,14 +12,15 @@ import (
 // CreateDepartment godoc
 //
 //	@Summary		Create a new department with optional image
-//	@Description	Accepts multipart/form-data with department_name, sort_order, is_active, and an optional photo file.
+//	@Description	Accepts multipart/form-data with department_name, sort_order, is_active, and optional photo and icon files.
 //	@Tags			Admin Products
 //	@Accept			multipart/form-data
 //	@Produce		json
 //	@Param			department_name	formData	string	true	"Department name"
 //	@Param			sort_order		formData	int		false	"Sort order"
 //	@Param			is_active		formData	bool	false	"Is active"
-//	@Param			photo			formData	file	false	"Department image"
+//	@Param			photo			formData	file	false	"Department card image"
+//	@Param			icon			formData	file	false	"Department icon"
 //	@Success		201				{object}	response.Response{}
 //	@Failure		400				{object}	response.Response{}
 //	@Failure		500				{object}	response.Response{}
@@ -34,21 +35,18 @@ func (a *ProductHandler) CreateDepartment(ctx *gin.Context) {
 	sortOrder, _ := strconv.Atoi(ctx.PostForm("sort_order"))
 	isActive := ctx.PostForm("is_active") != "false"
 
-	var imageURL string
-	fileHeader, err := ctx.FormFile("photo")
-	if err == nil && fileHeader != nil {
-		objectKey, uploadErr := a.cloudService.SaveFile(ctx, fileHeader, cloud.SaveOptions{
-			Namespace:  "departments",
-			Visibility: cloud.VisibilityPublic,
-		})
-		if uploadErr != nil {
-			response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to upload image", uploadErr, nil)
-			return
-		}
-		imageURL = objectKey
+	imageURL, err := a.saveDepartmentUpload(ctx, "photo", "departments")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to upload image", err, nil)
+		return
+	}
+	iconURL, err := a.saveDepartmentUpload(ctx, "icon", "departments/icons")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to upload icon", err, nil)
+		return
 	}
 
-	if err := a.productUseCase.CreateDepartment(ctx, name, imageURL, sortOrder, isActive); err != nil {
+	if err := a.productUseCase.CreateDepartment(ctx, name, imageURL, iconURL, sortOrder, isActive); err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to create department", err, nil)
 		return
 	}
@@ -59,7 +57,7 @@ func (a *ProductHandler) CreateDepartment(ctx *gin.Context) {
 // UpdateDepartment godoc
 //
 //	@Summary		Update an existing department
-//	@Description	Accepts multipart/form-data with department_name, sort_order, is_active, and an optional photo file.
+//	@Description	Accepts multipart/form-data with department_name, sort_order, is_active, and optional photo and icon files.
 //	@Tags			Admin Products
 //	@Accept			multipart/form-data
 //	@Produce		json
@@ -67,7 +65,8 @@ func (a *ProductHandler) CreateDepartment(ctx *gin.Context) {
 //	@Param			department_name	formData	string	true	"Department name"
 //	@Param			sort_order		formData	int		false	"Sort order"
 //	@Param			is_active		formData	bool	false	"Is active"
-//	@Param			photo			formData	file	false	"Department image"
+//	@Param			photo			formData	file	false	"Department card image"
+//	@Param			icon			formData	file	false	"Department icon"
 //	@Success		200				{object}	response.Response{}
 //	@Failure		400				{object}	response.Response{}
 //	@Failure		500				{object}	response.Response{}
@@ -88,27 +87,39 @@ func (a *ProductHandler) UpdateDepartment(ctx *gin.Context) {
 	sortOrder, _ := strconv.Atoi(ctx.PostForm("sort_order"))
 	isActive := ctx.PostForm("is_active") != "false"
 
-	// Upload new photo if provided; otherwise imageURL stays empty and the existing one is preserved in DB.
-	var imageURL string
-	fileHeader, err := ctx.FormFile("photo")
-	if err == nil && fileHeader != nil {
-		objectKey, uploadErr := a.cloudService.SaveFile(ctx, fileHeader, cloud.SaveOptions{
-			Namespace:  "departments",
-			Visibility: cloud.VisibilityPublic,
-		})
-		if uploadErr != nil {
-			response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to upload image", uploadErr, nil)
-			return
-		}
-		imageURL = objectKey
+	// Upload replacements only when the admin picked new files; an empty key
+	// leaves the stored image_url / icon untouched.
+	imageURL, err := a.saveDepartmentUpload(ctx, "photo", "departments")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to upload image", err, nil)
+		return
+	}
+	iconURL, err := a.saveDepartmentUpload(ctx, "icon", "departments/icons")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to upload icon", err, nil)
+		return
 	}
 
-	if err := a.productUseCase.UpdateDepartment(ctx, departmentID, name, imageURL, sortOrder, isActive); err != nil {
+	if err := a.productUseCase.UpdateDepartment(ctx, departmentID, name, imageURL, iconURL, sortOrder, isActive); err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to update department", err, nil)
 		return
 	}
 
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully updated department", nil)
+}
+
+// saveDepartmentUpload stores the file posted under formField, if any, and
+// returns its object key. A missing field is not an error: it yields an empty
+// key, which callers treat as "leave the stored value alone".
+func (a *ProductHandler) saveDepartmentUpload(ctx *gin.Context, formField, namespace string) (string, error) {
+	fileHeader, err := ctx.FormFile(formField)
+	if err != nil || fileHeader == nil {
+		return "", nil
+	}
+	return a.cloudService.SaveFile(ctx, fileHeader, cloud.SaveOptions{
+		Namespace:  namespace,
+		Visibility: cloud.VisibilityPublic,
+	})
 }
 
 func (a *ProductHandler) DeleteDepartment(ctx *gin.Context) {

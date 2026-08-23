@@ -296,6 +296,28 @@ func (c *userDatabase) GetUserShopReview(ctx context.Context, userID string, sho
 	return social.Review, nil
 }
 
+// GetUserShopFeedback returns the single shop_socials row this user owns for
+// the shop — the whole upserted record (rating + review + comments), not just
+// the review string like GetUserShopReview. Callers use it to answer "has this
+// customer reviewed this shop?", which the shop-wide GetShopFeedbackList
+// cannot answer.
+//
+// A user who has never interacted with the shop has no row: that returns a
+// zero-value ShopSocial and found=false, never an error.
+func (c *userDatabase) GetUserShopFeedback(ctx context.Context, userID string, shopID string) (domain.ShopSocial, bool, error) {
+	var social domain.ShopSocial
+	err := c.DB.WithContext(ctx).
+		Where("shop_id = ? AND user_id = ?", shopID, userID).
+		First(&social).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return domain.ShopSocial{}, false, nil
+	}
+	if err != nil {
+		return domain.ShopSocial{}, false, err
+	}
+	return social, true, nil
+}
+
 func (c *userDatabase) GetAllShopReviews(ctx context.Context, shopID string) ([]domain.ShopSocial, error) {
 	var reviews []domain.ShopSocial
 	err := c.DB.WithContext(ctx).
