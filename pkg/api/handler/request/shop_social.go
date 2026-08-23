@@ -13,9 +13,9 @@ type ShopReviewRequest struct {
 // ShopRatingAndReviewRequest is used to create or update both rating and review for a shop in a single request.
 // All fields are optional, allowing users to update rating, review, or comments independently.
 type ShopRatingAndReviewRequest struct {
-	Rating    *uint   `json:"rating" binding:"omitempty,min=1,max=5"`              // Optional: rating from 1-5
-	Review    *string `json:"review"`                                              // Optional: review text
-	Comments  *string `json:"comments"`                                            // Optional: comments text
-	ShopID    *string `json:"shop_id"`                                             // Optional: shop ID (can also come from URL)
-	CustomerID *string `json:"customer_id"`                                        // Optional: customer ID
+	Rating     *uint   `json:"rating" binding:"omitempty,min=1,max=5"` // Optional: rating from 1-5
+	Review     *string `json:"review"`                                 // Optional: review text
+	Comments   *string `json:"comments"`                               // Optional: comments text
+	ShopID     *string `json:"shop_id"`                                // Optional: shop ID (can also come from URL)
+	CustomerID *string `json:"customer_id"`                            // Accepted for backward compatibility but IGNORED: the customer is always taken from the auth token (see SaveShopRatingAndReview)
 }

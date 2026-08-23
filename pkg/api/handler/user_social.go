@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
@@ -244,9 +245,18 @@ func (c *UserHandler) GetUserShopRating(ctx *gin.Context) {
 		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid shop ID", err, nil)
 		return
 	}
-	ratings, err := c.userUseCase.GetAllShopRatings(ctx, shopID)
+	// Scoped to the caller, per the handler name. The shop-wide average stays —
+	// it is an aggregate, not another customer's row — and the full list lives
+	// at GetAllShopRatings.
+	userID := utils.GetUserIdFromContext(ctx)
+	if userID == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Unauthorized", errors.New("user id not found in token"), nil)
+		return
+	}
+
+	userRating, err := c.userUseCase.GetUserShopRating(ctx, userID, shopID)
 	if err != nil {
-		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get shop ratings", err, nil)
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get shop rating", err, nil)
 		return
 	}
 	averageRating, err := c.userUseCase.GetShopAverageRating(ctx, shopID)
@@ -255,10 +265,12 @@ func (c *UserHandler) GetUserShopRating(ctx *gin.Context) {
 		return
 	}
 
-	response.SuccessResponse(ctx, http.StatusOK, "Successfully got shop ratings", gin.H{
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully got shop rating", gin.H{
 		"shop_id":        shopID,
+		"customer_id":    userID,
+		"user_rating":    userRating,
+		"has_rated":      userRating > 0,
 		"average_rating": averageRating,
-		"ratings":        ratings,
 	})
 }
 
@@ -371,33 +383,50 @@ func (c *UserHandler) ReviewShop(ctx *gin.Context) {
 
 // GetUserShopReview godoc
 //
-//	@Summary		Get all shop reviews with user_id (User)
+//	@Summary		Get the logged-in customer's own review for a shop (User)
+//	@Description	Returns only the authenticated customer's review. For the
+//	@Description	shop-wide public list use /review/shop/{shop_id}/reviews.
 //	@Security		BearerAuth
 //	@Id				GetUserShopReview
 //	@Tags			User Review
 //	@Param			shop_id	path	int	true	"Shop ID"
 //	@Router			/review/shop/{shop_id} [get]
-//	@Success		200	{object}	response.Response{}	"Successfully got shop reviews"
+//	@Success		200	{object}	response.Response{}	"Successfully got shop review"
 //	@Failure		400	{object}	response.Response{}	"Invalid shop ID"
-//	@Failure		500	{object}	response.Response{}	"Failed to get reviews"
+//	@Failure		401	{object}	response.Response{}	"Unauthorized"
+//	@Failure		500	{object}	response.Response{}	"Failed to get review"
 func (c *UserHandler) GetUserShopReview(ctx *gin.Context) {
 	shopID, err := parseShopID(ctx)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid shop ID", err, nil)
 		return
 	}
-	reviews, err := c.userUseCase.GetAllShopReviews(ctx, shopID)
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get reviews", err, nil)
+	// Scoped to the caller, per the handler name: this returns the review the
+	// logged-in customer left, never other customers'. The shop-wide public
+	// list is GetAllShopReviews at /social/review/shop/{shop_id}/reviews.
+	userID := utils.GetUserIdFromContext(ctx)
+	if userID == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Unauthorized", errors.New("user id not found in token"), nil)
 		return
 	}
-	if reviews == nil {
-		reviews = []domain.ShopSocial{}
+
+	social, found, err := c.userUseCase.GetUserShopFeedback(ctx, userID, shopID)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get review", err, nil)
+		return
 	}
-	response.SuccessResponse(ctx, http.StatusOK, "Successfully got shop reviews", gin.H{
-		"shop_id":     shopID,
-		"total_count": len(reviews),
-		"reviews":     reviews,
+
+	var feedback *response.ShopFeedback
+	if found && shopSocialHasFeedback(social) {
+		f := toShopFeedback(social)
+		feedback = &f
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully got shop review", gin.H{
+		"shop_id":      shopID,
+		"customer_id":  userID,
+		"has_reviewed": feedback != nil,
+		"feedback":     feedback,
 	})
 }
 
@@ -563,12 +592,17 @@ func (c *UserHandler) SaveShopRatingAndReview(ctx *gin.Context) {
 		return
 	}
 
-	userID := utils.GetUserIdFromContext(ctx)
-
-	// Get customer ID from request or use user ID
-	customerID := userID
-	if body.CustomerID != nil && *body.CustomerID != "" {
-		customerID = *body.CustomerID
+	// The feedback always belongs to the authenticated caller.
+	//
+	// body.CustomerID is still accepted by the request struct so older clients
+	// that send their own id keep working, but it is deliberately IGNORED:
+	// honouring it let any logged-in customer overwrite somebody else's review
+	// simply by passing that person's id, since the upsert below is keyed on
+	// whatever customer id it is handed.
+	customerID := utils.GetUserIdFromContext(ctx)
+	if customerID == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Unauthorized", errors.New("user id not found in token"), nil)
+		return
 	}
 
 	if err := c.userUseCase.SaveShopFeedback(ctx, customerID, shopID, body.Rating, body.Review, body.Comments); err != nil {
@@ -587,14 +621,20 @@ func (c *UserHandler) SaveShopRatingAndReview(ctx *gin.Context) {
 
 // GetShopFeedback godoc
 //
-//	@Summary		Get combined feedback (rating and review) for a shop (User)
+//	@Summary		Get the logged-in customer's own feedback for a shop (User)
+//	@Description	Returns an array holding at most one entry: the feedback the
+//	@Description	authenticated customer left for this shop, or an empty array if
+//	@Description	they have not reviewed it. Other customers' feedback is never
+//	@Description	included — use /social/review/shop/{shop_id}/reviews for the
+//	@Description	shop-wide public list.
 //	@Security		BearerAuth
 //	@Id				GetShopFeedback
 //	@Tags			User Feedback
 //	@Param			shop_id	path	int	true	"Shop ID"
 //	@Router			/social/feedback/shop/{shop_id} [get]
-//	@Success		200	{object}	response.Response{}	"Successfully got shop feedback"
+//	@Success		200	{object}	response.Response{data=[]response.ShopFeedback}	"Successfully got shop feedback"
 //	@Failure		400	{object}	response.Response{}	"Invalid shop ID"
+//	@Failure		401	{object}	response.Response{}	"Unauthorized"
 //	@Failure		500	{object}	response.Response{}	"Failed to get feedback"
 func (c *UserHandler) GetShopFeedback(ctx *gin.Context) {
 	shopID, err := parseShopID(ctx)
@@ -603,24 +643,60 @@ func (c *UserHandler) GetShopFeedback(ctx *gin.Context) {
 		return
 	}
 
-	// Each shop_socials row is a single upserted record per user+shop
-	// combining rating, review, and comments together — not three separate
-	// entities — so this is one query, not three, and the same row is never
-	// duplicated across separate rating/review/comment arrays.
-	feedback, err := c.userUseCase.GetShopFeedbackList(ctx, shopID)
+	// This endpoint answers "what feedback has THIS customer left for this
+	// shop?" — the customer apps render the result as the signed-in customer's
+	// own review and let them edit it. It must therefore never include other
+	// customers' rows: returning the shop-wide list made every customer see
+	// (and appear able to edit) whichever review happened to come back first.
+	// The shop-wide public list lives at GET /social/review/shop/{id}/reviews.
+	userID := utils.GetUserIdFromContext(ctx)
+	if userID == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Unauthorized", errors.New("user id not found in token"), nil)
+		return
+	}
+
+	// Each shop_socials row is a single upserted record per user+shop combining
+	// rating, review, and comments together — not three separate entities — so
+	// one lookup returns everything this customer has left.
+	social, found, err := c.userUseCase.GetUserShopFeedback(ctx, userID, shopID)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get feedback", err, nil)
 		return
 	}
 
-	if feedback == nil {
-		feedback = []domain.ShopSocial{}
+	// A row also exists when the customer merely follows or likes the shop.
+	// Only a row carrying actual feedback counts as "has reviewed" — otherwise
+	// following a shop would suppress the review form.
+	feedback := []response.ShopFeedback{}
+	if found && shopSocialHasFeedback(social) {
+		feedback = append(feedback, toShopFeedback(social))
 	}
 
-	response.SuccessResponse(ctx, http.StatusOK, "Successfully got shop feedback", gin.H{
-		"shop_id":  shopID,
-		"feedback": feedback,
-	})
+	// Returned as a bare array (not wrapped in an object) because that is the
+	// shape the customer apps decode for this endpoint.
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully got shop feedback", feedback)
+}
+
+// shopSocialHasFeedback reports whether a shop_socials row carries real
+// feedback, as opposed to existing only to record a follow or a like. Mirrors
+// the SQL predicate used by GetShopFeedbackList.
+func shopSocialHasFeedback(s domain.ShopSocial) bool {
+	return s.Rating > 0 ||
+		strings.TrimSpace(s.Review) != "" ||
+		strings.TrimSpace(s.Comments) != ""
+}
+
+// toShopFeedback maps the internal row onto the customer-facing DTO.
+func toShopFeedback(s domain.ShopSocial) response.ShopFeedback {
+	return response.ShopFeedback{
+		ShopID:     s.ShopID,
+		CustomerID: s.UserID,
+		Rating:     s.Rating,
+		Review:     strings.TrimSpace(s.Review),
+		Comments:   strings.TrimSpace(s.Comments),
+		CreatedAt:  s.CreatedAt,
+		UpdatedAt:  s.UpdatedAt,
+	}
 }
 
 // GetShopFeedbackSummary godoc
