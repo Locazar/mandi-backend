@@ -10,6 +10,20 @@ type ShopReview struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+// ShopFeedback is the customer-facing shape of a shop_socials feedback row.
+// It exposes customer_id rather than the internal user_id (which is what the
+// customer apps decode) and deliberately omits internal fields — admin_id and
+// the follow/like flags — that a feedback payload has no reason to carry.
+type ShopFeedback struct {
+	ShopID     string    `json:"shop_id"`
+	CustomerID string    `json:"customer_id"`
+	Rating     uint      `json:"rating"`
+	Review     string    `json:"review"`
+	Comments   string    `json:"comments"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
 type Shop struct {
 	ID                     string    `json:"shop_id" gorm:"column:id"`
 	ShopName               string    `json:"shop_name" gorm:"column:shop_name"`

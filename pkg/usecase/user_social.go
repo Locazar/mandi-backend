@@ -104,6 +104,10 @@ func (c *userUserCase) GetUserShopReview(ctx context.Context, userID string, sho
 	return c.userRepo.GetUserShopReview(ctx, userID, shopID)
 }
 
+func (c *userUserCase) GetUserShopFeedback(ctx context.Context, userID string, shopID string) (domain.ShopSocial, bool, error) {
+	return c.userRepo.GetUserShopFeedback(ctx, userID, shopID)
+}
+
 func (c *userUserCase) GetAllShopReviews(ctx context.Context, shopID string) ([]domain.ShopSocial, error) {
 	return c.userRepo.GetAllShopReviews(ctx, shopID)
 }
