@@ -592,12 +592,17 @@ func (c *UserHandler) SaveShopRatingAndReview(ctx *gin.Context) {
 		return
 	}
 
-	userID := utils.GetUserIdFromContext(ctx)
-
-	// Get customer ID from request or use user ID
-	customerID := userID
-	if body.CustomerID != nil && *body.CustomerID != "" {
-		customerID = *body.CustomerID
+	// The feedback always belongs to the authenticated caller.
+	//
+	// body.CustomerID is still accepted by the request struct so older clients
+	// that send their own id keep working, but it is deliberately IGNORED:
+	// honouring it let any logged-in customer overwrite somebody else's review
+	// simply by passing that person's id, since the upsert below is keyed on
+	// whatever customer id it is handed.
+	customerID := utils.GetUserIdFromContext(ctx)
+	if customerID == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Unauthorized", errors.New("user id not found in token"), nil)
+		return
 	}
 
 	if err := c.userUseCase.SaveShopFeedback(ctx, customerID, shopID, body.Rating, body.Review, body.Comments); err != nil {
