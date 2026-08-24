@@ -22,8 +22,7 @@ import (
 )
 
 const (
-	countryCode       = "+91"
-	otpExpireDuration = time.Hour * 24 * 365 // OTP expiration duration
+	countryCode = "+91"
 )
 
 type authUseCase struct {
@@ -300,7 +299,7 @@ func (c *authUseCase) AdminSignUpOtpSend(ctx context.Context, phone string) (str
 		Phone:    phone,
 		UserType: domain.UserType(token.Admin),
 		AdminID:  admin.ID,
-		ExpireAt: time.Now().Add(otpExpireDuration),
+		ExpireAt: c.otpService.CalculateOTPExpiry(),
 	}
 
 	if err := c.authRepo.SaveOtpSession(ctx, otpSession); err != nil {
@@ -320,9 +319,35 @@ func (c *authUseCase) AdminSignUpOtpVerify(ctx context.Context, otpVerifyDetails
 		return "", ErrInvalidOtp
 	}
 
-	// if time.Since(otpSession.ExpireAt) > 0 {
-	// 	return "", ErrOtpExpired
-	// }
+	// Reject expired OTP sessions.
+	if c.otpService.IsOTPExpired(otpSession.ExpireAt) {
+		return "", ErrOtpExpired
+	}
+
+	// Verify the code with the SMS provider that issued it. AdminSignUpOtpSend
+	// delegates to optAuth.SentOtp and stores no local hash on the session, so
+	// verification must go through optAuth.VerifyOtp — otpService.VerifyOTP has
+	// no OtpHash to compare against here and would always fail.
+	//
+	// Without this check the endpoint logged in — or silently REGISTERED — a
+	// seller account for any phone number given only a valid otp_id, with no
+	// knowledge of the code that was texted.
+	log.Printf("[VerifyOTP admin] skipOTPValidation=%v otp_id=%s", c.skipOTPValidation, otpVerifyDetails.OtpID)
+	if !c.skipOTPValidation {
+		valid, verifyErr := c.optAuth.VerifyOtp(countryCode+otpSession.Phone, otpVerifyDetails.Otp)
+		if verifyErr != nil {
+			return "", utils.PrependMessageToError(verifyErr, "failed to verify otp")
+		}
+		if !valid {
+			return "", ErrInvalidOtp
+		}
+	}
+
+	// The OTP is spent once verified, whatever the outcome below — a failed
+	// registration must require a fresh code rather than leave this one live.
+	if delErr := c.authRepo.DeleteOtpSession(ctx, otpSession.OtpID); delErr != nil {
+		log.Printf("warning: failed to delete used otp session %s: %v", otpSession.OtpID, delErr)
+	}
 
 	admin, err := c.AdminLogin(ctx, request.Login{Phone: otpSession.Phone})
 	if err == nil && admin.ID != "" {
@@ -477,7 +502,7 @@ func (c *authUseCase) UserSignUp(ctx context.Context, signUpDetails domain.User)
 			UserID:   userID,
 			Phone:    signUpDetails.Phone,
 			UserType: domain.UserTypeUser,
-			ExpireAt: time.Now().Add(otpExpireDuration), // 2 minutes expire for otp
+			ExpireAt: c.otpService.CalculateOTPExpiry(),
 		}
 		err := c.authRepo.SaveOtpSession(ctx, otpSession)
 		if err != nil {
@@ -501,27 +526,34 @@ func (c *authUseCase) SingUpOtpVerify(ctx context.Context,
 	otpVerifyDetails request.OTPVerify) (userID string, err error) {
 
 	otpSession, err := c.authRepo.FindOtpSession(ctx, otpVerifyDetails.OtpID)
-
-	fmt.Printf("otp session details: %+v\n", otpSession)
 	if err != nil {
 		return "", utils.PrependMessageToError(err, "failed to find otp session from database")
 	}
 
-	// if time.Since(otpSession.ExpireAt) > 0 {
-	// 	return "", ErrOtpExpired
-	// }
+	// Reject expired OTP sessions.
+	if c.otpService.IsOTPExpired(otpSession.ExpireAt) {
+		return "", ErrOtpExpired
+	}
 
-	// valid, err := c.optAuth.VerifyOtp(countryCode+otpSession.Phone, otpVerifyDetails.Otp)
-	// if err != nil {
-	// 	return "", utils.PrependMessageToError(err, "failed to verify otp")
-	// }
-	// if !valid {
-	// 	return "", ErrInvalidOtp
-	// }
+	// Verify the entered OTP against the stored hash (skip when
+	// SKIP_OTP_VALIDATION=true). Without this the endpoint accepted ANY value
+	// as a valid OTP, so possession of an otp_id was enough to obtain a token.
+	// Mirrors LoginOtpVerify, which is the reference implementation.
+	log.Printf("[VerifyOTP signup] skipOTPValidation=%v otp_id=%s", c.skipOTPValidation, otpVerifyDetails.OtpID)
+	if !c.skipOTPValidation {
+		if err := c.otpService.VerifyOTP(otpVerifyDetails.Otp, otpSession.OtpHash); err != nil {
+			return "", ErrInvalidOtp
+		}
+	}
 
 	err = c.userRepo.UpdateVerified(ctx, otpSession.UserID)
 	if err != nil {
 		return "", utils.PrependMessageToError(err, "failed to update user verified on database")
+	}
+
+	// OTP verified — invalidate the session so the same OTP cannot be reused.
+	if delErr := c.authRepo.DeleteOtpSession(ctx, otpSession.OtpID); delErr != nil {
+		log.Printf("warning: failed to delete used otp session %s: %v", otpSession.OtpID, delErr)
 	}
 
 	return otpSession.UserID, nil
@@ -572,7 +604,7 @@ func (c *authUseCase) UserLoginOtpSendEmail(ctx context.Context, emailDetails re
 	otpSession := domain.OtpSession{
 		OtpID:    otpCode,
 		UserID:   user.ID,
-		ExpireAt: time.Now().Add(otpExpireDuration), // 2 minutes expire for otp
+		ExpireAt: c.otpService.CalculateOTPExpiry(),
 	}
 	err = c.authRepo.SaveOtpSession(ctx, otpSession)
 	if err != nil {
@@ -589,9 +621,10 @@ func (c *authUseCase) LoginOtpVerifyEmail(ctx context.Context, otpVerifyDetails 
 		return "", utils.PrependMessageToError(err, "failed to find otp session from database")
 	}
 
-	// if time.Since(otpSession.ExpireAt) > 0 {
-	// 	return "", ErrOtpExpired
-	// }
+	// Reject expired OTP sessions.
+	if c.otpService.IsOTPExpired(otpSession.ExpireAt) {
+		return "", ErrOtpExpired
+	}
 
 	valid, err := c.optAuth.VerifyOtpEmail(otpSession.Email, otpVerifyDetails.Otp)
 	if err != nil {

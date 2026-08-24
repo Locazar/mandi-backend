@@ -4,6 +4,8 @@
 package di
 
 import (
+	"time"
+
 	"database/sql"
 
 	"github.com/google/wire"
@@ -66,6 +68,12 @@ func provideCryptoService(cfg config.Config) (*crypto.Service, error) {
 // respectively. Both read the same cfg.SkipOTPValidation value; this is not a
 // behaviour change, only a name Wire's provider graph can attach to. Wire
 // treats a trailing `...bool` parameter as requiring a []bool provider.
+// provideMobileOTPService builds the OTP service with the configured validity
+// window (OTP_EXPIRY_SECONDS), falling back to the package default when unset.
+func provideMobileOTPService(cfg config.Config) *otp.MobileOTPService {
+	return otp.NewMobileOTPService(time.Duration(cfg.OTPExpirySeconds) * time.Second)
+}
+
 func provideSkipOTPValidation(cfg config.Config) bool {
 	return cfg.SkipOTPValidation
 }
@@ -148,6 +156,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		//usecase — constructors that return interface directly need no Bind;
 		//          constructors that return *concrete need Bind
 		usecase.NewAuthUseCase,
+		provideMobileOTPService,
 		usecase.NewAdminUseCase,
 		usecase.NewUserUseCase,
 		usecase.NewCartUseCase,

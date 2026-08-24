@@ -93,6 +93,12 @@ type Config struct {
 	// Set to "true" to skip OTP verification (development/testing only)
 	SkipOTPValidation bool `mapstructure:"SKIP_OTP_VALIDATION"`
 
+	// OTPExpirySeconds is how long a sent OTP stays valid, in seconds, across
+	// every OTP flow (customer phone, seller phone, email). Defaults to
+	// DefaultOTPExpirySeconds when unset or non-positive. Raise it if users
+	// report codes expiring before the SMS arrives.
+	OTPExpirySeconds int `mapstructure:"OTP_EXPIRY_SECONDS"`
+
 	// SubscriptionGateEnabled toggles customer-facing product-visibility gating:
 	// when true, products of sellers without an active subscription are hidden
 	// from customer discovery. Shops always stay visible (marked is_subscribed).
@@ -209,9 +215,14 @@ var envsNames = []string{
 	"PII_ENCRYPTION_KEYS",
 	"PII_ENCRYPTION_ACTIVE_KEY",
 	"SKIP_OTP_VALIDATION",
+	"OTP_EXPIRY_SECONDS",
 	"SUBSCRIPTION_GATE_ENABLED",
 	"SEARCH_RANKING_ENABLED",
 }
+
+// DefaultOTPExpirySeconds is the OTP validity used when OTP_EXPIRY_SECONDS is
+// unset or non-positive.
+const DefaultOTPExpirySeconds = 30
 
 func LoadConfig() (config Config, err error) {
 
@@ -221,6 +232,7 @@ func LoadConfig() (config Config, err error) {
 	viper.SetConfigType("env")
 
 	viper.SetDefault("GST_PERCENT_BASIS_POINTS", 1800)
+	viper.SetDefault("OTP_EXPIRY_SECONDS", DefaultOTPExpirySeconds)
 	viper.SetDefault("security.http_port", ":3000")
 	viper.SetDefault("security.https_port", ":3443")
 	viper.SetDefault("security.tls_min_version", "1.2")

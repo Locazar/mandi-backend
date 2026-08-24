@@ -126,7 +126,7 @@ func (m *mobileAuthUseCase) SendOTP(ctx context.Context, phone, ipAddress, userA
 		Event:     domain.AuditEventOTPSent,
 		IPAddress: ipAddress,
 		UserAgent: userAgent,
-		Details:   fmt.Sprintf(`{"otp_request_id":%s,"validity_seconds":%d}`, otpRequest.ID, domain.OTPValidityDuration/time.Second),
+		Details:   fmt.Sprintf(`{"otp_request_id":%s,"validity_seconds":%d}`, otpRequest.ID, int(m.otpService.ValidityDuration().Seconds())),
 	}
 	m.mobileAuthRepo.CreateAuditLog(ctx, auditLog)
 
@@ -136,7 +136,7 @@ func (m *mobileAuthUseCase) SendOTP(ctx context.Context, phone, ipAddress, userA
 		Message:            "OTP sent successfully",
 		SessionID:          otpRequest.ID,
 		Phone:              phone,
-		OTPValiditySeconds: int(domain.OTPValidityDuration.Seconds()),
+		OTPValiditySeconds: int(m.otpService.ValidityDuration().Seconds()),
 		ConsentMessage:     "By proceeding, you consent to receive SMS OTP for authentication. This is as per TRAI DLT guidelines.",
 	}, nil
 }

@@ -17,17 +17,17 @@ type MobileUser struct {
 
 // OTPRequest represents an OTP request for mobile authentication
 type OTPRequest struct {
-	ID          string    `json:"id" gorm:"primaryKey;type:varchar(32)"`
-	Phone       string    `json:"phone" gorm:"index;not null;size:20"`
-	OTPHash     string    `json:"otp_hash" gorm:"not null;size:255"` // bcrypt hash of OTP
-	ExpiresAt   time.Time `json:"expires_at" gorm:"index;not null"`
-	Attempts    int       `json:"attempts" gorm:"default:0"`
-	MaxAttempts int       `json:"max_attempts" gorm:"default:3"`
+	ID          string           `json:"id" gorm:"primaryKey;type:varchar(32)"`
+	Phone       string           `json:"phone" gorm:"index;not null;size:20"`
+	OTPHash     string           `json:"otp_hash" gorm:"not null;size:255"` // bcrypt hash of OTP
+	ExpiresAt   time.Time        `json:"expires_at" gorm:"index;not null"`
+	Attempts    int              `json:"attempts" gorm:"default:0"`
+	MaxAttempts int              `json:"max_attempts" gorm:"default:3"`
 	Status      MobileAuthStatus `json:"status" gorm:"index;size:50;default:'active'"` // 'active', 'verified', 'expired', 'blocked'
-	IPAddress   string    `json:"ip_address" gorm:"size:50"`
-	UserAgent   string    `json:"user_agent" gorm:"type:text"`
-	CreatedAt   time.Time `json:"created_at" gorm:"autoCreateTime;index:,sort:desc"`
-	UpdatedAt   time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+	IPAddress   string           `json:"ip_address" gorm:"size:50"`
+	UserAgent   string           `json:"user_agent" gorm:"type:text"`
+	CreatedAt   time.Time        `json:"created_at" gorm:"autoCreateTime;index:,sort:desc"`
+	UpdatedAt   time.Time        `json:"updated_at" gorm:"autoUpdateTime"`
 }
 
 // LoginAuditLog represents audit logs for compliance and security monitoring
@@ -44,12 +44,15 @@ type LoginAuditLog struct {
 // OTP rate limit constants
 const (
 	OTPMaxAttemptsPerPhone = 3
-	OTPValidityDuration    = 10 * time.Minute
-	OTPMaxRequestsPerHour  = 3
-	OTPCooldownSeconds     = 60
-	OTPLength              = 6
-	IndianPhoneMinLength   = 10
-	IndianPhoneMaxLength   = 10
+	// OTPValidityDuration is the fallback OTP lifetime used when
+	// OTP_EXPIRY_SECONDS is unset or non-positive. Keep in step with
+	// config.DefaultOTPExpirySeconds.
+	OTPValidityDuration   = 30 * time.Second
+	OTPMaxRequestsPerHour = 3
+	OTPCooldownSeconds    = 60
+	OTPLength             = 6
+	IndianPhoneMinLength  = 10
+	IndianPhoneMaxLength  = 10
 )
 
 // OTP Status constants

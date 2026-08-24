@@ -8,6 +8,8 @@ package di
 
 import (
 	"database/sql"
+	"time"
+
 	"github.com/rohit221990/mandi-backend/pkg/api"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler"
 	"github.com/rohit221990/mandi-backend/pkg/api/middleware"
@@ -44,7 +46,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	}
 	adminRepository := repository.NewAdminRepository(gormDB, service)
 	otpAuth := otp.NewOtpAuth(cfg)
-	mobileOTPService := otp.NewMobileOTPService()
+	mobileOTPService := provideMobileOTPService(cfg)
 	twoFactorSMSService := provideTwoFactorSMSService(cfg)
 	v := provideSkipOTPValidationVariadic(cfg)
 	authUseCase := usecase.NewAuthUseCase(authRepository, tokenService, userRepository, adminRepository, otpAuth, mobileOTPService, twoFactorSMSService, v...)
@@ -160,6 +162,12 @@ func provideElasticURL(cfg config.Config) string {
 
 func provideSQLDB(gormDB *gorm.DB) (*sql.DB, error) {
 	return gormDB.DB()
+}
+
+// provideMobileOTPService builds the OTP service with the configured validity
+// window (OTP_EXPIRY_SECONDS), falling back to the package default when unset.
+func provideMobileOTPService(cfg config.Config) *otp.MobileOTPService {
+	return otp.NewMobileOTPService(time.Duration(cfg.OTPExpirySeconds) * time.Second)
 }
 
 func provideTwoFactorSMSService(cfg config.Config) *sms.TwoFactorSMSService {
