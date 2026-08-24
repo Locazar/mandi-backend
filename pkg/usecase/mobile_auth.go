@@ -250,7 +250,7 @@ func (m *mobileAuthUseCase) VerifyOTP(ctx context.Context, req *request.VerifyOT
 				Details:   fmt.Sprintf(`{"attempts":%d,"reason":"invalid_otp"}`, otpRequest.Attempts+1),
 			}
 			m.mobileAuthRepo.CreateAuditLog(ctx, auditLog)
-			return nil, fmt.Errorf("invalid OTP")
+			return nil, fmt.Errorf("Invalid OTP, Please try again")
 		}
 	}
 

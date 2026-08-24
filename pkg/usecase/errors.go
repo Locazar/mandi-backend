@@ -31,7 +31,7 @@ var (
 	ErrWrongPassword         = errors.New("password doesn't match")
 	// otp
 	ErrOtpExpired = errors.New("otp session expired")
-	ErrInvalidOtp = errors.New("invalid otp")
+	ErrInvalidOtp = errors.New("Invalid OTP, Please try again")
 
 	// refresh token
 	ErrInvalidRefreshToken    = errors.New("invalid refresh token")
