@@ -16,4 +16,9 @@ type NotificationRepository interface {
 	SaveDeviceToken(ctx context.Context, token domain.NotificationDeviceToken) error
 	GetActiveTokensByOwner(ctx context.Context, ownerID, ownerType string) ([]string, error)
 	DeleteDeviceToken(ctx context.Context, ownerID, ownerType, token string) error
+
+	// Shop launch announcements — radius-targeted "this shop just opened" pushes.
+	GetShopAnnouncementTarget(ctx context.Context, shopID string) (domain.ShopAnnouncementTarget, error)
+	GetCustomerDevicesInRadius(ctx context.Context, lat, lng, radiusKm float64) ([]domain.CustomerDevice, error)
+	SaveNotificationsBatch(ctx context.Context, notifications []domain.Notification) error
 }

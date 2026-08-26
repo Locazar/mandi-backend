@@ -96,7 +96,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	brandUseCase := usecase.NewBrandUseCase(brandRepository)
 	brandHandler := handler.NewBrandHandler(brandUseCase)
 	notificationRepository := repository.NewNotificationRepository(gormDB)
-	notificationUseCase := usecase.NewNotificationUseCase(notificationRepository, cfg)
+	notificationUseCase := usecase.NewNotificationUseCase(notificationRepository, cfg, cloudService)
 	notificationHandler := handler.NewNotificationHandler(notificationUseCase)
 	promotionRepository := repository.NewPromotionRepository(gormDB)
 	promotionUseCase := usecase.NewPromotionUseCase(promotionRepository)

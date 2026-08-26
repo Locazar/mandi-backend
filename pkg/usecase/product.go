@@ -157,7 +157,7 @@ func NewProductUseCase(productRepo interfaces.ProductRepository, adminRepo inter
 		cloudService: cloudService,
 		DB:           &GormDBAdapter{db: db},
 		followerNotifier: notificationSvc.NewFollowerNotifier(
-			db, notificationSvc.NewFCMPushService(),
+			db, notificationSvc.NewFCMPushService(), cloudService,
 		),
 	}
 }

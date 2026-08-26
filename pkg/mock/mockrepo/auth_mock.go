@@ -51,6 +51,21 @@ func (mr *MockAuthRepositoryMockRecorder) FindOtpSession(ctx, otpID interface{})
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindOtpSession", reflect.TypeOf((*MockAuthRepository)(nil).FindOtpSession), ctx, otpID)
 }
 
+// FindLatestOtpSessionByAdminID mocks base method.
+func (m *MockAuthRepository) FindLatestOtpSessionByAdminID(ctx context.Context, adminID string) (domain.OtpSession, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindLatestOtpSessionByAdminID", ctx, adminID)
+	ret0, _ := ret[0].(domain.OtpSession)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindLatestOtpSessionByAdminID indicates an expected call of FindLatestOtpSessionByAdminID.
+func (mr *MockAuthRepositoryMockRecorder) FindLatestOtpSessionByAdminID(ctx, adminID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindLatestOtpSessionByAdminID", reflect.TypeOf((*MockAuthRepository)(nil).FindLatestOtpSessionByAdminID), ctx, adminID)
+}
+
 // DeleteOtpSession mocks base method.
 func (m *MockAuthRepository) DeleteOtpSession(ctx context.Context, otpID string) error {
 	m.ctrl.T.Helper()

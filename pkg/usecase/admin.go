@@ -1515,6 +1515,7 @@ func (c *adminUseCase) GetShopByID(ctx context.Context, shopID string) (shop dom
 	}
 	return shop, nil
 }
+
 // UpdateSellerProductLimit lets the admin panel cap how many product items a
 // seller may upload in total; enforced in ProductUseCase.SaveProductItem.
 func (c *adminUseCase) UpdateSellerProductLimit(ctx context.Context, adminID string, limit int) error {
@@ -1546,14 +1547,6 @@ func (c *adminUseCase) GetShopByOwnerID(ctx context.Context, ownerID string) (sh
 	return shop, nil
 }
 
-func (c *adminUseCase) SendNotificationToUsersInRadius(ctx context.Context, requestData request.NotificationRadiusRequest) error {
-	err := c.adminRepo.SendNotificationToUsersInRadius(ctx, requestData)
-	if err != nil {
-		return fmt.Errorf("failed to send notification to users in radius \nerror:%v", err.Error())
-	}
-	return nil
-}
-
 func (c *adminUseCase) SendNotificationToUser(ctx context.Context, userID string, message string) error {
 	err := c.adminRepo.SendNotificationToUser(ctx, userID, message)
 	if err != nil {
@@ -1583,6 +1576,65 @@ func (c *adminUseCase) UploadShopDocument(ctx context.Context, shopID string, do
 	if err != nil {
 		return fmt.Errorf("failed to upload shop document \nerror:%v", err.Error())
 	}
+
+	// This route is the seller app's "send OTP for document verification" step,
+	// so issuing the OTP is the point of it — the write above only stages the
+	// value pending verification.
+	if _, err := c.issueDocumentOtp(ctx, shopID); err != nil {
+		return err
+	}
+	return nil
+}
+
+// issueDocumentOtp sends a document-verification OTP to the admin's registered
+// mobile and returns the otp_id. The seller app never round-trips the otp_id,
+// so verifyDocumentOtp looks the session up by admin instead; the id is still
+// returned for callers (and tests) that want it.
+func (c *adminUseCase) issueDocumentOtp(ctx context.Context, adminID string) (string, error) {
+	admin, err := c.adminRepo.GetAdminByID(ctx, adminID)
+	if err != nil || admin.ID == "" {
+		return "", domain.NotFoundError("admin")
+	}
+	if strings.TrimSpace(admin.Mobile) == "" {
+		return "", domain.ValidationError("mobile", "no registered mobile number to send the OTP to")
+	}
+	return c.issueOtpSession(ctx, adminID, admin.Mobile)
+}
+
+// verifyDocumentOtp checks a document-verification OTP against the most recent
+// unexpired session issued to this admin, honouring SKIP_OTP_VALIDATION the
+// same way every other OTP path does. The session is consumed on success so a
+// code cannot be replayed.
+func (c *adminUseCase) verifyDocumentOtp(ctx context.Context, adminID, otp string) error {
+	if adminID == "" {
+		return domain.ForbiddenError("missing admin identity")
+	}
+
+	otpSession, err := c.authRepo.FindLatestOtpSessionByAdminID(ctx, adminID)
+	if err != nil {
+		return utils.PrependMessageToError(err, "failed to find otp session")
+	}
+	if otpSession.OtpID == "" || otpSession.OtpHash == "" {
+		return domain.ValidationError("otp", "no OTP was requested — request a new one")
+	}
+	if otpSession.AdminID != adminID {
+		return domain.ForbiddenError("this OTP was not issued to your account")
+	}
+	if c.otpService.IsOTPExpired(otpSession.ExpireAt) {
+		return domain.ValidationError("otp", "OTP has expired — request a new one")
+	}
+
+	log.Printf("[VerifyOTP document] skipOTPValidation=%v admin_id=%s", c.skipOTPValidation, adminID)
+	if !c.skipOTPValidation {
+		if err := c.otpService.VerifyOTP(otp, otpSession.OtpHash); err != nil {
+			return domain.ValidationError("otp", "incorrect OTP")
+		}
+	}
+
+	if delErr := c.authRepo.DeleteOtpSession(ctx, otpSession.OtpID); delErr != nil {
+		// Non-fatal: the session still expires on its own.
+		log.Printf("warning: failed to delete used otp session %s: %v", otpSession.OtpID, delErr)
+	}
 	return nil
 }
 func (c *adminUseCase) VerifyBusinessPAN(ctx context.Context, shopID string, panNumber string) error {
@@ -1609,8 +1661,8 @@ func (c *adminUseCase) UploadAddress(ctx context.Context, adminId string, addres
 	return nil
 }
 
-func (c *adminUseCase) VerifyShopDocument(ctx context.Context, otp string) error {
-	return nil
+func (c *adminUseCase) VerifyShopDocument(ctx context.Context, adminID string, otp string) error {
+	return c.verifyDocumentOtp(ctx, adminID, otp)
 }
 
 func (c *adminUseCase) UploadAdminDocumentOtpSend(ctx context.Context, adminID string, documentType string, documentValue string) error {
@@ -1618,13 +1670,15 @@ func (c *adminUseCase) UploadAdminDocumentOtpSend(ctx context.Context, adminID s
 	if err != nil {
 		return fmt.Errorf("failed to upload admin document \nerror:%v", err.Error())
 	}
+
+	if _, err := c.issueDocumentOtp(ctx, adminID); err != nil {
+		return err
+	}
 	return nil
 }
 
-func (c *adminUseCase) UploadAdminDocumentOtpVerify(ctx context.Context, otp string, documentType string, documentValue string) error {
-	// For demonstration, assume OTP is always valid
-	// In real implementation, verify OTP against a stored value or external service
-	return nil
+func (c *adminUseCase) UploadAdminDocumentOtpVerify(ctx context.Context, adminID string, otp string, documentType string, documentValue string) error {
+	return c.verifyDocumentOtp(ctx, adminID, otp)
 }
 
 func (c *adminUseCase) GetVerificationStatus(ctx context.Context, adminId string) (admin domain.Admin, shopVerification domain.ShopVerification, err error) {

@@ -24,6 +24,12 @@ type NotificationUseCase interface {
 	// SendBroadcast delivers a notification to a whole audience via an FCM topic.
 	SendBroadcast(ctx context.Context, req request.SendBroadcastRequest) error
 
+	// Radius-targeted announcements. SendRadiusAnnouncement centres on raw
+	// coordinates; the shop-launch pair centres on a shop's pinned location.
+	SendRadiusAnnouncement(ctx context.Context, adminID string, req request.RadiusAnnouncement) (domain.RadiusAnnouncementResult, error)
+	PreviewShopLaunchAudience(ctx context.Context, shopID string, radiusKm float64) (domain.RadiusAnnouncementResult, error)
+	SendShopLaunchAnnouncement(ctx context.Context, adminID string, req request.ShopLaunchAnnouncement) (domain.RadiusAnnouncementResult, error)
+
 	// StartFirestoreWatcher launches background Firestore listeners for the
 	// given rules.  It returns immediately; watchers run until ctx is cancelled.
 	// Pass nil to use the default e-commerce rules (orders, products, shops,

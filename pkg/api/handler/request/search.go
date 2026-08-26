@@ -17,3 +17,11 @@ type AutocompleteRequest struct {
 	Query string `form:"q" binding:"required,min=1"`
 	Limit uint   `form:"limit"` // default 10, max 20
 }
+
+// TaxonomySearchRequest holds query parameters for the taxonomy search
+// endpoint, which searches categories and sub-categories together.
+type TaxonomySearchRequest struct {
+	Query        string `form:"q" binding:"required,min=1"`
+	DepartmentID string `form:"department_id"` // optional, restrict to one department
+	Limit        uint   `form:"limit"`         // default 20, max 50
+}

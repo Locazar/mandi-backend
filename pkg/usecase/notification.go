@@ -14,26 +14,31 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/config"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
+	"github.com/rohit221990/mandi-backend/pkg/service/cloud"
 	notificationSvc "github.com/rohit221990/mandi-backend/pkg/service/notification"
 	service "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 	"gorm.io/gorm"
 )
 
 type notificationUseCase struct {
-	notificationRepo           interfaces.NotificationRepository
-	fcmPush                    notificationSvc.PushSender
-	db                         *gorm.DB // optional; used to fetch product images for enquiry notifications
-	enquiryNotificationHandler string   // "cf" → delegate to Cloud Function; anything else → handle here
+	notificationRepo interfaces.NotificationRepository
+	fcmPush          notificationSvc.PushSender
+	db               *gorm.DB // optional; used to fetch product images for enquiry notifications
+	// cloudService resolves stored object keys to absolute URLs for push
+	// images. Optional — a nil service falls back to environment config.
+	cloudService               cloud.CloudService
+	enquiryNotificationHandler string // "cf" → delegate to Cloud Function; anything else → handle here
 }
 
 // NewNotificationUseCase wires a new notification use-case with a lazily-initialised
 // FCM push service.  cfg is used to read the ENQUIRY_NOTIFICATION_HANDLER setting
 // so that no os.Getenv call is needed at runtime.
-func NewNotificationUseCase(repo interfaces.NotificationRepository, cfg config.Config) service.NotificationUseCase {
+func NewNotificationUseCase(repo interfaces.NotificationRepository, cfg config.Config, cs cloud.CloudService) service.NotificationUseCase {
 	notificationSvc.InitSharedFirebaseApp(cfg.FirebaseProjectID, cfg.FirebaseConfig)
 	return &notificationUseCase{
 		notificationRepo:           repo,
 		fcmPush:                    notificationSvc.NewFCMPushService(),
+		cloudService:               cs,
 		enquiryNotificationHandler: cfg.EnquiryNotificationHandler,
 	}
 }
@@ -41,12 +46,13 @@ func NewNotificationUseCase(repo interfaces.NotificationRepository, cfg config.C
 // NewNotificationUseCaseWithDB is like NewNotificationUseCase but also accepts a
 // GORM database connection.  When provided, enquiry notifications include the
 // product item image URLs fetched directly from the SQL database.
-func NewNotificationUseCaseWithDB(repo interfaces.NotificationRepository, db *gorm.DB, cfg config.Config) service.NotificationUseCase {
+func NewNotificationUseCaseWithDB(repo interfaces.NotificationRepository, db *gorm.DB, cfg config.Config, cs cloud.CloudService) service.NotificationUseCase {
 	notificationSvc.InitSharedFirebaseApp(cfg.FirebaseProjectID, cfg.FirebaseConfig)
 	return &notificationUseCase{
 		notificationRepo:           repo,
 		fcmPush:                    notificationSvc.NewFCMPushService(),
 		db:                         db,
+		cloudService:               cs,
 		enquiryNotificationHandler: cfg.EnquiryNotificationHandler,
 	}
 }

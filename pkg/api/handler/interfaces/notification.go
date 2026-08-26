@@ -16,6 +16,11 @@ type NotificationHandler interface {
 	SendPushNotification(ctx *gin.Context)
 	SendBroadcastNotification(ctx *gin.Context)
 
+	// Radius-targeted announcements
+	SendRadiusAnnouncement(ctx *gin.Context)
+	PreviewShopLaunchAudience(ctx *gin.Context)
+	SendShopLaunchAnnouncement(ctx *gin.Context)
+
 	// Backward compat alias
 	GenerateFCMToken(ctx *gin.Context)
 }

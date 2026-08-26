@@ -103,7 +103,6 @@ type AdminUseCase interface {
 	GetShopByID(ctx context.Context, shopID string) (shop domain.ShopDetails, err error)
 	UpdateShop(ctx context.Context, shop map[string]interface{}, shopId string) (map[string]interface{}, error)
 	GetShopByOwnerID(ctx context.Context, ownerID string) (shop domain.ShopDetails, err error)
-	SendNotificationToUsersInRadius(ctx context.Context, requestData request.NotificationRadiusRequest) error
 	SendNotificationToUser(ctx context.Context, userID string, message string) error
 	UploadAdminProfileImage(ctx context.Context, adminID string, imagePath string, shopId string) (string, error)
 	DecodeTokenData(tokenString string) string
@@ -111,9 +110,9 @@ type AdminUseCase interface {
 	VerifyBusinessPAN(ctx context.Context, shopID string, panNumber string) error
 	SavePANImages(ctx context.Context, shopID string, frontURL string, backURL string) error
 	UploadAddress(ctx context.Context, adminId string, address request.AddressRequest) error
-	VerifyShopDocument(ctx context.Context, otp string) error
+	VerifyShopDocument(ctx context.Context, adminID string, otp string) error
 	UploadAdminDocumentOtpSend(ctx context.Context, adminId string, documentType string, documentValue string) error
-	UploadAdminDocumentOtpVerify(ctx context.Context, otp string, documentType string, documentValue string) error
+	UploadAdminDocumentOtpVerify(ctx context.Context, adminID string, otp string, documentType string, documentValue string) error
 	GetAllProductDetails(ctx context.Context) (products []any, err error)
 	GetShopProfileImageById(ctx context.Context, shopId string) (string, error)
 	UserLogout(ctx context.Context, adminId string) error

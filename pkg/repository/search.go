@@ -658,3 +658,85 @@ func (r *searchRepository) AutocompleteSuggestions(ctx context.Context, prefix s
 	}
 	return suggestions, nil
 }
+
+// SearchTaxonomy searches categories and sub-categories in one pass and
+// returns each hit with its full department → category path.
+//
+// A single UNION ALL keeps this to one round trip and lets both levels share
+// one ranking, so "shirt" surfaces the sub-category "Shirts" alongside the
+// category "Shirts & Tops" ordered by how well each matches, rather than
+// clumping all categories ahead of all sub-categories.
+//
+// A department name matches at the category level only. Searching "Clothing"
+// should list that department's categories the way browsing it would; letting
+// it match sub-categories too would bury those categories under every
+// sub-category in the department.
+func (r *searchRepository) SearchTaxonomy(ctx context.Context, query, departmentID string,
+	limit uint) ([]response.TaxonomySearchItem, error) {
+
+	likeQuery := "%" + query + "%"
+	prefixQuery := query + "%"
+
+	rows, err := r.DB.WithContext(ctx).Raw(`
+		SELECT * FROM (
+			SELECT
+				'category'::text            AS type,
+				c.id::text                  AS id,
+				c.name                      AS name,
+				COALESCE(c.image_url, '')   AS image_url,
+				c.department_id::text       AS department_id,
+				COALESCE(d.name, '')        AS department_name,
+				''::text                    AS category_id,
+				''::text                    AS category_name,
+				c.sort_order                AS sort_order
+			FROM categories c
+			LEFT JOIN departments d ON d.id = c.department_id
+			WHERE (c.name ILIKE $1 OR d.name ILIKE $1)
+				AND c.is_active = true
+				AND ($3 = '' OR c.department_id::text = $3)
+
+			UNION ALL
+
+			SELECT
+				'subcategory'::text         AS type,
+				sc.id::text                 AS id,
+				sc.name                     AS name,
+				COALESCE(sc.image_url, '')  AS image_url,
+				sc.department_id::text      AS department_id,
+				COALESCE(d.name, '')        AS department_name,
+				sc.category_id::text        AS category_id,
+				COALESCE(c.name, '')        AS category_name,
+				sc.sort_order               AS sort_order
+			FROM sub_categories sc
+			LEFT JOIN departments d ON d.id = sc.department_id
+			LEFT JOIN categories  c ON c.id = sc.category_id
+			WHERE sc.name ILIKE $1
+				AND sc.is_active = true
+				AND ($3 = '' OR sc.department_id::text = $3)
+		) AS hits
+		ORDER BY
+			CASE WHEN hits.name ILIKE $2 THEN 0 ELSE 1 END,
+			hits.sort_order ASC,
+			hits.name ASC
+		LIMIT $4
+	`, likeQuery, prefixQuery, departmentID, limit).Rows()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := make([]response.TaxonomySearchItem, 0)
+	for rows.Next() {
+		var (
+			item      response.TaxonomySearchItem
+			sortOrder int
+		)
+		if err := rows.Scan(&item.Type, &item.ID, &item.Name, &item.ImageURL,
+			&item.DepartmentID, &item.DepartmentName,
+			&item.CategoryID, &item.CategoryName, &sortOrder); err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}

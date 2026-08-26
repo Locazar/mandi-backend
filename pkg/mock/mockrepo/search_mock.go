@@ -65,3 +65,18 @@ func (mr *MockSearchRepositoryMockRecorder) AutocompleteSuggestions(ctx, prefix,
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AutocompleteSuggestions", reflect.TypeOf((*MockSearchRepository)(nil).AutocompleteSuggestions), ctx, prefix, limit)
 }
+
+// SearchTaxonomy mocks base method.
+func (m *MockSearchRepository) SearchTaxonomy(ctx context.Context, query, departmentID string, limit uint) ([]response.TaxonomySearchItem, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SearchTaxonomy", ctx, query, departmentID, limit)
+	ret0, _ := ret[0].([]response.TaxonomySearchItem)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SearchTaxonomy indicates an expected call of SearchTaxonomy.
+func (mr *MockSearchRepositoryMockRecorder) SearchTaxonomy(ctx, query, departmentID, limit interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchTaxonomy", reflect.TypeOf((*MockSearchRepository)(nil).SearchTaxonomy), ctx, query, departmentID, limit)
+}

@@ -1435,28 +1435,6 @@ func (c *adminDatabase) UpdateShopPhoneByAdminID(ctx context.Context, adminID, p
 	return nil
 }
 
-func (c *adminDatabase) SendNotificationToUsersInRadius(ctx context.Context, requestData request.NotificationRadiusRequest) error {
-	query := `SELECT id FROM users
-	 WHERE earth_distance(ll_to_earth($1, $2), ll_to_earth(latitude, longitude)) <= $3`
-
-	var userIDs []uint
-	err := c.DB.Raw(query, requestData.Latitude, requestData.Longitude, requestData.RadiusM*1000).Scan(&userIDs).Error
-	if err != nil {
-		return err
-	}
-
-	// Here, you would integrate with your notification service to send notifications to the userIDs
-	// For example:
-	// for _, userID := range userIDs {
-	//     err := notificationService.SendNotification(userID, requestData.Message)
-	//     if err != nil {
-	//         // Handle notification sending error
-	//     }
-	// }
-
-	return nil
-}
-
 func (c *adminDatabase) SendNotificationToUser(ctx context.Context, userID string, message string) error {
 	// Here, you would integrate with your notification service to send a notification to the userID
 	// For example:
@@ -1545,19 +1523,51 @@ func (c *adminDatabase) UploadAddress(ctx context.Context, adminId string, addre
 	return err
 }
 
+// UploadAdminDocumentOtpSend stages an identity document on the admin row
+// pending OTP verification.
+//
+// documentType selects the column, so it is resolved through a fixed whitelist
+// rather than interpolated. It arrives from the request body, and concatenating
+// it into the statement made the column name caller-controlled. The previous
+// version also bound the *type* instead of the value, and named columns
+// ("pan_card"/"aadhar_card") that do not exist on admins, so it could only ever
+// error. Aadhaar is minimized per DPDP (see domain.Admin): only the last four
+// digits are persisted, never the full number.
 func (c *adminDatabase) UploadAdminDocumentOtpSend(ctx context.Context, adminID string, documentType string, documentValue string) error {
-	// For simplicity, assuming OTP verification is done elsewhere
-	var value string
-	if documentType == "Pan" {
-		value = documentType
-	} else {
-		value = documentType
+	documentValue = strings.TrimSpace(documentValue)
+	if documentValue == "" {
+		return fmt.Errorf("document value is required")
 	}
 
-	// documentValue is a column name of admins table
-	query := `UPDATE admins SET ` + value + ` = $1, updated_at = $2 WHERE id = $3`
-	err := c.DB.Exec(query, value, time.Now(), adminID).Error
-	return err
+	switch strings.ToLower(strings.TrimSpace(documentType)) {
+	case "pan", "pan_card":
+		encPAN, err := c.encrypt(documentValue)
+		if err != nil {
+			return err
+		}
+		return c.DB.Exec(
+			`UPDATE admins SET pan = $1, updated_at = $2 WHERE id = $3`,
+			encPAN, time.Now(), adminID,
+		).Error
+
+	case "aadhaar", "aadhar", "aadhaar_card", "aadhar_card":
+		digits := strings.Map(func(r rune) rune {
+			if r >= '0' && r <= '9' {
+				return r
+			}
+			return -1
+		}, documentValue)
+		if len(digits) < 4 {
+			return fmt.Errorf("invalid aadhaar number")
+		}
+		return c.DB.Exec(
+			`UPDATE admins SET aadhaar_last4 = $1, updated_at = $2 WHERE id = $3`,
+			digits[len(digits)-4:], time.Now(), adminID,
+		).Error
+
+	default:
+		return fmt.Errorf("unsupported document type: %q", documentType)
+	}
 }
 
 func (c *adminDatabase) GetVerificationStatus(ctx context.Context, adminId string) (domain.Admin, domain.ShopVerification, error) {

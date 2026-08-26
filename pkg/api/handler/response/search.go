@@ -75,3 +75,29 @@ type AutocompleteSuggestion struct {
 	EntityID   uint   `json:"entity_id"`
 	ImageURL   string `json:"image_url,omitempty"`
 }
+
+// --- Taxonomy search --------------------------------------------------------
+
+// TaxonomySearchItem is one match in the department → category → sub-category
+// tree. Every item carries its full ancestor path so a client can jump
+// straight to the right place in a drill-down UI without extra lookups.
+//
+// For Type "category" the Category* fields are empty — the item *is* the
+// category, and its parent is the department.
+type TaxonomySearchItem struct {
+	Type           string `json:"type"` // "category" | "subcategory"
+	ID             string `json:"id"`
+	Name           string `json:"name"`
+	ImageURL       string `json:"image_url,omitempty"`
+	DepartmentID   string `json:"department_id"`
+	DepartmentName string `json:"department_name,omitempty"`
+	CategoryID     string `json:"category_id,omitempty"`
+	CategoryName   string `json:"category_name,omitempty"`
+}
+
+// TaxonomySearchResult is a single flat, ranked list rather than per-type
+// buckets: the seller is looking for one thing and does not care whether it
+// happens to be modelled as a category or a sub-category.
+type TaxonomySearchResult struct {
+	Results []TaxonomySearchItem `json:"results"`
+}

@@ -160,3 +160,65 @@ func TestAutocomplete_LimitCapping(t *testing.T) {
 
 	assert.NoError(t, err)
 }
+
+func TestSearchTaxonomy_ValidQuery(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mockrepo.NewMockSearchRepository(ctrl)
+	expected := []response.TaxonomySearchItem{
+		{
+			Type: "subcategory", ID: "scat_1", Name: "Shirts",
+			DepartmentID: "dep_1", DepartmentName: "Clothing",
+			CategoryID: "cat_1", CategoryName: "Menswear",
+		},
+	}
+
+	mockRepo.EXPECT().
+		SearchTaxonomy(gomock.Any(), "shirt", "", uint(20)).
+		Return(expected, nil)
+
+	useCase := NewSearchUseCase(mockRepo)
+	result, err := useCase.SearchTaxonomy(context.Background(), request.TaxonomySearchRequest{
+		Query: "  shirt  ", // trimmed before it reaches the repo
+	})
+
+	assert.NoError(t, err)
+	assert.Len(t, result.Results, 1)
+	assert.Equal(t, "Shirts", result.Results[0].Name)
+	assert.Equal(t, "Clothing", result.Results[0].DepartmentName)
+	assert.Equal(t, "Menswear", result.Results[0].CategoryName)
+}
+
+func TestSearchTaxonomy_EmptyQuery(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mockrepo.NewMockSearchRepository(ctrl)
+	useCase := NewSearchUseCase(mockRepo)
+
+	result, err := useCase.SearchTaxonomy(context.Background(), request.TaxonomySearchRequest{Query: "   "})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result.Results)
+	assert.Empty(t, result.Results)
+}
+
+func TestSearchTaxonomy_LimitCapping(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mockrepo.NewMockSearchRepository(ctrl)
+	mockRepo.EXPECT().
+		SearchTaxonomy(gomock.Any(), "shirt", "dep_1", uint(50)).
+		Return([]response.TaxonomySearchItem{}, nil)
+
+	useCase := NewSearchUseCase(mockRepo)
+	_, err := useCase.SearchTaxonomy(context.Background(), request.TaxonomySearchRequest{
+		Query:        "shirt",
+		DepartmentID: "dep_1",
+		Limit:        500, // capped to maxTaxonomyLimit
+	})
+
+	assert.NoError(t, err)
+}
