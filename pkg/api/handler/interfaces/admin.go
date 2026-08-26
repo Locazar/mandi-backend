@@ -100,7 +100,6 @@ type AdminHandler interface {
 	ApproveShop(ctx *gin.Context)
 	RejectShop(ctx *gin.Context)
 	GetVerificationStatus(ctx *gin.Context)
-	SendNotificationToUsersInRadius(ctx *gin.Context)
 	GetShopSocialDetails(ctx *gin.Context)
 
 	UploadAdminProfileImage(ctx *gin.Context)

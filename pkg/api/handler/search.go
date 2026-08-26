@@ -121,3 +121,41 @@ func (h *SearchHandler) Autocomplete(ctx *gin.Context) {
 	response.ResolveAutocompleteImages(h.cloudService, suggestions)
 	response.SuccessResponse(ctx, http.StatusOK, "autocomplete suggestions retrieved successfully", suggestions)
 }
+
+// SearchTaxonomy godoc
+// @Summary		Search categories and sub-categories with their full department path
+// @Description	Searches the department → category → sub-category tree and returns one flat ranked list. Each hit carries its ancestor ids and names so a drill-down UI can jump straight to it.
+// @Tags		Global Search
+// @Accept		json
+// @Produce		json
+// @Param		q				query	string	true	"Search query (min 1 char)"
+// @Param		department_id	query	string	false	"Restrict results to a single department"
+// @Param		limit			query	int		false	"Max results (default 20, max 50)"
+// @Success		200	{object}	response.Response{data=response.TaxonomySearchResult}
+// @Failure		400	{object}	response.Response
+// @Router		/taxonomy/search [get]
+func (h *SearchHandler) SearchTaxonomy(ctx *gin.Context) {
+	var req request.TaxonomySearchRequest
+
+	req.Query = ctx.Query("q")
+	if req.Query == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "search query 'q' is required", nil, nil)
+		return
+	}
+
+	req.DepartmentID = ctx.Query("department_id")
+	if limit := ctx.Query("limit"); limit != "" {
+		if v, err := strconv.ParseUint(limit, 10, 64); err == nil {
+			req.Limit = uint(v)
+		}
+	}
+
+	result, err := h.searchUseCase.SearchTaxonomy(ctx.Request.Context(), req)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "failed to search taxonomy", err, nil)
+		return
+	}
+
+	result.ResolveImages(h.cloudService)
+	response.SuccessResponse(ctx, http.StatusOK, "taxonomy search results retrieved successfully", result)
+}

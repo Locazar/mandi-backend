@@ -66,6 +66,14 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 			globalSearch.GET("/autocomplete/", searchHandler.Autocomplete) // Support with trailing slash
 		}
 
+		// Taxonomy search — categories + sub-categories with their full
+		// department path, used by the seller Add Product picker.
+		taxonomy := api.Group("/taxonomy")
+		{
+			taxonomy.GET("/search", searchHandler.SearchTaxonomy)
+			taxonomy.GET("/search/", searchHandler.SearchTaxonomy) // Support with trailing slash
+		}
+
 		// api.POST("/logout", userHandler.UserLogout)
 
 		product := api.Group("/products")

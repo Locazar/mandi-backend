@@ -236,3 +236,21 @@ func ResolveOrderItemsImages(cs cloud.CloudService, items []OrderItem) {
 		items[i].ResolveImages(cs)
 	}
 }
+
+// --- Taxonomy search --------------------------------------------------------
+
+func (t *TaxonomySearchItem) ResolveImages(cs cloud.CloudService) {
+	if t == nil {
+		return
+	}
+	t.ImageURL = cloud.ResolveURL(cs, t.ImageURL)
+}
+
+func (r *TaxonomySearchResult) ResolveImages(cs cloud.CloudService) {
+	if r == nil {
+		return
+	}
+	for i := range r.Results {
+		r.Results[i].ResolveImages(cs)
+	}
+}

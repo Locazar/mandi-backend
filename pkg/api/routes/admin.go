@@ -515,9 +515,16 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		// Notification
 		notification := api.Group("/notifications", adminHandler.RequirePermission(domain.PermCanSendNotifications))
 		{
-			notification.GET("/sendToUsersInRadius", adminHandler.SendNotificationToUsersInRadius)
 			notification.POST("/push", notificationHandler.SendPushNotification)
 			notification.POST("/broadcast", notificationHandler.SendBroadcastNotification)
+			// Raw-coordinate radius push. Replaces the old GET
+			// /sendToUsersInRadius, which bound a JSON body on a GET and whose
+			// repository never delivered anything.
+			notification.POST("/radius", notificationHandler.SendRadiusAnnouncement)
+			// "This shop just opened near you" — radius-targeted from the shop's
+			// own pinned location, so the admin never re-types coordinates.
+			notification.GET("/shop-launch/audience", notificationHandler.PreviewShopLaunchAudience)
+			notification.POST("/shop-launch", notificationHandler.SendShopLaunchAnnouncement)
 			notification.POST("/images", adminHandler.UploadNotificationImage)
 			notification.GET("/images", adminHandler.ListNotificationImages)
 		}

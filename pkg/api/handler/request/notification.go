@@ -85,10 +85,34 @@ type SendBroadcastRequest struct {
 	Data map[string]string `json:"data" binding:"omitempty"`
 }
 
-type NotificationRadiusRequest struct {
-	Latitude  float64 `json:"latitude" binding:"required"`
-	Longitude float64 `json:"longitude" binding:"required"`
-	RadiusM   float64 `json:"radius_meters" binding:"required"`
-	Title     string  `json:"title" binding:"required"`
-	Body      string  `json:"body" binding:"required"`
+// RadiusAnnouncement pushes to every customer with a saved address within
+// RadiusKm of a point the admin supplies. The shop-centred version is
+// ShopLaunchAnnouncement below, which derives the point from the shop row.
+type RadiusAnnouncement struct {
+	Latitude  float64 `json:"latitude" binding:"required,min=-90,max=90"`
+	Longitude float64 `json:"longitude" binding:"required,min=-180,max=180"`
+	RadiusKm  float64 `json:"radius_km" binding:"required,min=1,max=50"`
+	Title     string  `json:"title" binding:"required,min=1,max=100"`
+	Body      string  `json:"body" binding:"required,min=1,max=500"`
+	// ImageURL is optional; a stored object key or uploads/ path is absolutised
+	// server-side, since FCM silently drops an image it cannot fetch.
+	ImageURL string `json:"image_url" binding:"omitempty"`
+}
+
+// ShopLaunchAnnouncement announces a newly opened shop to every customer with a
+// saved address within RadiusKm of the shop's pinned location.
+//
+// Unlike NotificationRadiusRequest (raw coordinates), the centre point is taken
+// from the shop row itself, so the admin never re-types a lat/long that could
+// drift from the shop's real position.
+type ShopLaunchAnnouncement struct {
+	ShopID string `json:"shop_id" binding:"required"`
+	// RadiusKm is capped at 10: past that the "shop near you" premise stops
+	// being true and the push reads as spam.
+	RadiusKm float64 `json:"radius_km" binding:"required,min=1,max=10"`
+	Title    string  `json:"title" binding:"required,min=1,max=100"`
+	Body     string  `json:"body" binding:"required,min=1,max=500"`
+	// ImageURL overrides the shop's own photo. Empty means "use the shop image",
+	// which is the normal case.
+	ImageURL string `json:"image_url" binding:"omitempty"`
 }

@@ -9,6 +9,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/rohit221990/mandi-backend/pkg/domain"
+	"github.com/rohit221990/mandi-backend/pkg/service/cloud"
 )
 
 // FollowerNotifier sends a "new product" push to a shop's followers when the
@@ -22,12 +23,17 @@ import (
 type FollowerNotifier struct {
 	db  *gorm.DB
 	fcm PushSender
+	// cs resolves bare object keys (what product uploads store) to absolute
+	// CDN URLs. Optional — a nil service just falls back to env config.
+	cs cloud.CloudService
 }
 
 // NewFollowerNotifier builds a notifier from a GORM handle (followers + the
-// once-per-day dedup table) and any PushSender (FCM delivery).
-func NewFollowerNotifier(db *gorm.DB, fcm PushSender) *FollowerNotifier {
-	return &FollowerNotifier{db: db, fcm: fcm}
+// once-per-day dedup table), any PushSender (FCM delivery), and the object
+// storage service used to turn stored image keys into absolute URLs. cs may be
+// nil, in which case image resolution falls back to environment config.
+func NewFollowerNotifier(db *gorm.DB, fcm PushSender, cs cloud.CloudService) *FollowerNotifier {
+	return &FollowerNotifier{db: db, fcm: fcm, cs: cs}
 }
 
 // NotifyNewProduct notifies the shop's followers about a newly added product.
@@ -97,8 +103,14 @@ func (n *FollowerNotifier) NotifyNewProduct(ctx context.Context, shopID, product
 		"shop_id":      shopID,
 		"product_name": strings.TrimSpace(productName),
 	}
-	if img := resolveFollowerImageURL(followerFirstNonBlank(imageURLs)); img != "" {
-		data["image_url"] = img
+	if stored := followerFirstNonBlank(imageURLs); stored != "" {
+		if img := resolveFollowerImageURL(n.cs, stored); img != "" {
+			data["image_url"] = img
+		} else {
+			// Don't fail the push — but say so, since a silently image-less
+			// notification is exactly the symptom this resolution bug caused.
+			log.Printf("WARN [FollowerNotifier]: could not resolve image %q to an absolute URL for shop %s; sending without image", stored, shopID)
+		}
 	}
 
 	sent := 0
@@ -137,31 +149,67 @@ func followerFirstNonBlank(ss []string) string {
 	return ""
 }
 
-// resolveFollowerImageURL turns a stored relative product-image path
-// (e.g. "uploads/products/x.jpg") into an absolute URL so it renders in the
-// push. Absolute URLs pass through unchanged.
+// ResolvePushImageURL absolutises a stored image value for any FCM push, not
+// just the follower one. It is the exported entry point to the resolution rules
+// documented on resolveFollowerImageURL below; callers outside this package
+// (e.g. the shop-launch announcement) use it so every push resolves images the
+// same way.
+func ResolvePushImageURL(cs cloud.CloudService, path string) string {
+	return resolveFollowerImageURL(cs, path)
+}
+
+// resolveFollowerImageURL turns a stored product-image value into an absolute
+// URL so it renders in the push. It mirrors cloud.ResolveURL's three cases,
+// then absolutises the result — FCM silently drops an image it cannot fetch,
+// so a relative or wrong-host URL shows up as a notification with no picture.
 //
-// "uploads/…" paths are served by the API host (StaticFS) — the same rule the
-// customer app's resolveImageUrl and the backend's normalizePublicImageURL use
-// (NOT the S3 base, which is only for bare object keys). We prefer an
-// env-configured public origin and fall back to the production API host so the
-// image still renders when the API server has no *_BASE_URL env set.
-func resolveFollowerImageURL(path string) string {
+//  1. Already absolute → unchanged.
+//  2. "uploads/…" → served by the API host (StaticFS), the same rule the
+//     customer app's resolveImageUrl and normalizePublicImageURL use. NOT the
+//     object-storage base.
+//  3. Anything else is a bare object key (what SaveBytes/SaveFile return, e.g.
+//     "products/abc.jpg") → the object-storage/CDN base. This is the case
+//     seller product uploads actually produce.
+//
+// Returns "" when a key cannot be made absolute, so the caller can log it
+// rather than handing FCM a URL that will 404.
+func resolveFollowerImageURL(cs cloud.CloudService, path string) string {
 	p := strings.TrimSpace(strings.ReplaceAll(path, "\\", "/"))
 	if p == "" {
 		return ""
 	}
-	if strings.HasPrefix(p, "http://") || strings.HasPrefix(p, "https://") {
+	if isAbsoluteURL(p) {
 		return p
 	}
-	base := followerFirstNonBlank([]string{
-		os.Getenv("NOTIFICATION_PUBLIC_BASE_URL"),
-		os.Getenv("PUBLIC_BASE_URL"),
-		os.Getenv("API_BASE_URL"),
-		os.Getenv("APP_BASE_URL"),
-	})
-	if base == "" {
-		base = "https://api.locazar.com" // production API host serving /uploads
+
+	if strings.HasPrefix(p, "uploads/") || strings.HasPrefix(p, "/uploads/") {
+		base := followerFirstNonBlank([]string{
+			os.Getenv("NOTIFICATION_PUBLIC_BASE_URL"),
+			os.Getenv("PUBLIC_BASE_URL"),
+			os.Getenv("API_BASE_URL"),
+			os.Getenv("APP_BASE_URL"),
+		})
+		if base == "" {
+			base = "https://api.locazar.com" // production API host serving /uploads
+		}
+		return strings.TrimRight(base, "/") + "/" + strings.TrimLeft(p, "/")
 	}
-	return strings.TrimRight(base, "/") + "/" + strings.TrimLeft(p, "/")
+
+	// Bare object key: resolve against object storage, exactly as
+	// cloud.ResolveURL does for every other surface that renders these images.
+	if cs != nil {
+		if u := strings.TrimSpace(cs.PublicURL(p)); isAbsoluteURL(u) {
+			return u
+		}
+	}
+	// No storage service wired in (or it is the no-op): fall back to the same
+	// env var the object storage service is configured from.
+	if base := strings.TrimSpace(os.Getenv("S3_PUBLIC_BASE_URL")); base != "" {
+		return strings.TrimRight(base, "/") + "/" + strings.TrimLeft(p, "/")
+	}
+	return ""
+}
+
+func isAbsoluteURL(s string) bool {
+	return strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://")
 }

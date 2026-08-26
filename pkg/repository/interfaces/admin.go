@@ -97,8 +97,6 @@ type AdminRepository interface {
 	GetShopByID(ctx context.Context, shopID string) (shop domain.ShopDetails, err error)
 	UpdateShop(ctx context.Context, shop map[string]interface{}, shopId string) (map[string]interface{}, error)
 	GetShopByOwnerID(ctx context.Context, ownerID string) (shop domain.ShopDetails, err error)
-
-	SendNotificationToUsersInRadius(ctx context.Context, requestData request.NotificationRadiusRequest) error
 	SendNotificationToUser(ctx context.Context, userID string, message string) error
 	UploadAdminProfileImage(ctx context.Context, adminID string, imagePath string, shopId string) (string, error)
 	UploadShopDocument(ctx context.Context, shopID string, documentType string, documentValue string) error

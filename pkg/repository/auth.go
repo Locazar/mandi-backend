@@ -64,6 +64,16 @@ func (c *AuthRepository) FindOtpSession(ctx context.Context, otpID string) (otpS
 	return otpSession, err
 }
 
+// FindLatestOtpSessionByAdminID returns the most recent unexpired OTP session
+// issued to an admin, or a zero-value session when none exists. The document
+// verification flow needs this because the seller app posts only the entered
+// code back — it never round-trips the otp_id it was issued under.
+func (c *AuthRepository) FindLatestOtpSessionByAdminID(ctx context.Context, adminID string) (otpSession domain.OtpSession, err error) {
+	query := `SELECT * FROM otp_sessions WHERE admin_id = $1 AND expire_at > NOW() ORDER BY expire_at DESC LIMIT 1`
+	err = c.DB.Raw(query, adminID).Scan(&otpSession).Error
+	return otpSession, err
+}
+
 // DeleteOtpSession removes an OTP session so a verified OTP cannot be reused.
 func (c *AuthRepository) DeleteOtpSession(ctx context.Context, otpID string) error {
 	query := `DELETE FROM otp_sessions WHERE otp_id = $1`

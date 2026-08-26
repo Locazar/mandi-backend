@@ -4,6 +4,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/config"
 	"github.com/rohit221990/mandi-backend/pkg/db"
 	"github.com/rohit221990/mandi-backend/pkg/repository"
+	"github.com/rohit221990/mandi-backend/pkg/service/cloud"
 	"github.com/rohit221990/mandi-backend/pkg/usecase"
 	usecaseinterfaces "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 )
@@ -17,6 +18,14 @@ func InitializeNotificationUseCase(cfg config.Config) (usecaseinterfaces.Notific
 		return nil, err
 	}
 
+	// Object storage is optional here: the watcher only needs it to absolutise
+	// push image keys, so a failure to build it degrades images rather than
+	// preventing the watcher from starting.
+	cloudService, err := cloud.NewObjectStorageService(cfg)
+	if err != nil {
+		cloudService = nil
+	}
+
 	notificationRepo := repository.NewNotificationRepository(gormDB)
-	return usecase.NewNotificationUseCaseWithDB(notificationRepo, gormDB, cfg), nil
+	return usecase.NewNotificationUseCaseWithDB(notificationRepo, gormDB, cfg, cloudService), nil
 }

@@ -2232,35 +2232,6 @@ func (h *adminHandler) GetShopByOwnerID(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully got shop by owner ID", shop)
 }
 
-// SendNotificationToUsersInRadius godoc
-//
-//	@summary 	api for admin to send notification to users in radius
-//	@Security	BearerAuth
-//	@id			SendNotificationToUsersInRadius
-//	@tags		Admin Notification
-//	@Param		input	body	request.NotificationRadiusRequest{}	true	"inputs"
-//	@Router		/admin/notifications/radius [get]
-//	@Success	200	{object}	response.Response{}	"Successfully sent notification to users in radius"
-//	@Failure	400	{object}	response.Response{}	"invalid input"
-func (c *adminHandler) SendNotificationToUsersInRadius(ctx *gin.Context) {
-
-	var body request.NotificationRadiusRequest
-
-	if err := ctx.ShouldBindJSON(&body); err != nil {
-		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, body)
-		return
-	}
-
-	// Call use case to send notification to users in radius
-	err := c.adminUseCase.SendNotificationToUsersInRadius(ctx, body)
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to send notification to users in radius", err, nil)
-		return
-	}
-
-	response.SuccessResponse(ctx, http.StatusOK, "Successfully sent notification to users in radius", nil)
-}
-
 // SendNotificationToUser godoc
 //
 //	@summary 	api for admin to send notification to a user
@@ -2771,11 +2742,20 @@ func (a *adminHandler) VerifyShopDocument(ctx *gin.Context) {
 		response.ErrorResponse(ctx, http.StatusBadRequest, "OTP is required", nil, nil)
 		return
 	}
-	err := a.adminUseCase.VerifyShopDocument(ctx.Request.Context(), otp)
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to verify shop document", err, nil)
+	// The OTP session is keyed to the caller, so the token decides whose
+	// document is being verified — never a body field.
+	adminID := a.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	if adminID == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Invalid token data", fmt.Errorf("failed to decode admin ID from token"), nil)
 		return
 	}
+
+	if err := a.adminUseCase.VerifyShopDocument(ctx.Request.Context(), adminID, otp); err != nil {
+		a.handleAppErr(ctx, "Invalid or expired OTP", err)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully verified shop document", nil)
 }
 
 func (a *adminHandler) AdminDocumentOtpSend(ctx *gin.Context) {
@@ -2847,9 +2827,14 @@ func (a *adminHandler) AdminDocumentOtpVerify(ctx *gin.Context) {
 		response.ErrorResponse(ctx, http.StatusBadRequest, "OTP is required", nil, nil)
 		return
 	}
-	err := a.adminUseCase.UploadAdminDocumentOtpVerify(ctx.Request.Context(), otp, req.DocumentType, req.DocumentValue)
-	if err != nil {
-		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to verify admin document", err, nil)
+	adminID := a.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	if adminID == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Invalid token data", fmt.Errorf("failed to decode admin ID from token"), nil)
+		return
+	}
+
+	if err := a.adminUseCase.UploadAdminDocumentOtpVerify(ctx.Request.Context(), adminID, otp, req.DocumentType, req.DocumentValue); err != nil {
+		a.handleAppErr(ctx, "Invalid or expired OTP", err)
 		return
 	}
 
@@ -3553,6 +3538,9 @@ func (a *adminHandler) RequirePermission(key domain.PermissionKey) gin.HandlerFu
 			ctx.Abort()
 			return
 		}
+		// Publish the caller so handlers on a permission-gated group can attribute
+		// an action to the admin who took it without re-decoding the token.
+		ctx.Set("adminId", callerID)
 
 		// Blank role means a seller/customer account (role is a
 		// platform-user-only concept, never assigned to those — see

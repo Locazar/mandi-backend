@@ -15,6 +15,8 @@ const (
 	maxSearchLimit           uint = 50
 	defaultAutocompleteLimit uint = 10
 	maxAutocompleteLimit     uint = 20
+	defaultTaxonomyLimit     uint = 20
+	maxTaxonomyLimit         uint = 50
 )
 
 type searchUseCase struct {
@@ -75,4 +77,28 @@ func (s *searchUseCase) Autocomplete(ctx context.Context, req request.Autocomple
 	}
 
 	return s.searchRepo.AutocompleteSuggestions(ctx, prefix, limit)
+}
+
+func (s *searchUseCase) SearchTaxonomy(ctx context.Context, req request.TaxonomySearchRequest) (response.TaxonomySearchResult, error) {
+	query := strings.TrimSpace(req.Query)
+	if query == "" {
+		return response.TaxonomySearchResult{Results: []response.TaxonomySearchItem{}}, nil
+	}
+
+	limit := req.Limit
+	if limit == 0 {
+		limit = defaultTaxonomyLimit
+	}
+	if limit > maxTaxonomyLimit {
+		limit = maxTaxonomyLimit
+	}
+
+	items, err := s.searchRepo.SearchTaxonomy(ctx, query, strings.TrimSpace(req.DepartmentID), limit)
+	if err != nil {
+		return response.TaxonomySearchResult{}, err
+	}
+	if items == nil {
+		items = []response.TaxonomySearchItem{}
+	}
+	return response.TaxonomySearchResult{Results: items}, nil
 }

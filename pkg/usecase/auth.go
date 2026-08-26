@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -464,19 +463,6 @@ func (c *authUseCase) UserSignUp(ctx context.Context, signUpDetails domain.User)
 		return "", err
 	}
 
-	errChan := make(chan error, 2)
-	wait := sync.WaitGroup{}
-	wait.Add(2)
-
-	// Send OTP via SMS
-	go func() {
-		defer wait.Done()
-		_, err := c.optAuth.SentOtp(countryCode + signUpDetails.Phone)
-		if err != nil {
-			errChan <- fmt.Errorf("failed to send otp \nerrors:%v", err.Error())
-		}
-	}()
-
 	userID := existUser.ID
 
 	if userID == "" { // if user not exist then save user on database
@@ -493,30 +479,40 @@ func (c *authUseCase) UserSignUp(ctx context.Context, signUpDetails domain.User)
 		}
 	}
 
+	// Generate a 6-digit OTP and store only its hash (never plaintext), exactly
+	// as LoginOtpSend does. SingUpOtpVerify compares the submitted code against
+	// otpSession.OtpHash, so a session saved without one can never verify —
+	// bcrypt rejects every candidate against an empty hash.
+	generatedOTP, err := c.otpService.GenerateOTP()
+	if err != nil {
+		return "", fmt.Errorf("failed to generate otp \nerror:%v", err.Error())
+	}
+
+	otpHash, err := c.otpService.HashOTP(generatedOTP)
+	if err != nil {
+		return "", fmt.Errorf("failed to hash otp \nerror:%v", err.Error())
+	}
+
 	otpID := uuid.NewString()
+	otpSession := domain.OtpSession{
+		OtpID:    otpID,
+		OtpHash:  otpHash,
+		UserID:   userID,
+		Phone:    signUpDetails.Phone,
+		UserType: domain.UserTypeUser,
+		ExpireAt: c.otpService.CalculateOTPExpiry(),
+	}
+	if err := c.authRepo.SaveOtpSession(ctx, otpSession); err != nil {
+		return "", fmt.Errorf("failed to save otp session \nerror:%v", err.Error())
+	}
 
-	go func() {
-		defer wait.Done()
-		otpSession := domain.OtpSession{
-			OtpID:    otpID,
-			UserID:   userID,
-			Phone:    signUpDetails.Phone,
-			UserType: domain.UserTypeUser,
-			ExpireAt: c.otpService.CalculateOTPExpiry(),
+	// Send the OTP via the 2factor.in SMS API (skipped when SKIP_OTP_VALIDATION=true)
+	if !c.skipOTPValidation {
+		if err := c.smsService.SendOTPSMS(signUpDetails.Phone, generatedOTP); err != nil {
+			return "", fmt.Errorf("failed to send otp \nerror:%v", err.Error())
 		}
-		err := c.authRepo.SaveOtpSession(ctx, otpSession)
-		if err != nil {
-			errChan <- fmt.Errorf("failed to save otp session \nerror:%v", err.Error())
-		}
-	}()
-
-	wait.Wait()
-	close(errChan)
-
-	for err := range errChan {
-		if err != nil {
-			return "", err
-		}
+	} else {
+		log.Printf("[SendOTP signup] skipOTPValidation=true, not sending SMS, otp=%s phone=%s", generatedOTP, signUpDetails.Phone)
 	}
 
 	return otpID, nil

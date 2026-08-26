@@ -10,4 +10,5 @@ import (
 type SearchUseCase interface {
 	GlobalSearch(ctx context.Context, req request.GlobalSearchRequest) (response.GlobalSearchResult, error)
 	Autocomplete(ctx context.Context, req request.AutocompleteRequest) ([]response.AutocompleteSuggestion, error)
+	SearchTaxonomy(ctx context.Context, req request.TaxonomySearchRequest) (response.TaxonomySearchResult, error)
 }
