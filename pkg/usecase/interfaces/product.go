@@ -66,8 +66,8 @@ type ProductUseCase interface {
 	GetAllDepartments(ctx context.Context) ([]response.Department, error)
 	GetAllDepartmentsForAdminCaller(ctx context.Context, callerID string) ([]response.Department, error)
 	GetDepartmentByID(ctx context.Context, departmentID string) (response.Department, error)
-	CreateDepartment(ctx context.Context, name, imageURL string, sortOrder int, isActive bool) error
-	UpdateDepartment(ctx context.Context, departmentID, name, imageURL string, sortOrder int, isActive bool) error
+	CreateDepartment(ctx context.Context, name, imageURL, iconURL string, sortOrder int, isActive bool) error
+	UpdateDepartment(ctx context.Context, departmentID, name, imageURL, iconURL string, sortOrder int, isActive bool) error
 	DeleteDepartment(ctx context.Context, departmentID string) error
 
 	GetAllSubCategories(ctx context.Context) ([]response.SubCategory, error)
