@@ -18,6 +18,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/di"
 	applogger "github.com/rohit221990/mandi-backend/pkg/logger"
 	"github.com/rohit221990/mandi-backend/pkg/repository"
+	"github.com/rohit221990/mandi-backend/pkg/utils"
 )
 
 func main() {
@@ -30,6 +31,8 @@ func main() {
 
 	// Configure the customer-facing product-visibility gate (ships dark by default).
 	repository.SetSubscriptionGateEnabled(cfg.SubscriptionGateEnabled)
+	utils.SetImageModerationEnabled(cfg.ImageModerationEnabled)
+	utils.SetSightengineCredentials(cfg.SightengineAPIUser, cfg.SightengineAPISecret)
 
 	// Configure best-effort relevance ranking on product search (ships dark by default).
 	repository.SetSearchRankingEnabled(cfg.SearchRankingEnabled)

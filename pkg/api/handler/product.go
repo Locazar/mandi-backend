@@ -2785,8 +2785,12 @@ func handleUpload(fileHeader *multipart.FileHeader) (string, error) {
 	}
 	isAdult, err := utils.CheckNudity(savedPath)
 	if err != nil {
-		_ = os.Remove(savedPath)
-		return "", fmt.Errorf("failed to check nudity: %w", err)
+		// Fail open. A moderation outage — service down, bad credentials,
+		// quota exhausted — is the platform's problem, not the seller's, and
+		// blocking here previously turned any Sightengine hiccup into a 400 on
+		// EVERY product upload. A genuine policy verdict still blocks below.
+		log.Printf("WARN image moderation unavailable, allowing upload: path=%s err=%v", savedPath, err)
+		return savedPath, nil
 	}
 	if isAdult {
 		_ = os.Remove(savedPath)

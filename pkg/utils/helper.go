@@ -3,6 +3,7 @@ package utils
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -63,7 +64,57 @@ type ModerationResponse struct {
 	} `json:"error"`
 }
 
+// imageModerationEnabled is the process-wide toggle for the Sightengine
+// adult/offensive-content check. Set once at startup from config
+// (IMAGE_MODERATION_ENABLED) and defaults to true so moderation stays on unless
+// a deployment explicitly opts out.
+//
+// It is a package-level flag rather than an os.Getenv read because the app
+// loads .env through viper, which does NOT export those values into the process
+// environment — os.Getenv would silently miss a value set only in .env.
+var imageModerationEnabled = true
+
+// sightengineAPIUser / sightengineAPISecret are the Sightengine credentials,
+// set at startup from config. They were previously hard-coded in this file.
+var (
+	sightengineAPIUser   string
+	sightengineAPISecret string
+)
+
+// SetImageModerationEnabled configures the global image-moderation toggle.
+// Called at startup from config; may be toggled by tests.
+func SetImageModerationEnabled(enabled bool) { imageModerationEnabled = enabled }
+
+// ImageModerationEnabled reports whether uploaded images are sent to Sightengine.
+func ImageModerationEnabled() bool { return imageModerationEnabled }
+
+// SetSightengineCredentials configures the Sightengine API credentials.
+// Called at startup from config.
+func SetSightengineCredentials(apiUser, apiSecret string) {
+	sightengineAPIUser = apiUser
+	sightengineAPISecret = apiSecret
+}
+
+// ErrModerationUnavailable reports that the moderation service could not give a
+// verdict (unreachable, bad credentials, quota exceeded, malformed response).
+// It is distinct from a genuine "this image is adult content" verdict so the
+// caller can fail open on the former while still blocking on the latter.
+var ErrModerationUnavailable = errors.New("image moderation unavailable")
+
+// CheckNudity reports whether an image is adult/offensive per Sightengine.
+//
+// Returns (false, nil) without contacting Sightengine when moderation is
+// disabled via IMAGE_MODERATION_ENABLED=false.
+//
+// A service-side problem is returned wrapped in ErrModerationUnavailable rather
+// than as a plain error, so callers can distinguish "the service is broken"
+// (allow, log) from "this image violates policy" (block).
 func CheckNudity(path string) (bool, error) {
+	// Bypass: no external call at all, image treated as safe.
+	if !imageModerationEnabled {
+		return false, nil
+	}
+
 	justFilename := filepath.Base(path)
 
 	file, err := os.Open(path)
@@ -92,8 +143,8 @@ func CheckNudity(path string) (bool, error) {
 	// if even one model name here is invalid — verify a name against
 	// https://sightengine.com/docs/models before adding it back.
 	_ = writer.WriteField("models", "nudity-2.1,gore-2.0,violence,self-harm,weapon,offensive,scam,tobacco,recreational_drug,alcohol")
-	_ = writer.WriteField("api_user", "1350960651")
-	_ = writer.WriteField("api_secret", "xD7trXQ3EDEzJsd4Msy5bZzVZCXADoJf")
+	_ = writer.WriteField("api_user", sightengineAPIUser)
+	_ = writer.WriteField("api_secret", sightengineAPISecret)
 
 	err = writer.Close()
 	if err != nil {
@@ -112,13 +163,13 @@ func CheckNudity(path string) (bool, error) {
 	client := &http.Client{}
 	res, err := client.Do(req)
 	if err != nil {
-		return false, fmt.Errorf("failed to send request: %w", err)
+		return false, fmt.Errorf("%w: send request: %v", ErrModerationUnavailable, err)
 	}
 	defer res.Body.Close()
 
 	var result ModerationResponse
 	if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
-		return false, fmt.Errorf("failed to decode response: %w", err)
+		return false, fmt.Errorf("%w: decode response: %v", ErrModerationUnavailable, err)
 	}
 
 	// Print the full response for debugging
@@ -130,12 +181,12 @@ func CheckNudity(path string) (bool, error) {
 		fmt.Printf("Error Message: %s\n", result.Error.Message)
 	}
 
-	// Fail closed: if Sightengine didn't return a clean success, we have no
-	// signal either way, so don't let the image through unmoderated.
+	// No clean success means no verdict either way — report it as unavailable
+	// so the caller decides the policy (see handleUpload, which fails open).
 	if result.Status != "success" {
 		return false, fmt.Errorf(
-			"moderation check failed: %s (code %d): %s",
-			result.Error.Type, result.Error.Code, result.Error.Message,
+			"%w: %s (code %d): %s",
+			ErrModerationUnavailable, result.Error.Type, result.Error.Code, result.Error.Message,
 		)
 	}
 

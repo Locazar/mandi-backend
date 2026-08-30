@@ -81,6 +81,16 @@ type Config struct {
 	// Set to "true" to skip OTP verification (development/testing only)
 	SkipOTPValidation bool `mapstructure:"SKIP_OTP_VALIDATION"`
 
+	// ImageModerationEnabled toggles the Sightengine adult/offensive-content
+	// check that runs on every uploaded product image. Default true. Set to
+	// false to bypass Sightengine entirely (no external call, images allowed
+	// through) — useful when the account is out of quota or the API is down.
+	ImageModerationEnabled bool `mapstructure:"IMAGE_MODERATION_ENABLED"`
+
+	// Sightengine API credentials for the image moderation check above.
+	SightengineAPIUser   string `mapstructure:"SIGHTENGINE_API_USER"`
+	SightengineAPISecret string `mapstructure:"SIGHTENGINE_API_SECRET"`
+
 	// OTPExpirySeconds is how long a sent OTP stays valid, in seconds, across
 	// every OTP flow (customer phone, seller phone, email). Defaults to
 	// DefaultOTPExpirySeconds when unset or non-positive. Raise it if users
@@ -203,6 +213,9 @@ var envsNames = []string{
 	"PII_ENCRYPTION_ACTIVE_KEY",
 	"SKIP_OTP_VALIDATION",
 	"OTP_EXPIRY_SECONDS",
+	"IMAGE_MODERATION_ENABLED",
+	"SIGHTENGINE_API_USER",
+	"SIGHTENGINE_API_SECRET",
 	"SUBSCRIPTION_GATE_ENABLED",
 	"SEARCH_RANKING_ENABLED",
 }
@@ -220,6 +233,7 @@ func LoadConfig() (config Config, err error) {
 
 	viper.SetDefault("GST_PERCENT_BASIS_POINTS", 1800)
 	viper.SetDefault("OTP_EXPIRY_SECONDS", DefaultOTPExpirySeconds)
+	viper.SetDefault("IMAGE_MODERATION_ENABLED", true)
 	viper.SetDefault("security.http_port", ":3000")
 	viper.SetDefault("security.https_port", ":3443")
 	viper.SetDefault("security.tls_min_version", "1.2")
