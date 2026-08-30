@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/disintegration/imaging"
@@ -576,6 +577,51 @@ func (c *ProductHandler) UpdateProduct(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully product updated", nil)
 }
 
+// aiValidationRejectConfidence is the confidence above which the AI service's
+// "wrong category" verdict is trusted enough to reject a seller's upload.
+const aiValidationRejectConfidence = 0.1
+
+// validateProductImage runs the optional AI category check for one uploaded
+// image. It returns a non-empty rejection message ONLY when the AI service
+// actually judged the image to be the wrong category.
+//
+// Infrastructure failures — service down, timeout, non-200, malformed body —
+// are logged and treated as "no opinion" rather than blocking the seller.
+// This is a product-quality gate, not a security control, and a seller must
+// never be locked out of adding products because an optional ML dependency is
+// unavailable.
+//
+// Previously every one of those failures returned 400 Bad Request, so a single
+// AI-service outage halted ALL product uploads across the platform and blamed
+// the client for what was a server-side fault. The AI client has a 60s timeout,
+// so an unresponsive service also held the request open that long.
+func (p *ProductHandler) validateProductImage(localPath, categoryName string) string {
+	if strings.TrimSpace(categoryName) == "" {
+		return ""
+	}
+
+	result, err := p.aiClient.ValidateProduct(localPath, categoryName)
+	if err != nil {
+		log.Printf("WARN product image validation unavailable, allowing upload: category=%q path=%s err=%v",
+			categoryName, localPath, err)
+		return ""
+	}
+	// Defensive: a nil result with a nil error would otherwise panic below.
+	if result == nil {
+		log.Printf("WARN product image validation returned no result, allowing upload: category=%q path=%s",
+			categoryName, localPath)
+		return ""
+	}
+
+	if !result.Valid && result.Confidence > aiValidationRejectConfidence {
+		log.Printf("INFO product image rejected by validation: category=%q confidence=%.2f reason=%q path=%s",
+			categoryName, result.Confidence, result.Reason, localPath)
+		return fmt.Sprintf("Product image does not match '%s' category. Reason: %s", categoryName, result.Reason)
+	}
+
+	return ""
+}
+
 // SaveProductItem godoc
 //
 //	@Summary		Add a product item (Admin)
@@ -637,21 +683,11 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 			return
 		}
 
-		// Validate product image matches category using AI service if available
-		if categoryName != "" {
-			validationResult, err := p.aiClient.ValidateProduct(localPath, categoryName)
-			if err != nil {
-				response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to validate product image", err, nil)
-				return
-			}
-
-			// If validation failed (valid is false) and confidence is high, reject the upload.
-			if !validationResult.Valid && validationResult.Confidence > 0.1 {
-				response.ErrorResponse(ctx, http.StatusBadRequest,
-					fmt.Sprintf("Product image does not match '%s' category. Reason: %s", categoryName, validationResult.Reason),
-					nil, nil)
-				return
-			}
+		// Optional AI category check. Rejects only on a genuine mismatch verdict;
+		// an unavailable AI service is logged and allowed through.
+		if rejection := p.validateProductImage(localPath, categoryName); rejection != "" {
+			response.ErrorResponse(ctx, http.StatusBadRequest, rejection, nil, nil)
+			return
 		}
 
 		objectKey, err := uploadProcessedToCloud(ctx, p.cloudService, localPath)
@@ -2433,6 +2469,7 @@ func (p *ProductHandler) DeleteCategoryImage(ctx *gin.Context) {
 //	@Failure		400				{object}	response.Response{}	"Invalid product item ID"
 //	@Failure		500				{object}	response.Response{}	"Internal server error"
 //	@Router			/products/item/{product_item_id} [get]
+//
 // GetProductItemByID is the admin/seller entry point (not subscription-gated).
 func (p *ProductHandler) GetProductItemByID(ctx *gin.Context) {
 	p.getProductItemByID(ctx, false)
@@ -2560,18 +2597,9 @@ func (p *ProductHandler) UpdateProductItem(ctx *gin.Context) {
 			return
 		}
 
-		if categoryName != "" {
-			validationResult, err := p.aiClient.ValidateProduct(localPath, categoryName)
-			if err != nil {
-				response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to validate product image", err, nil)
-				return
-			}
-			if !validationResult.Valid && validationResult.Confidence > 0.1 {
-				response.ErrorResponse(ctx, http.StatusBadRequest,
-					fmt.Sprintf("Product image does not match '%s' category. Reason: %s", categoryName, validationResult.Reason),
-					nil, nil)
-				return
-			}
+		if rejection := p.validateProductImage(localPath, categoryName); rejection != "" {
+			response.ErrorResponse(ctx, http.StatusBadRequest, rejection, nil, nil)
+			return
 		}
 
 		objectKey, err := uploadProcessedToCloud(ctx, p.cloudService, localPath)

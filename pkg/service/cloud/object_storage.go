@@ -15,7 +15,7 @@ import (
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-"github.com/google/uuid"
+	"github.com/google/uuid"
 
 	"github.com/rohit221990/mandi-backend/pkg/config"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
@@ -64,6 +64,12 @@ func NewObjectStorageService(cfg config.Config) (CloudService, error) {
 			publicBase = fmt.Sprintf("https://%s.s3.%s.amazonaws.com", bucket, region)
 		}
 	}
+
+	// Every stored object key is served to clients as publicBase + "/" + key, so
+	// a wrong value here turns every image into a 404 with nothing else to show
+	// for it. Log the resolved value (no credentials) so a misconfigured
+	// S3_PUBLIC_BASE_URL is one grep away instead of a URL-by-URL hunt.
+	log.Printf("cloud object storage ready: endpoint=%q bucket=%q publicBaseURL=%q", endpoint, bucket, publicBase)
 
 	return &objectStorage{
 		client:        client,
