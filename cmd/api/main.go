@@ -18,6 +18,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/di"
 	applogger "github.com/rohit221990/mandi-backend/pkg/logger"
 	"github.com/rohit221990/mandi-backend/pkg/repository"
+	"github.com/rohit221990/mandi-backend/pkg/utils"
 )
 
 func main() {
@@ -33,6 +34,9 @@ func main() {
 
 	// Configure best-effort relevance ranking on product search (ships dark by default).
 	repository.SetSearchRankingEnabled(cfg.SearchRankingEnabled)
+
+	// Configure the third-party image moderation check on uploads (disabled by default).
+	utils.SetImageModerationEnabled(cfg.ImageModerationEnabled)
 
 	// Initialise structured logger as early as possible so all subsequent
 	// startup messages are captured in the same format.

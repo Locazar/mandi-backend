@@ -113,6 +113,12 @@ type Config struct {
 	// ordering.
 	SearchRankingEnabled bool `mapstructure:"SEARCH_RANKING_ENABLED"`
 
+	// ImageModerationEnabled toggles the third-party (Sightengine) image
+	// moderation check run on every product image upload. Default false: the
+	// check is disabled, no upload is sent to the external API, and no image is
+	// rejected on moderation grounds. Set true to turn the check back on.
+	ImageModerationEnabled bool `mapstructure:"IMAGE_MODERATION_ENABLED"`
+
 	// EnquiryAutoRejectHours is how long an enquiry may sit awaiting a reply
 	// (from whichever side owes one) before the cmd/enquiry-autoreject sweep
 	// auto-rejects it. 0 disables the sweep entirely — ships dark by default.
@@ -218,6 +224,7 @@ var envsNames = []string{
 	"OTP_EXPIRY_SECONDS",
 	"SUBSCRIPTION_GATE_ENABLED",
 	"SEARCH_RANKING_ENABLED",
+	"IMAGE_MODERATION_ENABLED",
 }
 
 // DefaultOTPExpirySeconds is the OTP validity used when OTP_EXPIRY_SECONDS is

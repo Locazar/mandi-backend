@@ -64,11 +64,32 @@ type ModerationResponse struct {
 	} `json:"error"`
 }
 
+// imageModerationEnabled is the process-wide toggle for the third-party
+// (Sightengine) image moderation call made by CheckNudity. It is set once at
+// startup from config (IMAGE_MODERATION_ENABLED) and defaults to false so the
+// feature ships dark: when off, no upload leaves the server for the external
+// API and no image is ever rejected on moderation grounds.
+var imageModerationEnabled bool
+
+// SetImageModerationEnabled configures the global third-party image moderation
+// check. Called at startup from config; may be toggled by tests.
+func SetImageModerationEnabled(enabled bool) { imageModerationEnabled = enabled }
+
+// ImageModerationEnabled reports whether the third-party moderation check is active.
+func ImageModerationEnabled() bool { return imageModerationEnabled }
+
 // CheckNudity runs the uploaded image through Sightengine's moderation models.
 // It reports whether the image must be rejected and, when it must, a short
 // human-readable reason naming the category that tripped, so callers never tell
 // a seller "adult content" for a weapon or scam hit.
+//
+// When IMAGE_MODERATION_ENABLED is off (the default) this is a no-op that
+// accepts every image without contacting the third-party API.
 func CheckNudity(path string) (bool, string, error) {
+	if !imageModerationEnabled {
+		return false, "", nil
+	}
+
 	justFilename := filepath.Base(path)
 
 	file, err := os.Open(path)
