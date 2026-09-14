@@ -219,7 +219,8 @@ func (uc *notificationUseCase) UnregisterDeviceToken(ctx context.Context, req re
 
 // SendPushNotification sends an FCM push to all active devices belonging to ownerID.
 // It looks up tokens from Postgres first; on failure it falls back to Firestore.
-func (uc *notificationUseCase) SendPushNotification(ctx context.Context, req request.SendPushRequest) error {
+// delivered is true only when a device was actually reached.
+func (uc *notificationUseCase) SendPushNotification(ctx context.Context, req request.SendPushRequest) (bool, error) {
 	data := req.Data
 	if data == nil {
 		data = map[string]string{}
@@ -240,7 +241,7 @@ func (uc *notificationUseCase) SendPushNotification(ctx context.Context, req req
 	if pgErr == nil && len(tokens) > 0 {
 		pgSendErr = uc.fcmPush.SendToTokens(ctx, tokens, req.Title, req.Body, data)
 		if pgSendErr == nil {
-			return nil
+			return true, nil
 		}
 		// Every Postgres token was permanently unregistered (owner logged out /
 		// app uninstalled). Prune them so they stop causing failures on future
@@ -258,7 +259,7 @@ func (uc *notificationUseCase) SendPushNotification(ctx context.Context, req req
 	ownerCollection := ownerTypeToCollection(req.OwnerType)
 	fsErr := uc.fcmPush.SendToOwnerViaFirestore(ctx, ownerCollection, ownerID, req.Title, req.Body, data)
 	if fsErr == nil {
-		return nil
+		return true, nil
 	}
 
 	// Decide whether this is simply "no reachable device right now" (the owner
@@ -273,18 +274,18 @@ func (uc *notificationUseCase) SendPushNotification(ctx context.Context, req req
 
 	if postgresNoDevice && firestoreNoDevice {
 		log.Printf("INFO [SendPushNotification]: no active device for %s %q (token owner %q) — nothing delivered (owner likely logged out)", req.OwnerType, req.OwnerID, ownerID)
-		return nil
+		return false, nil
 	}
 
 	// A genuine error occurred on at least one path (DB failure, FCM transport
 	// or auth error) — surface it.
 	if pgErr != nil {
-		return fmt.Errorf("failed to send push notification: postgres: %v; firestore: %v", pgErr, fsErr)
+		return false, fmt.Errorf("failed to send push notification: postgres: %v; firestore: %v", pgErr, fsErr)
 	}
 	if pgSendErr != nil {
-		return fmt.Errorf("failed to send push notification: postgres tokens: %v; firestore: %v", pgSendErr, fsErr)
+		return false, fmt.Errorf("failed to send push notification: postgres tokens: %v; firestore: %v", pgSendErr, fsErr)
 	}
-	return fsErr
+	return false, fsErr
 }
 
 // resolveTokenOwnerID maps a push target to the id its FCM tokens are actually
@@ -343,7 +344,7 @@ func SendPushToUserOnOrderUpdate(ctx context.Context, uc service.NotificationUse
 	}
 	// Fire-and-forget; don't block the order flow
 	go func() {
-		_ = uc.SendPushNotification(context.Background(), req)
+		_, _ = uc.SendPushNotification(context.Background(), req)
 	}()
 }
 
@@ -360,7 +361,7 @@ func SendPushToSellerOnNewOrder(ctx context.Context, uc service.NotificationUseC
 		},
 	}
 	go func() {
-		_ = uc.SendPushNotification(context.Background(), req)
+		_, _ = uc.SendPushNotification(context.Background(), req)
 	}()
 }
 

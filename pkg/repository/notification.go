@@ -81,21 +81,29 @@ func (r *notificationRepository) SaveDeviceToken(ctx context.Context, token doma
 }
 
 // GetActiveTokensByOwner returns all active FCM tokens for a given owner (user/seller).
-// Matches on owner_id OR admin_id to handle both numeric shop IDs and admin string IDs.
+// Matches on owner_id, admin_id OR shop_id: a seller token is registered with
+// owner_id/admin_id set to the seller's ADMIN id (see the app's registration
+// payload), but SendPushNotification resolves its caller's id to the SHOP id
+// before looking tokens up here — omitting shop_id from this WHERE meant the
+// resolved shop id could never match a row, so every seller push silently fell
+// through to the Firestore fallback (or, if that failed too, delivered nothing
+// while the caller still saw success).
 func (r *notificationRepository) GetActiveTokensByOwner(ctx context.Context, ownerID, ownerType string) ([]string, error) {
 	var tokens []string
 	err := r.db.WithContext(ctx).
 		Model(&domain.NotificationDeviceToken{}).
-		Where("(owner_id = ? OR admin_id = ?) AND owner_type = ? AND is_active = true", ownerID, ownerID, ownerType).
+		Where("(owner_id = ? OR admin_id = ? OR shop_id = ?) AND owner_type = ? AND is_active = true", ownerID, ownerID, ownerID, ownerType).
 		Pluck("token", &tokens).Error
 	return tokens, err
 }
 
 // DeleteDeviceToken marks an FCM token as inactive (soft delete).
+// Same owner_id/admin_id/shop_id match as GetActiveTokensByOwner, so a prune
+// keyed off the resolved shop id actually finds the row it means to retire.
 func (r *notificationRepository) DeleteDeviceToken(ctx context.Context, ownerID, ownerType, token string) error {
 	return r.db.WithContext(ctx).
 		Model(&domain.NotificationDeviceToken{}).
-		Where("owner_id = ? AND owner_type = ? AND token = ?", ownerID, ownerType, token).
+		Where("(owner_id = ? OR admin_id = ? OR shop_id = ?) AND owner_type = ? AND token = ?", ownerID, ownerID, ownerID, ownerType, token).
 		Update("is_active", false).Error
 }
 

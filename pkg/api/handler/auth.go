@@ -16,7 +16,6 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"github.com/rohit221990/mandi-backend/pkg/service/token"
 	usecaseInterface "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
-	"github.com/rohit221990/mandi-backend/pkg/utils"
 )
 
 const (
@@ -51,8 +50,14 @@ func NewAuthHandler(authUsecase usecaseInterface.AuthUseCase, config config.Conf
 // Additive: reuses the existing GenerateAccessToken path with a synthetic guest
 // user id. It touches no existing auth flow, and the guest id belongs to no real
 // user — only the public-safe, no-price browse handlers accept it.
+//
+// domain.NewID, not "guest_"+uuid: a raw UUID makes a 42-char id ("guest_" + 36),
+// which blew past the VARCHAR(32) every persisted id — guest ids included, since
+// they land in nullable columns like product_item_views.admin_id whenever a
+// guest views a product — is budgeted for. Every write silently failed with
+// Postgres 22001 until this was caught in production logs.
 func (c *AuthHandler) GuestLogin(ctx *gin.Context) {
-	guestID := "guest_" + utils.GenerateUniqueString()
+	guestID := domain.NewID(domain.PrefixGuest)
 
 	accessToken, err := c.authUseCase.GenerateAccessToken(ctx, usecaseInterface.GenerateTokenParams{
 		UserID:   guestID,

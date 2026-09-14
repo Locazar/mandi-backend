@@ -32,7 +32,7 @@ var platformAdmins = []struct {
 	{
 		FullName: "Support Staff",
 		UserName: "support",
-		Email:    "support@locazar.com",
+		Email:    "info@locazar.com",
 		Password: "Support@123",
 		Role:     domain.AdminRoleSupportStaff,
 	},

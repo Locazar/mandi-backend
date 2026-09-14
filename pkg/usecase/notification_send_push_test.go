@@ -69,8 +69,12 @@ func TestSendPushNotification_LoggedOutSeller_IsSuccessNoOpAndPrunes(t *testing.
 	push := &stubPush{sendTokensErr: allUnreachable(2), firestoreErr: noActive()}
 	uc := &notificationUseCase{notificationRepo: repo, fcmPush: push}
 
-	if err := uc.SendPushNotification(context.Background(), req()); err != nil {
+	delivered, err := uc.SendPushNotification(context.Background(), req())
+	if err != nil {
 		t.Fatalf("expected success (no-op) for logged-out seller, got error: %v", err)
+	}
+	if delivered {
+		t.Error("expected delivered=false for a logged-out seller with no reachable device")
 	}
 	if len(repo.deleted) != 2 {
 		t.Errorf("expected both stale tokens pruned, deleted = %v", repo.deleted)
@@ -86,11 +90,30 @@ func TestSendPushNotification_NoDevicesAnywhere_IsSuccess(t *testing.T) {
 	push := &stubPush{firestoreErr: noActive()}
 	uc := &notificationUseCase{notificationRepo: repo, fcmPush: push}
 
-	if err := uc.SendPushNotification(context.Background(), req()); err != nil {
+	delivered, err := uc.SendPushNotification(context.Background(), req())
+	if err != nil {
 		t.Fatalf("expected success for owner with no devices, got: %v", err)
+	}
+	if delivered {
+		t.Error("expected delivered=false when the owner has no devices anywhere")
 	}
 	if push.sendTokensCalled {
 		t.Error("SendToTokens should not be called when there are no Postgres tokens")
+	}
+}
+
+func TestSendPushNotification_FirestoreFallbackDelivers_ReportsDelivered(t *testing.T) {
+	// No Postgres tokens, but Firestore has one → falls through and delivers.
+	repo := &stubNotifRepo{tokens: nil}
+	push := &stubPush{firestoreErr: nil}
+	uc := &notificationUseCase{notificationRepo: repo, fcmPush: push}
+
+	delivered, err := uc.SendPushNotification(context.Background(), req())
+	if err != nil {
+		t.Fatalf("expected success via Firestore fallback, got: %v", err)
+	}
+	if !delivered {
+		t.Error("expected delivered=true when the Firestore fallback succeeds")
 	}
 }
 
@@ -100,7 +123,7 @@ func TestSendPushNotification_GenuineTransportError_IsSurfaced(t *testing.T) {
 	push := &stubPush{firestoreErr: errors.New("FCM multicast send: context deadline exceeded")}
 	uc := &notificationUseCase{notificationRepo: repo, fcmPush: push}
 
-	if err := uc.SendPushNotification(context.Background(), req()); err == nil {
+	if _, err := uc.SendPushNotification(context.Background(), req()); err == nil {
 		t.Fatal("expected a genuine transport error to be surfaced, got nil")
 	}
 }
@@ -110,8 +133,12 @@ func TestSendPushNotification_PostgresDeliverySucceeds_SkipsFirestore(t *testing
 	push := &stubPush{sendTokensErr: nil}
 	uc := &notificationUseCase{notificationRepo: repo, fcmPush: push}
 
-	if err := uc.SendPushNotification(context.Background(), req()); err != nil {
+	delivered, err := uc.SendPushNotification(context.Background(), req())
+	if err != nil {
 		t.Fatalf("expected success, got: %v", err)
+	}
+	if !delivered {
+		t.Error("expected delivered=true when Postgres delivery succeeds")
 	}
 	if push.firestoreCalled {
 		t.Error("Firestore fallback should not run when Postgres delivery succeeds")

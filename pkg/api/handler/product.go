@@ -686,6 +686,11 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 		// Optional AI category check. Rejects only on a genuine mismatch verdict;
 		// an unavailable AI service is logged and allowed through.
 		if rejection := p.validateProductImage(localPath, categoryName); rejection != "" {
+			// uploadProcessedToCloud owns the temp file's cleanup, but we never
+			// reach it on a rejection — remove it here or it stays in /tmp forever.
+			if rerr := os.Remove(localPath); rerr != nil && !os.IsNotExist(rerr) {
+				log.Printf("failed to remove temp file %s: %v", localPath, rerr)
+			}
 			response.ErrorResponse(ctx, http.StatusBadRequest, rejection, nil, nil)
 			return
 		}
@@ -2620,6 +2625,11 @@ func (p *ProductHandler) UpdateProductItem(ctx *gin.Context) {
 		}
 
 		if rejection := p.validateProductImage(localPath, categoryName); rejection != "" {
+			// uploadProcessedToCloud owns the temp file's cleanup, but we never
+			// reach it on a rejection — remove it here or it stays in /tmp forever.
+			if rerr := os.Remove(localPath); rerr != nil && !os.IsNotExist(rerr) {
+				log.Printf("failed to remove temp file %s: %v", localPath, rerr)
+			}
 			response.ErrorResponse(ctx, http.StatusBadRequest, rejection, nil, nil)
 			return
 		}
@@ -2772,16 +2782,18 @@ func (p *ProductHandler) GetProductItemsByOfferID(ctx *gin.Context) {
 // storage under the products/ namespace and removes the temp file. Returns the
 // bare object key suitable for DB storage.
 func uploadProcessedToCloud(ctx context.Context, cs cloud.CloudService, processedPath string) (string, error) {
-	data, err := os.ReadFile(processedPath)
-	if err != nil {
-		log.Printf("uploadProcessedToCloud read failed: path=%s err=%v", processedPath, err)
-		return "", err
-	}
+	// Registered before the first read so an unreadable-but-present file is
+	// still unlinked rather than left behind in /tmp.
 	defer func() {
 		if rerr := os.Remove(processedPath); rerr != nil && !os.IsNotExist(rerr) {
 			log.Printf("failed to remove temp file %s: %v", processedPath, rerr)
 		}
 	}()
+	data, err := os.ReadFile(processedPath)
+	if err != nil {
+		log.Printf("uploadProcessedToCloud read failed: path=%s err=%v", processedPath, err)
+		return "", err
+	}
 	log.Printf("uploadProcessedToCloud start: path=%s bytes=%d filename=%s", processedPath, len(data), filepath.Base(processedPath))
 	objectKey, err := cs.SaveBytes(ctx, data, cloud.SaveOptions{
 		Namespace:   "products",
@@ -2889,6 +2901,11 @@ func handleSecureMagic(fileHeader *multipart.FileHeader) (string, error) {
 		}
 	}()
 	if err := imaging.Encode(outFile, processed, imaging.JPEG, imaging.JPEGQuality(20)); err != nil {
+		// The file exists but holds a partial image and no caller will ever see
+		// its path, so nothing else can clean it up.
+		if rerr := os.Remove(savePath); rerr != nil && !os.IsNotExist(rerr) {
+			log.Printf("failed to remove temp file %s: %v", savePath, rerr)
+		}
 		return "", err
 	}
 	return savePath, nil

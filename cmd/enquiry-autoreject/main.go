@@ -144,7 +144,7 @@ func main() {
 			rejected++
 
 			if userID != "" {
-				if err := notificationUC.SendPushNotification(ctx, request.SendPushRequest{
+				if _, err := notificationUC.SendPushNotification(ctx, request.SendPushRequest{
 					OwnerID:   userID,
 					OwnerType: "user",
 					Title:     "Enquiry auto-rejected",
@@ -157,7 +157,7 @@ func main() {
 				}
 			}
 			if sellerID != "" {
-				if err := notificationUC.SendPushNotification(ctx, request.SendPushRequest{
+				if _, err := notificationUC.SendPushNotification(ctx, request.SendPushRequest{
 					OwnerID:   sellerID,
 					OwnerType: "seller",
 					Title:     "Enquiry auto-rejected",

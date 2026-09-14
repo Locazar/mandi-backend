@@ -84,7 +84,7 @@ func (h *NotificationHandler) UnregisterDeviceToken(ctx *gin.Context) {
 //	@Produce		json
 //	@Param			input	body	request.SendPushRequest	true	"Push notification payload"
 //	@Router			/notifications/push [post]
-//	@Success		200	{object}	response.Response{}	"Notification sent"
+//	@Success		200	{object}	response.Response{}	"Notification sent — response data carries {\"delivered\": bool}, true only if a device was actually reached"
 //	@Failure		400	{object}	response.Response{}	"Invalid input"
 //	@Failure		500	{object}	response.Response{}	"Internal server error"
 func (h *NotificationHandler) SendPushNotification(ctx *gin.Context) {
@@ -95,11 +95,16 @@ func (h *NotificationHandler) SendPushNotification(ctx *gin.Context) {
 	}
 	// Use Background context so notifications aren't cancelled if client disconnects.
 	// This allows FCM to complete delivery even after the HTTP response is sent.
-	if err := h.notificationUsecase.SendPushNotification(context.Background(), req); err != nil {
+	delivered, err := h.notificationUsecase.SendPushNotification(context.Background(), req)
+	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to send push notification", err, nil)
 		return
 	}
-	response.SuccessResponse(ctx, http.StatusOK, "Push notification sent successfully")
+	// delivered=false with no error means "no registered device right now" —
+	// still a 200 (the request was handled correctly), but callers sending to
+	// many recipients need this bit to report real per-recipient status rather
+	// than a blanket "sent".
+	response.SuccessResponse(ctx, http.StatusOK, "Push notification sent successfully", gin.H{"delivered": delivered})
 }
 
 // SendBroadcastNotification godoc

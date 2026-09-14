@@ -18,8 +18,12 @@ type NotificationUseCase interface {
 	RegisterDeviceToken(ctx context.Context, req request.NotificationDeviceToken) error
 	UnregisterDeviceToken(ctx context.Context, req request.UnregisterDeviceToken) error
 
-	// FCM push delivery
-	SendPushNotification(ctx context.Context, req request.SendPushRequest) error
+	// FCM push delivery. delivered reports whether a device was actually
+	// reached (true) versus a successful no-op because the owner has no
+	// registered device right now (false, err == nil) — callers that send to
+	// many owners in a loop (e.g. "send to all sellers") need this to report
+	// real per-recipient status instead of a blanket "sent".
+	SendPushNotification(ctx context.Context, req request.SendPushRequest) (delivered bool, err error)
 
 	// SendBroadcast delivers a notification to a whole audience via an FCM topic.
 	SendBroadcast(ctx context.Context, req request.SendBroadcastRequest) error
