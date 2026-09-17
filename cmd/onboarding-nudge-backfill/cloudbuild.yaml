@@ -1,0 +1,45 @@
+# Deployment configuration for the onboarding-nudge-backfill Cloud Run Job.
+# A ONE-TIME manual tool — not on any schedule. Deploy it, run it once with
+# -apply, done. Mirrors cmd/enquiry-autoreject/cloudbuild.yaml.
+
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/onboarding-nudge-backfill:latest'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/onboarding-nudge-backfill:$COMMIT_SHA'
+      - '-f'
+      - 'cmd/onboarding-nudge-backfill/Dockerfile'
+      - '.'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/onboarding-nudge-backfill:$COMMIT_SHA'
+
+  # Deploy/update the Cloud Run Job (must already exist — created once via
+  # `gcloud run jobs create`, see mandi-backend/docs/onboarding-nudges-deploy.md).
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'jobs'
+      - 'update'
+      - '$_JOB_NAME'
+      - '--image=gcr.io/$PROJECT_ID/onboarding-nudge-backfill:$COMMIT_SHA'
+      - '--region=$_REGION'
+
+images:
+  - 'gcr.io/$PROJECT_ID/onboarding-nudge-backfill:latest'
+  - 'gcr.io/$PROJECT_ID/onboarding-nudge-backfill:$COMMIT_SHA'
+
+substitutions:
+  _REGION: 'us-central2'
+  _JOB_NAME: 'onboarding-nudge-backfill'
+
+timeout: 1800s
+
+options:
+  machineType: 'N1_HIGHCPU_8'

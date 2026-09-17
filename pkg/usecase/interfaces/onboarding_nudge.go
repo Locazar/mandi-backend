@@ -25,10 +25,11 @@ type OnboardingNudgeUseCase interface {
 	RunSweep(ctx context.Context) (SweepResult, error)
 }
 
-// SweepResult summarizes one RunSweep call, for the cron binary to log.
+// SweepResult summarizes one RunSweep call, for the cron binary to log and
+// for admin-portal's manual "Run now" trigger to display.
 type SweepResult struct {
-	Sent     int
-	Skipped  int
-	Errors   int
-	Disabled bool
+	Sent     int  `json:"sent"`
+	Skipped  int  `json:"skipped"`
+	Errors   int  `json:"errors"`
+	Disabled bool `json:"disabled"`
 }

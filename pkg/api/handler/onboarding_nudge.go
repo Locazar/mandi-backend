@@ -97,3 +97,23 @@ func (h *OnboardingNudgeHandler) UpdateSettings(ctx *gin.Context) {
 	}
 	response.SuccessResponse(ctx, http.StatusOK, "Settings updated")
 }
+
+// RunSweep godoc
+//
+//	@Summary		Manually run one onboarding-nudge sweep right now
+//	@Description	Same sweep cmd/onboarding-nudges runs on its Cloud Scheduler cadence —
+//	@Description	exposed here so an admin can trigger an out-of-band run (e.g. right after
+//	@Description	editing a template, or before the scheduled job is set up) without shelling
+//	@Description	into anything. Synchronous: blocks until the sweep finishes.
+//	@Security		BearerAuth
+//	@Tags			Notification
+//	@Router			/admin/onboarding-nudges/run-sweep [post]
+//	@Success		200	{object}	response.Response{}
+func (h *OnboardingNudgeHandler) RunSweep(ctx *gin.Context) {
+	result, err := h.uc.RunSweep(ctx.Request.Context())
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Sweep failed", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Sweep complete", result)
+}

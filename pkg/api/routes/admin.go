@@ -544,6 +544,9 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			onboardingNudges.PUT("/templates/:key", middleware.TrimSpaces(), onboardingNudgeHandler.UpdateTemplate)
 			onboardingNudges.GET("/settings", onboardingNudgeHandler.GetSettings)
 			onboardingNudges.PUT("/settings", onboardingNudgeHandler.UpdateSettings)
+			// Manual trigger — the same sweep the Cloud Run Job runs on its
+			// schedule, exposed for an out-of-band/on-demand run from admin-portal.
+			onboardingNudges.POST("/run-sweep", onboardingNudgeHandler.RunSweep)
 		}
 
 		// Promotion Categories and Types
