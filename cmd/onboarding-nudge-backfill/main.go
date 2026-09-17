@@ -57,12 +57,15 @@ func main() {
 		if !*apply {
 			continue
 		}
-		if err := nudgeRepo.RecordGoLiveOnce(ctx, id, now); err != nil {
+		inserted, err := nudgeRepo.RecordGoLiveOnce(ctx, id, now)
+		if err != nil {
 			log.Printf("WARN: anchor failed for %s: %v", id, err)
 			failed++
 			continue
 		}
-		anchored++
+		if inserted {
+			anchored++
+		}
 	}
 
 	if *apply {

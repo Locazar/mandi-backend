@@ -19,6 +19,17 @@ type OnboardingNudgeUseCase interface {
 	// first goes live (shop_status → active); a no-op on later re-approvals.
 	RecordGoLive(ctx context.Context, shopID string) error
 
+	// BackfillActiveShops anchors every currently-active shop at "now" —
+	// for shops that went live before this feature existed and so never got
+	// an anchor from ApproveShop. Idempotent: already-anchored shops are
+	// skipped, safe to call more than once. Returns how many were newly
+	// anchored.
+	//
+	// Anchoring many shops at the same "now" means they all become due for
+	// their first nudge together on the next sweep tick — a synchronized
+	// burst, not a trickle. That's expected, not a bug.
+	BackfillActiveShops(ctx context.Context) (anchored int, err error)
+
 	// RunSweep sends every due, not-yet-sent nudge across all shops still
 	// within their window. Meant to be called repeatedly (e.g. every 15-30
 	// minutes) by a scheduled job — see cmd/onboarding-nudges.

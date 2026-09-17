@@ -141,14 +141,24 @@ func (r *onboardingNudgeRepository) SaveSettings(ctx context.Context, settings d
 		}).Error
 }
 
-func (r *onboardingNudgeRepository) RecordGoLiveOnce(ctx context.Context, shopID string, at time.Time) error {
+func (r *onboardingNudgeRepository) RecordGoLiveOnce(ctx context.Context, shopID string, at time.Time) (bool, error) {
 	if err := r.ensureTables(ctx); err != nil {
-		return err
+		return false, err
 	}
 	anchor := domain.ShopOnboardingNudgeAnchor{ShopID: shopID, GoLiveAt: at}
-	return r.db.WithContext(ctx).
+	result := r.db.WithContext(ctx).
 		Clauses(clause.OnConflict{DoNothing: true}).
-		Create(&anchor).Error
+		Create(&anchor)
+	return result.RowsAffected > 0, result.Error
+}
+
+func (r *onboardingNudgeRepository) ActiveShopIDs(ctx context.Context) ([]string, error) {
+	var ids []string
+	err := r.db.WithContext(ctx).
+		Table("shop_details").
+		Where("shop_status = ?", "active").
+		Pluck("id", &ids).Error
+	return ids, err
 }
 
 func (r *onboardingNudgeRepository) ActiveCandidates(ctx context.Context, now time.Time, durationDays int) ([]domain.OnboardingNudgeCandidate, error) {

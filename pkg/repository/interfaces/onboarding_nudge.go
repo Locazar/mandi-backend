@@ -19,8 +19,15 @@ type OnboardingNudgeRepository interface {
 
 	// RecordGoLiveOnce inserts the shop's go-live anchor if it doesn't already
 	// have one — a shop only ever gets one 7-day sequence, even if approved
-	// more than once (e.g. suspended then re-approved).
-	RecordGoLiveOnce(ctx context.Context, shopID string, at time.Time) error
+	// more than once (e.g. suspended then re-approved). inserted reports
+	// whether this call actually created the anchor (false if one already
+	// existed).
+	RecordGoLiveOnce(ctx context.Context, shopID string, at time.Time) (inserted bool, err error)
+
+	// ActiveShopIDs returns every shop currently shop_status = 'active' — the
+	// backfill candidate set for shops that went live before this feature
+	// existed and so never got a RecordGoLiveOnce call from ApproveShop.
+	ActiveShopIDs(ctx context.Context) ([]string, error)
 
 	// ActiveCandidates returns every shop still within its nudge window as of
 	// now (go_live_at + durationDays >= now), joined with the shop_name/city

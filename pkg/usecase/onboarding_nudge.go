@@ -59,7 +59,28 @@ func (uc *onboardingNudgeUseCase) SaveSettings(ctx context.Context, settings dom
 }
 
 func (uc *onboardingNudgeUseCase) RecordGoLive(ctx context.Context, shopID string) error {
-	return uc.repo.RecordGoLiveOnce(ctx, shopID, time.Now())
+	_, err := uc.repo.RecordGoLiveOnce(ctx, shopID, time.Now())
+	return err
+}
+
+func (uc *onboardingNudgeUseCase) BackfillActiveShops(ctx context.Context) (int, error) {
+	shopIDs, err := uc.repo.ActiveShopIDs(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("load active shops: %w", err)
+	}
+	now := time.Now()
+	anchored := 0
+	for _, shopID := range shopIDs {
+		inserted, err := uc.repo.RecordGoLiveOnce(ctx, shopID, now)
+		if err != nil {
+			log.Printf("WARN [OnboardingNudge backfill]: anchor failed for %s: %v", shopID, err)
+			continue
+		}
+		if inserted {
+			anchored++
+		}
+	}
+	return anchored, nil
 }
 
 // RunSweep checks every (day, slot) combination for every shop still inside

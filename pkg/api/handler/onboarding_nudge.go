@@ -117,3 +117,24 @@ func (h *OnboardingNudgeHandler) RunSweep(ctx *gin.Context) {
 	}
 	response.SuccessResponse(ctx, http.StatusOK, "Sweep complete", result)
 }
+
+// Backfill godoc
+//
+//	@Summary		Anchor every currently-active shop into the onboarding-nudge sequence
+//	@Description	For shops that went live before this feature existed and so never got an
+//	@Description	anchor from the approve action. Idempotent — already-anchored shops are
+//	@Description	skipped. All anchored shops become due for their first nudge together on
+//	@Description	the next sweep tick (a synchronized burst, not a trickle) — call this
+//	@Description	deliberately, not routinely.
+//	@Security		BearerAuth
+//	@Tags			Notification
+//	@Router			/admin/onboarding-nudges/backfill [post]
+//	@Success		200	{object}	response.Response{}
+func (h *OnboardingNudgeHandler) Backfill(ctx *gin.Context) {
+	anchored, err := h.uc.BackfillActiveShops(ctx.Request.Context())
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Backfill failed", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Backfill complete", gin.H{"anchored": anchored})
+}

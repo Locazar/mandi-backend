@@ -544,9 +544,12 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			onboardingNudges.PUT("/templates/:key", middleware.TrimSpaces(), onboardingNudgeHandler.UpdateTemplate)
 			onboardingNudges.GET("/settings", onboardingNudgeHandler.GetSettings)
 			onboardingNudges.PUT("/settings", onboardingNudgeHandler.UpdateSettings)
-			// Manual trigger — the same sweep the Cloud Run Job runs on its
-			// schedule, exposed for an out-of-band/on-demand run from admin-portal.
+			// Manual trigger — the same sweep the in-process ticker runs every
+			// 15 minutes (cmd/api/main.go), exposed for an out-of-band/on-demand
+			// run from admin-portal.
 			onboardingNudges.POST("/run-sweep", onboardingNudgeHandler.RunSweep)
+			// One-time: anchors shops that went live before this feature existed.
+			onboardingNudges.POST("/backfill", onboardingNudgeHandler.Backfill)
 		}
 
 		// Promotion Categories and Types

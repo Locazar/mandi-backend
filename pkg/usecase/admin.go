@@ -471,7 +471,7 @@ func (c *adminUseCase) ApproveShop(ctx context.Context, shopID string) error {
 	// this shop already has an anchor (e.g. suspended then re-approved), so
 	// the sequence never restarts. Best-effort: never fails the approval.
 	if c.onboardingNudgeRepo != nil {
-		if err := c.onboardingNudgeRepo.RecordGoLiveOnce(ctx, shopID, time.Now()); err != nil {
+		if _, err := c.onboardingNudgeRepo.RecordGoLiveOnce(ctx, shopID, time.Now()); err != nil {
 			log.Printf("WARN [ApproveShop]: failed to record onboarding-nudge anchor for %s: %v", shopID, err)
 		}
 	}
