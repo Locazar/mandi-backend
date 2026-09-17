@@ -2,16 +2,21 @@
 # Deploys a Cloud Run *Job* — a run-to-completion task meant to be invoked on
 # a schedule by Cloud Scheduler (every 15-30 min; see cmd/onboarding-nudges'
 # own doc comment for why any cadence is safe), not an always-on HTTP
-# endpoint. Mirrors cmd/enquiry-autoreject/cloudbuild.yaml.
+# endpoint.
+#
+# Images go to Artifact Registry repo "mandi-backend" (asia-south1) — this
+# project has no general-purpose gcr.io/legacy Container Registry set up;
+# the only pre-existing repos are Cloud Functions' auto-managed
+# "gcf-artifacts", not meant for manual pushes.
 
 steps:
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
       - '-t'
-      - 'gcr.io/$PROJECT_ID/onboarding-nudges:latest'
+      - '$_REGION-docker.pkg.dev/$PROJECT_ID/mandi-backend/onboarding-nudges:latest'
       - '-t'
-      - 'gcr.io/$PROJECT_ID/onboarding-nudges:$COMMIT_SHA'
+      - '$_REGION-docker.pkg.dev/$PROJECT_ID/mandi-backend/onboarding-nudges:$COMMIT_SHA'
       - '-f'
       - 'cmd/onboarding-nudges/Dockerfile'
       - '.'
@@ -19,7 +24,7 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
-      - 'gcr.io/$PROJECT_ID/onboarding-nudges:$COMMIT_SHA'
+      - '$_REGION-docker.pkg.dev/$PROJECT_ID/mandi-backend/onboarding-nudges:$COMMIT_SHA'
 
   # Deploy/update the Cloud Run Job (must already exist — created once via
   # `gcloud run jobs create`, see mandi-backend/docs/onboarding-nudges-deploy.md).
@@ -30,15 +35,15 @@ steps:
       - 'jobs'
       - 'update'
       - '$_JOB_NAME'
-      - '--image=gcr.io/$PROJECT_ID/onboarding-nudges:$COMMIT_SHA'
+      - '--image=$_REGION-docker.pkg.dev/$PROJECT_ID/mandi-backend/onboarding-nudges:$COMMIT_SHA'
       - '--region=$_REGION'
 
 images:
-  - 'gcr.io/$PROJECT_ID/onboarding-nudges:latest'
-  - 'gcr.io/$PROJECT_ID/onboarding-nudges:$COMMIT_SHA'
+  - '$_REGION-docker.pkg.dev/$PROJECT_ID/mandi-backend/onboarding-nudges:latest'
+  - '$_REGION-docker.pkg.dev/$PROJECT_ID/mandi-backend/onboarding-nudges:$COMMIT_SHA'
 
 substitutions:
-  _REGION: 'us-central2'
+  _REGION: 'asia-south1'
   _JOB_NAME: 'onboarding-nudges'
 
 timeout: 1800s

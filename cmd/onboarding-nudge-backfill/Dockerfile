@@ -2,10 +2,10 @@
 # A ONE-TIME manual tool (not scheduled) — anchors every currently-active
 # shop into the onboarding-nudge sequence. Defaults to dry-run (CMD carries
 # no -apply flag on purpose); pass it explicitly at execute time:
-#   gcloud run jobs execute onboarding-nudge-backfill --args="-apply" --region=us-central2
+#   gcloud run jobs execute onboarding-nudge-backfill --args="-apply" --region=asia-south1
 # Mirrors cmd/enquiry-autoreject/Dockerfile.
 
-FROM golang:1.23-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 RUN apk add --no-cache git ca-certificates
 

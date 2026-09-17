@@ -1,15 +1,19 @@
 # Deployment configuration for the onboarding-nudge-backfill Cloud Run Job.
 # A ONE-TIME manual tool — not on any schedule. Deploy it, run it once with
-# -apply, done. Mirrors cmd/enquiry-autoreject/cloudbuild.yaml.
+# -apply, done.
+#
+# Images go to Artifact Registry repo "mandi-backend" (asia-south1) — see
+# cmd/onboarding-nudges/cloudbuild.yaml for why (no legacy gcr.io registry
+# set up in this project).
 
 steps:
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
       - '-t'
-      - 'gcr.io/$PROJECT_ID/onboarding-nudge-backfill:latest'
+      - '$_REGION-docker.pkg.dev/$PROJECT_ID/mandi-backend/onboarding-nudge-backfill:latest'
       - '-t'
-      - 'gcr.io/$PROJECT_ID/onboarding-nudge-backfill:$COMMIT_SHA'
+      - '$_REGION-docker.pkg.dev/$PROJECT_ID/mandi-backend/onboarding-nudge-backfill:$COMMIT_SHA'
       - '-f'
       - 'cmd/onboarding-nudge-backfill/Dockerfile'
       - '.'
@@ -17,7 +21,7 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
-      - 'gcr.io/$PROJECT_ID/onboarding-nudge-backfill:$COMMIT_SHA'
+      - '$_REGION-docker.pkg.dev/$PROJECT_ID/mandi-backend/onboarding-nudge-backfill:$COMMIT_SHA'
 
   # Deploy/update the Cloud Run Job (must already exist — created once via
   # `gcloud run jobs create`, see mandi-backend/docs/onboarding-nudges-deploy.md).
@@ -28,15 +32,15 @@ steps:
       - 'jobs'
       - 'update'
       - '$_JOB_NAME'
-      - '--image=gcr.io/$PROJECT_ID/onboarding-nudge-backfill:$COMMIT_SHA'
+      - '--image=$_REGION-docker.pkg.dev/$PROJECT_ID/mandi-backend/onboarding-nudge-backfill:$COMMIT_SHA'
       - '--region=$_REGION'
 
 images:
-  - 'gcr.io/$PROJECT_ID/onboarding-nudge-backfill:latest'
-  - 'gcr.io/$PROJECT_ID/onboarding-nudge-backfill:$COMMIT_SHA'
+  - '$_REGION-docker.pkg.dev/$PROJECT_ID/mandi-backend/onboarding-nudge-backfill:latest'
+  - '$_REGION-docker.pkg.dev/$PROJECT_ID/mandi-backend/onboarding-nudge-backfill:$COMMIT_SHA'
 
 substitutions:
-  _REGION: 'us-central2'
+  _REGION: 'asia-south1'
   _JOB_NAME: 'onboarding-nudge-backfill'
 
 timeout: 1800s

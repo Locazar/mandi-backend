@@ -43,8 +43,9 @@ Thumbs.db
 coverage/
 *.out
 
-# Backup and dump files
-*.sql
+# Backup and dump files — named explicitly, not a blanket *.sql: pkg/db
+# embeds real migration .sql files (e.g. pkg/db/legacy_migrations/*.sql)
+# that must reach the build, or `go build` fails on the embed directive.
 *.dump
 backup.sql
 mandi_backup.sql

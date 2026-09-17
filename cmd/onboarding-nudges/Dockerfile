@@ -3,7 +3,7 @@
 # schedule by Cloud Scheduler via "gcloud run jobs execute", runs one sweep,
 # exits. Mirrors cmd/enquiry-autoreject/Dockerfile.
 
-FROM golang:1.23-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 RUN apk add --no-cache git ca-certificates
 

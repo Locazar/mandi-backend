@@ -1,97 +1,99 @@
 # Deploying the onboarding-nudges Cloud Run Jobs
 
-Two jobs, same pattern as `cmd/enquiry-autoreject` (mirrors its
-`Dockerfile`/`cloudbuild.yaml` exactly):
+Status as of this writing: **both jobs are created and their images are
+built and pushed. Neither has real database credentials yet, and neither is
+scheduled.** See "The credentials gap" below before doing anything else —
+that's the one open blocker, not a checklist item.
 
-- **`onboarding-nudges`** — the recurring sweep. Deploy once, then put it on
-  a Cloud Scheduler cadence (every 15–30 min) and forget it.
-- **`onboarding-nudge-backfill`** — a one-time tool. Deploy once, run it
-  once with `-apply`, done. Not scheduled.
+Two jobs:
 
-All commands assume you're in the `mandi-backend/` repo root, authenticated
-(`gcloud auth login`) against project `locazar-f20b6`, region `us-central2`
-(matching the substitutions already in both `cloudbuild.yaml` files).
+- **`onboarding-nudges`** — the recurring sweep. Once credentials are sorted,
+  put it on a Cloud Scheduler cadence (every 15–30 min) and forget it.
+- **`onboarding-nudge-backfill`** — a one-time tool. Run it once with
+  `-apply` after credentials are sorted, done. Not scheduled.
+
+Region is **`asia-south1`** — not `us-central2`, which this project's org
+policy rejects (`LOCATION_POLICY_VIOLATED`). Images live in a new Artifact
+Registry repo, `mandi-backend` (asia-south1) — this project had no
+general-purpose registry before this; the only pre-existing repos are
+Cloud Functions' auto-managed `gcf-artifacts`, not meant for manual pushes.
 
 ```bash
 export PROJECT=locazar-f20b6
-export REGION=us-central2
+export REGION=asia-south1
 gcloud config set project "$PROJECT"
 ```
 
-## 0. One-time project setup (skip anything already enabled)
+## The credentials gap (read this first)
+
+`config.LoadConfig()` (`pkg/config/config.go:234-257`) reads a `.env` file
+if present, but the error from a missing one is explicitly discarded
+(`_ = viper.ReadInConfig()`) — so it does NOT crash without one. Instead it
+falls back to real process env vars via `viper.BindEnv(...)` for each
+config key. So a job needs *either* a mounted `.env` *or* every required
+var (`DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `FIREBASE_*`, etc. —
+see `pkg/config/config.go` for the full list) set directly as container env
+vars.
+
+**Neither exists yet for these two new jobs.** I checked whether
+`cmd/enquiry-autoreject` (already deployed, as a Cloud Run *Service* in
+`asia-south1` — its own doc comment claiming "Cloud Run Job" doesn't match
+reality) could be copied as a working example: it has exactly two env vars
+(`ENQUIRY_AUTO_REJECT_HOURS`, `LOG_EXECUTION_ID`), no secrets, no volume
+mounts, nothing DB/Firebase-related at all. That means it cannot actually
+reach the database as currently deployed either — it's not a working
+reference, so there was nothing safe to copy.
+
+No local `.env` exists in this repo (correctly — it shouldn't), and no
+secret named anything like `mandi-backend-env` exists in Secret Manager
+(`gcloud secrets list` returns empty). **I don't have the real DB/Firebase
+credentials and won't fabricate placeholder ones into a "real" resource** —
+wrong values could point at the wrong database, which is worse than doing
+nothing.
+
+**To unblock, you need to supply one of:**
+
+1. The real `.env` this project's API server actually uses, so I can:
+   ```bash
+   gcloud secrets create mandi-backend-env --data-file=/path/to/real/.env --project="$PROJECT"
+   gcloud run jobs update onboarding-nudges --region="$REGION" --project="$PROJECT" \
+     --set-secrets="/app/.env=mandi-backend-env:latest"
+   gcloud run jobs update onboarding-nudge-backfill --region="$REGION" --project="$PROJECT" \
+     --set-secrets="/app/.env=mandi-backend-env:latest"
+   ```
+2. Or tell me where the *real* production database config actually lives
+   today (a different secret name already in this project? a different GCP
+   project? the AWS/K8s side entirely, per `deploy/ecommerce-deployment.yaml`'s
+   `postgres-secret`?) — if it's the latter, these DB credentials may not be
+   reachable from a GCP Cloud Run Job at all without a Cloud SQL proxy /
+   VPC connector, which changes this setup meaningfully.
+
+## What's already done
 
 ```bash
-gcloud services enable run.googleapis.com cloudbuild.googleapis.com \
-  cloudscheduler.googleapis.com secretmanager.googleapis.com \
-  --project="$PROJECT"
+# Images built and pushed:
+asia-south1-docker.pkg.dev/locazar-f20b6/mandi-backend/onboarding-nudges:v1
+asia-south1-docker.pkg.dev/locazar-f20b6/mandi-backend/onboarding-nudge-backfill:v1
+
+# Jobs created (inert — no secrets, never executed):
+gcloud run jobs describe onboarding-nudges --region=asia-south1 --project=locazar-f20b6
+gcloud run jobs describe onboarding-nudge-backfill --region=asia-south1 --project=locazar-f20b6
 ```
 
-### Config: `.env` for the job
-
-**This is the part that will bite you if skipped.** `config.LoadConfig()`
-(`pkg/config/config.go`) hard-requires a `.env` file in the working
-directory at startup (`viper.SetConfigFile(".env")`) — it does not fall back
-to real process environment variables. Neither this job's `Dockerfile` nor
-`cmd/enquiry-autoreject`'s copies one in (on purpose — a `.env` full of DB
-credentials and Firebase keys doesn't belong baked into an image layer).
-Without one mounted at runtime, the job crashes immediately on `LoadConfig`.
-
-Store it in Secret Manager once, then mount it into every job that needs it:
+Rebuilding after a code change (bump the tag each time, e.g. `v2`):
 
 ```bash
-# One-time: upload your real .env (same one the API server uses)
-gcloud secrets create mandi-backend-env --data-file=.env --project="$PROJECT"
-# Later, when secrets rotate: gcloud secrets versions add mandi-backend-env --data-file=.env
-```
-
-Every `gcloud run jobs create`/`update` below mounts it at `/app/.env` via
-`--set-secrets`, matching the working directory (`WORKDIR /` in the
-Dockerfile, so `.env` resolves as `/.env` — adjust the mount path below to
-`/.env` if `LoadConfig` can't find it; test with `--execute-now` and check
-logs before wiring the scheduler).
-
-If `enquiry-autoreject` is already deployed and working, check how *it*
-supplies `.env` instead of guessing — it's the same problem, solved once:
-
-```bash
-gcloud run jobs describe enquiry-autoreject --region="$REGION" --project="$PROJECT" \
-  --format="yaml(spec.template.spec.template.spec.containers[0].env, spec.template.spec.template.spec.volumes)"
-```
-
-If that command 404s, `enquiry-autoreject` was never actually deployed
-either — treat both jobs as new infrastructure.
-
-## 1. onboarding-nudges — the recurring sweep
-
-### Build & push the image
-
-```bash
-gcloud builds submit . \
-  --project="$PROJECT" \
+gcloud builds submit . --project="$PROJECT" \
   --config=cmd/onboarding-nudges/cloudbuild.yaml \
-  --substitutions=COMMIT_SHA=v1,_REGION="$REGION",_JOB_NAME=onboarding-nudges
+  --substitutions=COMMIT_SHA=v2,_REGION="$REGION",_JOB_NAME=onboarding-nudges
 ```
 
-This builds `cmd/onboarding-nudges/Dockerfile`, pushes
-`gcr.io/$PROJECT/onboarding-nudges:v1`, then tries `gcloud run jobs update`
-— which **fails the first time** because the job doesn't exist yet. That's
-expected; the push still succeeds. Create the job once:
+This rebuilds, pushes, and runs `gcloud run jobs update` in one step — that
+update step only works once the job exists (see "What's already done"
+above); the very first build for a new job will report that step as failed,
+which is expected — the image still pushed successfully.
 
-```bash
-gcloud run jobs create onboarding-nudges \
-  --image="gcr.io/$PROJECT/onboarding-nudges:v1" \
-  --region="$REGION" \
-  --project="$PROJECT" \
-  --set-secrets="/app/.env=mandi-backend-env:latest" \
-  --max-retries=1 \
-  --task-timeout=600
-```
-
-From now on, re-running the `gcloud builds submit` command above (bump
-`COMMIT_SHA` each time, e.g. `v2`, `v3`, or wire a real Cloud Build trigger
-on push) both rebuilds and updates the job in one step.
-
-### Verify it runs before scheduling it
+## Once credentials are wired: verify before scheduling
 
 ```bash
 gcloud run jobs execute onboarding-nudges --region="$REGION" --project="$PROJECT" --wait
@@ -100,17 +102,15 @@ gcloud logging read \
   --project="$PROJECT" --limit=50 --order=desc
 ```
 
-Look for the `onboarding-nudges: sent=X skipped=Y errors=Z` line the binary
-logs on exit (see `cmd/onboarding-nudges/main.go`). `errors=0` and no crash
-= good.
+Look for `onboarding-nudges: sent=X skipped=Y errors=Z` (see
+`cmd/onboarding-nudges/main.go`). `errors=0` and no crash = good.
 
-### Wire Cloud Scheduler (every 20 minutes)
+## Wire Cloud Scheduler (every 20 minutes)
 
 Cloud Scheduler invokes the Cloud Run Jobs Admin API directly over HTTPS,
 authenticated via a service account's OIDC token — no shared secret needed.
 
 ```bash
-# One-time: a service account with just enough permission to run this one job
 gcloud iam service-accounts create onboarding-nudges-invoker \
   --display-name="Invokes the onboarding-nudges Cloud Run Job" \
   --project="$PROJECT"
@@ -129,27 +129,13 @@ gcloud scheduler jobs create http onboarding-nudges-sweep \
   --oauth-service-account-email="onboarding-nudges-invoker@${PROJECT}.iam.gserviceaccount.com"
 ```
 
-`*/20 * * * *` = every 20 minutes, inside your 15–30 min target. Adjust
-freely — the sweep is idempotent and catches up on any gap (see the doc
-comment in `cmd/onboarding-nudges/main.go`), so cadence is a tuning knob,
-not a correctness concern.
+`*/20 * * * *` = every 20 minutes, inside the 15–30 min target. Cadence is a
+tuning knob, not a correctness concern — the sweep is idempotent and catches
+up on any gap (see `cmd/onboarding-nudges/main.go`'s doc comment).
 
-## 2. onboarding-nudge-backfill — run once, after the above is live
+## onboarding-nudge-backfill — run once, after everything above works
 
 ```bash
-gcloud builds submit . \
-  --project="$PROJECT" \
-  --config=cmd/onboarding-nudge-backfill/cloudbuild.yaml \
-  --substitutions=COMMIT_SHA=v1,_REGION="$REGION",_JOB_NAME=onboarding-nudge-backfill
-
-gcloud run jobs create onboarding-nudge-backfill \
-  --image="gcr.io/$PROJECT/onboarding-nudge-backfill:v1" \
-  --region="$REGION" \
-  --project="$PROJECT" \
-  --set-secrets="/app/.env=mandi-backend-env:latest" \
-  --max-retries=0 \
-  --task-timeout=600
-
 # Dry-run first — prints what it WOULD anchor, writes nothing:
 gcloud run jobs execute onboarding-nudge-backfill --region="$REGION" --project="$PROJECT" --wait
 gcloud logging read \
@@ -166,12 +152,15 @@ the same "now" timestamp, so they'll all become due for their first nudge
 (Add Products) together on the very next `onboarding-nudges` sweep — a
 synchronized burst across every existing seller, not a trickle. Make sure
 the schedule/templates in admin-portal's Onboarding Nudges page look right
-*before* running this with `-apply`, since it can't be undone (only future
-sends can be turned off, via the Enabled toggle).
+*before* running this with `-apply` — it can't be undone (only future sends
+can be turned off, via the Enabled toggle).
 
-## 3. Don't want to wait for the scheduler?
+## Don't want to wait for the scheduler?
 
 admin-portal's Onboarding Nudges page has a **"Run sweep now"** button
 (`POST /api/admin/onboarding-nudges/run-sweep`, real JWT admin auth, same
-sweep logic) — use it to trigger an on-demand run any time, independent of
-whether the Cloud Scheduler job above is set up yet.
+sweep logic) — use it to trigger an on-demand run any time. It calls the
+*live API server*, not the Cloud Run Job, so it only works once the API
+server itself has been redeployed with this code — separate from everything
+above, and a pipeline I don't have visibility into (see the main handoff
+message for why).
