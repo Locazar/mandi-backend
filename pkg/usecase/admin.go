@@ -387,7 +387,15 @@ func (c *adminUseCase) VerifyShop(ctx context.Context, verify request.ShopVerifi
 	// off (shop drops back to under_review). Best-effort: notifyShopOwner logs
 	// and swallows delivery errors so a push failure never fails the save.
 	title, body := shopVerificationMessage(verify)
-	c.notifyShopOwner(ctx, verify.ShopId, title, body)
+	// Both mandatory checks passing is what VerifyShop (the repo layer, just
+	// above) uses to flip shop_status to 'active' — same condition here picks
+	// the celebration image only for the "you're now live" messages
+	// (shopVerificationMessage's cases 1 and 2), not the "still under review" one.
+	imageURL := ""
+	if VerificationStatus {
+		imageURL = c.config.PublicBaseURL + "/uploads/icon/verification_approved.png"
+	}
+	c.notifyShopOwner(ctx, verify.ShopId, title, body, imageURL)
 	return nil
 }
 
@@ -463,8 +471,9 @@ func (c *adminUseCase) ApproveShop(ctx context.Context, shopID string) error {
 		return fmt.Errorf("failed to approve shop \nerror:%v", err.Error())
 	}
 	c.notifyShopOwner(ctx, shopID,
-		"Your shop is live!",
-		"Congratulations — your shop has been approved and is now visible to customers on Locazar.",
+		"🎉 Congratulations, you're live!",
+		"Your shop has been approved and is now visible to customers on Locazar.",
+		c.config.PublicBaseURL+"/uploads/icon/verification_approved.png",
 	)
 	// Starts the shop's 7-day onboarding-nudge sequence (add products, update
 	// photo, update address, view shop link). RecordGoLiveOnce is a no-op if
@@ -488,7 +497,7 @@ func (c *adminUseCase) RejectShop(ctx context.Context, shopID, remark string) er
 	if strings.TrimSpace(remark) != "" {
 		body = "Your shop verification was declined: " + remark + ". Please fix the issue and resubmit."
 	}
-	c.notifyShopOwner(ctx, shopID, "Shop verification declined", body)
+	c.notifyShopOwner(ctx, shopID, "Shop verification declined", body, "")
 	return nil
 }
 
@@ -496,11 +505,15 @@ func (c *adminUseCase) RejectShop(ctx context.Context, shopID, remark string) er
 // shop_status change. Enquiry/seller Firestore docs key sellers by shop ID
 // (see SaveFcmToken), so ownerID here is the shop ID, not the admin ID.
 // Failure to notify never fails the underlying approve/reject decision.
-func (c *adminUseCase) notifyShopOwner(ctx context.Context, shopID, title, body string) {
+// imageURL is optional — pass "" for a plain text notification.
+func (c *adminUseCase) notifyShopOwner(ctx context.Context, shopID, title, body, imageURL string) {
 	if c.fcmPush == nil {
 		return
 	}
 	data := map[string]string{"event_type": "shop_status_changed", "shop_id": shopID}
+	if imageURL != "" {
+		data["image_url"] = imageURL
+	}
 	if err := c.fcmPush.SendToOwnerViaFirestore(ctx, "sellers", shopID, title, body, data); err != nil {
 		log.Printf("WARN [notifyShopOwner]: failed to notify shop %s: %v", shopID, err)
 	}
