@@ -18,6 +18,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/di"
 	applogger "github.com/rohit221990/mandi-backend/pkg/logger"
 	"github.com/rohit221990/mandi-backend/pkg/repository"
+	usecaseinterfaces "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
 )
 
@@ -87,6 +88,26 @@ func main() {
 		}
 	}
 
+	// Start the onboarding-nudge sweep on a recurring in-process ticker.
+	// This replaces a Cloud Scheduler + Cloud Run Job setup: the API server
+	// is a single, always-on replica (see deploy/ecommerce-deployment.yaml —
+	// replicas: 1), so there's no double-fire/never-fire risk a ticker would
+	// have across multiple/scaled-to-zero replicas, and it already carries
+	// real DB credentials, unlike the standalone cmd/onboarding-nudges Cloud
+	// Run Job (see docs/onboarding-nudges-deploy.md for that dead end).
+	//
+	// "Start/stop from admin-portal" is the existing Enabled toggle on the
+	// Onboarding Nudges settings page — RunSweep already checks it and
+	// no-ops when off, so the ticker itself never needs to start or stop;
+	// only what it does each tick changes.
+	nudgeCtx, cancelNudgeTicker := context.WithCancel(context.Background())
+	if nudgeUC, nudgeErr := di.InitializeOnboardingNudgeUseCase(cfg); nudgeErr != nil {
+		log.Printf("Warning: Could not initialize onboarding-nudge use-case for the sweep ticker: %v", nudgeErr)
+		cancelNudgeTicker()
+	} else {
+		go runOnboardingNudgeTicker(nudgeCtx, nudgeUC)
+	}
+
 	// Graceful shutdown: stop watcher when OS signal is received
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
@@ -94,6 +115,7 @@ func main() {
 		<-quit
 		log.Println("Shutdown signal received — stopping Firestore watcher")
 		cancelWatcher()
+		cancelNudgeTicker()
 	}()
 
 	if cfg.Security.EnableTLS {
@@ -110,6 +132,42 @@ func main() {
 	} else {
 		if startErr := server.Start(); startErr != nil {
 			log.Fatal("failed to start server: ", startErr)
+		}
+	}
+}
+
+// runOnboardingNudgeTicker calls RunSweep every 15 minutes until ctx is
+// cancelled. Fires once immediately on startup too, so a restart doesn't
+// leave shops waiting up to 15 minutes for the first check. RunSweep itself
+// is idempotent (see pkg/usecase/onboarding_nudge.go) and internally
+// respects the Enabled setting, so this never needs to be told to
+// start/stop — every tick is a no-op when the feature is turned off.
+func runOnboardingNudgeTicker(ctx context.Context, uc usecaseinterfaces.OnboardingNudgeUseCase) {
+	const interval = 15 * time.Minute
+	sweep := func() {
+		result, err := uc.RunSweep(ctx)
+		if err != nil {
+			log.Printf("WARN [onboarding-nudge ticker]: sweep failed: %v", err)
+			return
+		}
+		if result.Disabled {
+			return
+		}
+		if result.Sent > 0 || result.Errors > 0 {
+			log.Printf("[onboarding-nudge ticker]: sent=%d skipped=%d errors=%d", result.Sent, result.Skipped, result.Errors)
+		}
+	}
+
+	sweep()
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			log.Println("onboarding-nudge ticker: stopped")
+			return
+		case <-ticker.C:
+			sweep()
 		}
 	}
 }

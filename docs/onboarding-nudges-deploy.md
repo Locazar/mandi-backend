@@ -1,9 +1,20 @@
 # Deploying the onboarding-nudges Cloud Run Jobs
 
-Status as of this writing: **both jobs are created and their images are
-built and pushed. Neither has real database credentials yet, and neither is
-scheduled.** See "The credentials gap" below before doing anything else —
-that's the one open blocker, not a checklist item.
+**Superseded for the recurring sweep.** `cmd/api/main.go` now runs the sweep
+itself, in-process, every 15 minutes, for as long as the API server is up —
+see `runOnboardingNudgeTicker`. This works today with zero extra setup: the
+API server already has real DB credentials, and
+`deploy/ecommerce-deployment.yaml` runs it as a single replica, so there's
+no multi-replica double-fire risk a ticker would otherwise have. "Start" and
+"stop" are the existing Enabled toggle on admin-portal's Onboarding Nudges
+page — the ticker always runs, but `RunSweep` no-ops on every tick when
+Enabled is off, so there's nothing separate to start/stop.
+
+Everything below (the standalone Cloud Run Job) is now optional — a fallback
+if the ticker ever needs to be decoupled from the API server's own uptime.
+`onboarding-nudge-backfill` (the one-time tool, not the recurring sweep)
+still uses this Cloud Run Job path either way, since it's a single manual
+run, not something that belongs ticking inside the API server.
 
 Two jobs:
 
