@@ -1,0 +1,99 @@
+package handler
+
+import (
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
+	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
+	"github.com/rohit221990/mandi-backend/pkg/domain"
+	usecaseInterfaces "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
+)
+
+// OnboardingNudgeHandler exposes the 4 editable onboarding-reminder
+// templates and the schedule settings to admin-portal.
+type OnboardingNudgeHandler struct {
+	uc usecaseInterfaces.OnboardingNudgeUseCase
+}
+
+func NewOnboardingNudgeHandler(uc usecaseInterfaces.OnboardingNudgeUseCase) *OnboardingNudgeHandler {
+	return &OnboardingNudgeHandler{uc: uc}
+}
+
+// GetTemplates godoc
+//
+//	@Summary		List the 4 onboarding-nudge templates
+//	@Security		BearerAuth
+//	@Tags			Notification
+//	@Router			/admin/onboarding-nudges/templates [get]
+//	@Success		200	{object}	response.Response{}
+func (h *OnboardingNudgeHandler) GetTemplates(ctx *gin.Context) {
+	templates, err := h.uc.GetTemplates(ctx.Request.Context())
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to fetch onboarding nudge templates", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Onboarding nudge templates fetched", templates)
+}
+
+// UpdateTemplate godoc
+//
+//	@Summary		Edit one onboarding-nudge template's title/body/image
+//	@Security		BearerAuth
+//	@Tags			Notification
+//	@Param			key		path	string									true	"Template key"
+//	@Param			input	body	request.UpdateOnboardingNudgeTemplate	true	"Template fields"
+//	@Router			/admin/onboarding-nudges/templates/{key} [put]
+//	@Success		200	{object}	response.Response{}
+func (h *OnboardingNudgeHandler) UpdateTemplate(ctx *gin.Context) {
+	key := ctx.Param("key")
+	var req request.UpdateOnboardingNudgeTemplate
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Validation failed", err, nil)
+		return
+	}
+	tmpl := domain.OnboardingNudgeTemplate{Key: key, Title: req.Title, Body: req.Body, ImageURL: req.ImageURL}
+	if err := h.uc.SaveTemplate(ctx.Request.Context(), tmpl); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to update template", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Template updated")
+}
+
+// GetSettings godoc
+//
+//	@Summary		Get the onboarding-nudge schedule settings
+//	@Security		BearerAuth
+//	@Tags			Notification
+//	@Router			/admin/onboarding-nudges/settings [get]
+//	@Success		200	{object}	response.Response{}
+func (h *OnboardingNudgeHandler) GetSettings(ctx *gin.Context) {
+	settings, err := h.uc.GetSettings(ctx.Request.Context())
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to fetch onboarding nudge settings", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Onboarding nudge settings fetched", settings)
+}
+
+// UpdateSettings godoc
+//
+//	@Summary		Edit the onboarding-nudge schedule (gap hours, duration, on/off)
+//	@Security		BearerAuth
+//	@Tags			Notification
+//	@Param			input	body	request.UpdateOnboardingNudgeSettings	true	"Settings"
+//	@Router			/admin/onboarding-nudges/settings [put]
+//	@Success		200	{object}	response.Response{}
+func (h *OnboardingNudgeHandler) UpdateSettings(ctx *gin.Context) {
+	var req request.UpdateOnboardingNudgeSettings
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Validation failed", err, nil)
+		return
+	}
+	settings := domain.OnboardingNudgeSettings{Enabled: req.Enabled, GapHours: req.GapHours, DurationDays: req.DurationDays}
+	if err := h.uc.SaveSettings(ctx.Request.Context(), settings); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to update settings", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Settings updated")
+}

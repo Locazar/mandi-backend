@@ -22,6 +22,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 	mobileAuthHandler handlerInterface.OTPAuthRequestHandler,
 	sellerGuideHandler handlerInterface.SellerGuideHandler,
 	invoiceHandler handlerInterface.InvoiceHandler,
+	onboardingNudgeHandler *handler.OnboardingNudgeHandler,
 ) {
 
 	auth := api.Group("/auth")
@@ -531,6 +532,18 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			notification.POST("/shop-launch", notificationHandler.SendShopLaunchAnnouncement)
 			notification.POST("/images", adminHandler.UploadNotificationImage)
 			notification.GET("/images", adminHandler.ListNotificationImages)
+		}
+
+		// Onboarding nudges — the 4 automated reminders (add products, update
+		// photo, update address, view shop link) a shop gets on a schedule
+		// after going live. Actual sending happens in cmd/onboarding-nudges;
+		// these routes only manage the editable templates + schedule.
+		onboardingNudges := api.Group("/onboarding-nudges", adminHandler.RequirePermission(domain.PermCanSendNotifications))
+		{
+			onboardingNudges.GET("/templates", onboardingNudgeHandler.GetTemplates)
+			onboardingNudges.PUT("/templates/:key", middleware.TrimSpaces(), onboardingNudgeHandler.UpdateTemplate)
+			onboardingNudges.GET("/settings", onboardingNudgeHandler.GetSettings)
+			onboardingNudges.PUT("/settings", onboardingNudgeHandler.UpdateSettings)
 		}
 
 		// Promotion Categories and Types

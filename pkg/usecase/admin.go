@@ -35,31 +35,33 @@ import (
 )
 
 type adminUseCase struct {
-	adminRepo         interfaces.AdminRepository
-	userRepo          interfaces.UserRepository
-	authRepo          interfaces.AuthRepository
-	optAuth           otp.OtpAuth
-	tokenService      token.TokenService
-	otpService        *otp.MobileOTPService
-	smsService        *sms.TwoFactorSMSService
-	skipOTPValidation bool
-	config            config.Config
-	fcmPush           notificationSvc.PushSender
+	adminRepo           interfaces.AdminRepository
+	userRepo            interfaces.UserRepository
+	authRepo            interfaces.AuthRepository
+	optAuth             otp.OtpAuth
+	tokenService        token.TokenService
+	otpService          *otp.MobileOTPService
+	smsService          *sms.TwoFactorSMSService
+	skipOTPValidation   bool
+	config              config.Config
+	fcmPush             notificationSvc.PushSender
+	onboardingNudgeRepo interfaces.OnboardingNudgeRepository
 }
 
-func NewAdminUseCase(repo interfaces.AdminRepository, userRepo interfaces.UserRepository, authRepo interfaces.AuthRepository, optAuth otp.OtpAuth, tokenService token.TokenService, otpService *otp.MobileOTPService, smsService *sms.TwoFactorSMSService, skipOTPValidation bool, cfg config.Config) service.AdminUseCase {
+func NewAdminUseCase(repo interfaces.AdminRepository, userRepo interfaces.UserRepository, authRepo interfaces.AuthRepository, optAuth otp.OtpAuth, tokenService token.TokenService, otpService *otp.MobileOTPService, smsService *sms.TwoFactorSMSService, skipOTPValidation bool, cfg config.Config, onboardingNudgeRepo interfaces.OnboardingNudgeRepository) service.AdminUseCase {
 
 	return &adminUseCase{
-		adminRepo:         repo,
-		userRepo:          userRepo,
-		authRepo:          authRepo,
-		optAuth:           optAuth,
-		tokenService:      tokenService,
-		otpService:        otpService,
-		smsService:        smsService,
-		skipOTPValidation: skipOTPValidation,
-		config:            cfg,
-		fcmPush:           notificationSvc.NewFCMPushService(),
+		adminRepo:           repo,
+		userRepo:            userRepo,
+		authRepo:            authRepo,
+		optAuth:             optAuth,
+		tokenService:        tokenService,
+		otpService:          otpService,
+		smsService:          smsService,
+		skipOTPValidation:   skipOTPValidation,
+		config:              cfg,
+		fcmPush:             notificationSvc.NewFCMPushService(),
+		onboardingNudgeRepo: onboardingNudgeRepo,
 	}
 }
 
@@ -464,6 +466,15 @@ func (c *adminUseCase) ApproveShop(ctx context.Context, shopID string) error {
 		"Your shop is live!",
 		"Congratulations — your shop has been approved and is now visible to customers on Locazar.",
 	)
+	// Starts the shop's 7-day onboarding-nudge sequence (add products, update
+	// photo, update address, view shop link). RecordGoLiveOnce is a no-op if
+	// this shop already has an anchor (e.g. suspended then re-approved), so
+	// the sequence never restarts. Best-effort: never fails the approval.
+	if c.onboardingNudgeRepo != nil {
+		if err := c.onboardingNudgeRepo.RecordGoLiveOnce(ctx, shopID, time.Now()); err != nil {
+			log.Printf("WARN [ApproveShop]: failed to record onboarding-nudge anchor for %s: %v", shopID, err)
+		}
+	}
 	return nil
 }
 

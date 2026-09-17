@@ -53,7 +53,8 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	authHandler := handler.NewAuthHandler(authUseCase, cfg, tokenService)
 	middlewareMiddleware := middleware.NewMiddleware(tokenService)
 	bool2 := provideSkipOTPValidation(cfg)
-	adminUseCase := usecase.NewAdminUseCase(adminRepository, userRepository, authRepository, otpAuth, tokenService, mobileOTPService, twoFactorSMSService, bool2, cfg)
+	onboardingNudgeRepository := repository.NewOnboardingNudgeRepository(gormDB)
+	adminUseCase := usecase.NewAdminUseCase(adminRepository, userRepository, authRepository, otpAuth, tokenService, mobileOTPService, twoFactorSMSService, bool2, cfg, onboardingNudgeRepository)
 	shopTimeRepository := repository.NewShopTimeRepository(gormDB)
 	shopTimeUseCase := usecase.NewShopTimeUseCase(shopTimeRepository)
 	cloudService, err := cloud.NewObjectStorageService(cfg)
@@ -98,6 +99,8 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	notificationRepository := repository.NewNotificationRepository(gormDB)
 	notificationUseCase := usecase.NewNotificationUseCase(notificationRepository, cfg, cloudService)
 	notificationHandler := handler.NewNotificationHandler(notificationUseCase)
+	onboardingNudgeUseCase := usecase.NewOnboardingNudgeUseCase(onboardingNudgeRepository, notificationUseCase)
+	onboardingNudgeHandler := handler.NewOnboardingNudgeHandler(onboardingNudgeUseCase)
 	promotionRepository := repository.NewPromotionRepository(gormDB)
 	promotionUseCase := usecase.NewPromotionUseCase(promotionRepository)
 	promotionHandler := handler.NewPromotionHandler(promotionUseCase)
@@ -150,7 +153,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	handlerHandler := handler.NewHandler(mobileAuthUseCase)
 	aiHandler := handler.NewAIHandler(client)
 	invoiceHandler := handler.NewInvoiceHandler(invoiceUseCase)
-	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler, jobHandler, jobCategoryHandler, platformUserHandler, handlerHandler, aiHandler, invoiceHandler, shopUpdateHandler, languageHandler, qrCodeHandler)
+	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler, jobHandler, jobCategoryHandler, platformUserHandler, handlerHandler, aiHandler, invoiceHandler, shopUpdateHandler, languageHandler, qrCodeHandler, onboardingNudgeHandler)
 	return serverHTTP, nil
 }
 

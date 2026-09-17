@@ -1198,7 +1198,8 @@ func (c *adminDatabase) GetAllShops(ctx context.Context, pagination request.Pagi
 	limit := pagination.Limit
 	offset := pagination.Offset
 
-	query := `SELECT sd.*, (EXISTS (SELECT 1 FROM shop_offers so WHERE so.shop_id = sd.id)) as has_offers, a.product_limit
+	query := `SELECT sd.*, (EXISTS (SELECT 1 FROM shop_offers so WHERE so.shop_id = sd.id)) as has_offers, a.product_limit,
+		(SELECT COUNT(*) FROM product_items pi WHERE pi.shop_id = sd.id) as product_count
 		FROM shop_details sd LEFT JOIN admins a ON a.id = sd.admin_id ORDER BY sd.created_at DESC LIMIT $1 OFFSET $2`
 	err = c.DB.Raw(query, limit, offset).Scan(&shops).Error
 	for i := range shops {

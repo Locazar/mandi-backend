@@ -61,6 +61,12 @@ type ShopDetails struct {
 	Offers    []Offer `json:"offers" gorm:"many2many:shop_offers;"`
 	HasOffers bool    `json:"has_offers" gorm:"column:has_offers"`
 
+	// ProductCount is a joined-in aggregate (COUNT of product_items rows for
+	// this shop), not a real shop_details column — same pattern as HasOffers.
+	// Populated by GetAllShops for the admin-portal shops table; zero/absent
+	// on any query that doesn't join it in.
+	ProductCount int `json:"product_count" gorm:"column:product_count"`
+
 	// ProductLimit is the owning seller's admins.product_limit, joined in for
 	// admin-panel display/edit; not a real shop_details column.
 	ProductLimit int `json:"product_limit" gorm:"column:product_limit"`
