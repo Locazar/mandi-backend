@@ -425,7 +425,7 @@ func shopVerificationMessage(v request.ShopVerification) (title, body string) {
 
 	// 2. Both mandatory checks pass → shop is live, one or both docs still pending.
 	case photo && addr:
-		b := "Great news! Your shop photo and shop address are verified, so your shop is now LIVE and visible to customers on Locazar."
+		b := "Great news! Your shop photo and shop address are verified, so your shop is now LIVE and visible to customers on Locazar (https://locazar.in)."
 		switch {
 		case biz && !ident:
 			b += " Your business document is verified; your identity document is still pending."
@@ -472,7 +472,7 @@ func (c *adminUseCase) ApproveShop(ctx context.Context, shopID string) error {
 	}
 	c.notifyShopOwner(ctx, shopID,
 		"🎉 Congratulations, you're live!",
-		"Your shop has been approved and is now visible to customers on Locazar.",
+		"Your shop has been approved and is now visible to customers on Locazar (https://locazar.in).",
 		c.config.PublicBaseURL+"/uploads/icon/verification_approved.png",
 	)
 	// Starts the shop's 7-day onboarding-nudge sequence (add products, update

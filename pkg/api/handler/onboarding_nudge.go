@@ -52,7 +52,7 @@ func (h *OnboardingNudgeHandler) UpdateTemplate(ctx *gin.Context) {
 		response.ErrorResponse(ctx, http.StatusBadRequest, "Validation failed", err, nil)
 		return
 	}
-	tmpl := domain.OnboardingNudgeTemplate{Key: key, Title: req.Title, Body: req.Body, ImageURL: req.ImageURL}
+	tmpl := domain.OnboardingNudgeTemplate{Key: key, Title: req.Title, Body: req.Body, ImageURL: req.ImageURL, Route: req.Route}
 	if err := h.uc.SaveTemplate(ctx.Request.Context(), tmpl); err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to update template", err, nil)
 		return

@@ -18,10 +18,17 @@ var NudgeTemplateOrder = []string{NudgeAddProducts, NudgeUpdatePhoto, NudgeUpdat
 // Rows are seeded once with sensible defaults (see repository) and never
 // created/deleted through the API — only their Title/Body/ImageURL change.
 type OnboardingNudgeTemplate struct {
-	Key       string    `json:"key" gorm:"primaryKey;type:varchar(32)"`
-	Title     string    `json:"title" gorm:"type:varchar(200);not null"`
-	Body      string    `json:"body" gorm:"type:text;not null"`
-	ImageURL  string    `json:"image_url" gorm:"type:text"`
+	Key      string `json:"key" gorm:"primaryKey;type:varchar(32)"`
+	Title    string `json:"title" gorm:"type:varchar(200);not null"`
+	Body     string `json:"body" gorm:"type:text;not null"`
+	ImageURL string `json:"image_url" gorm:"type:text"`
+	// Route is where tapping the notification lands in the seller app (e.g.
+	// "/home?tab=2"), matching admin-portal's action-link.ts catalog. Empty
+	// means the tap just opens the app. Only argument-free destinations make
+	// sense here — this one template's route applies to every shop it's ever
+	// sent to, so a destination needing a specific shop/inquiry id would be
+	// wrong for all but one recipient.
+	Route     string    `json:"route" gorm:"type:varchar(200)"`
 	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }
 

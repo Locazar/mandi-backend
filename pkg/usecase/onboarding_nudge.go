@@ -169,6 +169,9 @@ func (uc *onboardingNudgeUseCase) send(ctx context.Context, candidate domain.Onb
 	if tmpl.ImageURL != "" {
 		data["image_url"] = tmpl.ImageURL
 	}
+	if tmpl.Route != "" {
+		data["route"] = tmpl.Route
+	}
 	_, err := uc.notificationUC.SendPushNotification(ctx, request.SendPushRequest{
 		OwnerID:   candidate.ShopID,
 		OwnerType: "seller",

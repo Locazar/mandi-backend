@@ -26,21 +26,29 @@ func defaultTemplates() []domain.OnboardingNudgeTemplate {
 			Key:   domain.NudgeAddProducts,
 			Title: "Add your first products 🛍️",
 			Body:  "Your shop is live, but customers can't buy what isn't listed yet. Add a few products to start getting orders on Locazar.",
+			// "Add Product" tab — see admin-portal's action-link.ts (home_add_product).
+			Route: "/home?tab=2",
 		},
 		{
 			Key:   domain.NudgeUpdatePhoto,
 			Title: "Add a shop photo 📸",
 			Body:  "Shops with a clear photo get far more customer visits. Open My Shop → Shop Photo and upload one.",
+			// "Store" tab, where shop photo lives (home_store).
+			Route: "/home?tab=3",
 		},
 		{
 			Key:   domain.NudgeUpdateAddress,
 			Title: "Confirm your shop address 📍",
 			Body:  "Nearby customers find you by location — double-check your address and map pin are accurate.",
+			Route: "/home?tab=3",
 		},
 		{
 			Key:   domain.NudgeViewShop,
 			Title: "See your shop on Locazar 🔗",
 			Body:  "Your shop is public now — here's your own link: {{shop_link}}",
+			// Share & QR screen (share) — the seller can post the link to social
+			// media straight from the tap instead of copying it out of the text.
+			Route: "/share",
 		},
 	}
 }
@@ -114,6 +122,7 @@ func (r *onboardingNudgeRepository) SaveTemplate(ctx context.Context, tmpl domai
 			"title":     tmpl.Title,
 			"body":      tmpl.Body,
 			"image_url": tmpl.ImageURL,
+			"route":     tmpl.Route,
 		}).Error
 }
 

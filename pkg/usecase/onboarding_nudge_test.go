@@ -186,6 +186,32 @@ func TestRunSweep_InterpolatesShopLink(t *testing.T) {
 	}
 }
 
+func TestRunSweep_ForwardsTemplateRouteAsDataRoute(t *testing.T) {
+	now := time.Now()
+	repo := &stubOnboardingNudgeRepo{
+		settings: domain.OnboardingNudgeSettings{Enabled: true, GapHours: 2, DurationDays: 7},
+		templates: []domain.OnboardingNudgeTemplate{
+			{Key: domain.NudgeAddProducts, Title: "Add products", Body: "add some products", Route: "/home?tab=2"},
+		},
+		candidates: []domain.OnboardingNudgeCandidate{
+			{ShopID: "shp_1", GoLiveAt: now.Add(-1 * time.Minute)},
+		},
+	}
+	notif := &stubNotificationUC{}
+	uc := NewOnboardingNudgeUseCase(repo, notif)
+
+	result, err := uc.RunSweep(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Sent != 1 {
+		t.Fatalf("expected 1 send, got %d", result.Sent)
+	}
+	if got := notif.sent[0].Data["route"]; got != "/home?tab=2" {
+		t.Errorf("data.route = %q, want %q", got, "/home?tab=2")
+	}
+}
+
 func TestRunSweep_OutsideWindow_NoCandidates(t *testing.T) {
 	repo := &stubOnboardingNudgeRepo{
 		settings:  domain.OnboardingNudgeSettings{Enabled: true, GapHours: 2, DurationDays: 7},

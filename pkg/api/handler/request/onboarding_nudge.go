@@ -6,6 +6,8 @@ type UpdateOnboardingNudgeTemplate struct {
 	Title    string `json:"title" binding:"required"`
 	Body     string `json:"body" binding:"required"`
 	ImageURL string `json:"image_url"`
+	// Route is optional — an empty value means the tap just opens the app.
+	Route string `json:"route"`
 }
 
 // UpdateOnboardingNudgeSettings edits the single schedule-config row.
