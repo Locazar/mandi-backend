@@ -620,11 +620,16 @@ func (c *userDatabase) SearchShopList(ctx context.Context, reqData request.Searc
 			CloseTime string `gorm:"column:close_time"`
 		}
 		var shopTimes []shopTimeRow
+		// Ordered by updated_at, not id: ids are cuid2 (random, not
+		// time-sortable), so "ORDER BY id DESC" picked an arbitrary row
+		// whenever a shop had more than one shop_times record — e.g. the
+		// default row inserted at verification plus a later seller/admin
+		// edit — sometimes surfacing the stale one instead of the current.
 		c.DB.Raw(`
 			SELECT DISTINCT ON (shop_id) shop_id, status, open_time, close_time
 			FROM shop_times
 			WHERE shop_id IN (?)
-			ORDER BY shop_id, id DESC
+			ORDER BY shop_id, updated_at DESC
 		`, shopIDs).Scan(&shopTimes)
 
 		istLoc, _ := time.LoadLocation("Asia/Kolkata")
@@ -686,7 +691,7 @@ func (c *userDatabase) FindShopByID(ctx context.Context, shopID string) (respons
 		LEFT JOIN (
 			SELECT DISTINCT ON (shop_id) *
 			FROM shop_times
-			ORDER BY shop_id, id DESC
+			ORDER BY shop_id, updated_at DESC
 		) st ON st.shop_id = sd.id
 		WHERE sd.id = $1 AND sd.shop_status = 'active'`
 	if c.DB.Raw(query, shopID).Scan(&shop).Error != nil {

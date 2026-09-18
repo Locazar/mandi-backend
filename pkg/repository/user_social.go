@@ -138,7 +138,7 @@ func (c *userDatabase) GetFollowedShops(ctx context.Context, userID string) ([]r
 		FROM shop_details sd
 		INNER JOIN shop_socials ss ON ss.shop_id = sd.id
 		LEFT JOIN (
-			SELECT DISTINCT ON (shop_id) * FROM shop_times ORDER BY shop_id, id DESC
+			SELECT DISTINCT ON (shop_id) * FROM shop_times ORDER BY shop_id, updated_at DESC
 		) st ON st.shop_id = sd.id
 		WHERE ss.user_id = ? AND ss.is_follower = TRUE
 		ORDER BY ss.updated_at DESC`
@@ -181,7 +181,7 @@ func (c *userDatabase) GetLikedShops(ctx context.Context, userID string) ([]resp
 		FROM shop_details sd
 		INNER JOIN shop_socials ss ON ss.shop_id = sd.id
 		LEFT JOIN (
-			SELECT DISTINCT ON (shop_id) * FROM shop_times ORDER BY shop_id, id DESC
+			SELECT DISTINCT ON (shop_id) * FROM shop_times ORDER BY shop_id, updated_at DESC
 		) st ON st.shop_id = sd.id
 		WHERE ss.user_id = ? AND ss.is_liked = TRUE
 		ORDER BY ss.updated_at DESC`

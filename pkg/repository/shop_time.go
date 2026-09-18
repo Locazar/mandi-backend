@@ -25,7 +25,14 @@ func (r *shopTimeRepository) CreateShopTime(ctx context.Context, shopTime domain
 
 func (r *shopTimeRepository) GetShopTimeByShopID(ctx context.Context, shopID string) (domain.ShopTime, error) {
 	var shopTime domain.ShopTime
-	result := r.db.WithContext(ctx).Where("shop_id = ?", shopID).Find(&shopTime)
+	// Ordered by updated_at, not left to GORM's default: a shop can have more
+	// than one row here (a default one from verification plus later
+	// seller/admin edits — nothing enforces one-row-per-shop), and with no
+	// ORDER BY, `Find` into a single struct returns whichever row Postgres
+	// happens to hand back first. SetShopTime then updates THAT row, which
+	// can silently be a stale one instead of the row every read path treats
+	// as current — an edit that "saves" successfully but never shows up.
+	result := r.db.WithContext(ctx).Where("shop_id = ?", shopID).Order("updated_at DESC").Limit(1).Find(&shopTime)
 	if result.Error != nil {
 		return shopTime, result.Error
 	}
