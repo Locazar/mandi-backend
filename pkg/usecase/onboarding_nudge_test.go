@@ -41,6 +41,10 @@ func (s *stubOnboardingNudgeRepo) SentSlotsByShop(_ context.Context, _ []string)
 	return s.sentSlots, nil
 }
 
+func (s *stubOnboardingNudgeRepo) Stats(_ context.Context, _ time.Time) (domain.OnboardingNudgeStats, error) {
+	return domain.OnboardingNudgeStats{}, nil
+}
+
 func (s *stubOnboardingNudgeRepo) MarkSent(_ context.Context, shopID string, day, slot int) error {
 	s.marked = append(s.marked, [3]interface{}{shopID, day, slot})
 	return nil

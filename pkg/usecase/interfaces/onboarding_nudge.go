@@ -19,21 +19,22 @@ type OnboardingNudgeUseCase interface {
 	// first goes live (shop_status → active); a no-op on later re-approvals.
 	RecordGoLive(ctx context.Context, shopID string) error
 
-	// BackfillActiveShops anchors every currently-active shop at "now" —
-	// for shops that went live before this feature existed and so never got
-	// an anchor from ApproveShop. Idempotent: already-anchored shops are
-	// skipped, safe to call more than once. Returns how many were newly
-	// anchored.
-	//
-	// Anchoring many shops at the same "now" means they all become due for
-	// their first nudge together on the next sweep tick — a synchronized
-	// burst, not a trickle. That's expected, not a bug.
+	// BackfillActiveShops anchors active shops that went live inside the
+	// nudge window before this feature existed, at their approval time
+	// (shop_details.updated_at), and marks already-elapsed slots as sent so
+	// they resume at their next scheduled nudge instead of receiving a
+	// catch-up burst. Idempotent: already-anchored shops are skipped. Returns
+	// how many were newly anchored.
 	BackfillActiveShops(ctx context.Context) (anchored int, err error)
 
 	// RunSweep sends every due, not-yet-sent nudge across all shops still
 	// within their window. Meant to be called repeatedly (e.g. every 15-30
 	// minutes) by a scheduled job — see cmd/onboarding-nudges.
 	RunSweep(ctx context.Context) (SweepResult, error)
+
+	// GetStats reports how many nudges have actually been delivered (from
+	// the sent ledger), independent of any single sweep run.
+	GetStats(ctx context.Context) (domain.OnboardingNudgeStats, error)
 }
 
 // SweepResult summarizes one RunSweep call, for the cron binary to log and

@@ -161,13 +161,14 @@ func (r *onboardingNudgeRepository) RecordGoLiveOnce(ctx context.Context, shopID
 	return result.RowsAffected > 0, result.Error
 }
 
-func (r *onboardingNudgeRepository) ActiveShopIDs(ctx context.Context) ([]string, error) {
-	var ids []string
+func (r *onboardingNudgeRepository) RecentlyLiveShops(ctx context.Context, since time.Time) ([]domain.OnboardingNudgeCandidate, error) {
+	var shops []domain.OnboardingNudgeCandidate
 	err := r.db.WithContext(ctx).
 		Table("shop_details").
-		Where("shop_status = ?", "active").
-		Pluck("id", &ids).Error
-	return ids, err
+		Select("id AS shop_id, updated_at AS go_live_at").
+		Where("shop_status = ? AND updated_at >= ?", "active", since).
+		Scan(&shops).Error
+	return shops, err
 }
 
 func (r *onboardingNudgeRepository) ActiveCandidates(ctx context.Context, now time.Time, durationDays int) ([]domain.OnboardingNudgeCandidate, error) {
@@ -208,4 +209,55 @@ func (r *onboardingNudgeRepository) MarkSent(ctx context.Context, shopID string,
 	return r.db.WithContext(ctx).
 		Clauses(clause.OnConflict{DoNothing: true}).
 		Create(&sent).Error
+}
+
+func (r *onboardingNudgeRepository) Stats(ctx context.Context, todayStart time.Time) (domain.OnboardingNudgeStats, error) {
+	db := r.db.WithContext(ctx).Model(&domain.ShopOnboardingNudgeSent{})
+	var stats domain.OnboardingNudgeStats
+
+	if err := db.Session(&gorm.Session{}).Count(&stats.TotalSent).Error; err != nil {
+		return stats, err
+	}
+	if err := db.Session(&gorm.Session{}).Where("sent_at >= ?", todayStart).Count(&stats.SentToday).Error; err != nil {
+		return stats, err
+	}
+	if err := db.Session(&gorm.Session{}).Distinct("shop_id").Count(&stats.ShopsReached).Error; err != nil {
+		return stats, err
+	}
+
+	var slotRows []struct {
+		Slot int
+		Sent int64
+	}
+	if err := db.Session(&gorm.Session{}).Select("slot, COUNT(*) AS sent").Group("slot").Scan(&slotRows).Error; err != nil {
+		return stats, err
+	}
+	bySlot := make(map[int]int64, len(slotRows))
+	for _, row := range slotRows {
+		bySlot[row.Slot] = row.Sent
+	}
+	for i, key := range domain.NudgeTemplateOrder {
+		stats.BySlot = append(stats.BySlot, domain.OnboardingNudgeSlotStat{Slot: i, Key: key, Sent: bySlot[i]})
+	}
+
+	from := todayStart.AddDate(0, 0, -6)
+	var dayRows []struct {
+		Day  time.Time
+		Sent int64
+	}
+	if err := db.Session(&gorm.Session{}).
+		Select("DATE(sent_at AT TIME ZONE 'UTC') AS day, COUNT(*) AS sent").
+		Where("sent_at >= ?", from).
+		Group("day").Scan(&dayRows).Error; err != nil {
+		return stats, err
+	}
+	byDay := make(map[string]int64, len(dayRows))
+	for _, row := range dayRows {
+		byDay[row.Day.Format("2006-01-02")] = row.Sent
+	}
+	for d := from; !d.After(todayStart); d = d.AddDate(0, 0, 1) {
+		date := d.Format("2006-01-02")
+		stats.Last7Days = append(stats.Last7Days, domain.OnboardingNudgeDayStat{Date: date, Sent: byDay[date]})
+	}
+	return stats, nil
 }

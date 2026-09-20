@@ -24,10 +24,11 @@ type OnboardingNudgeRepository interface {
 	// existed).
 	RecordGoLiveOnce(ctx context.Context, shopID string, at time.Time) (inserted bool, err error)
 
-	// ActiveShopIDs returns every shop currently shop_status = 'active' — the
-	// backfill candidate set for shops that went live before this feature
-	// existed and so never got a RecordGoLiveOnce call from ApproveShop.
-	ActiveShopIDs(ctx context.Context) ([]string, error)
+	// RecentlyLiveShops returns shops currently shop_status = 'active' whose
+	// shop_details.updated_at (stamped by ApproveShop) is on/after since — the
+	// backfill set for shops that went live before this feature existed, with
+	// updated_at as the best available approximation of their go-live time.
+	RecentlyLiveShops(ctx context.Context, since time.Time) ([]domain.OnboardingNudgeCandidate, error)
 
 	// ActiveCandidates returns every shop still within its nudge window as of
 	// now (go_live_at + durationDays >= now), joined with the shop_name/city
@@ -42,4 +43,9 @@ type OnboardingNudgeRepository interface {
 	// MarkSent records a (shop, day, slot) as delivered. Safe to call more
 	// than once for the same triple (ON CONFLICT DO NOTHING).
 	MarkSent(ctx context.Context, shopID string, day, slot int) error
+
+	// Stats aggregates the sent ledger — totals, per-slot, and per-day for
+	// the last 7 days (dates in UTC, zero-filled). since is the start of
+	// "today" used for the sent-today count.
+	Stats(ctx context.Context, todayStart time.Time) (domain.OnboardingNudgeStats, error)
 }

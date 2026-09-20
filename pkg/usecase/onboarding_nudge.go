@@ -63,21 +63,44 @@ func (uc *onboardingNudgeUseCase) RecordGoLive(ctx context.Context, shopID strin
 	return err
 }
 
+// BackfillActiveShops anchors shops that went live inside the nudge window
+// before this feature existed, at their real approval time (updated_at), so
+// they resume the sequence where it would be today. Slots already past due
+// are marked sent rather than delivered — otherwise a shop live for 5 days
+// would receive every missed nudge at once.
 func (uc *onboardingNudgeUseCase) BackfillActiveShops(ctx context.Context) (int, error) {
-	shopIDs, err := uc.repo.ActiveShopIDs(ctx)
+	settings, err := uc.repo.GetSettings(ctx)
 	if err != nil {
-		return 0, fmt.Errorf("load active shops: %w", err)
+		return 0, fmt.Errorf("load settings: %w", err)
 	}
 	now := time.Now()
+	shops, err := uc.repo.RecentlyLiveShops(ctx, now.AddDate(0, 0, -settings.DurationDays))
+	if err != nil {
+		return 0, fmt.Errorf("load recently live shops: %w", err)
+	}
+	gap := time.Duration(settings.GapHours) * time.Hour
 	anchored := 0
-	for _, shopID := range shopIDs {
-		inserted, err := uc.repo.RecordGoLiveOnce(ctx, shopID, now)
+	for _, shop := range shops {
+		inserted, err := uc.repo.RecordGoLiveOnce(ctx, shop.ShopID, shop.GoLiveAt)
 		if err != nil {
-			log.Printf("WARN [OnboardingNudge backfill]: anchor failed for %s: %v", shopID, err)
+			log.Printf("WARN [OnboardingNudge backfill]: anchor failed for %s: %v", shop.ShopID, err)
 			continue
 		}
-		if inserted {
-			anchored++
+		if !inserted {
+			continue
+		}
+		anchored++
+		for day := 1; day <= settings.DurationDays; day++ {
+			dayOffset := time.Duration(day-1) * 24 * time.Hour
+			for slot := range domain.NudgeTemplateOrder {
+				due := shop.GoLiveAt.Add(dayOffset).Add(time.Duration(slot) * gap)
+				if due.After(now) {
+					continue
+				}
+				if err := uc.repo.MarkSent(ctx, shop.ShopID, day, slot); err != nil {
+					log.Printf("WARN [OnboardingNudge backfill]: pre-mark failed shop=%s day=%d slot=%d: %v", shop.ShopID, day, slot, err)
+				}
+			}
 		}
 	}
 	return anchored, nil
@@ -180,4 +203,10 @@ func (uc *onboardingNudgeUseCase) send(ctx context.Context, candidate domain.Onb
 		Data:      data,
 	})
 	return err
+}
+
+func (uc *onboardingNudgeUseCase) GetStats(ctx context.Context) (domain.OnboardingNudgeStats, error) {
+	now := time.Now().UTC()
+	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	return uc.repo.Stats(ctx, todayStart)
 }

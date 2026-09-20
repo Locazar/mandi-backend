@@ -138,3 +138,19 @@ func (h *OnboardingNudgeHandler) Backfill(ctx *gin.Context) {
 	}
 	response.SuccessResponse(ctx, http.StatusOK, "Backfill complete", gin.H{"anchored": anchored})
 }
+
+// GetStats godoc
+//
+//	@Summary		Onboarding-nudge delivery totals (all-time, today, per slot, last 7 days)
+//	@Security		BearerAuth
+//	@Tags			Notification
+//	@Router			/admin/onboarding-nudges/stats [get]
+//	@Success		200	{object}	response.Response{}
+func (h *OnboardingNudgeHandler) GetStats(ctx *gin.Context) {
+	stats, err := h.uc.GetStats(ctx.Request.Context())
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to fetch onboarding nudge stats", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Onboarding nudge stats fetched", stats)
+}

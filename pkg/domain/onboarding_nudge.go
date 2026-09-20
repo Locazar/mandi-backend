@@ -75,3 +75,26 @@ type ShopOnboardingNudgeSent struct {
 	Slot   int       `json:"slot" gorm:"primaryKey"`
 	SentAt time.Time `json:"sent_at" gorm:"autoCreateTime"`
 }
+
+// OnboardingNudgeStats aggregates the sent ledger for admin-portal: how many
+// nudges have actually been delivered, overall, today, per slot, and per day.
+type OnboardingNudgeStats struct {
+	TotalSent    int64                     `json:"total_sent"`
+	SentToday    int64                     `json:"sent_today"`
+	ShopsReached int64                     `json:"shops_reached"`
+	BySlot       []OnboardingNudgeSlotStat `json:"by_slot"`
+	Last7Days    []OnboardingNudgeDayStat  `json:"last_7_days"`
+}
+
+// OnboardingNudgeSlotStat is the delivered count for one template slot.
+type OnboardingNudgeSlotStat struct {
+	Slot int    `json:"slot"`
+	Key  string `json:"key"`
+	Sent int64  `json:"sent"`
+}
+
+// OnboardingNudgeDayStat is the delivered count for one calendar date (UTC).
+type OnboardingNudgeDayStat struct {
+	Date string `json:"date"`
+	Sent int64  `json:"sent"`
+}
