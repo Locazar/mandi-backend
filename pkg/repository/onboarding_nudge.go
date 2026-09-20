@@ -261,3 +261,35 @@ func (r *onboardingNudgeRepository) Stats(ctx context.Context, todayStart time.T
 	}
 	return stats, nil
 }
+
+func (r *onboardingNudgeRepository) SentCountsByShop(ctx context.Context, shopIDs []string) (map[string]domain.ShopOnboardingNudgeCount, error) {
+	result := make(map[string]domain.ShopOnboardingNudgeCount)
+	if len(shopIDs) == 0 {
+		return result, nil
+	}
+	var rows []struct {
+		ShopID string
+		Slot   int
+		Sent   int64
+	}
+	if err := r.db.WithContext(ctx).Model(&domain.ShopOnboardingNudgeSent{}).
+		Select("shop_id, slot, COUNT(*) AS sent").
+		Where("shop_id IN ?", shopIDs).
+		Group("shop_id, slot").
+		Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		if row.Slot < 0 || row.Slot >= len(domain.NudgeTemplateOrder) {
+			continue
+		}
+		c := result[row.ShopID]
+		if c.ByKey == nil {
+			c.ByKey = make(map[string]int64)
+		}
+		c.ByKey[domain.NudgeTemplateOrder[row.Slot]] = row.Sent
+		c.Total += row.Sent
+		result[row.ShopID] = c
+	}
+	return result, nil
+}

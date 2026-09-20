@@ -48,4 +48,8 @@ type OnboardingNudgeRepository interface {
 	// the last 7 days (dates in UTC, zero-filled). since is the start of
 	// "today" used for the sent-today count.
 	Stats(ctx context.Context, todayStart time.Time) (domain.OnboardingNudgeStats, error)
+
+	// SentCountsByShop returns, per given shop id, how many onboarding nudges
+	// have been delivered and of which template. Shops with none are omitted.
+	SentCountsByShop(ctx context.Context, shopIDs []string) (map[string]domain.ShopOnboardingNudgeCount, error)
 }

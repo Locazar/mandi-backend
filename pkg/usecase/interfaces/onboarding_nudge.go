@@ -35,6 +35,10 @@ type OnboardingNudgeUseCase interface {
 	// GetStats reports how many nudges have actually been delivered (from
 	// the sent ledger), independent of any single sweep run.
 	GetStats(ctx context.Context) (domain.OnboardingNudgeStats, error)
+
+	// GetShopCounts reports, per shop, how many onboarding nudges were
+	// delivered and which type — for the shops list in admin-portal.
+	GetShopCounts(ctx context.Context, shopIDs []string) (map[string]domain.ShopOnboardingNudgeCount, error)
 }
 
 // SweepResult summarizes one RunSweep call, for the cron binary to log and

@@ -210,3 +210,7 @@ func (uc *onboardingNudgeUseCase) GetStats(ctx context.Context) (domain.Onboardi
 	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 	return uc.repo.Stats(ctx, todayStart)
 }
+
+func (uc *onboardingNudgeUseCase) GetShopCounts(ctx context.Context, shopIDs []string) (map[string]domain.ShopOnboardingNudgeCount, error) {
+	return uc.repo.SentCountsByShop(ctx, shopIDs)
+}

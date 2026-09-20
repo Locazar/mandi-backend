@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
@@ -153,4 +154,31 @@ func (h *OnboardingNudgeHandler) GetStats(ctx *gin.Context) {
 		return
 	}
 	response.SuccessResponse(ctx, http.StatusOK, "Onboarding nudge stats fetched", stats)
+}
+
+// GetShopCounts godoc
+//
+//	@Summary		Per-shop onboarding-nudge delivery counts, by template type
+//	@Security		BearerAuth
+//	@Tags			Notification
+//	@Param			shop_ids	query	string	true	"Comma-separated shop ids (max 500)"
+//	@Router			/admin/onboarding-nudges/shop-counts [get]
+//	@Success		200	{object}	response.Response{}
+func (h *OnboardingNudgeHandler) GetShopCounts(ctx *gin.Context) {
+	var shopIDs []string
+	for _, id := range strings.Split(ctx.Query("shop_ids"), ",") {
+		if id = strings.TrimSpace(id); id != "" {
+			shopIDs = append(shopIDs, id)
+		}
+	}
+	if len(shopIDs) > 500 {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Too many shop ids (max 500)", nil, nil)
+		return
+	}
+	counts, err := h.uc.GetShopCounts(ctx.Request.Context(), shopIDs)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to fetch shop nudge counts", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Shop nudge counts fetched", counts)
 }

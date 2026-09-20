@@ -98,3 +98,10 @@ type OnboardingNudgeDayStat struct {
 	Date string `json:"date"`
 	Sent int64  `json:"sent"`
 }
+
+// ShopOnboardingNudgeCount is one shop's delivered onboarding nudges: the
+// total, and how many of each template key (see NudgeTemplateOrder).
+type ShopOnboardingNudgeCount struct {
+	Total int64            `json:"total"`
+	ByKey map[string]int64 `json:"by_key"`
+}

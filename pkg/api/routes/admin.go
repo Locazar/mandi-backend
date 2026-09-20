@@ -545,6 +545,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			onboardingNudges.GET("/settings", onboardingNudgeHandler.GetSettings)
 			onboardingNudges.PUT("/settings", onboardingNudgeHandler.UpdateSettings)
 			onboardingNudges.GET("/stats", onboardingNudgeHandler.GetStats)
+			onboardingNudges.GET("/shop-counts", onboardingNudgeHandler.GetShopCounts)
 			// Manual trigger — the same sweep the in-process ticker runs every
 			// 15 minutes (cmd/api/main.go), exposed for an out-of-band/on-demand
 			// run from admin-portal.
