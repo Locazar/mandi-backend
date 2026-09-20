@@ -71,6 +71,22 @@ func (r *onboardingNudgeRepository) ensureTables(ctx context.Context) error {
 		}
 	}
 
+	// The templates table may predate the tap-destination `route` column —
+	// the HasTable check above skips existing tables, so add it explicitly.
+	if !migrator.HasColumn(&domain.OnboardingNudgeTemplate{}, "Route") {
+		if err := migrator.AddColumn(&domain.OnboardingNudgeTemplate{}, "Route"); err != nil {
+			return err
+		}
+		// Rows seeded before the column existed get the default destinations.
+		for _, d := range defaultTemplates() {
+			if err := r.db.WithContext(ctx).Model(&domain.OnboardingNudgeTemplate{}).
+				Where("key = ? AND (route IS NULL OR route = '')", d.Key).
+				Update("route", d.Route).Error; err != nil {
+				return err
+			}
+		}
+	}
+
 	// Seed the 4 templates once, if the table is empty — a fresh deploy
 	// should have ready-to-send copy without a manual setup step.
 	var count int64
