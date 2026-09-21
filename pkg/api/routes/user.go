@@ -2,6 +2,7 @@ package routes
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/rohit221990/mandi-backend/pkg/api/handler"
 	handlerInterface "github.com/rohit221990/mandi-backend/pkg/api/handler/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/api/middleware"
 )
@@ -68,6 +69,9 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 	// which only reads the token for a log line (never requires it) — safe to serve
 	// unauthenticated. Additive; the authenticated /departments route is unchanged.
 	api.GET("/public/departments", productHandler.GetAllDepartments)
+	// Website visitors opt in to broadcast push (all_users topic). Public and
+	// additive; only accepts a well-formed FCM token and only ever joins that one topic.
+	api.POST("/public/push/web-subscribe", handler.NewWebPushHandler().Subscribe)
 
 	api.Use(middleware.AuthenticateUser())
 	{

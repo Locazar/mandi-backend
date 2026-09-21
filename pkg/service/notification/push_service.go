@@ -461,3 +461,23 @@ func (s *FCMPushService) getTokensFromFirestore(
 	}
 	return tokens, nil
 }
+
+// SubscribeToTopic adds device tokens to an FCM topic. Topic membership can
+// only be granted server-side for web clients (the JS SDK has no
+// subscribeToTopic), which is why website visitors are enrolled here.
+func (s *FCMPushService) SubscribeToTopic(ctx context.Context, topic string, tokens []string) error {
+	if err := s.ensureInit(ctx); err != nil {
+		return fmt.Errorf("FCM init failed: %w", err)
+	}
+	if strings.TrimSpace(topic) == "" || len(tokens) == 0 {
+		return fmt.Errorf("topic and at least one token are required")
+	}
+	resp, err := s.msgClient.SubscribeToTopic(ctx, tokens, topic)
+	if err != nil {
+		return fmt.Errorf("subscribe to topic %q: %w", topic, err)
+	}
+	if resp.FailureCount > 0 && resp.SuccessCount == 0 {
+		return fmt.Errorf("token rejected by FCM: %s", resp.Errors[0].Reason)
+	}
+	return nil
+}
