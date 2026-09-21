@@ -23,6 +23,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 	sellerGuideHandler handlerInterface.SellerGuideHandler,
 	invoiceHandler handlerInterface.InvoiceHandler,
 	onboardingNudgeHandler *handler.OnboardingNudgeHandler,
+	customerNudgeHandler *handler.CustomerNudgeHandler,
 ) {
 
 	auth := api.Group("/auth")
@@ -552,6 +553,18 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			onboardingNudges.POST("/run-sweep", onboardingNudgeHandler.RunSweep)
 			// One-time: anchors shops that went live before this feature existed.
 			onboardingNudges.POST("/backfill", onboardingNudgeHandler.Backfill)
+		}
+
+		// Customer onboarding nudges — the same automated, templated sequence
+		// for newly signed-up customers. Sending happens in the in-process ticker.
+		customerNudges := api.Group("/customer-nudges", adminHandler.RequirePermission(domain.PermCanSendNotifications))
+		{
+			customerNudges.GET("/templates", customerNudgeHandler.GetTemplates)
+			customerNudges.PUT("/templates/:key", middleware.TrimSpaces(), customerNudgeHandler.UpdateTemplate)
+			customerNudges.GET("/settings", customerNudgeHandler.GetSettings)
+			customerNudges.PUT("/settings", customerNudgeHandler.UpdateSettings)
+			customerNudges.GET("/stats", customerNudgeHandler.GetStats)
+			customerNudges.POST("/run-sweep", customerNudgeHandler.RunSweep)
 		}
 
 		// Promotion Categories and Types

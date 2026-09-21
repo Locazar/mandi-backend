@@ -108,6 +108,14 @@ func main() {
 		go runOnboardingNudgeTicker(nudgeCtx, nudgeUC)
 	}
 
+	// Same in-process sweep for customer onboarding nudges; a no-op every tick
+	// while the Enabled toggle in admin-portal is off (its default).
+	if customerNudgeUC, customerNudgeErr := di.InitializeCustomerNudgeUseCase(cfg); customerNudgeErr != nil {
+		log.Printf("Warning: Could not initialize customer-nudge use-case for the sweep ticker: %v", customerNudgeErr)
+	} else {
+		go runCustomerNudgeTicker(nudgeCtx, customerNudgeUC)
+	}
+
 	// Graceful shutdown: stop watcher when OS signal is received
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
@@ -165,6 +173,32 @@ func runOnboardingNudgeTicker(ctx context.Context, uc usecaseinterfaces.Onboardi
 		select {
 		case <-ctx.Done():
 			log.Println("onboarding-nudge ticker: stopped")
+			return
+		case <-ticker.C:
+			sweep()
+		}
+	}
+}
+
+// runCustomerNudgeTicker sweeps customer onboarding nudges every 15 minutes
+// until ctx is cancelled. RunSweep is idempotent and honours the Enabled flag.
+func runCustomerNudgeTicker(ctx context.Context, uc usecaseinterfaces.CustomerNudgeUseCase) {
+	sweep := func() {
+		result, err := uc.RunSweep(ctx)
+		if err != nil {
+			log.Printf("WARN [customer-nudge ticker]: sweep failed: %v", err)
+			return
+		}
+		if !result.Disabled && (result.Sent > 0 || result.Errors > 0) {
+			log.Printf("[customer-nudge ticker]: sent=%d skipped=%d errors=%d", result.Sent, result.Skipped, result.Errors)
+		}
+	}
+	sweep()
+	ticker := time.NewTicker(15 * time.Minute)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
 			return
 		case <-ticker.C:
 			sweep()
