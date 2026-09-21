@@ -179,17 +179,19 @@ func (r *customerNudgeRepository) Stats(ctx context.Context, todayStart time.Tim
 	}
 
 	from := todayStart.AddDate(0, 0, -6)
+	// Aliased sent_date, not day: the ledger has a "day" column, and GROUP BY
+	// would bind to that column instead of the alias.
 	var dayRows []struct {
-		Day  time.Time
-		Sent int64
+		SentDate time.Time
+		Sent     int64
 	}
-	if err := base().Select("DATE(sent_at AT TIME ZONE 'UTC') AS day, COUNT(*) AS sent").
-		Where("sent_at >= ?", from).Group("day").Scan(&dayRows).Error; err != nil {
+	if err := base().Select("DATE(sent_at AT TIME ZONE 'UTC') AS sent_date, COUNT(*) AS sent").
+		Where("sent_at >= ?", from).Group("sent_date").Scan(&dayRows).Error; err != nil {
 		return stats, err
 	}
 	byDay := make(map[string]int64, len(dayRows))
 	for _, row := range dayRows {
-		byDay[row.Day.Format("2006-01-02")] = row.Sent
+		byDay[row.SentDate.Format("2006-01-02")] = row.Sent
 	}
 	for d := from; !d.After(todayStart); d = d.AddDate(0, 0, 1) {
 		date := d.Format("2006-01-02")
