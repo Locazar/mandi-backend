@@ -43,7 +43,7 @@ type CustomerNudgeSent struct {
 	UserID    string    `json:"user_id" gorm:"primaryKey;type:varchar(32)"`
 	Day       int       `json:"day" gorm:"primaryKey"`
 	Slot      int       `json:"slot" gorm:"primaryKey"`
-	Delivered bool      `json:"delivered" gorm:"not null;default:true"`
+	Delivered bool      `json:"delivered" gorm:"not null"`
 	SentAt    time.Time `json:"sent_at" gorm:"autoCreateTime"`
 }
 
