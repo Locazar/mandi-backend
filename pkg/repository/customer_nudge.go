@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/rohit221990/mandi-backend/pkg/domain"
@@ -27,7 +28,14 @@ func defaultCustomerTemplates() []domain.CustomerNudgeTemplate {
 	}
 }
 
+// ensureMu serialises the lazy migrate-and-seed: admin-portal loads templates,
+// settings and stats in parallel on first open, and concurrent runs would race
+// on CREATE TABLE and the seed inserts.
+var ensureMu sync.Mutex
+
 func (r *customerNudgeRepository) ensureTables(ctx context.Context) error {
+	ensureMu.Lock()
+	defer ensureMu.Unlock()
 	migrator := r.db.Migrator()
 	for _, model := range []interface{}{
 		&domain.CustomerNudgeTemplate{},

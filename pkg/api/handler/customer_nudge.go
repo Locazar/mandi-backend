@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -23,7 +24,7 @@ func NewCustomerNudgeHandler(uc usecaseInterfaces.CustomerNudgeUseCase) *Custome
 func (h *CustomerNudgeHandler) GetTemplates(ctx *gin.Context) {
 	templates, err := h.uc.GetTemplates(ctx.Request.Context())
 	if err != nil {
-		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to fetch customer nudge templates", err, nil)
+		response.ErrorResponse(ctx, http.StatusInternalServerError, fmt.Sprintf("Failed to fetch customer nudge templates: %v", err), err, nil)
 		return
 	}
 	response.SuccessResponse(ctx, http.StatusOK, "Customer nudge templates fetched", templates)
@@ -46,7 +47,7 @@ func (h *CustomerNudgeHandler) UpdateTemplate(ctx *gin.Context) {
 func (h *CustomerNudgeHandler) GetSettings(ctx *gin.Context) {
 	settings, err := h.uc.GetSettings(ctx.Request.Context())
 	if err != nil {
-		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to fetch customer nudge settings", err, nil)
+		response.ErrorResponse(ctx, http.StatusInternalServerError, fmt.Sprintf("Failed to fetch customer nudge settings: %v", err), err, nil)
 		return
 	}
 	response.SuccessResponse(ctx, http.StatusOK, "Customer nudge settings fetched", settings)
@@ -69,7 +70,7 @@ func (h *CustomerNudgeHandler) UpdateSettings(ctx *gin.Context) {
 func (h *CustomerNudgeHandler) GetStats(ctx *gin.Context) {
 	stats, err := h.uc.GetStats(ctx.Request.Context())
 	if err != nil {
-		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to fetch customer nudge stats", err, nil)
+		response.ErrorResponse(ctx, http.StatusInternalServerError, fmt.Sprintf("Failed to fetch customer nudge stats: %v", err), err, nil)
 		return
 	}
 	response.SuccessResponse(ctx, http.StatusOK, "Customer nudge stats fetched", stats)
