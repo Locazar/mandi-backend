@@ -1,12 +1,15 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	usecaseinterfaces "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
+	"github.com/rohit221990/mandi-backend/pkg/utils"
 )
 
 // AlertHandler handles alert-related HTTP requests
@@ -34,6 +37,39 @@ func NewAlertHandler(alertUseCase usecaseinterfaces.AlertUseCase, adminUseCase u
 // @Failure 401 {object} map[string]interface{}
 // @Failure 500 {object} map[string]interface{}
 // @Router /api/v1/seller/alerts [get]
+// substituteShopLink recursively replaces the {{shop_link}} placeholder in
+// every string value of an alert's decoded content with the given seller's
+// own shop public URL (e.g. a "share" CTA's link, or the title/description).
+// Best-effort: if the shop lookup fails, the placeholder is left as-is
+// rather than failing the whole alert response.
+func (h *AlertHandler) substituteShopLink(ctx context.Context, sellerID string, content interface{}) interface{} {
+	shop, err := h.adminUseCase.GetShopByOwnerID(ctx, sellerID)
+	if err != nil || shop.ID == "" {
+		return content
+	}
+	link := utils.ShopPublicURL(shop.ID, shop.ShopName, shop.City)
+	var replace func(v interface{}) interface{}
+	replace = func(v interface{}) interface{} {
+		switch val := v.(type) {
+		case string:
+			return strings.ReplaceAll(val, "{{shop_link}}", link)
+		case map[string]interface{}:
+			for k, sub := range val {
+				val[k] = replace(sub)
+			}
+			return val
+		case []interface{}:
+			for i, sub := range val {
+				val[i] = replace(sub)
+			}
+			return val
+		default:
+			return v
+		}
+	}
+	return replace(content)
+}
+
 func (h *AlertHandler) GetSellerAlerts(ctx *gin.Context) {
 	// Extract seller_id from authentication context
 	tokenString := ctx.GetHeader("Authorization")
@@ -72,6 +108,13 @@ func (h *AlertHandler) GetSellerAlerts(ctx *gin.Context) {
 			if err := json.Unmarshal([]byte(alert.Content), &content); err != nil {
 				content = nil
 			}
+		}
+		// {{shop_link}} is a template placeholder (same convention as onboarding
+		// nudges) — admin authors one template, each seller gets their own shop's
+		// public link substituted in, rather than one fixed link for everyone.
+		// Only looked up when actually used: most alert content never references it.
+		if strings.Contains(alert.Content, "{{shop_link}}") {
+			content = h.substituteShopLink(ctx, sellerID, content)
 		}
 
 		alertResp := map[string]interface{}{
