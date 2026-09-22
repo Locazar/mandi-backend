@@ -37,37 +37,38 @@ func NewAlertHandler(alertUseCase usecaseinterfaces.AlertUseCase, adminUseCase u
 // @Failure 401 {object} map[string]interface{}
 // @Failure 500 {object} map[string]interface{}
 // @Router /api/v1/seller/alerts [get]
-// substituteShopLink recursively replaces the {{shop_link}} placeholder in
-// every string value of an alert's decoded content with the given seller's
-// own shop public URL (e.g. a "share" CTA's link, or the title/description).
-// Best-effort: if the shop lookup fails, the placeholder is left as-is
-// rather than failing the whole alert response.
-func (h *AlertHandler) substituteShopLink(ctx context.Context, sellerID string, content interface{}) interface{} {
+// shopLinkFor looks up the given seller's own shop public URL, for
+// substituting the {{shop_link}} template placeholder. Best-effort: returns
+// "" if the seller has no shop yet or the lookup fails, so callers can leave
+// the placeholder as-is rather than failing the whole alert response.
+func (h *AlertHandler) shopLinkFor(ctx context.Context, sellerID string) string {
 	shop, err := h.adminUseCase.GetShopByOwnerID(ctx, sellerID)
 	if err != nil || shop.ID == "" {
-		return content
+		return ""
 	}
-	link := utils.ShopPublicURL(shop.ID, shop.ShopName, shop.City)
-	var replace func(v interface{}) interface{}
-	replace = func(v interface{}) interface{} {
-		switch val := v.(type) {
-		case string:
-			return strings.ReplaceAll(val, "{{shop_link}}", link)
-		case map[string]interface{}:
-			for k, sub := range val {
-				val[k] = replace(sub)
-			}
-			return val
-		case []interface{}:
-			for i, sub := range val {
-				val[i] = replace(sub)
-			}
-			return val
-		default:
-			return v
+	return utils.ShopPublicURL(shop.ID, shop.ShopName, shop.City)
+}
+
+// substitutePlaceholder recursively replaces {{shop_link}} in every string
+// value of a decoded alert content tree (e.g. a "share" CTA's link, or a
+// nested title/description) with the given link.
+func substitutePlaceholder(v interface{}, link string) interface{} {
+	switch val := v.(type) {
+	case string:
+		return strings.ReplaceAll(val, "{{shop_link}}", link)
+	case map[string]interface{}:
+		for k, sub := range val {
+			val[k] = substitutePlaceholder(sub, link)
 		}
+		return val
+	case []interface{}:
+		for i, sub := range val {
+			val[i] = substitutePlaceholder(sub, link)
+		}
+		return val
+	default:
+		return v
 	}
-	return replace(content)
 }
 
 func (h *AlertHandler) GetSellerAlerts(ctx *gin.Context) {
@@ -113,16 +114,29 @@ func (h *AlertHandler) GetSellerAlerts(ctx *gin.Context) {
 		// nudges) — admin authors one template, each seller gets their own shop's
 		// public link substituted in, rather than one fixed link for everyone.
 		// Only looked up when actually used: most alert content never references it.
-		if strings.Contains(alert.Content, "{{shop_link}}") {
-			content = h.substituteShopLink(ctx, sellerID, content)
+		// Checked across content AND the template's own top-level title/description
+		// (separate DB columns from content_schema, and easy to miss — an admin
+		// typing {{shop_link}} into the plain "Description" field on the template
+		// form, rather than into the content-schema editor, previously never got
+		// substituted at all).
+		title := alert.Title
+		description := alert.Description
+		if strings.Contains(alert.Content, "{{shop_link}}") ||
+			strings.Contains(title, "{{shop_link}}") ||
+			strings.Contains(description, "{{shop_link}}") {
+			if link := h.shopLinkFor(ctx, sellerID); link != "" {
+				content = substitutePlaceholder(content, link)
+				title = strings.ReplaceAll(title, "{{shop_link}}", link)
+				description = strings.ReplaceAll(description, "{{shop_link}}", link)
+			}
 		}
 
 		alertResp := map[string]interface{}{
 			"id":          alert.ID,
 			"key":         alert.Key,
-			"title":       alert.Title,
+			"title":       title,
 			"content":     content,
-			"description": alert.Description,
+			"description": description,
 			"type":        alert.Type,
 			"priority":    alert.Priority,
 			"is_active":   alert.IsActive,
