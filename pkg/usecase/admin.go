@@ -1511,8 +1511,15 @@ func (c *adminUseCase) attachShopReferral(ctx context.Context, shopID, sellerAdm
 }
 
 func (c *adminUseCase) SearchShops(ctx context.Context, filter request.ShopSearch) ([]domain.ShopDetails, error) {
-	if filter.Limit <= 0 || filter.Limit > 200 {
+	// Unset stays a conservative 50 for any caller that doesn't ask for more.
+	// The ceiling for a caller that DOES ask (e.g. admin-portal's notification
+	// targeting, which wants "every seller" on an unfiltered search) is raised
+	// to 10,000 — far above any plausible result set today, but still bounds
+	// the query rather than making it truly unlimited.
+	if filter.Limit <= 0 {
 		filter.Limit = 50
+	} else if filter.Limit > 10000 {
+		filter.Limit = 10000
 	}
 	return c.adminRepo.SearchShops(ctx, filter)
 }
