@@ -124,6 +124,61 @@ type ImageVerificationResponse struct {
 	Reason     string  `json:"reason"`
 }
 
+// TaxonomySubCategory is one leaf node the AI service may match a product photo against.
+type TaxonomySubCategory struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// TaxonomyCategory groups TaxonomySubCategory nodes under a department.
+type TaxonomyCategory struct {
+	ID            string                `json:"id"`
+	Name          string                `json:"name"`
+	SubCategories []TaxonomySubCategory `json:"subcategories"`
+}
+
+// TaxonomyDepartment is the top level of the taxonomy tree sent to the AI service.
+type TaxonomyDepartment struct {
+	ID         string             `json:"id"`
+	Name       string             `json:"name"`
+	Categories []TaxonomyCategory `json:"categories"`
+}
+
+// SuggestListingRequest is the request body for the listing-suggestion endpoint.
+type SuggestListingRequest struct {
+	ImageBase64 string               `json:"image_base64"`
+	Taxonomy    []TaxonomyDepartment `json:"taxonomy"`
+}
+
+// CategoryMatch is one candidate subcategory the AI matched the photo against.
+type CategoryMatch struct {
+	DepartmentID  string  `json:"department_id"`
+	CategoryID    string  `json:"category_id"`
+	SubCategoryID string  `json:"sub_category_id"`
+	Path          string  `json:"path"`
+	Confidence    float64 `json:"confidence"`
+}
+
+// SuggestedAttributes are free-text attribute observations from the photo.
+type SuggestedAttributes struct {
+	Color    string `json:"color"`
+	Material string `json:"material"`
+	Brand    string `json:"brand"`
+	Quantity string `json:"quantity"`
+	Unit     string `json:"unit"`
+	Size     string `json:"size"`
+}
+
+// SuggestListingResponse is a full draft listing generated from one product photo.
+type SuggestListingResponse struct {
+	Matches     []CategoryMatch     `json:"matches"`
+	Title       string              `json:"title"`
+	Description string              `json:"description"`
+	Highlights  []string            `json:"highlights"`
+	Attributes  SuggestedAttributes `json:"attributes"`
+	Confidence  float64             `json:"confidence"`
+}
+
 // Client is the HTTP client for AI service
 type Client struct {
 	baseURL    string
@@ -287,6 +342,40 @@ func (c *Client) DetectObjects(imageBase64 string, detectAll bool) (*ObjectDetec
 	}
 
 	return &detectionResp, nil
+}
+
+// SuggestListing sends a base64-encoded product photo plus the caller's category taxonomy
+// and gets back a full draft listing: candidate subcategory matches (by exact taxonomy ID,
+// not a fuzzy label), a title, description, highlights, and best-effort attribute
+// observations. This call is advisory only — callers should treat any error (including an
+// ai-service outage) as "no suggestion available" and fall back to manual entry, never as a
+// reason to block the seller.
+func (c *Client) SuggestListing(imageBase64 string, taxonomy []TaxonomyDepartment) (*SuggestListingResponse, error) {
+	req := SuggestListingRequest{
+		ImageBase64: imageBase64,
+		Taxonomy:    taxonomy,
+	}
+
+	var result ServiceResponse
+	if err := c.post("/api/ai/suggest-listing", req, &result); err != nil {
+		return nil, err
+	}
+
+	if !result.Success {
+		return nil, fmt.Errorf("listing suggestion failed: %s", result.Error)
+	}
+
+	dataBytes, err := json.Marshal(result.Data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	var suggestion SuggestListingResponse
+	if err := json.Unmarshal(dataBytes, &suggestion); err != nil {
+		return nil, fmt.Errorf("failed to parse suggestion response: %w", err)
+	}
+
+	return &suggestion, nil
 }
 
 // DetectObjectsFromPath reads a local JPEG file, base64-encodes it, and calls DetectObjects.

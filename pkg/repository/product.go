@@ -18,6 +18,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
+	aiclient "github.com/rohit221990/mandi-backend/pkg/service/ai"
 	"github.com/rohit221990/mandi-backend/pkg/service/elasticsearch"
 )
 
@@ -415,6 +416,7 @@ func (c *productDatabase) findProductItemsByProductID(ctx context.Context, produ
 func (c *productDatabase) FindProductItemByID(ctx context.Context, productItemID string) (productItem domain.ProductItem, err error) {
 	type tempProductItem struct {
 		ID                string    `gorm:"column:id"`
+		Name              string    `gorm:"column:name"`
 		SubCategoryName   string    `gorm:"column:sub_category_name"`
 		SubCategoryID     string    `gorm:"column:sub_category_id"`
 		CategoryID        string    `gorm:"column:category_id"`
@@ -436,6 +438,7 @@ func (c *productDatabase) FindProductItemByID(ctx context.Context, productItemID
 	}
 
 	productItem.ID = temp.ID
+	productItem.Name = temp.Name
 	productItem.SubCategoryName = temp.SubCategoryName
 	productItem.SubCategoryID = temp.SubCategoryID
 	productItem.CategoryID = temp.CategoryID
@@ -542,8 +545,8 @@ func (c *productDatabase) CountProductItemsByShopID(ctx context.Context, shopID 
 }
 
 func (c *productDatabase) SaveProductItem(ctx context.Context, productItem request.ProductItem, adminID string, shopID string) (productItemID string, err error) {
-	query := `INSERT INTO product_items (id, admin_id, sub_category_name, dynamic_fields, product_item_images, category_id, department_id, sub_category_id, shop_id, description, highlights, created_at, updated_at)
-VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`
+	query := `INSERT INTO product_items (id, admin_id, sub_category_name, dynamic_fields, product_item_images, category_id, department_id, sub_category_id, shop_id, description, highlights, created_at, updated_at, name)
+VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`
 
 	createdAt := time.Now()
 	newID := domain.NewID(domain.PrefixProductItem)
@@ -572,7 +575,7 @@ VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`
 		highlightsStr = "{}"
 	}
 
-	err = c.DB.Exec(query, newID, adminID, productItem.SubCategoryName, dynamicFieldsJSON, productItemImagesStr, productItem.CategoryID, productItem.DepartmentID, productItem.SubCategoryID, shopID, productItem.Description, highlightsStr, createdAt, createdAt).Error
+	err = c.DB.Exec(query, newID, adminID, productItem.SubCategoryName, dynamicFieldsJSON, productItemImagesStr, productItem.CategoryID, productItem.DepartmentID, productItem.SubCategoryID, shopID, productItem.Description, highlightsStr, createdAt, createdAt, productItem.Name).Error
 	if err == nil {
 		productItemID = newID
 	}
@@ -658,6 +661,10 @@ func (c *productDatabase) UpdateProductItem(ctx context.Context, productItemID s
 	if len(highlights) == 0 {
 		highlights = existing.Highlights
 	}
+	name := productItem.Name
+	if name == "" {
+		name = existing.Name
+	}
 
 	// Image set: retained (client's kept keys) + newly uploaded.
 	// If client sends no retained_images at all, preserve existing (back-compat).
@@ -679,10 +686,10 @@ func (c *productDatabase) UpdateProductItem(ctx context.Context, productItemID s
 	updatedAt := time.Now()
 	query := `UPDATE product_items
 		SET sub_category_name = $1, dynamic_fields = $2, product_item_images = $3,
-		    category_id = $4, department_id = $5, sub_category_id = $6, updated_at = $7
-		WHERE id = $8`
+		    category_id = $4, department_id = $5, sub_category_id = $6, updated_at = $7, name = $8
+		WHERE id = $9`
 
-	err = c.DB.Exec(query, subCategoryName, dynamicFieldsJSON, productItemImagesStr, categoryID, departmentID, subCategoryID, updatedAt, productItemID).Error
+	err = c.DB.Exec(query, subCategoryName, dynamicFieldsJSON, productItemImagesStr, categoryID, departmentID, subCategoryID, updatedAt, name, productItemID).Error
 	if err != nil {
 		return err
 	}
@@ -1812,6 +1819,38 @@ func (c *productDatabase) GetAllSubCategoriesByCategoryID(ctx context.Context, c
 	return
 }
 
+// GetCategoryTaxonomyTree returns the full active department -> category -> subcategory tree
+// as a single nested JSON aggregate, so the AI listing-suggestion prompt (pkg/service/ai) can
+// be built with one query instead of N+1 department/category/subcategory round trips.
+func (c *productDatabase) GetCategoryTaxonomyTree(ctx context.Context) ([]aiclient.TaxonomyDepartment, error) {
+	query := `
+		SELECT COALESCE(json_agg(json_build_object(
+			'id', d.id, 'name', d.name,
+			'categories', (
+				SELECT COALESCE(json_agg(json_build_object(
+					'id', c.id, 'name', c.name,
+					'subcategories', (
+						SELECT COALESCE(json_agg(json_build_object('id', s.id, 'name', s.name) ORDER BY s.sort_order), '[]'::json)
+						FROM sub_categories s WHERE s.category_id = c.id AND s.is_active = true
+					)
+				) ORDER BY c.sort_order), '[]'::json)
+				FROM categories c WHERE c.department_id = d.id AND c.is_active = true
+			)
+		) ORDER BY d.sort_order), '[]'::json)::text
+		FROM departments d WHERE d.is_active = true`
+
+	var raw string
+	if err := c.DB.WithContext(ctx).Raw(query).Scan(&raw).Error; err != nil {
+		return nil, fmt.Errorf("failed to load category taxonomy tree: %w", err)
+	}
+
+	var tree []aiclient.TaxonomyDepartment
+	if err := json.Unmarshal([]byte(raw), &tree); err != nil {
+		return nil, fmt.Errorf("failed to parse category taxonomy tree: %w", err)
+	}
+	return tree, nil
+}
+
 // SaveSubTypeAttribute saves a new sub type attribute for a subcategory
 func (c *productDatabase) SaveSubTypeAttribute(ctx context.Context, locationID string, attribute domain.SubTypeAttributes) error {
 	attribute.SubCategoryID = locationID
@@ -1929,7 +1968,7 @@ func (c *productDatabase) DeleteCategoryImage(ctx context.Context, imageID strin
 }
 
 func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID string, customerView bool) (productItem response.ProductItems, err error) {
-	query := `SELECT pi.id, pi.sub_category_name, pi.category_id, pi.department_id, pi.sub_category_id, pi.stock,
+	query := `SELECT pi.id, pi.name, pi.sub_category_name, pi.category_id, pi.department_id, pi.sub_category_id, pi.stock,
 	           sc.name AS category_name, mc.name AS main_category_name,
 	           pi.dynamic_fields, pi.created_at, pi.updated_at, pi.shop_id,
 	           (SELECT COALESCE(SUM(view_count), 0) FROM product_item_views WHERE product_item_id = pi.id) AS view_count,
@@ -1948,6 +1987,7 @@ func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID 
 
 	var dbItem struct {
 		ID               string
+		Name             string
 		SubCategoryName  string
 		CategoryID       string
 		DepartmentID     string
@@ -1976,7 +2016,13 @@ func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID 
 	}
 
 	productItem.ID = dbItem.ID
-	productItem.Name = dbItem.SubCategoryName
+	// AI-prefilled/seller-edited name wins when set; otherwise fall back to the
+	// legacy overloaded sub_category_name so old rows with no name keep displaying.
+	if dbItem.Name != "" {
+		productItem.Name = dbItem.Name
+	} else {
+		productItem.Name = dbItem.SubCategoryName
+	}
 	productItem.CategoryID = dbItem.CategoryID
 	productItem.DepartmentID = dbItem.DepartmentID
 	productItem.SubCategoryID = dbItem.SubCategoryID

@@ -6,6 +6,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
+	aiclient "github.com/rohit221990/mandi-backend/pkg/service/ai"
 )
 
 type ProductRepository interface {
@@ -83,6 +84,10 @@ type ProductRepository interface {
 	GetAllCategoriesByDepartmentID(ctx context.Context, departmentID string) ([]response.Category, error)
 
 	GetAllSubCategoriesByCategoryID(ctx context.Context, categoryID string) ([]response.SubCategory, error)
+
+	// GetCategoryTaxonomyTree returns the full active department -> category -> subcategory
+	// tree in one query, shaped for the AI listing-suggestion prompt (pkg/service/ai).
+	GetCategoryTaxonomyTree(ctx context.Context) ([]aiclient.TaxonomyDepartment, error)
 
 	// sub type attributes
 	SaveSubTypeAttribute(ctx context.Context, subCategoryID string, attribute domain.SubTypeAttributes) error

@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/rohit221990/mandi-backend/pkg/api/handler"
 	"github.com/rohit221990/mandi-backend/pkg/api/middleware"
 	"github.com/rohit221990/mandi-backend/pkg/config"
 	"github.com/rohit221990/mandi-backend/pkg/db"
@@ -38,6 +39,9 @@ func main() {
 
 	// Configure the third-party image moderation check on uploads (disabled by default).
 	utils.SetImageModerationEnabled(cfg.ImageModerationEnabled)
+
+	// Configure the "scan photo -> draft listing" AI endpoint (ships dark by default).
+	handler.SetAIListingSuggestionEnabled(cfg.AIListingSuggestionEnabled)
 
 	// Initialise structured logger as early as possible so all subsequent
 	// startup messages are captured in the same format.

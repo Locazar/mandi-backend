@@ -23,6 +23,7 @@ type UpdateProduct struct {
 
 // for a new productItem
 type ProductItem struct {
+	Name              string                 `json:"name"`
 	SubCategoryID     string                 `json:"sub_category_id" binding:"required"`
 	SubCategoryName   string                 `json:"sub_category_name" binding:"required"`
 	DynamicFields     map[string]interface{} `json:"dynamic_fields" binding:"required"`

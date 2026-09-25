@@ -3,6 +3,7 @@ package handler
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -94,6 +95,67 @@ func (p *ProductHandler) callCompareImages(imagePath1, imagePath2 string) *domai
 	}
 
 	return nil
+}
+
+// SuggestProductListing drafts a full product listing (category match, title, description,
+// highlights, attribute observations) from a single seller-submitted photo. It is purely
+// advisory: the photo is analyzed and the local temp copy discarded — nothing is persisted
+// or uploaded to cloud storage here, and the seller's own multipart create/update call is
+// still what actually publishes the product. A failure here (including the AI service being
+// unreachable) is reported as an error response so the client can fall back to manual entry;
+// it never touches product data, so it can never corrupt or block a listing.
+//
+//	@Summary		Suggest Product Listing from Photo
+//	@Security		BearerAuth
+//	@Description	Draft a full product listing (category, title, description, highlights, attributes) from one photo
+//	@Tags			Admin Products
+//	@Accept			multipart/form-data
+//	@Produce		json
+//	@Param			photo	formData	file	true	"Product photo"
+//	@Router			/admin/items/ai-suggest-listing [post]
+func (p *ProductHandler) SuggestProductListing(ctx *gin.Context) {
+	if !aiListingSuggestionEnabled {
+		response.ErrorResponse(ctx, http.StatusServiceUnavailable, "AI listing suggestion is not enabled", nil, nil)
+		return
+	}
+
+	fileHeader, err := ctx.FormFile("photo")
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "photo is required", err, nil)
+		return
+	}
+
+	localPath, err := handleUpload(fileHeader)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to process photo", err, nil)
+		return
+	}
+	defer os.Remove(localPath)
+
+	imageBytes, err := os.ReadFile(localPath)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to read photo", err, nil)
+		return
+	}
+
+	taxonomy, err := p.productUseCase.GetCategoryTaxonomyTree(ctx)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to load category taxonomy", err, nil)
+		return
+	}
+	if len(taxonomy) == 0 {
+		response.ErrorResponse(ctx, http.StatusServiceUnavailable, "No categories configured to match against", nil, nil)
+		return
+	}
+
+	suggestion, err := p.aiClient.SuggestListing(base64.StdEncoding.EncodeToString(imageBytes), taxonomy)
+	if err != nil {
+		log.Printf("SuggestProductListing: AI service unavailable: %v", err)
+		response.ErrorResponse(ctx, http.StatusServiceUnavailable, "AI suggestion is unavailable right now — pick a category manually", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Listing suggestion generated", suggestion)
 }
 
 // GetAllCategories godoc
@@ -581,6 +643,13 @@ func (c *ProductHandler) UpdateProduct(ctx *gin.Context) {
 // "wrong category" verdict is trusted enough to reject a seller's upload.
 const aiValidationRejectConfidence = 0.1
 
+// aiListingSuggestionEnabled gates the "scan photo -> draft listing" endpoint.
+// Set once at startup from config.AIListingSuggestionEnabled (ships dark by default).
+var aiListingSuggestionEnabled bool
+
+// SetAIListingSuggestionEnabled configures the global "scan photo -> draft listing" gate.
+func SetAIListingSuggestionEnabled(enabled bool) { aiListingSuggestionEnabled = enabled }
+
 // validateProductImage runs the optional AI category check for one uploaded
 // image. It returns a non-empty rejection message ONLY when the AI service
 // actually judged the image to be the wrong category.
@@ -658,6 +727,7 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 
 	subCategoryName := ctx.PostForm("sub_category_name")
 	categoryName := ctx.PostForm("category_name")
+	name := ctx.PostForm("name")
 	dynamicFieldsStr := ctx.PostForm("dynamic_fields")
 	// Try to resolve subcategory image URL (if subCategoryID provided)
 	// var subCatImageURL string
@@ -732,6 +802,7 @@ func (p *ProductHandler) SaveProductItem(ctx *gin.Context) {
 	}
 
 	productItem := request.ProductItem{
+		Name:              name,
 		SubCategoryName:   subCategoryName,
 		SubCategoryID:     subCategoryID,
 		DynamicFields:     dynamicFields,
@@ -2601,6 +2672,7 @@ func (p *ProductHandler) UpdateProductItem(ctx *gin.Context) {
 	departmentID := ctx.PostForm("department_id")
 	subCategoryName := ctx.PostForm("sub_category_name")
 	categoryName := ctx.PostForm("category_name")
+	name := ctx.PostForm("name")
 	dynamicFieldsStr := ctx.PostForm("dynamic_fields")
 	description := ctx.PostForm("description")
 	highlightsStr := ctx.PostForm("highlights")
@@ -2651,6 +2723,7 @@ func (p *ProductHandler) UpdateProductItem(ctx *gin.Context) {
 	}
 
 	req := request.ProductItem{
+		Name:              name,
 		SubCategoryName:   subCategoryName,
 		SubCategoryID:     subCategoryID,
 		DynamicFields:     dynamicFields,

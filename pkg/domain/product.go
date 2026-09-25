@@ -22,6 +22,7 @@ type Product struct {
 // this for a specific variant of product
 type ProductItem struct {
 	ID                string    `json:"id" gorm:"primaryKey;type:varchar(32)"`
+	Name              string    `json:"name" gorm:"size:120" binding:"omitempty,max=120"`
 	SubCategoryName   string    `json:"sub_category_name" gorm:"not null" binding:"required"`
 	SubCategoryID     string    `json:"sub_category_id" gorm:"type:varchar(32)" binding:"omitempty"`
 	CategoryID        string    `json:"category_id" gorm:"type:varchar(32)" binding:"omitempty"`

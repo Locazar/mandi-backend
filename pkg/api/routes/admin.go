@@ -273,6 +273,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 
 		productItem := api.Group("/items")
 		{
+			productItem.POST("/ai-suggest-listing", productHandler.SuggestProductListing)
 			productItem.GET("", productHandler.GetAllProductItemsAdmin())
 			productItem.GET("/lowViewproductitems", productHandler.FindLowViewProductItems)
 			productItem.GET("/shop/:shop_id", productHandler.GetProductItemsByShopID())
