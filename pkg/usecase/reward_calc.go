@@ -53,6 +53,17 @@ func distanceMeters(lat1, lng1, lat2, lng2 float64) float64 {
 	return 2 * earthRadiusM * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
 }
 
+// validCoordinates rejects GPS coordinates that cannot describe a real
+// location on Earth: NaN, ±Inf, or outside the valid lat/lng range. Gin's
+// query binding parses "NaN"/"Inf" as valid float64s, so this guard has to
+// run before any distance math is trusted.
+func validCoordinates(lat, lng float64) bool {
+	if math.IsNaN(lat) || math.IsNaN(lng) || math.IsInf(lat, 0) || math.IsInf(lng, 0) {
+		return false
+	}
+	return math.Abs(lat) <= 90 && math.Abs(lng) <= 180
+}
+
 // rewardDayStart returns midnight (Asia/Kolkata) of the day containing t.
 func rewardDayStart(t time.Time) time.Time {
 	local := t.In(rewardTZ)

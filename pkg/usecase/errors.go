@@ -125,6 +125,7 @@ var (
 	ErrShopDailyCapReached    = errors.New("this shop has reached today's Locazar purchase limit")
 	ErrBelowMinBill           = errors.New("bill amount is below the minimum for rewards")
 	ErrInvalidBillAmount      = errors.New("bill amount is invalid")
+	ErrInvalidLocation        = errors.New("your location could not be read")
 	ErrPurchaseNotFound       = errors.New("purchase not found")
 	ErrPurchaseNotPending     = errors.New("purchase has already been decided or has expired")
 	ErrInsufficientPoints     = errors.New("not enough reward points")

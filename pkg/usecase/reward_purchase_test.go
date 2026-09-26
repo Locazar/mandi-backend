@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"math"
 	"testing"
 	"time"
 
@@ -80,10 +81,12 @@ func TestSubmitPurchase_Rejections(t *testing.T) {
 			s.Latitude, s.Longitude = 0, 0
 			f.shops[fxShopID] = s
 		}, ErrShopLocationMissing},
-		"too far":        {func(_ *fakeRewardRepo, in *SubmitPurchaseInput) { in.Lat = fxShopLat + 0.003 }, ErrTooFarFromShop},
-		"below min bill": {func(_ *fakeRewardRepo, in *SubmitPurchaseInput) { in.BillAmountPaise = 9999 }, ErrBelowMinBill},
-		"zero bill":      {func(_ *fakeRewardRepo, in *SubmitPurchaseInput) { in.BillAmountPaise = 0 }, ErrInvalidBillAmount},
-		"absurd bill":    {func(_ *fakeRewardRepo, in *SubmitPurchaseInput) { in.BillAmountPaise = maxBillPaise + 1 }, ErrInvalidBillAmount},
+		"too far":                {func(_ *fakeRewardRepo, in *SubmitPurchaseInput) { in.Lat = fxShopLat + 0.003 }, ErrTooFarFromShop},
+		"nan latitude":           {func(_ *fakeRewardRepo, in *SubmitPurchaseInput) { in.Lat = math.NaN() }, ErrInvalidLocation},
+		"longitude out of range": {func(_ *fakeRewardRepo, in *SubmitPurchaseInput) { in.Lng = 181 }, ErrInvalidLocation},
+		"below min bill":         {func(_ *fakeRewardRepo, in *SubmitPurchaseInput) { in.BillAmountPaise = 9999 }, ErrBelowMinBill},
+		"zero bill":              {func(_ *fakeRewardRepo, in *SubmitPurchaseInput) { in.BillAmountPaise = 0 }, ErrInvalidBillAmount},
+		"absurd bill":            {func(_ *fakeRewardRepo, in *SubmitPurchaseInput) { in.BillAmountPaise = maxBillPaise + 1 }, ErrInvalidBillAmount},
 		"claimed 3 days ago": {func(f *fakeRewardRepo, _ *SubmitPurchaseInput) {
 			f.addPurchase(domain.ShopPurchase{ShopID: fxShopID, CustomerID: fxCustomer, Status: domain.ShopPurchaseClaimed, CreatedAt: fxNow.Add(-72 * time.Hour)})
 		}, ErrRepeatPurchaseWindow},
@@ -168,4 +171,27 @@ func TestGetEligibility(t *testing.T) {
 		_, err := uc.GetEligibility(context.Background(), fxAdminID, fxShopID, fxShopLat, fxShopLng)
 		assert.ErrorIs(t, err, ErrRewardCustomerOnly)
 	})
+	t.Run("invalid coordinates give a reason, not an error", func(t *testing.T) {
+		f := newFakeRewardRepo().withOptedInShop(10)
+		uc, _ := newTestRewardUseCase(f, fxNow)
+		e, err := uc.GetEligibility(context.Background(), fxCustomer, fxShopID, math.Inf(1), fxShopLng)
+		require.NoError(t, err)
+		assert.False(t, e.Eligible)
+		assert.Equal(t, "invalid_location", e.Reason)
+	})
+}
+
+func TestSubmitPurchase_PushUsesMaskedCustomerName(t *testing.T) {
+	f := newFakeRewardRepo().withOptedInShop(10)
+	c := f.customers[fxCustomer]
+	c.LastName = "Kumar"
+	f.customers[fxCustomer] = c
+	uc, pusher := newTestRewardUseCase(f, fxNow)
+
+	_, err := uc.SubmitPurchase(context.Background(), submitIn())
+	require.NoError(t, err)
+
+	require.Len(t, pusher.sent, 1)
+	assert.Equal(t, "Ravi K.", pusher.sent[0].Data["customer_name"])
+	assert.Contains(t, pusher.sent[0].Body, "Ravi K.")
 }

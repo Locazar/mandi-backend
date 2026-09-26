@@ -62,3 +62,28 @@ func TestNormalizePhone(t *testing.T) {
 	assert.Equal(t, "", normalizePhone(""))
 	assert.Equal(t, "", normalizePhone("12345"))
 }
+
+func TestValidCoordinates(t *testing.T) {
+	tests := map[string]struct {
+		lat, lng float64
+		want     bool
+	}{
+		"valid":               {12.9756, 77.6050, true},
+		"zero zero valid":     {0, 0, true},
+		"nan lat":             {math.NaN(), 77.6050, false},
+		"nan lng":             {12.9756, math.NaN(), false},
+		"positive inf lat":    {math.Inf(1), 77.6050, false},
+		"negative inf lng":    {12.9756, math.Inf(-1), false},
+		"lat out of range":    {90.1, 77.6050, false},
+		"lat boundary valid":  {90, 0, true},
+		"lat -boundary valid": {-90, 0, true},
+		"lng out of range":    {12.9756, 180.1, false},
+		"lng boundary valid":  {0, 180, true},
+		"lng -boundary valid": {0, -180, true},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			assert.Equal(t, tc.want, validCoordinates(tc.lat, tc.lng))
+		})
+	}
+}

@@ -46,6 +46,7 @@ var rewardReasonCodes = []struct {
 	{ErrShopNotOptedIn, "shop_not_opted_in"},
 	{ErrSelfPurchase, "self_purchase"},
 	{ErrShopLocationMissing, "shop_location_missing"},
+	{ErrInvalidLocation, "invalid_location"},
 	{ErrTooFarFromShop, "too_far"},
 	{ErrRepeatPurchaseWindow, "repeat_window"},
 	{ErrShopDailyCapReached, "shop_daily_cap"},
@@ -76,6 +77,9 @@ type purchaseContext struct {
 // repeat-window read happens under the pair lock.
 func (u *RewardUseCase) evaluatePurchase(ctx context.Context, r repo.RewardRepository, customerID, shopID string, lat, lng float64, now time.Time) (purchaseContext, error) {
 	var pc purchaseContext
+	if !validCoordinates(lat, lng) {
+		return pc, ErrInvalidLocation
+	}
 	var err error
 	if pc.cfg, err = r.GetConfig(ctx); err != nil {
 		return pc, err
@@ -213,10 +217,7 @@ func (u *RewardUseCase) notifySellerOfPurchase(ctx context.Context, pc purchaseC
 	if err != nil {
 		visits, last = 0, nil
 	}
-	name := strings.TrimSpace(pc.customer.FirstName + " " + pc.customer.LastName)
-	if name == "" {
-		name = "A Locazar customer"
-	}
+	name := maskedCustomerName(pc.customer.FirstName, pc.customer.LastName)
 	data := map[string]string{
 		"purchase_id":       p.ID,
 		"shop_id":           p.ShopID,
@@ -238,6 +239,24 @@ func (u *RewardUseCase) notifySellerOfPurchase(ctx context.Context, pc purchaseC
 		EventType: "reward_purchase",
 		Data:      data,
 	})
+}
+
+// maskedCustomerName renders a customer's display name for the seller push:
+// "Ravi K." (first name + first letter of last name) when both are known,
+// just the first name when there's no last name, and a generic fallback when
+// neither is set. The full name is never shown — the spec requires the
+// customer be identified to the seller only in masked form.
+func maskedCustomerName(first, last string) string {
+	first = strings.TrimSpace(first)
+	last = strings.TrimSpace(last)
+	if first == "" {
+		return "A Locazar customer"
+	}
+	if last == "" {
+		return first
+	}
+	initial := []rune(last)[0]
+	return first + " " + strings.ToUpper(string(initial)) + "."
 }
 
 // rupees renders paise as a rupee amount, dropping ".00".
