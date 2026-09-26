@@ -372,3 +372,18 @@ func (m *CategoryRequest) BeforeCreate(*gorm.DB) error {
 	}
 	return nil
 }
+
+func (m *RewardAccount) BeforeCreate(*gorm.DB) error {
+	m.ID = NewID(PrefixRewardAccount)
+	return nil
+}
+
+func (m *RewardLedgerEntry) BeforeCreate(*gorm.DB) error {
+	m.ID = NewID(PrefixRewardLedger)
+	return nil
+}
+
+func (m *ShopPurchase) BeforeCreate(*gorm.DB) error {
+	m.ID = NewID(PrefixShopPurchase)
+	return nil
+}

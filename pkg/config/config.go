@@ -113,6 +113,12 @@ type Config struct {
 	// ordering.
 	SearchRankingEnabled bool `mapstructure:"SEARCH_RANKING_ENABLED"`
 
+	// AIListingSuggestionEnabled toggles the "scan photo -> draft listing" endpoint
+	// (POST /admin/items/ai-suggest-listing), which sends a seller's product photo to
+	// ai-service to get back a suggested category, title, description and attributes.
+	// Default false so the feature ships dark until explicitly enabled.
+	AIListingSuggestionEnabled bool `mapstructure:"AI_LISTING_SUGGESTION_ENABLED"`
+
 	// ImageModerationEnabled toggles the third-party (Sightengine) image
 	// moderation check run on every product image upload. Default false: the
 	// check is disabled, no upload is sent to the external API, and no image is

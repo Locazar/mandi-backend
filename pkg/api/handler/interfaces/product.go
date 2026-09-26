@@ -29,6 +29,7 @@ type ProductHandler interface {
 	UpdateProduct(ctx *gin.Context)
 
 	SaveProductItem(ctx *gin.Context)
+	SuggestProductListing(ctx *gin.Context)
 	GetAllProductItemsAdmin() func(ctx *gin.Context)
 	GetAllProductItemsUser() func(ctx *gin.Context)
 	GetProductItemsByShopID() func(ctx *gin.Context)

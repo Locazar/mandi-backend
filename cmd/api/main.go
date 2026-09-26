@@ -12,12 +12,14 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/rohit221990/mandi-backend/pkg/api/handler"
 	"github.com/rohit221990/mandi-backend/pkg/api/middleware"
 	"github.com/rohit221990/mandi-backend/pkg/config"
 	"github.com/rohit221990/mandi-backend/pkg/db"
 	"github.com/rohit221990/mandi-backend/pkg/di"
 	applogger "github.com/rohit221990/mandi-backend/pkg/logger"
 	"github.com/rohit221990/mandi-backend/pkg/repository"
+	"github.com/rohit221990/mandi-backend/pkg/usecase"
 	usecaseinterfaces "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
 )
@@ -38,6 +40,9 @@ func main() {
 
 	// Configure the third-party image moderation check on uploads (disabled by default).
 	utils.SetImageModerationEnabled(cfg.ImageModerationEnabled)
+
+	// Configure the "scan photo -> draft listing" AI endpoint (ships dark by default).
+	handler.SetAIListingSuggestionEnabled(cfg.AIListingSuggestionEnabled)
 
 	// Initialise structured logger as early as possible so all subsequent
 	// startup messages are captured in the same format.
@@ -114,6 +119,14 @@ func main() {
 		log.Printf("Warning: Could not initialize customer-nudge use-case for the sweep ticker: %v", customerNudgeErr)
 	} else {
 		go runCustomerNudgeTicker(nudgeCtx, customerNudgeUC)
+	}
+
+	// Rewards sweep: expires stale pending purchases and 12-month-old points,
+	// and sends 7-day expiry reminders. Idempotent, so hourly is plenty.
+	if rewardUC, rewardErr := di.InitializeRewardUseCase(cfg); rewardErr != nil {
+		log.Printf("Warning: Could not initialize reward use-case for the sweep ticker: %v", rewardErr)
+	} else {
+		go runRewardSweepTicker(nudgeCtx, rewardUC)
 	}
 
 	// Graceful shutdown: stop watcher when OS signal is received
@@ -195,6 +208,33 @@ func runCustomerNudgeTicker(ctx context.Context, uc usecaseinterfaces.CustomerNu
 	}
 	sweep()
 	ticker := time.NewTicker(15 * time.Minute)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			sweep()
+		}
+	}
+}
+
+// runRewardSweepTicker runs the rewards sweep once at startup and then hourly
+// until ctx is cancelled.
+func runRewardSweepTicker(ctx context.Context, uc *usecase.RewardUseCase) {
+	sweep := func() {
+		res, err := uc.RunSweep(ctx)
+		if err != nil {
+			log.Printf("WARN [reward ticker]: sweep failed: %v", err)
+			return
+		}
+		if res.ExpiredPurchases > 0 || res.ExpiredLots > 0 || res.Reminders > 0 || res.Errors > 0 {
+			log.Printf("[reward ticker]: expired_purchases=%d expired_lots=%d reminders=%d errors=%d",
+				res.ExpiredPurchases, res.ExpiredLots, res.Reminders, res.Errors)
+		}
+	}
+	sweep()
+	ticker := time.NewTicker(time.Hour)
 	defer ticker.Stop()
 	for {
 		select {

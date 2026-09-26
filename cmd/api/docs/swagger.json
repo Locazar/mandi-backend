@@ -3321,7 +3321,7 @@
         },
         "/admin/departments/{department_id}": {
             "put": {
-                "description": "Accepts multipart/form-data with department_name, sort_order, is_active, and an optional photo file.",
+                "description": "Accepts multipart/form-data with department_name, sort_order, is_active, and optional photo and icon files.",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -3361,8 +3361,14 @@
                     },
                     {
                         "type": "file",
-                        "description": "Department image",
+                        "description": "Department card image",
                         "name": "photo",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "Department icon",
+                        "name": "icon",
                         "in": "formData"
                     }
                 ],
@@ -3794,6 +3800,36 @@
                 }
             }
         },
+        "/admin/items/ai-suggest-listing": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Draft a full product listing (category, title, description, highlights, attributes) from one photo",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Products"
+                ],
+                "summary": "Suggest Product Listing from Photo",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "Product photo",
+                        "name": "photo",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
         "/admin/items/shop/{shop_id}": {
             "get": {
                 "security": [
@@ -3991,37 +4027,168 @@
             }
         },
         "/admin/notifications/radius": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Raw-coordinate version of the shop-launch announcement. Targets customers whose saved address falls within radius_km of (latitude, longitude), and records an in-app copy for each.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Notification"
+                ],
+                "summary": "Push a notification to every customer within a radius of a point",
+                "operationId": "SendRadiusAnnouncement",
+                "parameters": [
+                    {
+                        "description": "Announcement",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.RadiusAnnouncement"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Announcement sent",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/notifications/shop-launch": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Pushes a \"shop is now open\" notification, with the shop's image, to every customer whose saved address is within radius_km (1-10) of the shop's pinned location, and records an in-app copy for each.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Notification"
+                ],
+                "summary": "Announce a newly opened shop to nearby customers",
+                "operationId": "SendShopLaunchAnnouncement",
+                "parameters": [
+                    {
+                        "description": "Announcement",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.ShopLaunchAnnouncement"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Announcement sent",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Shop not found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/notifications/shop-launch/audience": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
+                "description": "Resolves how many nearby customers and devices are within radius_km of the shop's pinned location. Sends nothing.",
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "Admin Notification"
                 ],
-                "summary": "api for admin to send notification to users in radius",
-                "operationId": "SendNotificationToUsersInRadius",
+                "summary": "Count the customers a shop-launch announcement would reach",
+                "operationId": "PreviewShopLaunchAudience",
                 "parameters": [
                     {
-                        "description": "inputs",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/request.NotificationRadiusRequest"
-                        }
+                        "type": "string",
+                        "description": "Shop ID",
+                        "name": "shop_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "number",
+                        "description": "Radius in km (1-10)",
+                        "name": "radius_km",
+                        "in": "query",
+                        "required": true
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Successfully sent notification to users in radius",
+                        "description": "Audience resolved",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
                     },
                     "400": {
-                        "description": "invalid input",
+                        "description": "Invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Shop not found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -4689,6 +4856,212 @@
                 ],
                 "summary": "Update the seller onboarding wizard's admin-editable text/copy",
                 "operationId": "UpdateOnboardingCopy",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/onboarding-nudges/backfill": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "For shops that went live before this feature existed and so never got an\nanchor from the approve action. Idempotent — already-anchored shops are\nskipped. All anchored shops become due for their first nudge together on\nthe next sweep tick (a synchronized burst, not a trickle) — call this\ndeliberately, not routinely.",
+                "tags": [
+                    "Notification"
+                ],
+                "summary": "Anchor every currently-active shop into the onboarding-nudge sequence",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/onboarding-nudges/run-sweep": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Same sweep cmd/onboarding-nudges runs on its Cloud Scheduler cadence —\nexposed here so an admin can trigger an out-of-band run (e.g. right after\nediting a template, or before the scheduled job is set up) without shelling\ninto anything. Synchronous: blocks until the sweep finishes.",
+                "tags": [
+                    "Notification"
+                ],
+                "summary": "Manually run one onboarding-nudge sweep right now",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/onboarding-nudges/settings": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Notification"
+                ],
+                "summary": "Get the onboarding-nudge schedule settings",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Notification"
+                ],
+                "summary": "Edit the onboarding-nudge schedule (gap hours, duration, on/off)",
+                "parameters": [
+                    {
+                        "description": "Settings",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.UpdateOnboardingNudgeSettings"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/onboarding-nudges/shop-counts": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Notification"
+                ],
+                "summary": "Per-shop onboarding-nudge delivery counts, by template type",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Comma-separated shop ids (max 500)",
+                        "name": "shop_ids",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/onboarding-nudges/stats": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Notification"
+                ],
+                "summary": "Onboarding-nudge delivery totals (all-time, today, per slot, last 7 days)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/onboarding-nudges/templates": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Notification"
+                ],
+                "summary": "List the 4 onboarding-nudge templates",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/onboarding-nudges/templates/{key}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Notification"
+                ],
+                "summary": "Edit one onboarding-nudge template's title/body/image",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Template key",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Template fields",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.UpdateOnboardingNudgeTemplate"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -5978,6 +6351,32 @@
                 }
             }
         },
+        "/admin/qr-codes": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "QR Codes"
+                ],
+                "summary": "List QR redirects (Admin)",
+                "responses": {}
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "QR Codes"
+                ],
+                "summary": "Create a dynamic QR redirect (Admin)",
+                "responses": {}
+            }
+        },
         "/admin/referrals": {
             "get": {
                 "security": [
@@ -6090,6 +6489,327 @@
                 "responses": {
                     "200": {
                         "description": "Referral deleted",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/rewards/account": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Seller Rewards"
+                ],
+                "summary": "My reward points summary (seller)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/rewards/account/ledger": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Seller Rewards"
+                ],
+                "summary": "My reward points history (seller)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/rewards/program/accounts/{account_id}/adjust": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Admin Rewards"
+                ],
+                "summary": "Manually credit/debit a reward account (Admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Reward account ID",
+                        "name": "account_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Adjustment",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.AdjustRewardAccountRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/rewards/program/config": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Admin Rewards"
+                ],
+                "summary": "Get rewards program configuration (Admin)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Admin Rewards"
+                ],
+                "summary": "Update rewards program configuration (Admin)",
+                "parameters": [
+                    {
+                        "description": "Full configuration",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/domain.RewardProgramConfig"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/rewards/program/purchases": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Admin Rewards"
+                ],
+                "summary": "List all Locazar in-store purchases (Admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Shop ID",
+                        "name": "shop_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Customer ID",
+                        "name": "customer_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "pending|claimed|rejected|expired",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/rewards/purchases": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Seller Rewards"
+                ],
+                "summary": "List Locazar purchases at my shop (seller)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "pending|claimed|rejected|expired",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/rewards/purchases/{purchase_id}/claim": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Seller Rewards"
+                ],
+                "summary": "Confirm a purchase and claim reward points (seller)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Purchase ID",
+                        "name": "purchase_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/rewards/purchases/{purchase_id}/reject": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Seller Rewards"
+                ],
+                "summary": "Reject a purchase that did not happen (seller)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Purchase ID",
+                        "name": "purchase_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Reason",
+                        "name": "input",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/request.RejectShopPurchaseRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/rewards/settings": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Seller Rewards"
+                ],
+                "summary": "Get my shop's Locazar discount setting (seller)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Seller Rewards"
+                ],
+                "summary": "Opt in/out of the Locazar discount and pick the % (seller)",
+                "parameters": [
+                    {
+                        "description": "Settings",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.UpdateShopRewardSettingsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -6542,6 +7262,118 @@
                     },
                     "500": {
                         "description": "failed to upload business document",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/shops/business-document/upload-pan-images": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Uploads the seller's PAN card front and back photos and stores the resulting URLs against the shop for admin review alongside the PAN number.",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "tags": [
+                    "Admin Shop"
+                ],
+                "summary": "Upload PAN card front/back images (seller)",
+                "operationId": "UploadPANImages",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "PAN card — front",
+                        "name": "pan_front",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "PAN card — back",
+                        "name": "pan_back",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "PAN images uploaded",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Missing or oversized file",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid token",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to upload PAN images",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/shops/business-document/verify-pan": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Format-checks a PAN number and stores it against the shop for admin review; no third-party lookup, so success just means \"accepted, pending review\" — an admin approves it manually via identity_doc_verification.",
+                "tags": [
+                    "Admin Shop"
+                ],
+                "summary": "Verify shop PAN number (seller)",
+                "operationId": "VerifyBusinessPAN",
+                "parameters": [
+                    {
+                        "description": "PAN number",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.PANVerifyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "PAN accepted, pending review",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid PAN format",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid token",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Unable to verify. Please try again.",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -8510,6 +9342,42 @@
                 "responses": {}
             }
         },
+        "/auth/guest": {
+            "post": {
+                "description": "Mints a read-only guest access token so anonymous visitors can browse without OTP/login. Reuses the standard 30-day access token with a synthetic guest_\u003cid\u003e user id.",
+                "tags": [
+                    "User Authentication"
+                ],
+                "summary": "Create a guest session (no login)",
+                "operationId": "GuestLogin",
+                "responses": {
+                    "200": {
+                        "description": "Guest session created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/response.TokenResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to create guest session",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/auth/renew-access-token": {
             "post": {
                 "security": [
@@ -10414,6 +11282,31 @@
                 }
             }
         },
+        "/languages": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Active languages for the onboarding language picker, ordered.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Languages"
+                ],
+                "summary": "List selectable languages",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/like/shop/{shop_id}": {
             "post": {
                 "security": [
@@ -10719,6 +11612,57 @@
                 }
             }
         },
+        "/notifications/broadcast": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notification"
+                ],
+                "summary": "Broadcast a push notification to a whole audience (topic)",
+                "operationId": "SendBroadcastNotification",
+                "parameters": [
+                    {
+                        "description": "Broadcast payload",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.SendBroadcastRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Broadcast sent",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/notifications/push": {
             "post": {
                 "security": [
@@ -10750,7 +11694,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Notification sent",
+                        "description": "Notification sent — response data carries {\\\"delivered\\\": bool}, true only if a device was actually reached",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -12020,6 +12964,22 @@
                 }
             }
         },
+        "/public/push/web-subscribe": {
+            "post": {
+                "tags": [
+                    "Notification"
+                ],
+                "summary": "Subscribe a website visitor's FCM token to the all_users topic",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/rating/shop/{shop_id}": {
             "post": {
                 "security": [
@@ -12254,10 +13214,11 @@
                         "BearerAuth": []
                     }
                 ],
+                "description": "Returns only the authenticated customer's review. For the\nshop-wide public list use /review/shop/{shop_id}/reviews.",
                 "tags": [
                     "User Review"
                 ],
-                "summary": "Get all shop reviews with user_id (User)",
+                "summary": "Get the logged-in customer's own review for a shop (User)",
                 "operationId": "GetUserShopReview",
                 "parameters": [
                     {
@@ -12270,7 +13231,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Successfully got shop reviews",
+                        "description": "Successfully got shop review",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -12281,8 +13242,14 @@
                             "$ref": "#/definitions/response.Response"
                         }
                     },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
                     "500": {
-                        "description": "Failed to get reviews",
+                        "description": "Failed to get review",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -12379,6 +13346,101 @@
                     },
                     "500": {
                         "description": "Failed to get reviews",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/rewards/purchases": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "User Rewards"
+                ],
+                "summary": "List my in-store purchases (customer)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "User Rewards"
+                ],
+                "summary": "Record an in-store purchase (customer)",
+                "parameters": [
+                    {
+                        "description": "Purchase",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.SubmitShopPurchaseRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/rewards/shops/{shop_id}/eligibility": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "User Rewards"
+                ],
+                "summary": "Check whether the customer can record a purchase at a shop",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Shop ID",
+                        "name": "shop_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "number",
+                        "description": "Customer latitude",
+                        "name": "lat",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "number",
+                        "description": "Customer longitude",
+                        "name": "lng",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -12523,6 +13585,57 @@
                     },
                     "400": {
                         "description": "Invalid inputs",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/shop-updates": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns enabled shop-update cards, sorted by proximity when lat/long+radius are given, else by pincode, else generic/latest. Empty data is valid.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Shop Updates"
+                ],
+                "summary": "Shop Updates for a customer (What's New nearby)",
+                "parameters": [
+                    {
+                        "type": "number",
+                        "description": "Latitude",
+                        "name": "lat",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Longitude",
+                        "name": "long",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Radius in km",
+                        "name": "radius",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Pincode (used when lat/long absent)",
+                        "name": "pincode",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -12718,10 +13831,11 @@
                         "BearerAuth": []
                     }
                 ],
+                "description": "Returns an array holding at most one entry: the feedback the\nauthenticated customer left for this shop, or an empty array if\nthey have not reviewed it. Other customers' feedback is never\nincluded — use /social/review/shop/{shop_id}/reviews for the\nshop-wide public list.",
                 "tags": [
                     "User Feedback"
                 ],
-                "summary": "Get combined feedback (rating and review) for a shop (User)",
+                "summary": "Get the logged-in customer's own feedback for a shop (User)",
                 "operationId": "GetShopFeedback",
                 "parameters": [
                     {
@@ -12736,11 +13850,32 @@
                     "200": {
                         "description": "Successfully got shop feedback",
                         "schema": {
-                            "$ref": "#/definitions/response.Response"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/response.ShopFeedback"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Invalid shop ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -13460,6 +14595,68 @@
                 }
             }
         },
+        "/taxonomy/search": {
+            "get": {
+                "description": "Searches the department → category → sub-category tree and returns one flat ranked list. Each hit carries its ancestor ids and names so a drill-down UI can jump straight to it.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Global Search"
+                ],
+                "summary": "Search categories and sub-categories with their full department path",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Search query (min 1 char)",
+                        "name": "q",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Restrict results to a single department",
+                        "name": "department_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Max results (default 20, max 50)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/response.TaxonomySearchResult"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/ui/seller": {
             "post": {
                 "security": [
@@ -13845,6 +15042,9 @@
                 "StatusOrderReturned"
             ]
         },
+        "domain.RewardProgramConfig": {
+            "type": "object"
+        },
         "domain.ShopDetails": {
             "type": "object",
             "properties": {
@@ -13917,6 +15117,12 @@
                 "owner_name": {
                     "type": "string"
                 },
+                "pan_back_image_url": {
+                    "type": "string"
+                },
+                "pan_front_image_url": {
+                    "type": "string"
+                },
                 "pan_number": {
                     "description": "encrypted at rest",
                     "type": "string"
@@ -13933,6 +15139,14 @@
                 },
                 "pincode": {
                     "type": "string"
+                },
+                "preferred_language": {
+                    "description": "PreferredLanguage is the seller's chosen onboarding language code (e.g.\n\"hi\"), captured by the feature-flagged language picker. Optional.",
+                    "type": "string"
+                },
+                "product_count": {
+                    "description": "ProductCount is a joined-in aggregate (COUNT of product_items rows for\nthis shop), not a real shop_details column — same pattern as HasOffers.\nPopulated by GetAllShops for the admin-portal shops table; zero/absent\non any query that doesn't join it in.",
+                    "type": "integer"
                 },
                 "product_limit": {
                     "description": "ProductLimit is the owning seller's admins.product_limit, joined in for\nadmin-panel display/edit; not a real shop_details column.",
@@ -14215,6 +15429,23 @@
                 },
                 "pincode": {
                     "type": "string"
+                }
+            }
+        },
+        "request.AdjustRewardAccountRequest": {
+            "type": "object",
+            "required": [
+                "delta_points",
+                "reason"
+            ],
+            "properties": {
+                "delta_points": {
+                    "type": "integer"
+                },
+                "reason": {
+                    "type": "string",
+                    "maxLength": 300,
+                    "minLength": 5
                 }
             }
         },
@@ -14769,33 +16000,6 @@
                 }
             }
         },
-        "request.NotificationRadiusRequest": {
-            "type": "object",
-            "required": [
-                "body",
-                "latitude",
-                "longitude",
-                "radius_meters",
-                "title"
-            ],
-            "properties": {
-                "body": {
-                    "type": "string"
-                },
-                "latitude": {
-                    "type": "number"
-                },
-                "longitude": {
-                    "type": "number"
-                },
-                "radius_meters": {
-                    "type": "number"
-                },
-                "title": {
-                    "type": "string"
-                }
-            }
-        },
         "request.OTPLogin": {
             "type": "object",
             "properties": {
@@ -14899,6 +16103,17 @@
                 }
             }
         },
+        "request.PANVerifyRequest": {
+            "type": "object",
+            "required": [
+                "panNumber"
+            ],
+            "properties": {
+                "panNumber": {
+                    "type": "string"
+                }
+            }
+        },
         "request.PaymentFailureRequest": {
             "type": "object",
             "properties": {
@@ -14913,12 +16128,62 @@
                 }
             }
         },
+        "request.RadiusAnnouncement": {
+            "type": "object",
+            "required": [
+                "body",
+                "latitude",
+                "longitude",
+                "radius_km",
+                "title"
+            ],
+            "properties": {
+                "body": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "minLength": 1
+                },
+                "image_url": {
+                    "description": "ImageURL is optional; a stored object key or uploads/ path is absolutised\nserver-side, since FCM silently drops an image it cannot fetch.",
+                    "type": "string"
+                },
+                "latitude": {
+                    "type": "number",
+                    "maximum": 90,
+                    "minimum": -90
+                },
+                "longitude": {
+                    "type": "number",
+                    "maximum": 180,
+                    "minimum": -180
+                },
+                "radius_km": {
+                    "type": "number",
+                    "maximum": 50,
+                    "minimum": 1
+                },
+                "title": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 1
+                }
+            }
+        },
         "request.RefreshToken": {
             "type": "object",
             "properties": {
                 "refresh_token": {
                     "type": "string",
                     "minLength": 10
+                }
+            }
+        },
+        "request.RejectShopPurchaseRequest": {
+            "type": "object",
+            "properties": {
+                "reason": {
+                    "type": "string",
+                    "maxLength": 200
                 }
             }
         },
@@ -14936,6 +16201,40 @@
                 },
                 "shop_order_id": {
                     "type": "string"
+                }
+            }
+        },
+        "request.SendBroadcastRequest": {
+            "type": "object",
+            "required": [
+                "body",
+                "title"
+            ],
+            "properties": {
+                "audience": {
+                    "description": "Audience selects the topic. Optional — defaults to \"all_users\" (all\ncustomer-app devices). Allowed: \"all_users\" | \"all_sellers\".",
+                    "type": "string",
+                    "enum": [
+                        "all_users",
+                        "all_sellers"
+                    ]
+                },
+                "body": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "minLength": 1
+                },
+                "data": {
+                    "description": "Data is an optional map of key-value pairs delivered alongside the notification.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "title": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 1
                 }
             }
         },
@@ -15001,6 +16300,40 @@
                 }
             }
         },
+        "request.ShopLaunchAnnouncement": {
+            "type": "object",
+            "required": [
+                "body",
+                "radius_km",
+                "shop_id",
+                "title"
+            ],
+            "properties": {
+                "body": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "minLength": 1
+                },
+                "image_url": {
+                    "description": "ImageURL overrides the shop's own photo. Empty means \"use the shop image\",\nwhich is the normal case.",
+                    "type": "string"
+                },
+                "radius_km": {
+                    "description": "RadiusKm is capped at 10: past that the \"shop near you\" premise stops\nbeing true and the push reads as spam.",
+                    "type": "number",
+                    "maximum": 10,
+                    "minimum": 1
+                },
+                "shop_id": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 1
+                }
+            }
+        },
         "request.ShopRatingAndReviewRequest": {
             "type": "object",
             "properties": {
@@ -15009,7 +16342,7 @@
                     "type": "string"
                 },
                 "customer_id": {
-                    "description": "Optional: customer ID",
+                    "description": "Accepted for backward compatibility but IGNORED: the customer is always taken from the auth token (see SaveShopRatingAndReview)",
                     "type": "string"
                 },
                 "rating": {
@@ -15214,6 +16547,39 @@
                 }
             }
         },
+        "request.SubmitShopPurchaseRequest": {
+            "type": "object",
+            "required": [
+                "bill_amount_paise",
+                "client_request_id",
+                "latitude",
+                "longitude",
+                "shop_id"
+            ],
+            "properties": {
+                "bill_amount_paise": {
+                    "type": "integer"
+                },
+                "client_request_id": {
+                    "type": "string",
+                    "maxLength": 64
+                },
+                "latitude": {
+                    "type": "number",
+                    "maximum": 90,
+                    "minimum": -90
+                },
+                "longitude": {
+                    "type": "number",
+                    "maximum": 180,
+                    "minimum": -180
+                },
+                "shop_id": {
+                    "type": "string",
+                    "maxLength": 32
+                }
+            }
+        },
         "request.UISellerRequest": {
             "type": "object",
             "required": [
@@ -15332,6 +16698,48 @@
                 }
             }
         },
+        "request.UpdateOnboardingNudgeSettings": {
+            "type": "object",
+            "required": [
+                "duration_days",
+                "gap_hours"
+            ],
+            "properties": {
+                "duration_days": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "gap_hours": {
+                    "type": "integer",
+                    "minimum": 1
+                }
+            }
+        },
+        "request.UpdateOnboardingNudgeTemplate": {
+            "type": "object",
+            "required": [
+                "body",
+                "title"
+            ],
+            "properties": {
+                "body": {
+                    "type": "string"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "route": {
+                    "description": "Route is optional — an empty value means the tap just opens the app.",
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
         "request.UpdateOrder": {
             "type": "object",
             "required": [
@@ -15431,6 +16839,22 @@
                 },
                 "product_offer_id": {
                     "type": "string"
+                }
+            }
+        },
+        "request.UpdateShopRewardSettingsRequest": {
+            "type": "object",
+            "required": [
+                "discount_enabled"
+            ],
+            "properties": {
+                "discount_enabled": {
+                    "type": "boolean"
+                },
+                "discount_percent": {
+                    "type": "integer",
+                    "maximum": 100,
+                    "minimum": 0
                 }
             }
         },
@@ -15982,6 +17406,32 @@
                 }
             }
         },
+        "response.ShopFeedback": {
+            "type": "object",
+            "properties": {
+                "comments": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "customer_id": {
+                    "type": "string"
+                },
+                "rating": {
+                    "type": "integer"
+                },
+                "review": {
+                    "type": "string"
+                },
+                "shop_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "response.ShopSearchItem": {
             "type": "object",
             "properties": {
@@ -16011,6 +17461,47 @@
                 },
                 "state": {
                     "type": "string"
+                }
+            }
+        },
+        "response.TaxonomySearchItem": {
+            "type": "object",
+            "properties": {
+                "category_id": {
+                    "type": "string"
+                },
+                "category_name": {
+                    "type": "string"
+                },
+                "department_id": {
+                    "type": "string"
+                },
+                "department_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "description": "\"category\" | \"subcategory\"",
+                    "type": "string"
+                }
+            }
+        },
+        "response.TaxonomySearchResult": {
+            "type": "object",
+            "properties": {
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/response.TaxonomySearchItem"
+                    }
                 }
             }
         },

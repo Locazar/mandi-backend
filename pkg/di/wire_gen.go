@@ -8,8 +8,6 @@ package di
 
 import (
 	"database/sql"
-	"time"
-
 	"github.com/rohit221990/mandi-backend/pkg/api"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler"
 	"github.com/rohit221990/mandi-backend/pkg/api/middleware"
@@ -28,6 +26,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/service/token"
 	"github.com/rohit221990/mandi-backend/pkg/usecase"
 	"gorm.io/gorm"
+	"time"
 )
 
 // Injectors from wire.go:
@@ -99,11 +98,6 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	notificationRepository := repository.NewNotificationRepository(gormDB)
 	notificationUseCase := usecase.NewNotificationUseCase(notificationRepository, cfg, cloudService)
 	notificationHandler := handler.NewNotificationHandler(notificationUseCase)
-	onboardingNudgeUseCase := usecase.NewOnboardingNudgeUseCase(onboardingNudgeRepository, notificationUseCase)
-	onboardingNudgeHandler := handler.NewOnboardingNudgeHandler(onboardingNudgeUseCase)
-	customerNudgeRepository := repository.NewCustomerNudgeRepository(gormDB)
-	customerNudgeUseCase := usecase.NewCustomerNudgeUseCase(customerNudgeRepository, notificationUseCase)
-	customerNudgeHandler := handler.NewCustomerNudgeHandler(customerNudgeUseCase)
 	promotionRepository := repository.NewPromotionRepository(gormDB)
 	promotionUseCase := usecase.NewPromotionUseCase(promotionRepository)
 	promotionHandler := handler.NewPromotionHandler(promotionUseCase)
@@ -138,15 +132,6 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	platformUserRepository := repository.NewPlatformUserRepository(gormDB)
 	platformUserUseCase := usecase.NewPlatformUserUseCase(platformUserRepository, adminUseCase)
 	platformUserHandler := handler.NewPlatformUserHandler(platformUserUseCase, adminUseCase)
-	shopUpdateRepository := repository.NewShopUpdateRepository(gormDB)
-	shopUpdateUseCase := usecase.NewShopUpdateUseCase(shopUpdateRepository)
-	shopUpdateHandler := handler.NewShopUpdateHandler(shopUpdateUseCase, cloudService)
-	languageRepository := repository.NewLanguageRepository(gormDB)
-	languageUseCase := usecase.NewLanguageUseCase(languageRepository)
-	languageHandler := handler.NewLanguageHandler(languageUseCase)
-	qrCodeRepository := repository.NewQRCodeRepository(gormDB)
-	qrCodeUseCase := usecase.NewQRCodeUseCase(qrCodeRepository)
-	qrCodeHandler := handler.NewQRCodeHandler(qrCodeUseCase, cfg.PublicBaseURL, cfg.QRRedirectBaseURL)
 	sqlDB, err := provideSQLDB(gormDB)
 	if err != nil {
 		return nil, err
@@ -156,7 +141,24 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	handlerHandler := handler.NewHandler(mobileAuthUseCase)
 	aiHandler := handler.NewAIHandler(client)
 	invoiceHandler := handler.NewInvoiceHandler(invoiceUseCase)
-	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler, jobHandler, jobCategoryHandler, platformUserHandler, handlerHandler, aiHandler, invoiceHandler, shopUpdateHandler, languageHandler, qrCodeHandler, onboardingNudgeHandler, customerNudgeHandler)
+	shopUpdateRepository := repository.NewShopUpdateRepository(gormDB)
+	shopUpdateUseCase := usecase.NewShopUpdateUseCase(shopUpdateRepository)
+	shopUpdateHandler := handler.NewShopUpdateHandler(shopUpdateUseCase, cloudService)
+	languageRepository := repository.NewLanguageRepository(gormDB)
+	languageUseCase := usecase.NewLanguageUseCase(languageRepository)
+	languageHandler := handler.NewLanguageHandler(languageUseCase)
+	qrCodeRepository := repository.NewQRCodeRepository(gormDB)
+	qrCodeUseCase := usecase.NewQRCodeUseCase(qrCodeRepository)
+	qrCodeHandler := provideQRCodeHandler(qrCodeUseCase, cfg)
+	onboardingNudgeUseCase := usecase.NewOnboardingNudgeUseCase(onboardingNudgeRepository, notificationUseCase)
+	onboardingNudgeHandler := handler.NewOnboardingNudgeHandler(onboardingNudgeUseCase)
+	customerNudgeRepository := repository.NewCustomerNudgeRepository(gormDB)
+	customerNudgeUseCase := usecase.NewCustomerNudgeUseCase(customerNudgeRepository, notificationUseCase)
+	customerNudgeHandler := handler.NewCustomerNudgeHandler(customerNudgeUseCase)
+	rewardRepository := repository.NewRewardRepository(gormDB)
+	rewardUseCase := usecase.NewRewardUseCase(rewardRepository, notificationUseCase)
+	rewardHandler := handler.NewRewardHandler(rewardUseCase)
+	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler, jobHandler, jobCategoryHandler, platformUserHandler, handlerHandler, aiHandler, invoiceHandler, shopUpdateHandler, languageHandler, qrCodeHandler, onboardingNudgeHandler, customerNudgeHandler, rewardHandler)
 	return serverHTTP, nil
 }
 
@@ -166,14 +168,15 @@ func provideElasticURL(cfg config.Config) string {
 	return cfg.ElasticsearchURL
 }
 
-func provideSQLDB(gormDB *gorm.DB) (*sql.DB, error) {
-	return gormDB.DB()
+// provideQRCodeHandler wires the QR handler with the public origin from config.
+// A dedicated provider (vs. a bare string) avoids ambiguity with other
+// string-returning providers in the graph.
+func provideQRCodeHandler(uc *usecase.QRCodeUseCase, cfg config.Config) *handler.QRCodeHandler {
+	return handler.NewQRCodeHandler(uc, cfg.PublicBaseURL, cfg.QRRedirectBaseURL)
 }
 
-// provideMobileOTPService builds the OTP service with the configured validity
-// window (OTP_EXPIRY_SECONDS), falling back to the package default when unset.
-func provideMobileOTPService(cfg config.Config) *otp.MobileOTPService {
-	return otp.NewMobileOTPService(time.Duration(cfg.OTPExpirySeconds) * time.Second)
+func provideSQLDB(gormDB *gorm.DB) (*sql.DB, error) {
+	return gormDB.DB()
 }
 
 func provideTwoFactorSMSService(cfg config.Config) *sms.TwoFactorSMSService {
@@ -198,6 +201,12 @@ func provideCryptoService(cfg config.Config) (*crypto.Service, error) {
 // respectively. Both read the same cfg.SkipOTPValidation value; this is not a
 // behaviour change, only a name Wire's provider graph can attach to. Wire
 // treats a trailing `...bool` parameter as requiring a []bool provider.
+// provideMobileOTPService builds the OTP service with the configured validity
+// window (OTP_EXPIRY_SECONDS), falling back to the package default when unset.
+func provideMobileOTPService(cfg config.Config) *otp.MobileOTPService {
+	return otp.NewMobileOTPService(time.Duration(cfg.OTPExpirySeconds) * time.Second)
+}
+
 func provideSkipOTPValidation(cfg config.Config) bool {
 	return cfg.SkipOTPValidation
 }

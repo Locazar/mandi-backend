@@ -154,6 +154,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		repository.NewQRCodeRepository,
 		repository.NewOnboardingNudgeRepository,
 		repository.NewCustomerNudgeRepository,
+		repository.NewRewardRepository,
 
 		//usecase — constructors that return interface directly need no Bind;
 		//          constructors that return *concrete need Bind
@@ -186,6 +187,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		usecase.NewQRCodeUseCase,
 		usecase.NewOnboardingNudgeUseCase,
 		usecase.NewCustomerNudgeUseCase,
+		usecase.NewRewardUseCase,
 
 		// handler
 		handler.NewAuthHandler,
@@ -229,11 +231,11 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		handler.NewShopUpdateHandler,
 		handler.NewLanguageHandler,
 		provideQRCodeHandler,
+		handler.NewRewardHandler,
 
 		// mobile OTP auth (seller signup)
 		provideSQLDB,
 		provideTwoFactorSMSService,
-		otp.NewMobileOTPService,
 		repository.NewMobileAuthRepository,
 		usecase.NewMobileAuthUseCase,
 		handler.NewHandler,

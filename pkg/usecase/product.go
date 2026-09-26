@@ -16,6 +16,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
+	aiclient "github.com/rohit221990/mandi-backend/pkg/service/ai"
 	"github.com/rohit221990/mandi-backend/pkg/service/cloud"
 	notificationSvc "github.com/rohit221990/mandi-backend/pkg/service/notification"
 	service "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
@@ -1393,6 +1394,14 @@ func (c *productUseCase) GetAllSubCategoriesByCategoryID(ctx context.Context, ca
 		return nil, utils.PrependMessageToError(err, "failed to get sub-categories by category id")
 	}
 	return subCategories, nil
+}
+
+func (c *productUseCase) GetCategoryTaxonomyTree(ctx context.Context) ([]aiclient.TaxonomyDepartment, error) {
+	tree, err := c.productRepo.GetCategoryTaxonomyTree(ctx)
+	if err != nil {
+		return nil, utils.PrependMessageToError(err, "failed to get category taxonomy tree")
+	}
+	return tree, nil
 }
 
 // SaveSubTypeAttribute saves a new sub type attribute
