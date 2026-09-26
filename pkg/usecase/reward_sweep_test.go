@@ -38,6 +38,7 @@ func TestRunSweep(t *testing.T) {
 	assert.Equal(t, fxAdminID, pusher.sent[0].OwnerID, "shop reminders go to the shop's seller")
 	assert.Equal(t, "reward_points_expiring", pusher.sent[0].EventType)
 	assert.Equal(t, "25", pusher.sent[0].Data["points"])
+	assert.Equal(t, "/rewards", pusher.sent[0].Data["action_url"], "seller reminder opens the Rewards page")
 
 	res, err = uc.RunSweep(ctx)
 	require.NoError(t, err)

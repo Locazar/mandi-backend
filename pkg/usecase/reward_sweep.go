@@ -108,6 +108,7 @@ func (u *RewardUseCase) remindExpiring(ctx context.Context, accountID string, lo
 			return err
 		}
 		req.OwnerID, req.OwnerType = shop.AdminID, "seller"
+		req.Data["action_url"] = "/rewards"
 	default:
 		req.OwnerID, req.OwnerType = acct.OwnerID, "user"
 	}

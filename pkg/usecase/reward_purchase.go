@@ -226,6 +226,9 @@ func (u *RewardUseCase) notifySellerOfPurchase(ctx context.Context, pc purchaseC
 		"net_paid_paise":    strconv.FormatInt(p.NetPaidPaise, 10),
 		"customer_name":     name,
 		"visit_count":       strconv.FormatInt(visits, 10),
+		// Seller app route (notificationAllowedRoutes); FCMService mirrors it
+		// into route/deep_link/actionUrl.
+		"action_url": "/rewards-purchases",
 	}
 	if last != nil {
 		data["last_purchase_paise"] = strconv.FormatInt(last.BillAmountPaise, 10)
