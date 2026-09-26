@@ -14,7 +14,29 @@ import (
 
 const minAdjustReasonLen = 5
 
-func (u *RewardUseCase) GetProgramConfig(ctx context.Context) (domain.RewardProgramConfig, error) {
+// requirePlatformAdmin guards the program-wide admin operations. The route's
+// RequirePermission middleware lets blank-role accounts through, and every
+// seller account is blank-role or "seller", so the rewards slice rejects
+// both here. Other roles pass; the middleware still enforces the specific
+// permission.
+func (u *RewardUseCase) requirePlatformAdmin(ctx context.Context, adminID string) error {
+	role, err := u.repo.GetAdminRole(ctx, adminID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrRewardAdminOnly
+		}
+		return err
+	}
+	if role == "" || role == domain.AdminRoleSeller {
+		return ErrRewardAdminOnly
+	}
+	return nil
+}
+
+func (u *RewardUseCase) GetProgramConfig(ctx context.Context, adminID string) (domain.RewardProgramConfig, error) {
+	if err := u.requirePlatformAdmin(ctx, adminID); err != nil {
+		return domain.RewardProgramConfig{}, err
+	}
 	return u.repo.GetConfig(ctx)
 }
 
@@ -71,6 +93,9 @@ func validateRewardConfig(c *domain.RewardProgramConfig) error {
 }
 
 func (u *RewardUseCase) UpdateProgramConfig(ctx context.Context, adminID string, cfg domain.RewardProgramConfig) (domain.RewardProgramConfig, error) {
+	if err := u.requirePlatformAdmin(ctx, adminID); err != nil {
+		return domain.RewardProgramConfig{}, err
+	}
 	if err := validateRewardConfig(&cfg); err != nil {
 		return domain.RewardProgramConfig{}, err
 	}
@@ -82,6 +107,9 @@ func (u *RewardUseCase) UpdateProgramConfig(ctx context.Context, adminID string,
 // AdjustAccount is a support tool: a signed manual correction with a reason,
 // recorded in the ledger under the acting admin's id.
 func (u *RewardUseCase) AdjustAccount(ctx context.Context, adminID, accountID string, delta int64, reason string) (domain.RewardAccount, error) {
+	if err := u.requirePlatformAdmin(ctx, adminID); err != nil {
+		return domain.RewardAccount{}, err
+	}
 	reason = strings.TrimSpace(reason)
 	if delta == 0 || len(reason) < minAdjustReasonLen {
 		return domain.RewardAccount{}, ErrInvalidAdjustment

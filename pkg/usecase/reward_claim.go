@@ -156,7 +156,18 @@ func (u *RewardUseCase) ListSellerPurchases(ctx context.Context, sellerAdminID s
 	if err != nil {
 		return nil, err
 	}
-	return u.repo.ListPurchases(ctx, domain.ShopPurchaseFilter{ShopID: shop.ID, Status: status}, p)
+	views, err := u.repo.ListPurchases(ctx, domain.ShopPurchaseFilter{ShopID: shop.ID, Status: status}, p)
+	if err != nil {
+		return nil, err
+	}
+	// The seller sees the customer only in masked form, as in the purchase push.
+	for i := range views {
+		first, rest, _ := strings.Cut(strings.TrimSpace(views[i].CustomerName), " ")
+		views[i].CustomerName = maskedCustomerName(first, rest)
+		views[i].CustomerPhoneLast4 = ""
+		views[i].CustomerID = ""
+	}
+	return views, nil
 }
 
 func (u *RewardUseCase) ListCustomerPurchases(ctx context.Context, customerID string, p request.Pagination) ([]domain.ShopPurchaseView, error) {
@@ -169,6 +180,9 @@ func (u *RewardUseCase) ListCustomerPurchases(ctx context.Context, customerID st
 	return u.repo.ListPurchases(ctx, domain.ShopPurchaseFilter{CustomerID: customerID}, p)
 }
 
-func (u *RewardUseCase) ListAllPurchases(ctx context.Context, f domain.ShopPurchaseFilter, p request.Pagination) ([]domain.ShopPurchaseView, error) {
+func (u *RewardUseCase) ListAllPurchases(ctx context.Context, adminID string, f domain.ShopPurchaseFilter, p request.Pagination) ([]domain.ShopPurchaseView, error) {
+	if err := u.requirePlatformAdmin(ctx, adminID); err != nil {
+		return nil, err
+	}
 	return u.repo.ListPurchases(ctx, f, p)
 }

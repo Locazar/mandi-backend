@@ -81,6 +81,18 @@ func (r *rewardDatabase) scanShop(ctx context.Context, where string, arg string)
 	return shop, nil
 }
 
+func (r *rewardDatabase) GetAdminRole(ctx context.Context, adminID string) (domain.AdminRole, error) {
+	var role string
+	res := r.db.WithContext(ctx).Raw(`SELECT COALESCE(role, '') FROM admins WHERE id = ?`, adminID).Scan(&role)
+	if res.Error != nil {
+		return "", res.Error
+	}
+	if res.RowsAffected == 0 {
+		return "", gorm.ErrRecordNotFound
+	}
+	return domain.AdminRole(role), nil
+}
+
 func (r *rewardDatabase) GetShop(ctx context.Context, shopID string) (domain.RewardShop, error) {
 	return r.scanShop(ctx, "s.id = ?", shopID)
 }
@@ -205,7 +217,7 @@ func (r *rewardDatabase) SumExpiringPoints(ctx context.Context, accountID string
 		Earliest *time.Time
 	}
 	err := r.db.WithContext(ctx).Raw(`
-		SELECT COALESCE(SUM(remaining_points), 0) AS total, MIN(expires_at) AS earliest
+		SELECT COALESCE(SUM(remaining_points), 0)::bigint AS total, MIN(expires_at) AS earliest
 		FROM reward_ledger_entries
 		WHERE account_id = ? AND remaining_points > 0 AND expires_at IS NOT NULL AND expires_at <= ?`,
 		accountID, before).Scan(&row).Error
@@ -359,7 +371,8 @@ func (r *rewardDatabase) ListPurchases(ctx context.Context, f domain.ShopPurchas
 		       RIGHT(COALESCE(u.phone, ''), 4) AS customer_phone_last4,
 		       COALESCE(s.shop_name, '') AS shop_name,
 		       (SELECT COUNT(*) FROM shop_purchases c
-		         WHERE c.shop_id = p.shop_id AND c.customer_id = p.customer_id AND c.status = 'claimed') AS visit_count,
+		         WHERE c.shop_id = p.shop_id AND c.customer_id = p.customer_id AND c.status = 'claimed'
+		           AND c.id <> p.id) AS visit_count,
 		       prev.bill_amount_paise AS prev_bill_amount_paise,
 		       prev.created_at AS prev_purchase_at
 		FROM shop_purchases p

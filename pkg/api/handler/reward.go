@@ -234,7 +234,7 @@ func (h *RewardHandler) ListSellerLedger(ctx *gin.Context) {
 //	@Router		/admin/rewards/program/config [get]
 //	@Success	200	{object}	response.Response{}
 func (h *RewardHandler) GetProgramConfig(ctx *gin.Context) {
-	cfg, err := h.uc.GetProgramConfig(ctx)
+	cfg, err := h.uc.GetProgramConfig(ctx, utils.GetUserIdFromContext(ctx))
 	if err != nil {
 		errResponse(ctx, "Failed to load rewards configuration", err)
 		return
@@ -275,7 +275,7 @@ func (h *RewardHandler) UpdateProgramConfig(ctx *gin.Context) {
 //	@Router		/admin/rewards/program/purchases [get]
 //	@Success	200	{object}	response.Response{}
 func (h *RewardHandler) ListAllPurchases(ctx *gin.Context) {
-	views, err := h.uc.ListAllPurchases(ctx, domain.ShopPurchaseFilter{
+	views, err := h.uc.ListAllPurchases(ctx, utils.GetUserIdFromContext(ctx), domain.ShopPurchaseFilter{
 		ShopID: ctx.Query("shop_id"), CustomerID: ctx.Query("customer_id"),
 		Status: domain.ShopPurchaseStatus(ctx.Query("status")),
 	}, request.GetPagination(ctx))

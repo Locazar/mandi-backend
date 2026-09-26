@@ -32,6 +32,7 @@ func TestRewardSentinelStatuses(t *testing.T) {
 		usecase.ErrInvalidRewardConfig:    http.StatusBadRequest,
 		usecase.ErrInvalidAdjustment:      http.StatusBadRequest,
 		usecase.ErrRewardAccountNotFound:  http.StatusNotFound,
+		usecase.ErrRewardAdminOnly:        http.StatusForbidden,
 	}
 	for err, code := range want {
 		assert.Equal(t, code, sentinelStatus[err], err.Error())

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -27,8 +28,10 @@ type fakeRewardRepo struct {
 	accounts  map[string]*domain.RewardAccount
 	ledger    []*domain.RewardLedgerEntry
 	purchases map[string]*domain.ShopPurchase
-	seq       int
-	pairLocks int
+	// adminRoles backs GetAdminRole; admins absent from it are "not found".
+	adminRoles map[string]domain.AdminRole
+	seq        int
+	pairLocks  int
 	// calls records the order repository methods were invoked in, for tests
 	// that assert on lock-before-read ordering (e.g. LockAccount must precede
 	// CountClaimedSince in ClaimPurchase).
@@ -50,12 +53,13 @@ func defaultRewardConfig() domain.RewardProgramConfig {
 
 func newFakeRewardRepo() *fakeRewardRepo {
 	return &fakeRewardRepo{
-		cfg:       defaultRewardConfig(),
-		shops:     map[string]domain.RewardShop{},
-		customers: map[string]domain.RewardCustomer{},
-		settings:  map[string]domain.ShopRewardSettings{},
-		accounts:  map[string]*domain.RewardAccount{},
-		purchases: map[string]*domain.ShopPurchase{},
+		cfg:        defaultRewardConfig(),
+		shops:      map[string]domain.RewardShop{},
+		customers:  map[string]domain.RewardCustomer{},
+		settings:   map[string]domain.ShopRewardSettings{},
+		accounts:   map[string]*domain.RewardAccount{},
+		purchases:  map[string]*domain.ShopPurchase{},
+		adminRoles: map[string]domain.AdminRole{},
 	}
 }
 
@@ -121,6 +125,13 @@ func (f *fakeRewardRepo) UpdateConfig(_ context.Context, c domain.RewardProgramC
 	c.ID = domain.RewardProgramConfigID
 	f.cfg = c
 	return c, nil
+}
+func (f *fakeRewardRepo) GetAdminRole(_ context.Context, adminID string) (domain.AdminRole, error) {
+	role, ok := f.adminRoles[adminID]
+	if !ok {
+		return "", gorm.ErrRecordNotFound
+	}
+	return role, nil
 }
 func (f *fakeRewardRepo) GetShop(_ context.Context, id string) (domain.RewardShop, error) {
 	s, ok := f.shops[id]
@@ -390,7 +401,14 @@ func (f *fakeRewardRepo) ListPurchases(_ context.Context, flt domain.ShopPurchas
 	out := []domain.ShopPurchaseView{}
 	for _, p := range f.purchases {
 		if (flt.ShopID == "" || p.ShopID == flt.ShopID) && (flt.CustomerID == "" || p.CustomerID == flt.CustomerID) && (flt.Status == "" || p.Status == flt.Status) {
-			out = append(out, domain.ShopPurchaseView{ShopPurchase: *p})
+			v := domain.ShopPurchaseView{ShopPurchase: *p}
+			if c, ok := f.customers[p.CustomerID]; ok {
+				v.CustomerName = strings.TrimSpace(c.FirstName + " " + c.LastName)
+				if len(c.Phone) >= 4 {
+					v.CustomerPhoneLast4 = c.Phone[len(c.Phone)-4:]
+				}
+			}
+			out = append(out, v)
 		}
 	}
 	return out, nil

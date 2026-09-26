@@ -18,6 +18,9 @@ type RewardRepository interface {
 	GetConfig(ctx context.Context) (domain.RewardProgramConfig, error)
 	UpdateConfig(ctx context.Context, cfg domain.RewardProgramConfig) (domain.RewardProgramConfig, error)
 
+	// GetAdminRole returns admins.role ('' when NULL); gorm.ErrRecordNotFound
+	// when there is no such admin.
+	GetAdminRole(ctx context.Context, adminID string) (domain.AdminRole, error)
 	GetShop(ctx context.Context, shopID string) (domain.RewardShop, error)
 	GetShopByAdminID(ctx context.Context, adminID string) (domain.RewardShop, error)
 	GetCustomer(ctx context.Context, userID string) (domain.RewardCustomer, error)

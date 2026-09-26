@@ -27,7 +27,7 @@ func TestUpdateProgramConfig_Validation(t *testing.T) {
 	}
 	for name, mutate := range tests {
 		t.Run(name, func(t *testing.T) {
-			f := newFakeRewardRepo()
+			f := newFakeRewardRepo().withAdminRoles()
 			uc, _ := newTestRewardUseCase(f, fxNow)
 			cfg := defaultRewardConfig()
 			mutate(&cfg)
@@ -38,7 +38,7 @@ func TestUpdateProgramConfig_Validation(t *testing.T) {
 }
 
 func TestUpdateProgramConfig_SavesAndStampsEditor(t *testing.T) {
-	f := newFakeRewardRepo()
+	f := newFakeRewardRepo().withAdminRoles()
 	uc, _ := newTestRewardUseCase(f, fxNow)
 	cfg := defaultRewardConfig()
 	cfg.GPSRadiusM = 300
@@ -51,7 +51,7 @@ func TestUpdateProgramConfig_SavesAndStampsEditor(t *testing.T) {
 }
 
 func TestAdjustAccount(t *testing.T) {
-	f := newFakeRewardRepo().withOptedInShop(10)
+	f := newFakeRewardRepo().withOptedInShop(10).withAdminRoles()
 	uc, _ := newTestRewardUseCase(f, fxNow)
 	acct, _ := f.GetOrCreateAccount(context.Background(), domain.RewardOwnerShop, fxShopID)
 

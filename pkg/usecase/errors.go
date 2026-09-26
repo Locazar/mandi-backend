@@ -133,4 +133,5 @@ var (
 	ErrInvalidRewardConfig    = errors.New("invalid rewards configuration")
 	ErrInvalidAdjustment      = errors.New("invalid points adjustment")
 	ErrRewardAccountNotFound  = errors.New("reward account not found")
+	ErrRewardAdminOnly        = errors.New("only Locazar platform admins can manage the rewards program")
 )

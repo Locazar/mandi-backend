@@ -100,6 +100,7 @@ var sentinelStatus = map[error]int{
 	usecase.ErrInvalidRewardConfig:    http.StatusBadRequest,
 	usecase.ErrInvalidAdjustment:      http.StatusBadRequest,
 	usecase.ErrRewardAccountNotFound:  http.StatusNotFound,
+	usecase.ErrRewardAdminOnly:        http.StatusForbidden,
 }
 
 // errResponse writes a structured error response for usecase errors.
