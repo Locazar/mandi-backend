@@ -105,6 +105,10 @@ const (
 	PrefixLanguage            IDPrefix = "lang"
 	PrefixQRCode              IDPrefix = "qr"
 	PrefixQRScanEvent         IDPrefix = "qrsc"
+	PrefixRewardAccount       IDPrefix = "rwa"
+	PrefixRewardLedger        IDPrefix = "rwl"
+	PrefixShopPurchase        IDPrefix = "spur"
+	PrefixRewardAdjust        IDPrefix = "rwadj"
 )
 
 // allPrefixes is the authoritative registry of every entity prefix. Used by
@@ -131,6 +135,7 @@ var allPrefixes = []IDPrefix{
 	PrefixCategoryRequest, PrefixInvoice, PrefixCompanyProfile,
 	PrefixShopUpdate, PrefixShopUpdateProduct,
 	PrefixLanguage, PrefixQRCode, PrefixQRScanEvent,
+	PrefixRewardAccount, PrefixRewardLedger, PrefixShopPurchase, PrefixRewardAdjust,
 }
 
 // NewID returns a fresh typed-prefix identifier, e.g. "usr_x7k2q9m4p3...".
