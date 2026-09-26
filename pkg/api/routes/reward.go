@@ -37,5 +37,6 @@ func RewardRoutes(api *gin.RouterGroup, mw middleware.Middleware, adminHandler h
 		program.PUT("/config", h.UpdateProgramConfig)
 		program.GET("/purchases", h.ListAllPurchases)
 		program.POST("/accounts/:account_id/adjust", h.AdjustAccount)
+		program.GET("/shops/:shop_id/account", h.GetShopAccount)
 	}
 }

@@ -506,7 +506,12 @@ definitions:
     type: object
   request.AdjustRewardAccountRequest:
     properties:
+      client_request_id:
+        maxLength: 40
+        type: string
       delta_points:
+        maximum: 100000
+        minimum: -100000
         type: integer
       reason:
         maxLength: 300
@@ -6201,6 +6206,24 @@ paths:
       security:
       - BearerAuth: []
       summary: List all Locazar in-store purchases (Admin)
+      tags:
+      - Admin Rewards
+  /admin/rewards/program/shops/{shop_id}/account:
+    get:
+      parameters:
+      - description: Shop ID
+        in: path
+        name: shop_id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Look up a shop's reward points account (Admin)
       tags:
       - Admin Rewards
   /admin/rewards/purchases:

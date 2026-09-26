@@ -301,10 +301,27 @@ func (h *RewardHandler) AdjustAccount(ctx *gin.Context) {
 		response.ErrorResponse(ctx, http.StatusBadRequest, BindJsonFailMessage, err, nil)
 		return
 	}
-	acct, err := h.uc.AdjustAccount(ctx, utils.GetUserIdFromContext(ctx), ctx.Param("account_id"), body.DeltaPoints, body.Reason)
+	acct, err := h.uc.AdjustAccount(ctx, utils.GetUserIdFromContext(ctx), ctx.Param("account_id"), body.DeltaPoints, body.Reason, body.ClientRequestID)
 	if err != nil {
 		errResponse(ctx, "Failed to adjust reward points", err)
 		return
 	}
 	response.SuccessResponse(ctx, http.StatusOK, "Successfully adjusted reward points", acct)
+}
+
+// GetShopAccount godoc
+//
+//	@Summary	Look up a shop's reward points account (Admin)
+//	@Security	BearerAuth
+//	@Tags		Admin Rewards
+//	@Param		shop_id	path	string	true	"Shop ID"
+//	@Router		/admin/rewards/program/shops/{shop_id}/account [get]
+//	@Success	200	{object}	response.Response{}
+func (h *RewardHandler) GetShopAccount(ctx *gin.Context) {
+	res, err := h.uc.GetShopAccountForAdmin(ctx, utils.GetUserIdFromContext(ctx), ctx.Param("shop_id"))
+	if err != nil {
+		errResponse(ctx, "Failed to load shop reward points", err)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Successfully loaded shop reward points", res)
 }
