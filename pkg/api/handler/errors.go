@@ -80,6 +80,26 @@ var sentinelStatus = map[error]int{
 	// invoice
 	usecase.ErrInvoiceNotFound: http.StatusNotFound,
 	usecase.ErrInvoiceNotOwned: http.StatusForbidden,
+	// rewards
+	usecase.ErrRewardProgramDisabled:  http.StatusServiceUnavailable,
+	usecase.ErrRewardCustomerOnly:     http.StatusForbidden,
+	usecase.ErrRewardShopNotFound:     http.StatusNotFound,
+	usecase.ErrShopNotOptedIn:         http.StatusUnprocessableEntity,
+	usecase.ErrShopLocationMissing:    http.StatusUnprocessableEntity,
+	usecase.ErrTooFarFromShop:         http.StatusUnprocessableEntity,
+	usecase.ErrSelfPurchase:           http.StatusForbidden,
+	usecase.ErrRepeatPurchaseWindow:   http.StatusConflict,
+	usecase.ErrShopDailyCapReached:    http.StatusTooManyRequests,
+	usecase.ErrBelowMinBill:           http.StatusUnprocessableEntity,
+	usecase.ErrInvalidBillAmount:      http.StatusBadRequest,
+	usecase.ErrInvalidLocation:        http.StatusBadRequest,
+	usecase.ErrPurchaseNotFound:       http.StatusNotFound,
+	usecase.ErrPurchaseNotPending:     http.StatusConflict,
+	usecase.ErrInsufficientPoints:     http.StatusUnprocessableEntity,
+	usecase.ErrInvalidDiscountPercent: http.StatusBadRequest,
+	usecase.ErrInvalidRewardConfig:    http.StatusBadRequest,
+	usecase.ErrInvalidAdjustment:      http.StatusBadRequest,
+	usecase.ErrRewardAccountNotFound:  http.StatusNotFound,
 }
 
 // errResponse writes a structured error response for usecase errors.
