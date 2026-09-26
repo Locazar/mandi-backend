@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
@@ -12,7 +13,11 @@ import (
 	"gorm.io/gorm"
 )
 
-const maxRejectReasonLen = 200
+// maxRejectReasonChars is the maximum number of characters (runes, not
+// bytes) kept from a seller's reject reason. Truncation must slice on rune
+// boundaries — a byte-slice cut can land inside a multi-byte UTF-8 rune and
+// produce a string Postgres refuses to store.
+const maxRejectReasonChars = 200
 
 // sellerShop resolves the seller's own shop, mapping "no shop" to ErrShopNotFound.
 func (u *RewardUseCase) sellerShop(ctx context.Context, adminID string) (domain.RewardShop, error) {
@@ -60,6 +65,21 @@ func (u *RewardUseCase) ClaimPurchase(ctx context.Context, sellerAdminID, purcha
 		if !cfg.ProgramEnabled {
 			return ErrRewardProgramDisabled
 		}
+		acct, err := r.GetOrCreateAccount(ctx, domain.RewardOwnerShop, shop.ID)
+		if err != nil {
+			return err
+		}
+		// Lock the shop's account row before counting today's claims. Without
+		// this, two devices claiming DIFFERENT pending purchases of the same
+		// shop concurrently could both read the same pre-cap count and both
+		// pass — the account lock inside credit() only serialises them after
+		// the count has already been read. Locking here first makes this
+		// claim's count-then-credit atomic with respect to any other claim on
+		// the same shop; credit()'s own LockAccount below is a harmless
+		// re-lock in the same transaction.
+		if _, err := r.LockAccount(ctx, acct.ID); err != nil {
+			return err
+		}
 		if cfg.MaxClaimsPerShopPerDay > 0 {
 			n, err := r.CountClaimedSince(ctx, shop.ID, rewardDayStart(now))
 			if err != nil {
@@ -68,10 +88,6 @@ func (u *RewardUseCase) ClaimPurchase(ctx context.Context, sellerAdminID, purcha
 			if n >= int64(cfg.MaxClaimsPerShopPerDay) {
 				return ErrShopDailyCapReached
 			}
-		}
-		acct, err := r.GetOrCreateAccount(ctx, domain.RewardOwnerShop, shop.ID)
-		if err != nil {
-			return err
 		}
 		points := CalculatePoints(cfg.SellerFormula(), p.NetPaidPaise)
 		expires := now.AddDate(0, cfg.PointsExpiryMonths, 0)
@@ -101,8 +117,8 @@ func (u *RewardUseCase) RejectPurchase(ctx context.Context, sellerAdminID, purch
 		return domain.ShopPurchase{}, err
 	}
 	reason = strings.TrimSpace(reason)
-	if len(reason) > maxRejectReasonLen {
-		reason = reason[:maxRejectReasonLen]
+	if utf8.RuneCountInString(reason) > maxRejectReasonChars {
+		reason = string([]rune(reason)[:maxRejectReasonChars])
 	}
 	now := u.now()
 	var p domain.ShopPurchase

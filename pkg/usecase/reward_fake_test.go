@@ -29,6 +29,10 @@ type fakeRewardRepo struct {
 	purchases map[string]*domain.ShopPurchase
 	seq       int
 	pairLocks int
+	// calls records the order repository methods were invoked in, for tests
+	// that assert on lock-before-read ordering (e.g. LockAccount must precede
+	// CountClaimedSince in ClaimPurchase).
+	calls []string
 }
 
 func defaultRewardConfig() domain.RewardProgramConfig {
@@ -167,6 +171,7 @@ func (f *fakeRewardRepo) GetAccountByID(_ context.Context, id string) (domain.Re
 	return *a, nil
 }
 func (f *fakeRewardRepo) LockAccount(ctx context.Context, id string) (domain.RewardAccount, error) {
+	f.calls = append(f.calls, "LockAccount")
 	return f.GetAccountByID(ctx, id)
 }
 func (f *fakeRewardRepo) AdjustAccountBalance(_ context.Context, id string, delta, earned, spent int64) error {
@@ -327,6 +332,7 @@ func (f *fakeRewardRepo) CountOpenOrClaimedCreatedSince(_ context.Context, shopI
 	return n, nil
 }
 func (f *fakeRewardRepo) CountClaimedSince(_ context.Context, shopID string, since time.Time) (int64, error) {
+	f.calls = append(f.calls, "CountClaimedSince")
 	var n int64
 	for _, p := range f.purchases {
 		if p.ShopID == shopID && p.Status == domain.ShopPurchaseClaimed && p.ClaimedAt != nil && !p.ClaimedAt.Before(since) {

@@ -2,8 +2,10 @@ package usecase
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
@@ -50,32 +52,39 @@ func TestClaimPurchase_Rejections(t *testing.T) {
 	tests := map[string]struct {
 		arrange func(f *fakeRewardRepo, p *domain.ShopPurchase) (adminID, purchaseID string)
 		want    error
+		// accountMayExist is true for rows where the shop's reward account is
+		// legitimately created (and locked) before the failing check runs —
+		// e.g. the daily cap is now counted under the account lock, so
+		// GetOrCreateAccount has already run by the time the cap rejects the
+		// claim. Those rows assert "no points were credited" instead of "no
+		// account was created".
+		accountMayExist bool
 	}{
 		"another seller's purchase": {func(f *fakeRewardRepo, p *domain.ShopPurchase) (string, string) {
 			f.shops["shp_2"] = domain.RewardShop{ID: "shp_2", AdminID: "adm_2", ShopStatus: domain.ShopStatusActive}
 			return "adm_2", p.ID
-		}, ErrPurchaseNotFound},
-		"unknown purchase":    {func(_ *fakeRewardRepo, _ *domain.ShopPurchase) (string, string) { return fxAdminID, "spur_nope" }, ErrPurchaseNotFound},
-		"seller without shop": {func(_ *fakeRewardRepo, p *domain.ShopPurchase) (string, string) { return "adm_noshop", p.ID }, ErrShopNotFound},
+		}, ErrPurchaseNotFound, false},
+		"unknown purchase":    {func(_ *fakeRewardRepo, _ *domain.ShopPurchase) (string, string) { return fxAdminID, "spur_nope" }, ErrPurchaseNotFound, false},
+		"seller without shop": {func(_ *fakeRewardRepo, p *domain.ShopPurchase) (string, string) { return "adm_noshop", p.ID }, ErrShopNotFound, false},
 		"past expiry before sweep": {func(_ *fakeRewardRepo, p *domain.ShopPurchase) (string, string) {
 			p.ExpiresAt = fxNow.Add(-time.Minute)
 			return fxAdminID, p.ID
-		}, ErrPurchaseNotPending},
+		}, ErrPurchaseNotPending, false},
 		"already rejected": {func(_ *fakeRewardRepo, p *domain.ShopPurchase) (string, string) {
 			p.Status = domain.ShopPurchaseRejected
 			return fxAdminID, p.ID
-		}, ErrPurchaseNotPending},
+		}, ErrPurchaseNotPending, false},
 		"program paused": {func(f *fakeRewardRepo, p *domain.ShopPurchase) (string, string) {
 			f.cfg.ProgramEnabled = false
 			return fxAdminID, p.ID
-		}, ErrRewardProgramDisabled},
+		}, ErrRewardProgramDisabled, false},
 		"daily claim cap (IST day)": {func(f *fakeRewardRepo, p *domain.ShopPurchase) (string, string) {
 			f.cfg.MaxClaimsPerShopPerDay = 1
 			// 00:30 IST today = 19:00 UTC yesterday — counts toward today.
 			claimed := time.Date(2026, 9, 25, 19, 0, 0, 0, time.UTC)
 			f.addPurchase(domain.ShopPurchase{ShopID: fxShopID, CustomerID: "usr_2", Status: domain.ShopPurchaseClaimed, ClaimedAt: &claimed})
 			return fxAdminID, p.ID
-		}, ErrShopDailyCapReached},
+		}, ErrShopDailyCapReached, true},
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -85,9 +94,44 @@ func TestClaimPurchase_Rejections(t *testing.T) {
 			uc, _ := newTestRewardUseCase(f, fxNow)
 			_, err := uc.ClaimPurchase(context.Background(), adminID, id)
 			assert.ErrorIs(t, err, tc.want)
-			assert.Nil(t, f.accountFor(domain.RewardOwnerShop, fxShopID))
+			acct := f.accountFor(domain.RewardOwnerShop, fxShopID)
+			if tc.accountMayExist {
+				if acct != nil {
+					assert.Empty(t, f.entries(acct.ID, domain.RewardEntryPurchaseEarn), "cap rejection must not credit any points")
+				}
+				assert.Equal(t, domain.ShopPurchasePending, f.purchases[p.ID].Status, "cap rejection must leave the purchase decidable")
+			} else {
+				assert.Nil(t, acct)
+			}
 		})
 	}
+}
+
+// TestClaimPurchase_LocksAccountBeforeCountingDailyCap guards against the
+// race where two devices claim different pending purchases of the same shop
+// concurrently: with cap=N and N-1 already claimed today, both could read
+// the same pre-lock count and both pass. Locking the shop's account row
+// before counting serialises one shop's claims so the count is accurate.
+func TestClaimPurchase_LocksAccountBeforeCountingDailyCap(t *testing.T) {
+	f := newFakeRewardRepo().withOptedInShop(10)
+	p := pendingPurchase(f, 45000)
+	uc, _ := newTestRewardUseCase(f, fxNow)
+
+	_, err := uc.ClaimPurchase(context.Background(), fxAdminID, p.ID)
+	require.NoError(t, err)
+
+	lockIdx, countIdx := -1, -1
+	for i, c := range f.calls {
+		if c == "LockAccount" && lockIdx == -1 {
+			lockIdx = i
+		}
+		if c == "CountClaimedSince" && countIdx == -1 {
+			countIdx = i
+		}
+	}
+	require.NotEqual(t, -1, lockIdx, "LockAccount was never called")
+	require.NotEqual(t, -1, countIdx, "CountClaimedSince was never called")
+	assert.Less(t, lockIdx, countIdx, "the shop's reward account must be locked before the daily claim cap is counted")
 }
 
 func TestClaimPurchase_CapFromYesterdayIST_DoesNotCount(t *testing.T) {
@@ -117,6 +161,22 @@ func TestRejectPurchase(t *testing.T) {
 
 	_, err = uc.RejectPurchase(context.Background(), fxAdminID, p.ID, "")
 	assert.ErrorIs(t, err, ErrPurchaseNotPending)
+}
+
+// TestRejectPurchase_TruncatesReasonByRunes guards against cutting a
+// multi-byte UTF-8 reason mid-rune: a byte-slice truncation of a 250-rune
+// Devanagari reason at 200 bytes would land inside a rune and produce
+// invalid UTF-8 that Postgres would reject on write.
+func TestRejectPurchase_TruncatesReasonByRunes(t *testing.T) {
+	f := newFakeRewardRepo().withOptedInShop(10)
+	p := pendingPurchase(f, 45000)
+	uc, _ := newTestRewardUseCase(f, fxNow)
+
+	reason := strings.Repeat("क", 250)
+	got, err := uc.RejectPurchase(context.Background(), fxAdminID, p.ID, reason)
+	require.NoError(t, err)
+	assert.True(t, utf8.ValidString(got.RejectReason), "truncated reason must remain valid UTF-8")
+	assert.Equal(t, 200, utf8.RuneCountInString(got.RejectReason))
 }
 
 func TestListSellerPurchases_ScopedToOwnShop(t *testing.T) {
