@@ -20,15 +20,15 @@ const (
 type RewardEntryType string
 
 const (
-	RewardEntryPurchaseEarn          RewardEntryType = "purchase_earn"
-	RewardEntryReferralBonus         RewardEntryType = "referral_bonus"
-	RewardEntryRedeemSubscription    RewardEntryType = "redeem_subscription"
-	RewardEntryRedeemAdvertisement   RewardEntryType = "redeem_advertisement"
-	RewardEntryCustomerRedeemAtShop  RewardEntryType = "customer_redeem_at_shop"
-	RewardEntryRedeemReimbursement   RewardEntryType = "redeem_reimbursement"
-	RewardEntryExpiry                RewardEntryType = "expiry"
-	RewardEntryReversal              RewardEntryType = "reversal"
-	RewardEntryAdminAdjust           RewardEntryType = "admin_adjust"
+	RewardEntryPurchaseEarn         RewardEntryType = "purchase_earn"
+	RewardEntryReferralBonus        RewardEntryType = "referral_bonus"
+	RewardEntryRedeemSubscription   RewardEntryType = "redeem_subscription"
+	RewardEntryRedeemAdvertisement  RewardEntryType = "redeem_advertisement"
+	RewardEntryCustomerRedeemAtShop RewardEntryType = "customer_redeem_at_shop"
+	RewardEntryRedeemReimbursement  RewardEntryType = "redeem_reimbursement"
+	RewardEntryExpiry               RewardEntryType = "expiry"
+	RewardEntryReversal             RewardEntryType = "reversal"
+	RewardEntryAdminAdjust          RewardEntryType = "admin_adjust"
 )
 
 type ShopPurchaseStatus string
