@@ -46,7 +46,9 @@ func (u *RewardUseCase) lockOwnPendingPurchase(ctx context.Context, r repo.Rewar
 }
 
 // ClaimPurchase is the seller confirming the purchase really happened. It
-// credits the seller's points exactly once.
+// credits the seller's points exactly once. Claiming an already-claimed
+// purchase (a retried request whose response was lost, or a second phone)
+// returns the claimed row as success without crediting or notifying again.
 func (u *RewardUseCase) ClaimPurchase(ctx context.Context, sellerAdminID, purchaseID string) (domain.ShopPurchase, error) {
 	shop, err := u.sellerShop(ctx, sellerAdminID)
 	if err != nil {
@@ -54,8 +56,13 @@ func (u *RewardUseCase) ClaimPurchase(ctx context.Context, sellerAdminID, purcha
 	}
 	now := u.now()
 	var p domain.ShopPurchase
+	alreadyClaimed := false
 	err = u.repo.InTx(ctx, func(r repo.RewardRepository) error {
 		if p, err = u.lockOwnPendingPurchase(ctx, r, shop.ID, purchaseID); err != nil {
+			if errors.Is(err, ErrPurchaseNotPending) && p.Status == domain.ShopPurchaseClaimed {
+				alreadyClaimed = true
+				return nil
+			}
 			return err
 		}
 		cfg, err := r.GetConfig(ctx)
@@ -106,7 +113,9 @@ func (u *RewardUseCase) ClaimPurchase(ctx context.Context, sellerAdminID, purcha
 	if err != nil {
 		return domain.ShopPurchase{}, err
 	}
-	u.notifyCustomerOfDecision(p, shop.ShopName)
+	if !alreadyClaimed {
+		u.notifyCustomerOfDecision(p, shop.ShopName)
+	}
 	return p, nil
 }
 
@@ -122,8 +131,14 @@ func (u *RewardUseCase) RejectPurchase(ctx context.Context, sellerAdminID, purch
 	}
 	now := u.now()
 	var p domain.ShopPurchase
+	alreadyRejected := false
 	err = u.repo.InTx(ctx, func(r repo.RewardRepository) error {
 		if p, err = u.lockOwnPendingPurchase(ctx, r, shop.ID, purchaseID); err != nil {
+			// A retried reject is a no-op success that keeps the original reason.
+			if errors.Is(err, ErrPurchaseNotPending) && p.Status == domain.ShopPurchaseRejected {
+				alreadyRejected = true
+				return nil
+			}
 			return err
 		}
 		p.Status = domain.ShopPurchaseRejected
@@ -135,7 +150,9 @@ func (u *RewardUseCase) RejectPurchase(ctx context.Context, sellerAdminID, purch
 	if err != nil {
 		return domain.ShopPurchase{}, err
 	}
-	u.notifyCustomerOfDecision(p, shop.ShopName)
+	if !alreadyRejected {
+		u.notifyCustomerOfDecision(p, shop.ShopName)
+	}
 	return p, nil
 }
 

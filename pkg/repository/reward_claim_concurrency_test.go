@@ -43,7 +43,7 @@ func TestRewardClaim_ConcurrentClaimsCreditOnce(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	assert.Equal(t, 1, successes)
+	assert.Equal(t, workers, successes, "claims are idempotent: every tap succeeds, the balance below proves one credit")
 
 	acct, err := repo.GetOrCreateAccount(ctx, domain.RewardOwnerShop, s.shopID)
 	require.NoError(t, err)
