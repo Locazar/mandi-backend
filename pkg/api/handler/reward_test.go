@@ -81,3 +81,19 @@ func TestRewardHandler_UpdateSettingsRequiresEnabledFlag(t *testing.T) {
 	h.UpdateSellerSettings(c)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
+
+func TestRewardHandler_AdjustRejectsOutOfRangeDelta(t *testing.T) {
+	h := NewRewardHandler(nil)
+	for name, body := range map[string]string{
+		"too large":           `{"delta_points":100001,"reason":"typo with extra zero"}`,
+		"too small":           `{"delta_points":-100001,"reason":"typo with extra zero"}`,
+		"request id too long": `{"delta_points":10,"reason":"goodwill credit","client_request_id":"` + strings.Repeat("x", 41) + `"}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			c, w := rewardCtx(http.MethodPost, body)
+			c.Params = gin.Params{{Key: "account_id", Value: "rwa_1"}}
+			h.AdjustAccount(c)
+			assert.Equal(t, http.StatusBadRequest, w.Code)
+		})
+	}
+}

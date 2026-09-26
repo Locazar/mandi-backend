@@ -55,23 +55,23 @@ func TestAdjustAccount(t *testing.T) {
 	uc, _ := newTestRewardUseCase(f, fxNow)
 	acct, _ := f.GetOrCreateAccount(context.Background(), domain.RewardOwnerShop, fxShopID)
 
-	got, err := uc.AdjustAccount(context.Background(), "adm_ops", acct.ID, 100, "goodwill for app outage")
+	got, err := uc.AdjustAccount(context.Background(), "adm_ops", acct.ID, 100, "goodwill for app outage", "")
 	require.NoError(t, err)
 	assert.Equal(t, int64(100), got.BalancePoints)
 	lot := f.entries(acct.ID, domain.RewardEntryAdminAdjust)[0]
 	require.NotNil(t, lot.ExpiresAt, "admin credits expire like any other points")
 	assert.Equal(t, "adm_ops", lot.CreatedBy)
 
-	got, err = uc.AdjustAccount(context.Background(), "adm_ops", acct.ID, -40, "reversing duplicate credit")
+	got, err = uc.AdjustAccount(context.Background(), "adm_ops", acct.ID, -40, "reversing duplicate credit", "")
 	require.NoError(t, err)
 	assert.Equal(t, int64(60), got.BalancePoints)
 
-	_, err = uc.AdjustAccount(context.Background(), "adm_ops", acct.ID, -61, "too much")
+	_, err = uc.AdjustAccount(context.Background(), "adm_ops", acct.ID, -61, "too much", "")
 	assert.ErrorIs(t, err, ErrInsufficientPoints)
-	_, err = uc.AdjustAccount(context.Background(), "adm_ops", acct.ID, 10, "hi")
+	_, err = uc.AdjustAccount(context.Background(), "adm_ops", acct.ID, 10, "hi", "")
 	assert.ErrorIs(t, err, ErrInvalidAdjustment)
-	_, err = uc.AdjustAccount(context.Background(), "adm_ops", acct.ID, 0, "zero delta reason")
+	_, err = uc.AdjustAccount(context.Background(), "adm_ops", acct.ID, 0, "zero delta reason", "")
 	assert.ErrorIs(t, err, ErrInvalidAdjustment)
-	_, err = uc.AdjustAccount(context.Background(), "adm_ops", "rwa_missing", 10, "missing account")
+	_, err = uc.AdjustAccount(context.Background(), "adm_ops", "rwa_missing", 10, "missing account", "")
 	assert.ErrorIs(t, err, ErrRewardAccountNotFound)
 }

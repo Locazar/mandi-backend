@@ -7,12 +7,20 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	repo "github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
 	"gorm.io/gorm"
 )
 
 const minAdjustReasonLen = 5
+
+// maxAdjustPoints bounds a single manual adjustment so a typo with an extra
+// zero can't mint or burn an absurd number of points.
+const maxAdjustPoints int64 = 100_000
+
+// adminRecentLedgerEntries is how much history the admin shop-points view shows.
+const adminRecentLedgerEntries = 20
 
 // requirePlatformAdmin guards the program-wide admin operations. The route's
 // RequirePermission middleware lets blank-role accounts through, and every
@@ -105,13 +113,14 @@ func (u *RewardUseCase) UpdateProgramConfig(ctx context.Context, adminID string,
 }
 
 // AdjustAccount is a support tool: a signed manual correction with a reason,
-// recorded in the ledger under the acting admin's id.
-func (u *RewardUseCase) AdjustAccount(ctx context.Context, adminID, accountID string, delta int64, reason string) (domain.RewardAccount, error) {
+// recorded in the ledger under the acting admin's id. A non-empty
+// clientRequestID makes retries of the same submission no-ops.
+func (u *RewardUseCase) AdjustAccount(ctx context.Context, adminID, accountID string, delta int64, reason, clientRequestID string) (domain.RewardAccount, error) {
 	if err := u.requirePlatformAdmin(ctx, adminID); err != nil {
 		return domain.RewardAccount{}, err
 	}
 	reason = strings.TrimSpace(reason)
-	if delta == 0 || len(reason) < minAdjustReasonLen {
+	if delta == 0 || delta > maxAdjustPoints || delta < -maxAdjustPoints || len(reason) < minAdjustReasonLen {
 		return domain.RewardAccount{}, ErrInvalidAdjustment
 	}
 	if _, err := u.repo.GetAccountByID(ctx, accountID); err != nil {
@@ -124,9 +133,13 @@ func (u *RewardUseCase) AdjustAccount(ctx context.Context, adminID, accountID st
 	if err != nil {
 		return domain.RewardAccount{}, err
 	}
+	refID := domain.NewID(domain.PrefixRewardAdjust)
+	if crid := strings.TrimSpace(clientRequestID); crid != "" {
+		refID = "adj:" + crid
+	}
 	in := creditInput{
 		AccountID: accountID, Type: domain.RewardEntryAdminAdjust, RefType: "admin_adjust",
-		RefID: domain.NewID(domain.PrefixRewardAdjust), Note: reason, CreatedBy: adminID,
+		RefID: refID, Note: reason, CreatedBy: adminID,
 	}
 	var acct domain.RewardAccount
 	err = u.repo.InTx(ctx, func(r repo.RewardRepository) error {
@@ -145,4 +158,36 @@ func (u *RewardUseCase) AdjustAccount(ctx context.Context, adminID, accountID st
 		return err
 	})
 	return acct, err
+}
+
+// AdminShopRewardAccount is what the admin portal shows for one shop's points.
+type AdminShopRewardAccount struct {
+	ShopID        string                     `json:"shop_id"`
+	ShopName      string                     `json:"shop_name"`
+	Account       domain.RewardAccount       `json:"account"`
+	RecentEntries []domain.RewardLedgerEntry `json:"recent_entries"`
+}
+
+// GetShopAccountForAdmin resolves a shop's reward account (creating an empty
+// one if the shop never earned points) so an admin can inspect and adjust it.
+func (u *RewardUseCase) GetShopAccountForAdmin(ctx context.Context, adminID, shopID string) (AdminShopRewardAccount, error) {
+	if err := u.requirePlatformAdmin(ctx, adminID); err != nil {
+		return AdminShopRewardAccount{}, err
+	}
+	shop, err := u.repo.GetShop(ctx, shopID)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return AdminShopRewardAccount{}, ErrRewardShopNotFound
+	}
+	if err != nil {
+		return AdminShopRewardAccount{}, err
+	}
+	acct, err := u.repo.GetOrCreateAccount(ctx, domain.RewardOwnerShop, shop.ID)
+	if err != nil {
+		return AdminShopRewardAccount{}, err
+	}
+	entries, err := u.repo.ListLedger(ctx, acct.ID, request.Pagination{Limit: adminRecentLedgerEntries})
+	if err != nil {
+		return AdminShopRewardAccount{}, err
+	}
+	return AdminShopRewardAccount{ShopID: shop.ID, ShopName: shop.ShopName, Account: acct, RecentEntries: entries}, nil
 }

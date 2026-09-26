@@ -6677,6 +6677,36 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/rewards/program/shops/{shop_id}/account": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Admin Rewards"
+                ],
+                "summary": "Look up a shop's reward points account (Admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Shop ID",
+                        "name": "shop_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/rewards/purchases": {
             "get": {
                 "security": [
@@ -15447,8 +15477,14 @@ const docTemplate = `{
                 "reason"
             ],
             "properties": {
+                "client_request_id": {
+                    "type": "string",
+                    "maxLength": 40
+                },
                 "delta_points": {
-                    "type": "integer"
+                    "type": "integer",
+                    "maximum": 100000,
+                    "minimum": -100000
                 },
                 "reason": {
                     "type": "string",

@@ -18,6 +18,7 @@ type RejectShopPurchaseRequest struct {
 }
 
 type AdjustRewardAccountRequest struct {
-	DeltaPoints int64  `json:"delta_points" binding:"required"`
-	Reason      string `json:"reason" binding:"required,min=5,max=300"`
+	DeltaPoints     int64  `json:"delta_points" binding:"required,gte=-100000,lte=100000"`
+	Reason          string `json:"reason" binding:"required,min=5,max=300"`
+	ClientRequestID string `json:"client_request_id" binding:"omitempty,max=40"`
 }
