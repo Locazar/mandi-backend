@@ -45,7 +45,11 @@ func credit(ctx context.Context, r repo.RewardRepository, in creditInput) (bool,
 }
 
 // debit spends points oldest-expiry-first. Returns ErrInsufficientPoints
-// before writing anything when the balance is too low.
+// before writing anything when the balance is too low. Replaying the same
+// (type, ref) is a no-op — (false, nil) — even after the balance has since
+// changed (e.g. spent by this debit or by something else): callers must be
+// able to retry a debit call safely without re-checking the account state
+// themselves.
 func debit(ctx context.Context, r repo.RewardRepository, in creditInput) (bool, error) {
 	if in.Points <= 0 {
 		return false, nil
@@ -53,6 +57,11 @@ func debit(ctx context.Context, r repo.RewardRepository, in creditInput) (bool, 
 	acct, err := r.LockAccount(ctx, in.AccountID)
 	if err != nil {
 		return false, err
+	}
+	if exists, err := r.LedgerEntryExists(ctx, in.AccountID, in.Type, in.RefID); err != nil {
+		return false, err
+	} else if exists {
+		return false, nil
 	}
 	if acct.BalancePoints < in.Points {
 		return false, ErrInsufficientPoints

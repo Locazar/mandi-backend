@@ -33,6 +33,8 @@ type RewardRepository interface {
 	// InsertLedgerEntry returns false (and no error) when an entry with the same
 	// (account_id, entry_type, ref_id) already exists.
 	InsertLedgerEntry(ctx context.Context, e domain.RewardLedgerEntry) (bool, error)
+	// LedgerEntryExists reports whether an entry with this (account_id, entry_type, ref_id) exists.
+	LedgerEntryExists(ctx context.Context, accountID string, entryType domain.RewardEntryType, refID string) (bool, error)
 	ListOpenLots(ctx context.Context, accountID string) ([]domain.RewardLedgerEntry, error)
 	GetLotForUpdate(ctx context.Context, entryID string) (domain.RewardLedgerEntry, error)
 	SetLotRemaining(ctx context.Context, entryID string, remaining int64) error

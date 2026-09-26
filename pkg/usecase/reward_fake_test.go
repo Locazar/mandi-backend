@@ -193,6 +193,14 @@ func (f *fakeRewardRepo) InsertLedgerEntry(_ context.Context, e domain.RewardLed
 	f.ledger = append(f.ledger, &cp)
 	return true, nil
 }
+func (f *fakeRewardRepo) LedgerEntryExists(_ context.Context, accountID string, entryType domain.RewardEntryType, refID string) (bool, error) {
+	for _, e := range f.ledger {
+		if e.AccountID == accountID && e.EntryType == entryType && e.RefID == refID {
+			return true, nil
+		}
+	}
+	return false, nil
+}
 func (f *fakeRewardRepo) ListOpenLots(_ context.Context, accountID string) ([]domain.RewardLedgerEntry, error) {
 	out := []domain.RewardLedgerEntry{}
 	for _, e := range f.ledger {

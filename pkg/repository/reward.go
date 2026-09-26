@@ -164,6 +164,14 @@ func (r *rewardDatabase) InsertLedgerEntry(ctx context.Context, e domain.RewardL
 	return res.RowsAffected == 1, nil
 }
 
+func (r *rewardDatabase) LedgerEntryExists(ctx context.Context, accountID string, entryType domain.RewardEntryType, refID string) (bool, error) {
+	var n int64
+	err := r.db.WithContext(ctx).Model(&domain.RewardLedgerEntry{}).
+		Where("account_id = ? AND entry_type = ? AND ref_id = ?", accountID, entryType, refID).
+		Count(&n).Error
+	return n > 0, err
+}
+
 func (r *rewardDatabase) ListOpenLots(ctx context.Context, accountID string) ([]domain.RewardLedgerEntry, error) {
 	lots := []domain.RewardLedgerEntry{}
 	err := r.db.WithContext(ctx).Clauses(clause.Locking{Strength: "UPDATE"}).

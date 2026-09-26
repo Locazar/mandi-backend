@@ -77,6 +77,26 @@ func TestDebit_InsufficientLeavesStateUntouched(t *testing.T) {
 	assert.Len(t, f.ledger, 1)
 }
 
+func TestDebit_ReplayAfterBalanceDropIsNoop(t *testing.T) {
+	f := newFakeRewardRepo()
+	ctx := context.Background()
+	acct, _ := f.GetOrCreateAccount(ctx, domain.RewardOwnerShop, fxShopID)
+	_, _ = credit(ctx, f, creditInput{AccountID: acct.ID, Points: 100, Type: domain.RewardEntryPurchaseEarn, RefID: "c1"})
+
+	ok, err := debit(ctx, f, creditInput{AccountID: acct.ID, Points: 100, Type: domain.RewardEntryAdminAdjust, RefType: "admin_adjust", RefID: "adj_1"})
+	require.NoError(t, err)
+	assert.True(t, ok)
+	got, _ := f.GetAccountByID(ctx, acct.ID)
+	assert.Equal(t, int64(0), got.BalancePoints)
+
+	ok, err = debit(ctx, f, creditInput{AccountID: acct.ID, Points: 100, Type: domain.RewardEntryAdminAdjust, RefType: "admin_adjust", RefID: "adj_1"})
+	assert.NoError(t, err)
+	assert.False(t, ok, "replaying the same ref after balance dropped must be a no-op, not ErrInsufficientPoints")
+	got, _ = f.GetAccountByID(ctx, acct.ID)
+	assert.Equal(t, int64(0), got.BalancePoints, "balance must not go negative or change on replay")
+	assert.Len(t, f.entries(acct.ID, domain.RewardEntryAdminAdjust), 1, "exactly one debit entry")
+}
+
 func TestExpireLot_RemovesOnlyRemainingPoints(t *testing.T) {
 	f := newFakeRewardRepo()
 	ctx := context.Background()
