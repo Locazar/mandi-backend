@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"gorm.io/gorm"
 
@@ -12,14 +13,34 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/service/cloud"
 )
 
+// followerDeliveryMaxAttempts bounds retries for a single follower/product
+// digest before it's given up on as permanently "dead" (still visible for
+// inspection, just no longer retried). At followerDeliveryRetryEvery = 5m,
+// 8 attempts spans ~40 minutes — long enough to ride out a token that's
+// mid-rotation or a transient FCM/Firestore hiccup, short enough that a truly
+// dead device stops being retried the same day.
+const (
+	followerDeliveryMaxAttempts = 8
+	followerDeliveryRetryEvery  = 5 * time.Minute
+)
+
 // FollowerNotifier sends a "new product" push to a shop's followers when the
-// shop adds a product — at most once per shop per calendar day.
+// shop adds a product — at most one digest per (shop, follower, calendar day).
 //
-// It is deliberately self-contained and BEST-EFFORT: it owns its own DB handle
-// and FCM sender, never returns an error to the caller, and every failure is
-// swallowed (logged). Callers invoke it fire-and-forget (a goroutine) right
-// after a successful product save, so it can never delay, fail, or otherwise
-// affect the existing product-add flow.
+// Delivery is durable, not fire-and-forget: each qualifying follower gets a
+// row in follower_notification_deliveries (migration 000045) before any send
+// is attempted. NotifyNewProduct makes one immediate attempt per row (fast
+// path — most deliveries complete right away, same latency as before); any
+// row that fails stays "pending" and is retried by a background sweep
+// (RunRetrySweep, ticked every followerDeliveryRetryEvery) until it succeeds
+// or exhausts followerDeliveryMaxAttempts. This is what makes a transient
+// failure (a follower's FCM token mid-rotation, a brief Firestore blip) a
+// retry instead of a silent, unrepeatable miss for the rest of the day.
+//
+// It is still self-contained and BEST-EFFORT from the caller's point of view:
+// it owns its own DB handle and FCM sender, never returns an error, and every
+// failure is logged, not propagated. Callers invoke NotifyNewProduct
+// fire-and-forget (a goroutine) right after a successful product save.
 type FollowerNotifier struct {
 	db  *gorm.DB
 	fcm PushSender
@@ -29,20 +50,45 @@ type FollowerNotifier struct {
 }
 
 // NewFollowerNotifier builds a notifier from a GORM handle (followers + the
-// once-per-day dedup table), any PushSender (FCM delivery), and the object
+// delivery outbox table), any PushSender (FCM delivery), and the object
 // storage service used to turn stored image keys into absolute URLs. cs may be
 // nil, in which case image resolution falls back to environment config.
+//
+// As a side effect it starts the retry-sweep ticker in the background for the
+// life of the process — safe because the API server runs as a single
+// always-on replica (see cmd/api/main.go's onboarding-nudge ticker for the
+// same reasoning), so there's no double-fire risk across replicas.
 func NewFollowerNotifier(db *gorm.DB, fcm PushSender, cs cloud.CloudService) *FollowerNotifier {
-	return &FollowerNotifier{db: db, fcm: fcm, cs: cs}
+	n := &FollowerNotifier{db: db, fcm: fcm, cs: cs}
+	if db != nil && fcm != nil {
+		go n.runRetryTicker(context.Background())
+	}
+	return n
+}
+
+// followerDeliveryRow is the subset of follower_notification_deliveries
+// columns needed to (re)attempt a send.
+type followerDeliveryRow struct {
+	ID         string
+	ShopID     string
+	FollowerID string
+	Title      string
+	Body       string
+	ImageURL   string
+	Attempts   int
 }
 
 // NotifyNewProduct notifies the shop's followers about a newly added product.
 // Flow (all best-effort):
 //  1. Load the shop's followers — if none, do nothing.
-//  2. Atomically claim today's slot (INSERT ... ON CONFLICT DO NOTHING); if a
-//     product already notified today, skip — this is the once-per-day guard.
+//  2. Enqueue one durable row per follower for today (ON CONFLICT DO NOTHING
+//     on (shop_id, notify_date, follower_id)) — a follower already queued
+//     today for this shop is skipped, this is the once-per-follower-per-day
+//     content guard.
 //  3. Build the push from the product name + first image (+ shop name), and
-//     deliver to each follower's registered devices.
+//     make one immediate delivery attempt per newly-queued follower. Any
+//     failure is recorded on its row and left for the retry sweep — it is
+//     NOT lost.
 //
 // Safe to run in a goroutine with a detached context.
 func (n *FollowerNotifier) NotifyNewProduct(ctx context.Context, shopID, productName string, imageURLs []string) {
@@ -55,7 +101,7 @@ func (n *FollowerNotifier) NotifyNewProduct(ctx context.Context, shopID, product
 		return
 	}
 
-	// 1. Followers first — no followers, nothing to do (and no daily slot spent).
+	// 1. Followers first — no followers, nothing to do (and nothing queued).
 	var followerIDs []string
 	if err := n.db.WithContext(ctx).
 		Model(&domain.ShopSocial{}).
@@ -70,44 +116,13 @@ func (n *FollowerNotifier) NotifyNewProduct(ctx context.Context, shopID, product
 		return
 	}
 
-	// 2. Once-per-day guard: atomically claim today's slot. RowsAffected == 0
-	//    means a product already triggered the follower push today → skip.
-	claim := n.db.WithContext(ctx).Exec(
-		`INSERT INTO shop_new_product_notifications (shop_id, notify_date)
-		 VALUES (?, CURRENT_DATE)
-		 ON CONFLICT (shop_id, notify_date) DO NOTHING`,
-		shopID,
-	)
-	if claim.Error != nil {
-		log.Printf("WARN [FollowerNotifier]: claim daily slot for shop %s: %v", shopID, claim.Error)
-		return
-	}
-	if claim.RowsAffected == 0 {
-		log.Printf("INFO [FollowerNotifier]: shop %s already notified today, skipping push (%d followers)", shopID, len(followerIDs))
-		return // already notified today
-	}
-
-	// 3. Build and deliver.
+	// 2. Build content once, then enqueue a durable row per follower.
 	shopName := n.shopName(ctx, shopID)
-	title := "New product from a shop you follow"
-	if shopName != "" {
-		title = "New at " + shopName
-	}
-	body := strings.TrimSpace(productName)
-	if body == "" {
-		body = "A new product is now available. Tap to explore."
-	} else {
-		body += " is now available. Tap to explore."
-	}
-
-	data := map[string]string{
-		"event_type":   "new_product",
-		"shop_id":      shopID,
-		"product_name": strings.TrimSpace(productName),
-	}
+	title, body := n.buildMessage(shopName, productName)
+	imageURL := ""
 	if stored := followerFirstNonBlank(imageURLs); stored != "" {
 		if img := resolveFollowerImageURL(n.cs, stored); img != "" {
-			data["image_url"] = img
+			imageURL = img
 		} else {
 			// Don't fail the push — but say so, since a silently image-less
 			// notification is exactly the symptom this resolution bug caused.
@@ -115,38 +130,210 @@ func (n *FollowerNotifier) NotifyNewProduct(ctx context.Context, shopID, product
 		}
 	}
 
+	rows, alreadyQueued, err := n.enqueueDeliveries(ctx, shopID, followerIDs, title, body, imageURL)
+	if err != nil {
+		log.Printf("WARN [FollowerNotifier]: enqueue deliveries for shop %s: %v", shopID, err)
+		return
+	}
+	if alreadyQueued > 0 {
+		log.Printf("INFO [FollowerNotifier]: shop %s — %d follower(s) already queued today, skipping", shopID, alreadyQueued)
+	}
+	if len(rows) == 0 {
+		return // every follower already queued today
+	}
+
+	// 3. Immediate best-effort attempt. Failures stay "pending" in the row
+	//    they were just written to — RunRetrySweep picks them up later.
+	data := map[string]string{
+		"event_type":   "new_product",
+		"shop_id":      shopID,
+		"product_name": strings.TrimSpace(productName),
+	}
+	if imageURL != "" {
+		data["image_url"] = imageURL
+	}
+
 	sent := 0
-	for _, uid := range followerIDs {
-		if strings.TrimSpace(uid) == "" {
+	for _, row := range rows {
+		if sendErr := n.deliverToFollower(ctx, row.FollowerID, title, body, data); sendErr != nil {
+			n.recordDeliveryResult(ctx, row.ID, false, sendErr.Error())
+			log.Printf("WARN [FollowerNotifier]: send to follower %s of shop %s failed (queued for retry): %v", row.FollowerID, shopID, sendErr)
 			continue
 		}
-		// A follower with no active device (logged out / no token) simply returns
-		// a no-active-tokens error — expected, not a failure. Keep going, but log
-		// why so a "0 delivered" day is diagnosable without re-deploying.
-		if err := n.fcm.SendToOwnerViaFirestore(ctx, "users", uid, title, body, data); err != nil {
-			log.Printf("WARN [FollowerNotifier]: send to follower %s of shop %s failed: %v", uid, shopID, err)
-			continue
-		}
+		n.recordDeliveryResult(ctx, row.ID, true, "")
 		sent++
 	}
-	log.Printf("INFO [FollowerNotifier]: shop %s new-product push delivered to %d/%d followers",
-		shopID, sent, len(followerIDs))
+	log.Printf("INFO [FollowerNotifier]: shop %s new-product push delivered to %d/%d followers on first attempt (failures will retry)",
+		shopID, sent, len(rows))
+}
 
-	// Nobody actually received it (e.g. every follower logged out / no active
-	// token that day) — release today's slot so the NEXT product added to this
-	// shop today gets a real retry, instead of silently burning the one push a
-	// day this shop gets on a delivery that reached zero devices.
-	if sent == 0 {
-		release := n.db.WithContext(ctx).Exec(
-			`DELETE FROM shop_new_product_notifications WHERE shop_id = ? AND notify_date = CURRENT_DATE`,
-			shopID,
-		)
-		if release.Error != nil {
-			log.Printf("WARN [FollowerNotifier]: failed to release today's slot for shop %s after zero deliveries: %v", shopID, release.Error)
-		} else {
-			log.Printf("INFO [FollowerNotifier]: shop %s had zero deliveries, released today's slot for retry", shopID)
+// enqueueDeliveries writes one row per follower for today, skipping any
+// follower already queued for this shop today. Returns only the newly created
+// rows (the ones that need a send attempt) plus a count of how many were
+// skipped as already-queued.
+func (n *FollowerNotifier) enqueueDeliveries(ctx context.Context, shopID string, followerIDs []string, title, body, imageURL string) ([]followerDeliveryRow, int, error) {
+	placeholders := make([]string, 0, len(followerIDs))
+	args := make([]interface{}, 0, len(followerIDs)*6)
+	total := 0
+	for _, uid := range followerIDs {
+		uid = strings.TrimSpace(uid)
+		if uid == "" {
+			continue
+		}
+		total++
+		placeholders = append(placeholders, "(?, ?, CURRENT_DATE, ?, ?, ?, ?)")
+		args = append(args, domain.NewID(domain.PrefixFollowerNotifDelivery), shopID, uid, title, body, imageURL)
+	}
+	if len(placeholders) == 0 {
+		return nil, 0, nil
+	}
+
+	query := `INSERT INTO follower_notification_deliveries
+		(id, shop_id, notify_date, follower_id, title, body, image_url)
+		VALUES ` + strings.Join(placeholders, ",") + `
+		ON CONFLICT (shop_id, notify_date, follower_id) DO NOTHING
+		RETURNING id, follower_id`
+
+	var rows []followerDeliveryRow
+	if err := n.db.WithContext(ctx).Raw(query, args...).Scan(&rows).Error; err != nil {
+		return nil, 0, err
+	}
+	return rows, total - len(rows), nil
+}
+
+// recordDeliveryResult persists the outcome of one send attempt. A failure
+// increments attempts and, once followerDeliveryMaxAttempts is reached, marks
+// the row "dead" so the sweep stops retrying it; short of that it stays
+// "pending" for the next sweep.
+func (n *FollowerNotifier) recordDeliveryResult(ctx context.Context, id string, sent bool, errMsg string) {
+	if sent {
+		if err := n.db.WithContext(ctx).Exec(
+			`UPDATE follower_notification_deliveries
+			 SET status = 'sent', attempts = attempts + 1, last_error = '', updated_at = NOW()
+			 WHERE id = ?`, id).Error; err != nil {
+			log.Printf("WARN [FollowerNotifier]: record delivery success for %s: %v", id, err)
+		}
+		return
+	}
+	if err := n.db.WithContext(ctx).Exec(
+		`UPDATE follower_notification_deliveries
+		 SET attempts = attempts + 1,
+		     last_error = ?,
+		     status = CASE WHEN attempts + 1 >= ? THEN 'dead' ELSE 'pending' END,
+		     updated_at = NOW()
+		 WHERE id = ?`, errMsg, followerDeliveryMaxAttempts, id).Error; err != nil {
+		log.Printf("WARN [FollowerNotifier]: record delivery failure for %s: %v", id, err)
+	}
+}
+
+// deliverToFollower tries Postgres-registered device tokens first (works even
+// if Firestore is unreachable, stale, or was never synced for this follower),
+// falling back to the live Firestore lookup that SendToOwnerViaFirestore
+// performs — the same dual-path pattern already used for admin-triggered
+// pushes (see notificationUseCase.SendPushNotification). Trying both paths
+// means a gap in either one alone (a stale Firestore doc, or a follower who
+// never hit the Postgres-registering endpoint) doesn't cost a delivery.
+func (n *FollowerNotifier) deliverToFollower(ctx context.Context, followerID, title, body string, data map[string]string) error {
+	if tokens, tokErr := n.activeDeviceTokens(ctx, followerID); tokErr == nil && len(tokens) > 0 {
+		if sendErr := n.fcm.SendToTokens(ctx, tokens, title, body, data); sendErr == nil {
+			return nil
+		}
+		// Fall through to Firestore regardless of why the Postgres-token send
+		// failed — it's a second independent chance, not a confirmed dead end.
+	}
+	return n.fcm.SendToOwnerViaFirestore(ctx, "users", followerID, title, body, data)
+}
+
+// activeDeviceTokens looks up notification_device_tokens the same way
+// notificationRepository.GetActiveTokensByOwner does for admin-triggered
+// pushes: matching on owner_id, admin_id, OR shop_id so it's resilient to
+// which column a given registration path happened to populate. owner_type is
+// fixed to "user" — followers are always customers, never sellers.
+func (n *FollowerNotifier) activeDeviceTokens(ctx context.Context, followerID string) ([]string, error) {
+	var tokens []string
+	err := n.db.WithContext(ctx).
+		Table("notification_device_tokens").
+		Where("(owner_id = ? OR admin_id = ? OR shop_id = ?) AND owner_type = 'user' AND is_active = true",
+			followerID, followerID, followerID).
+		Pluck("token", &tokens).Error
+	return tokens, err
+}
+
+// buildMessage returns the notification title/body for a new-product digest.
+func (n *FollowerNotifier) buildMessage(shopName, productName string) (title, body string) {
+	title = "New product from a shop you follow"
+	if shopName != "" {
+		title = "New at " + shopName
+	}
+	body = strings.TrimSpace(productName)
+	if body == "" {
+		body = "A new product is now available. Tap to explore."
+	} else {
+		body += " is now available. Tap to explore."
+	}
+	return title, body
+}
+
+// runRetryTicker calls RunRetrySweep every followerDeliveryRetryEvery until
+// ctx is cancelled (in practice, process lifetime — this notifier has no
+// explicit shutdown hook, matching its existing simplicity).
+func (n *FollowerNotifier) runRetryTicker(ctx context.Context) {
+	ticker := time.NewTicker(followerDeliveryRetryEvery)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			n.RunRetrySweep(ctx)
 		}
 	}
+}
+
+// RunRetrySweep re-attempts delivery for every "pending" row (bounded to a
+// batch of 200, oldest first, so one huge backlog can't starve newer shops).
+// Tokens are re-resolved fresh on every attempt — not the snapshot from when
+// the row was enqueued — so a follower who registers a device (or whose token
+// rotates) between the original attempt and now is picked up automatically.
+func (n *FollowerNotifier) RunRetrySweep(ctx context.Context) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("WARN [FollowerNotifier retry]: recovered from panic: %v", r)
+		}
+	}()
+	if n == nil || n.db == nil || n.fcm == nil {
+		return
+	}
+
+	var due []followerDeliveryRow
+	if err := n.db.WithContext(ctx).
+		Table("follower_notification_deliveries").
+		Where("status = 'pending'").
+		Order("updated_at ASC").
+		Limit(200).
+		Find(&due).Error; err != nil {
+		log.Printf("WARN [FollowerNotifier retry]: fetch due rows: %v", err)
+		return
+	}
+	if len(due) == 0 {
+		return
+	}
+
+	sent, stillPending := 0, 0
+	for _, row := range due {
+		data := map[string]string{"event_type": "new_product", "shop_id": row.ShopID}
+		if row.ImageURL != "" {
+			data["image_url"] = row.ImageURL
+		}
+		if sendErr := n.deliverToFollower(ctx, row.FollowerID, row.Title, row.Body, data); sendErr != nil {
+			n.recordDeliveryResult(ctx, row.ID, false, sendErr.Error())
+			stillPending++
+			continue
+		}
+		n.recordDeliveryResult(ctx, row.ID, true, "")
+		sent++
+	}
+	log.Printf("INFO [FollowerNotifier retry]: swept %d due row(s) — %d sent, %d still pending/dead", len(due), sent, stillPending)
 }
 
 // shopName looks up the shop's display name for the notification title.
