@@ -4,9 +4,36 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 )
+
+// frequencyFromConfig reads the frequency out of a template's frequency_config
+// jsonb column (e.g. {"type":"daily","limit":1}) and returns it in the plain
+// string form ShouldShowAlert expects: "once", "daily", "weekly", "monthly".
+//
+// Both {"type":...} and {"frequency":...} are accepted, since the column is
+// free-form jsonb and nothing validated its shape until now. An absent or
+// unparseable config yields "", which ShouldShowAlert treats as "no limit" —
+// exactly the behaviour every template had before this was wired up, so an
+// existing template with no frequency configured is unaffected.
+func frequencyFromConfig(raw json.RawMessage) string {
+	if len(raw) == 0 {
+		return ""
+	}
+	var cfg struct {
+		Type      string `json:"type"`
+		Frequency string `json:"frequency"`
+	}
+	if err := json.Unmarshal(raw, &cfg); err != nil {
+		return ""
+	}
+	if cfg.Type != "" {
+		return strings.ToLower(strings.TrimSpace(cfg.Type))
+	}
+	return strings.ToLower(strings.TrimSpace(cfg.Frequency))
+}
 
 // Condition represents a single condition to evaluate
 type Condition struct {
@@ -227,7 +254,15 @@ func (r *DBDrivenAlertRule) Evaluate(ctx context.Context, sellerID string, data 
 		return nil, err
 	}
 
-	// Build alert from template
+	// Build alert from template.
+	//
+	// Frequency must be carried over: ShouldShowAlert reads Alert.Frequency to
+	// decide whether enough time has passed since the seller last saw this
+	// alert. It used to be dropped here, which left every admin-authored
+	// template with an empty frequency — and empty means "no limit", so
+	// templates re-appeared on every single app open no matter what the admin
+	// configured. Templates with no frequency configured still behave exactly as
+	// before, so this is backward compatible.
 	alert := &domain.Alert{
 		ID:          r.Template.Key,
 		SellerID:    data.AdminID,
@@ -237,6 +272,7 @@ func (r *DBDrivenAlertRule) Evaluate(ctx context.Context, sellerID string, data 
 		Type:        domain.AlertType(r.Template.Type),
 		Priority:    r.Template.Priority,
 		IsActive:    r.Template.IsActive,
+		Frequency:   frequencyFromConfig(r.Template.FrequencyConfig),
 		Content:     string(r.Template.ContentSchema),
 	}
 

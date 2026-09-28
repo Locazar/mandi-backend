@@ -182,23 +182,58 @@ func (h *AlertHandler) DismissAlert(ctx *gin.Context) {
 		return
 	}
 
-	sellerID, exists := ctx.Get("seller_id")
-	if !exists {
+	// Resolve the seller the same way GetSellerAlerts does. This used to read
+	// ctx.Get("seller_id"), which AuthenticateUser never sets (it sets "userId"),
+	// so every dismissal returned 401 and no dismissal was ever recorded.
+	sellerID := h.sellerIDFrom(ctx)
+	if sellerID == "" {
 		response.ErrorResponse(ctx, http.StatusUnauthorized, "Unauthorized: seller_id not found", nil, nil)
 		return
 	}
 
-	sellerIDStr, ok := sellerID.(string)
-	if !ok {
-		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid seller_id format", nil, nil)
-		return
-	}
-
-	err := h.alertUseCase.DismissAlert(ctx, sellerIDStr, alertKey)
+	err := h.alertUseCase.DismissAlert(ctx, sellerID, alertKey)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to dismiss alert", err, nil)
 		return
 	}
 
 	response.SuccessResponse(ctx, http.StatusOK, "Alert dismissed successfully", nil)
+}
+
+// MarkAlertShown records that the seller was actually shown this alert.
+//
+// This is what makes a template's `frequency` mean anything: ShouldShowAlert
+// compares "now" against the last `shown` log entry, and GetLastAlertActionTimes
+// only counts rows whose action is "shown". Without this endpoint nothing could
+// ever write such a row, so every alert re-appeared on every app open regardless
+// of whether it was configured once / daily / weekly.
+//
+// Idempotency is deliberately not enforced: a duplicate log row for the same day
+// is harmless, because the frequency check only reads the most recent timestamp.
+func (h *AlertHandler) MarkAlertShown(ctx *gin.Context) {
+	alertKey := ctx.Param("key")
+	if alertKey == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Alert key is required", nil, nil)
+		return
+	}
+
+	sellerID := h.sellerIDFrom(ctx)
+	if sellerID == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Unauthorized: seller_id not found", nil, nil)
+		return
+	}
+
+	if err := h.alertUseCase.LogAlertView(ctx, sellerID, alertKey); err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to record alert view", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Alert view recorded", nil)
+}
+
+// sellerIDFrom resolves the calling seller from the bearer token, which is the
+// one approach that works across this group (the auth middleware stores
+// "userId", not "seller_id").
+func (h *AlertHandler) sellerIDFrom(ctx *gin.Context) string {
+	return h.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
 }
