@@ -170,7 +170,11 @@ func (r *AlertRepositoryImpl) GetLastAlertActionTimes(ctx context.Context, selle
 	err := r.db.WithContext(ctx).
 		Model(&domain.SellerAlertLog{}).
 		Select("DISTINCT ON (alert_key) alert_key, created_at").
-		Where("seller_id = ? AND alert_key IN ? AND action = ?", sellerID, alertKeys, "shown").
+		// A dismissal counts as "the seller has seen this", not "never show it
+		// again": it starts the same frequency cooldown a plain view does, so a
+		// daily alert dismissed today comes back tomorrow. Only counting "shown"
+		// meant an explicit dismissal was ignored by the frequency check.
+		Where("seller_id = ? AND alert_key IN ? AND action IN ?", sellerID, alertKeys, []string{"shown", "dismissed"}).
 		Order("alert_key, created_at DESC").
 		Scan(&rows).Error
 	if err != nil {

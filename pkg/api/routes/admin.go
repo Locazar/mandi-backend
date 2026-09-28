@@ -95,6 +95,9 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		sellerAlerts.GET("", alertHandler.GetSellerAlerts)
 		sellerAlerts.GET("/", alertHandler.GetSellerAlerts)
 		sellerAlerts.POST("/:key/dismiss", alertHandler.DismissAlert)
+		// Records that the alert was displayed, which is what makes a template's
+		// `frequency` (once/daily/weekly) take effect on the next fetch.
+		sellerAlerts.POST("/:key/shown", alertHandler.MarkAlertShown)
 
 		sellerFlows := sellerAlerts.Group("/flows")
 		{

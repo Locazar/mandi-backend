@@ -94,13 +94,24 @@ type OnboardingDocumentsCopy struct {
 }
 
 type OnboardingShopPhotoCopy struct {
-	Title                string `json:"title"`
-	Subtitle             string `json:"subtitle"`
-	PrimaryLabel         string `json:"primaryLabel"`
-	CapturePlaceholder   string `json:"capturePlaceholder"`
-	RetakeButton         string `json:"retakeButton"`
-	TipsButton           string `json:"tipsButton"`
-	CaptureErrorPrefix   string `json:"captureErrorPrefix"`
+	Title              string `json:"title"`
+	Subtitle           string `json:"subtitle"`
+	PrimaryLabel       string `json:"primaryLabel"`
+	CapturePlaceholder string `json:"capturePlaceholder"`
+	RetakeButton       string `json:"retakeButton"`
+	TipsButton         string `json:"tipsButton"`
+	CaptureErrorPrefix string `json:"captureErrorPrefix"`
+
+	// GalleryButton labels the "pick an existing photo" action beside the
+	// camera frame.
+	GalleryButton string `json:"galleryButton"`
+
+	// PhotoPermission* is the modal shown before the gallery opens, so the
+	// seller is told why the app wants their photos before any OS prompt.
+	PhotoPermissionTitle  string `json:"photoPermissionTitle"`
+	PhotoPermissionBody   string `json:"photoPermissionBody"`
+	PhotoPermissionAllow  string `json:"photoPermissionAllow"`
+	PhotoPermissionCancel string `json:"photoPermissionCancel"`
 }
 
 type OnboardingReviewCopy struct {
@@ -202,6 +213,13 @@ func DefaultOnboardingWizardCopy() OnboardingWizardCopy {
 			RetakeButton:       "Retake photo",
 			TipsButton:         "How to take a shop photo?",
 			CaptureErrorPrefix: "Error capturing photo: ",
+			GalleryButton:      "Choose from gallery",
+
+			PhotoPermissionTitle: "Allow photo access",
+			PhotoPermissionBody: "Locazar needs access to your photos so you can choose your " +
+				"shop photo from the gallery. We only read the photo you pick.",
+			PhotoPermissionAllow:  "Allow",
+			PhotoPermissionCancel: "Not now",
 		},
 		Review: OnboardingReviewCopy{
 			Title:                     "Review your details",
