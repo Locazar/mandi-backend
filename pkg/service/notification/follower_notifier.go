@@ -66,6 +66,7 @@ func (n *FollowerNotifier) NotifyNewProduct(ctx context.Context, shopID, product
 		return
 	}
 	if len(followerIDs) == 0 {
+		log.Printf("INFO [FollowerNotifier]: shop %s has no followers, skipping push", shopID)
 		return
 	}
 
@@ -82,6 +83,7 @@ func (n *FollowerNotifier) NotifyNewProduct(ctx context.Context, shopID, product
 		return
 	}
 	if claim.RowsAffected == 0 {
+		log.Printf("INFO [FollowerNotifier]: shop %s already notified today, skipping push (%d followers)", shopID, len(followerIDs))
 		return // already notified today
 	}
 
@@ -119,14 +121,32 @@ func (n *FollowerNotifier) NotifyNewProduct(ctx context.Context, shopID, product
 			continue
 		}
 		// A follower with no active device (logged out / no token) simply returns
-		// a no-active-tokens error — expected, not a failure. Keep going.
+		// a no-active-tokens error — expected, not a failure. Keep going, but log
+		// why so a "0 delivered" day is diagnosable without re-deploying.
 		if err := n.fcm.SendToOwnerViaFirestore(ctx, "users", uid, title, body, data); err != nil {
+			log.Printf("WARN [FollowerNotifier]: send to follower %s of shop %s failed: %v", uid, shopID, err)
 			continue
 		}
 		sent++
 	}
 	log.Printf("INFO [FollowerNotifier]: shop %s new-product push delivered to %d/%d followers",
 		shopID, sent, len(followerIDs))
+
+	// Nobody actually received it (e.g. every follower logged out / no active
+	// token that day) — release today's slot so the NEXT product added to this
+	// shop today gets a real retry, instead of silently burning the one push a
+	// day this shop gets on a delivery that reached zero devices.
+	if sent == 0 {
+		release := n.db.WithContext(ctx).Exec(
+			`DELETE FROM shop_new_product_notifications WHERE shop_id = ? AND notify_date = CURRENT_DATE`,
+			shopID,
+		)
+		if release.Error != nil {
+			log.Printf("WARN [FollowerNotifier]: failed to release today's slot for shop %s after zero deliveries: %v", shopID, release.Error)
+		} else {
+			log.Printf("INFO [FollowerNotifier]: shop %s had zero deliveries, released today's slot for retry", shopID)
+		}
+	}
 }
 
 // shopName looks up the shop's display name for the notification title.

@@ -515,9 +515,13 @@ func (c *productDatabase) UpdateShopDepartments(ctx context.Context, shopID stri
 
 	// adminID and shopID are already string IDs
 
-	// Insert into shop_departments with ON CONFLICT DO NOTHING to handle duplicates
+	// Insert into shop_departments with ON CONFLICT DO NOTHING to handle duplicates.
+	// The conflict target must match the actual unique index
+	// (uidx_shop_departments_shop_dept_cat_sub, see migration 000001_baseline) on
+	// all four columns — Postgres rejects a partial-column ON CONFLICT target that
+	// doesn't match any constraint/index (SQLSTATE 42P10).
 	query := `INSERT INTO shop_departments (id, admin_id, shop_id, department_id, category_id, sub_category_id, created_at, updated_at)
-	VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW()) ON CONFLICT (shop_id, department_id) DO NOTHING`
+	VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW()) ON CONFLICT (shop_id, department_id, category_id, sub_category_id) DO NOTHING`
 
 	result := c.DB.WithContext(ctx).Exec(query, domain.NewID(domain.PrefixShopDepartment), adminID, shopID, departmentID, categoryID, subCategoryId)
 	if result.Error != nil {
