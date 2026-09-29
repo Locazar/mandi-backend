@@ -41,7 +41,16 @@ type ShopDetails struct {
 	// verbatim instead of the global Config page's `webLink` base + shop id
 	// (see AppConfig.shopWhatsAppShareLink). Empty by default, in which case
 	// that global fallback applies — most shops never need to set this.
-	WhatsAppShareLink string `json:"whatsapp_share_link" gorm:"type:text" binding:"omitempty"`
+	// gorm:"column:..." is required here — GORM's default naming strategy
+	// splits "WhatsApp" into "Whats"+"App" (ordinary camelCase word
+	// boundaries; it has no notion of "WhatsApp" as one word), producing
+	// whats_app_share_link, which doesn't match the actual column. Without
+	// this explicit override, SELECT * ... Scan(&shop) (GetShopByID,
+	// GetShopByOwnerID, GetAllShops) silently leaves this field at its zero
+	// value even though the row has the right data — the write path is
+	// unaffected (UpdateShop targets the literal column name string, not
+	// this struct).
+	WhatsAppShareLink string `json:"whatsapp_share_link" gorm:"column:whatsapp_share_link;type:text" binding:"omitempty"`
 
 	ShopDescription      string           `json:"shop_description" gorm:"type:text" binding:"omitempty"`
 	ShopVerificationDocs string           `json:"shop_verification_docs" gorm:"type:text;" binding:"omitempty"`
