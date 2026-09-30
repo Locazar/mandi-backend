@@ -153,6 +153,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		repository.NewLanguageRepository,
 		repository.NewQRCodeRepository,
 		repository.NewOnboardingNudgeRepository,
+		repository.NewVerificationNotificationRepository,
 		repository.NewCustomerNudgeRepository,
 
 		//usecase — constructors that return interface directly need no Bind;
