@@ -24,6 +24,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 	invoiceHandler handlerInterface.InvoiceHandler,
 	onboardingNudgeHandler *handler.OnboardingNudgeHandler,
 	customerNudgeHandler *handler.CustomerNudgeHandler,
+	verificationNotificationHandler *handler.VerificationNotificationHandler,
 ) {
 
 	auth := api.Group("/auth")
@@ -556,6 +557,15 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			onboardingNudges.POST("/run-sweep", onboardingNudgeHandler.RunSweep)
 			// One-time: anchors shops that went live before this feature existed.
 			onboardingNudges.POST("/backfill", onboardingNudgeHandler.Backfill)
+		}
+
+		// Verification notifications — the admin-editable title/body/image/route
+		// for the pushes VerifyShop/ApproveShop/RejectShop send to the seller
+		// when an admin saves a document-verification decision.
+		verificationNotifications := api.Group("/verification-notifications", adminHandler.RequirePermission(domain.PermCanSendNotifications))
+		{
+			verificationNotifications.GET("/templates", verificationNotificationHandler.GetTemplates)
+			verificationNotifications.PUT("/templates/:key", middleware.TrimSpaces(), verificationNotificationHandler.UpdateTemplate)
 		}
 
 		// Customer onboarding nudges — the same automated, templated sequence
