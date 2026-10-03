@@ -13,7 +13,7 @@ import (
 
 func TestRewardSentinelStatuses(t *testing.T) {
 	want := map[error]int{
-		usecase.ErrRewardProgramDisabled:  http.StatusServiceUnavailable,
+		usecase.ErrRewardProgramDisabled:  http.StatusLocked,
 		usecase.ErrRewardCustomerOnly:     http.StatusForbidden,
 		usecase.ErrRewardShopNotFound:     http.StatusNotFound,
 		usecase.ErrShopNotOptedIn:         http.StatusUnprocessableEntity,

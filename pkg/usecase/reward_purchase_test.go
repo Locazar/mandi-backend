@@ -38,6 +38,7 @@ func TestSubmitPurchase_HappyPath(t *testing.T) {
 	assert.Equal(t, "reward_purchase", pusher.sent[0].EventType)
 	assert.Equal(t, p.ID, pusher.sent[0].Data["purchase_id"])
 	assert.Equal(t, "Ravi", pusher.sent[0].Data["customer_name"])
+	assert.Equal(t, "/rewards-purchases", pusher.sent[0].Data["action_url"], "tap must open the seller's purchases inbox")
 }
 
 func TestSubmitPurchase_DuplicateClientRequestReturnsOriginal(t *testing.T) {

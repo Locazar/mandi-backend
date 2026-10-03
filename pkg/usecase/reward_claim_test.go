@@ -43,9 +43,25 @@ func TestClaimPurchase_CreditsSellerOnce(t *testing.T) {
 	assert.Equal(t, fxCustomer, pusher.sent[0].OwnerID)
 	assert.Equal(t, "user", pusher.sent[0].OwnerType)
 
+	// A retried claim (lost response, second phone) is a no-op success: it
+	// returns the claimed row, credits nothing more and pushes nothing more.
+	again, err := uc.ClaimPurchase(context.Background(), fxAdminID, p.ID)
+	require.NoError(t, err)
+	assert.Equal(t, domain.ShopPurchaseClaimed, again.Status)
+	assert.Equal(t, int64(14), again.SellerPoints)
+	assert.Equal(t, int64(14), f.accountFor(domain.RewardOwnerShop, fxShopID).BalancePoints)
+	assert.Len(t, f.entries(acct.ID, domain.RewardEntryPurchaseEarn), 1)
+	assert.Len(t, pusher.sent, 1)
+}
+
+func TestClaimPurchase_AlreadyRejectedIsStillRefused(t *testing.T) {
+	f := newFakeRewardRepo().withOptedInShop(10)
+	p := pendingPurchase(f, 45000)
+	uc, _ := newTestRewardUseCase(f, fxNow)
+	_, err := uc.RejectPurchase(context.Background(), fxAdminID, p.ID, "not bought")
+	require.NoError(t, err)
 	_, err = uc.ClaimPurchase(context.Background(), fxAdminID, p.ID)
 	assert.ErrorIs(t, err, ErrPurchaseNotPending)
-	assert.Equal(t, int64(14), f.accountFor(domain.RewardOwnerShop, fxShopID).BalancePoints)
 }
 
 func TestClaimPurchase_Rejections(t *testing.T) {
@@ -159,7 +175,18 @@ func TestRejectPurchase(t *testing.T) {
 	require.Len(t, pusher.sent, 1)
 	assert.Equal(t, "rejected", pusher.sent[0].Data["status"])
 
-	_, err = uc.RejectPurchase(context.Background(), fxAdminID, p.ID, "")
+	// A retried reject is a no-op success that keeps the original reason.
+	again, err := uc.RejectPurchase(context.Background(), fxAdminID, p.ID, "")
+	require.NoError(t, err)
+	assert.Equal(t, domain.ShopPurchaseRejected, again.Status)
+	assert.Equal(t, "customer did not buy", again.RejectReason)
+	assert.Len(t, pusher.sent, 1)
+
+	// Rejecting a purchase that was claimed is still refused.
+	q := pendingPurchase(f, 45000)
+	_, err = uc.ClaimPurchase(context.Background(), fxAdminID, q.ID)
+	require.NoError(t, err)
+	_, err = uc.RejectPurchase(context.Background(), fxAdminID, q.ID, "")
 	assert.ErrorIs(t, err, ErrPurchaseNotPending)
 }
 

@@ -81,7 +81,7 @@ var sentinelStatus = map[error]int{
 	usecase.ErrInvoiceNotFound: http.StatusNotFound,
 	usecase.ErrInvoiceNotOwned: http.StatusForbidden,
 	// rewards
-	usecase.ErrRewardProgramDisabled:  http.StatusServiceUnavailable,
+	usecase.ErrRewardProgramDisabled:  http.StatusLocked, // 4xx on purpose: clients retry 5xx and treat it as an outage
 	usecase.ErrRewardCustomerOnly:     http.StatusForbidden,
 	usecase.ErrRewardShopNotFound:     http.StatusNotFound,
 	usecase.ErrShopNotOptedIn:         http.StatusUnprocessableEntity,
