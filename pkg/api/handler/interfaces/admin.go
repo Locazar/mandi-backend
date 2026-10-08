@@ -7,6 +7,9 @@ import (
 )
 
 type AdminHandler interface {
+	// GetAppActivity reports app usage (last_seen_at) and install base
+	// (fcm_tokens.is_active) for sellers and customers.
+	GetAppActivity(ctx *gin.Context)
 	// RequirePermission is route-group middleware — see the implementation
 	// doc comment in pkg/api/handler/admin.go for what it enforces.
 	RequirePermission(key domain.PermissionKey) gin.HandlerFunc

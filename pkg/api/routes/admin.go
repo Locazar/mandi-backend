@@ -25,6 +25,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 	onboardingNudgeHandler *handler.OnboardingNudgeHandler,
 	customerNudgeHandler *handler.CustomerNudgeHandler,
 	verificationNotificationHandler *handler.VerificationNotificationHandler,
+	appUpdateConfigHandler *handler.AppUpdateConfigHandler,
 ) {
 
 	auth := api.Group("/auth")
@@ -568,6 +569,16 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			verificationNotifications.PUT("/templates/:key", middleware.TrimSpaces(), verificationNotificationHandler.UpdateTemplate)
 		}
 
+		// App update config — force-update settings for the seller/customer
+		// apps (config_seller/app, config_customer/app in Firestore), read by
+		// each app at startup. Previously Firebase-console-only; this exposes
+		// the same doc to admin-portal.
+		appUpdateConfig := api.Group("/app-update-config", adminHandler.RequirePermission(domain.PermCanSendNotifications))
+		{
+			appUpdateConfig.GET("/:platform", appUpdateConfigHandler.GetConfig)
+			appUpdateConfig.PUT("/:platform", middleware.TrimSpaces(), appUpdateConfigHandler.UpdateConfig)
+		}
+
 		// Customer onboarding nudges — the same automated, templated sequence
 		// for newly signed-up customers. Sending happens in the in-process ticker.
 		customerNudges := api.Group("/customer-nudges", adminHandler.RequirePermission(domain.PermCanSendNotifications))
@@ -615,6 +626,10 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		{
 			verification.GET("/shop/:shop_id", adminHandler.GetVerificationStatus)
 		}
+
+		// Read-only: who is still using the apps, and the install base.
+		api.GET("/activity", adminHandler.RequirePermission(domain.PermCanManageUsers),
+			adminHandler.GetAppActivity)
 
 		fcm := api.Group("/fcm")
 		{

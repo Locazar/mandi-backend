@@ -103,6 +103,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	onboardingNudgeUseCase := usecase.NewOnboardingNudgeUseCase(onboardingNudgeRepository, notificationUseCase)
 	onboardingNudgeHandler := handler.NewOnboardingNudgeHandler(onboardingNudgeUseCase)
 	verificationNotificationHandler := handler.NewVerificationNotificationHandler(adminUseCase)
+	appUpdateConfigHandler := handler.NewAppUpdateConfigHandler()
 	customerNudgeRepository := repository.NewCustomerNudgeRepository(gormDB)
 	customerNudgeUseCase := usecase.NewCustomerNudgeUseCase(customerNudgeRepository, notificationUseCase)
 	customerNudgeHandler := handler.NewCustomerNudgeHandler(customerNudgeUseCase)
@@ -158,7 +159,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	handlerHandler := handler.NewHandler(mobileAuthUseCase)
 	aiHandler := handler.NewAIHandler(client)
 	invoiceHandler := handler.NewInvoiceHandler(invoiceUseCase)
-	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler, jobHandler, jobCategoryHandler, platformUserHandler, handlerHandler, aiHandler, invoiceHandler, shopUpdateHandler, languageHandler, qrCodeHandler, onboardingNudgeHandler, customerNudgeHandler, verificationNotificationHandler)
+	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler, jobHandler, jobCategoryHandler, platformUserHandler, handlerHandler, aiHandler, invoiceHandler, shopUpdateHandler, languageHandler, qrCodeHandler, onboardingNudgeHandler, customerNudgeHandler, verificationNotificationHandler, appUpdateConfigHandler)
 	return serverHTTP, nil
 }
 
