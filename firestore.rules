@@ -61,6 +61,15 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Customer app update config — same shape and same rule as
+    // config_seller/app above, checked at customer-app startup. Written only
+    // via the admin-portal App Updates page (mandi-backend's Admin SDK,
+    // which bypasses these rules entirely), never from a client.
+    match /config_customer/app {
+      allow read: if true;
+      allow write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

@@ -18,6 +18,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/di"
 	applogger "github.com/rohit221990/mandi-backend/pkg/logger"
 	"github.com/rohit221990/mandi-backend/pkg/repository"
+	"github.com/rohit221990/mandi-backend/pkg/service/presence"
 	usecaseinterfaces "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
 )
@@ -61,6 +62,12 @@ func main() {
 	if err != nil {
 		log.Printf("Warning: Failed to seed data: %v", err)
 	}
+
+	// Records when each seller/customer last used the app, from the
+	// authenticated requests the apps already make on launch — no client change
+	// and no app release needed. Throttled to one write per user per 15 minutes
+	// and executed after the response, so it adds nothing to request latency.
+	presence.Init(dbConn)
 
 	server, err := di.InitializeApi(cfg)
 	if err != nil {

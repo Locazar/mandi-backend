@@ -13,6 +13,7 @@ import (
 	mw "github.com/rohit221990/mandi-backend/pkg/api/middleware"
 	"github.com/rohit221990/mandi-backend/pkg/api/routes"
 	applogger "github.com/rohit221990/mandi-backend/pkg/logger"
+	"github.com/rohit221990/mandi-backend/pkg/service/presence"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
 	swaggerfiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
@@ -65,6 +66,7 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 	onboardingNudgeHandler *handler.OnboardingNudgeHandler,
 	customerNudgeHandler *handler.CustomerNudgeHandler,
 	verificationNotificationHandler *handler.VerificationNotificationHandler,
+	appUpdateConfigHandler *handler.AppUpdateConfigHandler,
 ) *ServerHTTP {
 
 	engine := gin.New()
@@ -76,6 +78,12 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 	engine.Use(applogger.RequestLogger())
 	engine.Use(utils.RecoveryMiddleware())
 	engine.Use(mw.CORSMiddleware())
+	// Stamps last_seen_at for whichever account the route's auth middleware
+	// resolved, so retention can be measured without any app change. Must be
+	// registered here, before the route groups below: gin bakes each route's
+	// handler chain at registration time, so an Engine.Use() afterwards would
+	// silently never run. No-op until presence.Init is called in main.
+	engine.Use(presence.Middleware())
 	engine.MaxMultipartMemory = 500 << 20 // 500 MB max for video uploads
 
 	// swagger docs
@@ -138,7 +146,7 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 	routes.SellerGuideRoutes(engine.Group("/api"), sellerGuideHandler)
 	routes.AdminRoutes(engine.Group("/api/admin"), authHandler, middleware, adminHandler,
 		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler, promotionHandler, fcmTokenHandler, notificationHandler, alertHandler, uiHandler, alertTemplateHandler,
-		jobHandler, jobCategoryHandler, platformUserHandler, mobileAuthHandler, sellerGuideHandler, invoiceHandler, onboardingNudgeHandler, customerNudgeHandler, verificationNotificationHandler)
+		jobHandler, jobCategoryHandler, platformUserHandler, mobileAuthHandler, sellerGuideHandler, invoiceHandler, onboardingNudgeHandler, customerNudgeHandler, verificationNotificationHandler, appUpdateConfigHandler)
 	routes.UIRoutes(engine.Group("/api/web"), middleware, uiHandler)
 	routes.AIRoutes(engine.Group("/api"), aiHandler)
 
