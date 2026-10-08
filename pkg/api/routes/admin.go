@@ -26,6 +26,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 	customerNudgeHandler *handler.CustomerNudgeHandler,
 	verificationNotificationHandler *handler.VerificationNotificationHandler,
 	appUpdateConfigHandler *handler.AppUpdateConfigHandler,
+	districtNudgeHandler *handler.DistrictNudgeHandler,
 ) {
 
 	auth := api.Group("/auth")
@@ -589,6 +590,19 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			customerNudges.PUT("/settings", customerNudgeHandler.UpdateSettings)
 			customerNudges.GET("/stats", customerNudgeHandler.GetStats)
 			customerNudges.POST("/run-sweep", customerNudgeHandler.RunSweep)
+		}
+
+		// District growth nudge — nudges a merchant about a stronger active
+		// peer shop within radius_km (same state, by default Rajasthan).
+		// Automated via the daily in-process ticker in cmd/api/main.go;
+		// run-sweep here is the same sweep, triggerable on demand.
+		districtNudges := api.Group("/district-nudges", adminHandler.RequirePermission(domain.PermCanSendNotifications))
+		{
+			districtNudges.GET("/template", districtNudgeHandler.GetTemplate)
+			districtNudges.PUT("/template", middleware.TrimSpaces(), districtNudgeHandler.UpdateTemplate)
+			districtNudges.GET("/settings", districtNudgeHandler.GetSettings)
+			districtNudges.PUT("/settings", districtNudgeHandler.UpdateSettings)
+			districtNudges.POST("/run-sweep", districtNudgeHandler.RunSweep)
 		}
 
 		// Promotion Categories and Types

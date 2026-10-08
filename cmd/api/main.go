@@ -123,6 +123,15 @@ func main() {
 		go runCustomerNudgeTicker(nudgeCtx, customerNudgeUC)
 	}
 
+	// District growth nudge: once a day, find merchants with a stronger
+	// active peer shop nearby and nudge them about it. A no-op every tick
+	// while the Enabled toggle in admin-portal is off (its default).
+	if districtNudgeUC, districtNudgeErr := di.InitializeDistrictNudgeUseCase(cfg); districtNudgeErr != nil {
+		log.Printf("Warning: Could not initialize district-nudge use-case for the sweep ticker: %v", districtNudgeErr)
+	} else {
+		go runDistrictNudgeTicker(nudgeCtx, districtNudgeUC)
+	}
+
 	// Graceful shutdown: stop watcher when OS signal is received
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
@@ -202,6 +211,37 @@ func runCustomerNudgeTicker(ctx context.Context, uc usecaseinterfaces.CustomerNu
 	}
 	sweep()
 	ticker := time.NewTicker(15 * time.Minute)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			sweep()
+		}
+	}
+}
+
+// runDistrictNudgeTicker calls RunSweep once a day until ctx is cancelled.
+// Fires once immediately on startup too, same reasoning as the onboarding
+// ticker. Product counts change slowly and this is a social-pressure
+// message, so a daily cadence keeps it fresh without feeling spammy — unlike
+// the other nudge tickers this is not a per-shop day/slot sequence, so
+// there's no reason to check more often than that.
+func runDistrictNudgeTicker(ctx context.Context, uc usecaseinterfaces.DistrictNudgeUseCase) {
+	const interval = 24 * time.Hour
+	sweep := func() {
+		result, err := uc.RunSweep(ctx)
+		if err != nil {
+			log.Printf("WARN [district-nudge ticker]: sweep failed: %v", err)
+			return
+		}
+		if !result.Disabled && (result.Sent > 0 || result.Errors > 0) {
+			log.Printf("[district-nudge ticker]: sent=%d errors=%d", result.Sent, result.Errors)
+		}
+	}
+	sweep()
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for {
 		select {
