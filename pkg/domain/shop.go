@@ -35,6 +35,23 @@ type ShopDetails struct {
 	// "hi"), captured by the feature-flagged language picker. Optional.
 	PreferredLanguage string `json:"preferred_language" gorm:"size:10" binding:"omitempty"`
 
+	// WhatsAppShareLink is an optional, per-shop override of the link used in
+	// the seller app's "Share with WhatsApp Status" flow (admin-portal →
+	// Shops → shop detail → WhatsApp Link). When set, the seller app uses it
+	// verbatim instead of the global Config page's `webLink` base + shop id
+	// (see AppConfig.shopWhatsAppShareLink). Empty by default, in which case
+	// that global fallback applies — most shops never need to set this.
+	// gorm:"column:..." is required here — GORM's default naming strategy
+	// splits "WhatsApp" into "Whats"+"App" (ordinary camelCase word
+	// boundaries; it has no notion of "WhatsApp" as one word), producing
+	// whats_app_share_link, which doesn't match the actual column. Without
+	// this explicit override, SELECT * ... Scan(&shop) (GetShopByID,
+	// GetShopByOwnerID, GetAllShops) silently leaves this field at its zero
+	// value even though the row has the right data — the write path is
+	// unaffected (UpdateShop targets the literal column name string, not
+	// this struct).
+	WhatsAppShareLink string `json:"whatsapp_share_link" gorm:"column:whatsapp_share_link;type:text" binding:"omitempty"`
+
 	ShopDescription      string           `json:"shop_description" gorm:"type:text" binding:"omitempty"`
 	ShopVerificationDocs string           `json:"shop_verification_docs" gorm:"type:text;" binding:"omitempty"`
 	Document_Type        ShopDocumentType `json:"document_type" gorm:"size:50" binding:"omitempty"`

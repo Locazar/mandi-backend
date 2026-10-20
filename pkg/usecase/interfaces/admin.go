@@ -32,6 +32,12 @@ type AdminUseCase interface {
 	ApproveShop(ctx context.Context, shopID string) error
 	RejectShop(ctx context.Context, shopID, remark string) error
 
+	// GetVerificationNotificationTemplates / SaveVerificationNotificationTemplate
+	// expose the admin-editable copy VerifyShop/ApproveShop/RejectShop send to
+	// the seller (see domain.VerificationNotificationTemplate).
+	GetVerificationNotificationTemplates(ctx context.Context) ([]domain.VerificationNotificationTemplate, error)
+	SaveVerificationNotificationTemplate(ctx context.Context, tmpl domain.VerificationNotificationTemplate) error
+
 	CreateAdvertisement(ctx context.Context, ad domain.Advertisement) (domain.Advertisement, error)
 	GetAllAdvertisements(ctx context.Context, pagination request.Pagination, filter domain.AdvertisementFilter) (ads []domain.Advertisement, err error)
 	GetAdvertisementByID(ctx context.Context, advertisementID string) (domain.Advertisement, error)

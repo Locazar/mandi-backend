@@ -8,7 +8,9 @@ package di
 
 import (
 	"database/sql"
-	"github.com/rohit221990/mandi-backend/pkg/api"
+	"time"
+
+	http "github.com/rohit221990/mandi-backend/pkg/api"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler"
 	"github.com/rohit221990/mandi-backend/pkg/api/middleware"
 	"github.com/rohit221990/mandi-backend/pkg/config"
@@ -26,7 +28,6 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/service/token"
 	"github.com/rohit221990/mandi-backend/pkg/usecase"
 	"gorm.io/gorm"
-	"time"
 )
 
 // Injectors from wire.go:
@@ -53,7 +54,8 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	middlewareMiddleware := middleware.NewMiddleware(tokenService)
 	bool2 := provideSkipOTPValidation(cfg)
 	onboardingNudgeRepository := repository.NewOnboardingNudgeRepository(gormDB)
-	adminUseCase := usecase.NewAdminUseCase(adminRepository, userRepository, authRepository, otpAuth, tokenService, mobileOTPService, twoFactorSMSService, bool2, cfg, onboardingNudgeRepository)
+	verificationNotificationRepository := repository.NewVerificationNotificationRepository(gormDB)
+	adminUseCase := usecase.NewAdminUseCase(adminRepository, userRepository, authRepository, otpAuth, tokenService, mobileOTPService, twoFactorSMSService, bool2, cfg, onboardingNudgeRepository, verificationNotificationRepository)
 	shopTimeRepository := repository.NewShopTimeRepository(gormDB)
 	shopTimeUseCase := usecase.NewShopTimeUseCase(shopTimeRepository)
 	cloudService, err := cloud.NewObjectStorageService(cfg)
@@ -98,6 +100,16 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	notificationRepository := repository.NewNotificationRepository(gormDB)
 	notificationUseCase := usecase.NewNotificationUseCase(notificationRepository, cfg, cloudService)
 	notificationHandler := handler.NewNotificationHandler(notificationUseCase)
+	onboardingNudgeUseCase := usecase.NewOnboardingNudgeUseCase(onboardingNudgeRepository, notificationUseCase)
+	onboardingNudgeHandler := handler.NewOnboardingNudgeHandler(onboardingNudgeUseCase)
+	verificationNotificationHandler := handler.NewVerificationNotificationHandler(adminUseCase)
+	appUpdateConfigHandler := handler.NewAppUpdateConfigHandler()
+	customerNudgeRepository := repository.NewCustomerNudgeRepository(gormDB)
+	customerNudgeUseCase := usecase.NewCustomerNudgeUseCase(customerNudgeRepository, notificationUseCase)
+	customerNudgeHandler := handler.NewCustomerNudgeHandler(customerNudgeUseCase)
+	districtNudgeRepository := repository.NewDistrictNudgeRepository(gormDB)
+	districtNudgeUseCase := usecase.NewDistrictNudgeUseCase(districtNudgeRepository, notificationUseCase)
+	districtNudgeHandler := handler.NewDistrictNudgeHandler(districtNudgeUseCase)
 	promotionRepository := repository.NewPromotionRepository(gormDB)
 	promotionUseCase := usecase.NewPromotionUseCase(promotionRepository)
 	promotionHandler := handler.NewPromotionHandler(promotionUseCase)
@@ -150,15 +162,10 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	qrCodeRepository := repository.NewQRCodeRepository(gormDB)
 	qrCodeUseCase := usecase.NewQRCodeUseCase(qrCodeRepository)
 	qrCodeHandler := provideQRCodeHandler(qrCodeUseCase, cfg)
-	onboardingNudgeUseCase := usecase.NewOnboardingNudgeUseCase(onboardingNudgeRepository, notificationUseCase)
-	onboardingNudgeHandler := handler.NewOnboardingNudgeHandler(onboardingNudgeUseCase)
-	customerNudgeRepository := repository.NewCustomerNudgeRepository(gormDB)
-	customerNudgeUseCase := usecase.NewCustomerNudgeUseCase(customerNudgeRepository, notificationUseCase)
-	customerNudgeHandler := handler.NewCustomerNudgeHandler(customerNudgeUseCase)
 	rewardRepository := repository.NewRewardRepository(gormDB)
 	rewardUseCase := usecase.NewRewardUseCase(rewardRepository, notificationUseCase)
 	rewardHandler := handler.NewRewardHandler(rewardUseCase)
-	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler, jobHandler, jobCategoryHandler, platformUserHandler, handlerHandler, aiHandler, invoiceHandler, shopUpdateHandler, languageHandler, qrCodeHandler, onboardingNudgeHandler, customerNudgeHandler, rewardHandler)
+	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler, jobHandler, jobCategoryHandler, platformUserHandler, handlerHandler, aiHandler, invoiceHandler, shopUpdateHandler, languageHandler, qrCodeHandler, onboardingNudgeHandler, customerNudgeHandler, rewardHandler, verificationNotificationHandler, appUpdateConfigHandler, districtNudgeHandler)
 	return serverHTTP, nil
 }
 

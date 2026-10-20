@@ -89,26 +89,27 @@ const (
 	// still has to obey the same VARCHAR(32) id budget every real entity id
 	// does, because it flows into nullable admin_id/user_id columns like
 	// product_item_views.admin_id wherever a guest views something.
-	PrefixGuest               IDPrefix = "gst"
-	PrefixJob                 IDPrefix = "job"
-	PrefixJobCategory         IDPrefix = "jcat"
-	PrefixJobSubCategory      IDPrefix = "jscat"
-	PrefixJobLocation         IDPrefix = "jloc"
-	PrefixJobFilter           IDPrefix = "jflt"
-	PrefixJobCategoryFilter   IDPrefix = "jcflt"
-	PrefixJobCategoryLocation IDPrefix = "jcloc"
-	PrefixCategoryRequest     IDPrefix = "catrq"
-	PrefixInvoice             IDPrefix = "inv"
-	PrefixCompanyProfile      IDPrefix = "cbp"
-	PrefixShopUpdate          IDPrefix = "shupd"
-	PrefixShopUpdateProduct   IDPrefix = "shupp"
-	PrefixLanguage            IDPrefix = "lang"
-	PrefixQRCode              IDPrefix = "qr"
-	PrefixQRScanEvent         IDPrefix = "qrsc"
 	PrefixRewardAccount       IDPrefix = "rwa"
 	PrefixRewardLedger        IDPrefix = "rwl"
 	PrefixShopPurchase        IDPrefix = "spur"
 	PrefixRewardAdjust        IDPrefix = "rwadj"
+	PrefixGuest                 IDPrefix = "gst"
+	PrefixJob                   IDPrefix = "job"
+	PrefixJobCategory           IDPrefix = "jcat"
+	PrefixJobSubCategory        IDPrefix = "jscat"
+	PrefixJobLocation           IDPrefix = "jloc"
+	PrefixJobFilter             IDPrefix = "jflt"
+	PrefixJobCategoryFilter     IDPrefix = "jcflt"
+	PrefixJobCategoryLocation   IDPrefix = "jcloc"
+	PrefixCategoryRequest       IDPrefix = "catrq"
+	PrefixInvoice               IDPrefix = "inv"
+	PrefixCompanyProfile        IDPrefix = "cbp"
+	PrefixShopUpdate            IDPrefix = "shupd"
+	PrefixShopUpdateProduct     IDPrefix = "shupp"
+	PrefixLanguage              IDPrefix = "lang"
+	PrefixQRCode                IDPrefix = "qr"
+	PrefixQRScanEvent           IDPrefix = "qrsc"
+	PrefixFollowerNotifDelivery IDPrefix = "fnd"
 )
 
 // allPrefixes is the authoritative registry of every entity prefix. Used by
@@ -136,6 +137,7 @@ var allPrefixes = []IDPrefix{
 	PrefixShopUpdate, PrefixShopUpdateProduct,
 	PrefixLanguage, PrefixQRCode, PrefixQRScanEvent,
 	PrefixRewardAccount, PrefixRewardLedger, PrefixShopPurchase, PrefixRewardAdjust,
+	PrefixLanguage, PrefixQRCode, PrefixQRScanEvent, PrefixFollowerNotifDelivery,
 }
 
 // NewID returns a fresh typed-prefix identifier, e.g. "usr_x7k2q9m4p3...".

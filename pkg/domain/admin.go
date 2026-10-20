@@ -341,6 +341,15 @@ type GlobalAppConfig struct {
 	ShopDeepLinkBase string `json:"shopDeepLinkBase"`
 	AppDownloadURL   string `json:"appDownloadUrl"`
 
+	// WebLink is a separate, independently-editable base URL for the shop
+	// link included in the seller app's "Share with WhatsApp Status" flow
+	// (see ShopBarcode.buildShopShareText in the seller app). Kept distinct
+	// from ShopDeepLinkBase — which still drives the QR/barcode data — so an
+	// admin can point WhatsApp shares at a different landing page (e.g. one
+	// with WhatsApp-specific UTM tracking) without changing what the printed
+	// QR code encodes.
+	WebLink string `json:"webLink"`
+
 	// JSON key is "features" (not "featureFlags") to match the seller-app's
 	// already-shipped RemoteConfigService contract (GET /api/app-config).
 	FeatureFlags struct {
@@ -387,6 +396,7 @@ func DefaultGlobalAppConfig() GlobalAppConfig {
 		ImageBaseURL:     "https://innoida.utho.io/locazar-dev",
 		ShopDeepLinkBase: "https://locazar.com/shop",
 		AppDownloadURL:   "https://locazar.app",
+		WebLink:          "https://locazar.com/shop",
 	}
 	cfg.FeatureFlags.ShowProductItemOffers = false
 	cfg.FeatureFlags.ShowOfferBadgesOnProducts = false

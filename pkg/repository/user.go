@@ -384,6 +384,12 @@ func (c *userDatabase) PublicListShops(ctx context.Context, city, category strin
 		CASE WHEN sd.phone_visible_consent THEN sd.phone ELSE '' END AS phone
 	FROM shop_details sd
 	WHERE sd.shop_status = 'active'`
+
+	// Deliberately NOT subscription-gated: the design gates PRODUCT
+	// visibility, not the shop itself. A shop's own page already renders for
+	// an unsubscribed seller (only its catalogue is hidden), so removing it
+	// from the directory would hide more than the gate intends.
+
 	args := []interface{}{}
 	if city != "" {
 		q += " AND LOWER(sd.city) = LOWER(?)"
@@ -421,6 +427,17 @@ func (c *userDatabase) PublicListProducts(ctx context.Context, city, category, s
 	LEFT JOIN categories cat ON cat.id = pi.category_id
 	LEFT JOIN departments d ON d.id = pi.department_id
 	WHERE sd.shop_status = 'active'`
+
+	// Subscription gate, same as the authenticated customer path in
+	// FindAllProductItems. Without it the two disagreed: a product from an
+	// unsubscribed shop was hidden on that shop's own page but still listed
+	// here, so a customer could find it while browsing, follow it to the shop
+	// and arrive at an empty storefront. Keyed off the same flag, so both
+	// paths switch together and neither can drift from the other again.
+	if subscriptionGateEnabled {
+		q += " AND " + SubscribedShopPredicate
+	}
+
 	args := []interface{}{}
 	if city != "" {
 		q += " AND LOWER(sd.city) = LOWER(?)"

@@ -1,0 +1,13 @@
+-- Records when a seller last used the app, so retention can be measured
+-- without any client change: the apps already hit authenticated endpoints on
+-- every launch, and a middleware stamps this column from those requests.
+--
+-- Nullable on purpose: NULL means "not seen since this feature shipped", which
+-- is reported as its own bucket rather than as a long-dormant seller.
+--
+-- Deliberately not indexed. The reporting query is COUNT(*) FILTER aggregates
+-- over most of the table, which Postgres answers with a seq scan and would not
+-- use an index for; an index would instead be rewritten on every stamp, i.e.
+-- on a column updated every 15 minutes per seller. Add one with the first
+-- query that actually needs it.
+ALTER TABLE admins ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ;

@@ -370,8 +370,9 @@ func (s *FCMPushService) deactivateToken(ctx context.Context, ownerCollection, o
 	return err
 }
 
-// SaveTokenToFirestore persists a device FCM token in Firestore and deactivates
-// all previous tokens for the same owner so that only one token is ever active.
+// SaveTokenToFirestore persists a device FCM token in Firestore. Tokens belong
+// to individual app installations, so saving one must not deactivate tokens
+// registered by other devices or platforms for the same owner.
 // Path: {ownerCollection}/{ownerID}/fcmTokens/{token}
 func (s *FCMPushService) SaveTokenToFirestore(
 	ctx context.Context,
@@ -386,27 +387,8 @@ func (s *FCMPushService) SaveTokenToFirestore(
 
 	coll := s.fsClient.Collection(ownerCollection).Doc(ownerID).Collection("fcmTokens")
 
-	// Deactivate all existing tokens that are NOT the current token.
-	// This prevents duplicate notifications when the device refreshes its FCM token.
-	existingDocs, err := coll.Where("isActive", "==", true).Documents(ctx).GetAll()
-	if err != nil {
-		log.Printf("WARN [SaveTokenToFirestore]: could not query existing tokens for %s/%s: %v", ownerCollection, ownerID, err)
-	} else {
-		for _, doc := range existingDocs {
-			if doc.Ref.ID == token {
-				continue // this is the token we're about to save — skip
-			}
-			if _, updateErr := doc.Ref.Update(ctx, []firestore.Update{
-				{Path: "isActive", Value: false},
-				{Path: "updatedAt", Value: firestore.ServerTimestamp},
-			}); updateErr != nil {
-				log.Printf("WARN [SaveTokenToFirestore]: failed to deactivate old token %s for %s/%s: %v", doc.Ref.ID, ownerCollection, ownerID, updateErr)
-			}
-		}
-	}
-
 	// Save (or overwrite) the new token as active.
-	_, err = coll.Doc(token).Set(ctx, map[string]interface{}{
+	_, err := coll.Doc(token).Set(ctx, map[string]interface{}{
 		"token":     token,
 		"platform":  platform,
 		"isActive":  true,

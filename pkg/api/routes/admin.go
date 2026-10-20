@@ -24,6 +24,9 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 	invoiceHandler handlerInterface.InvoiceHandler,
 	onboardingNudgeHandler *handler.OnboardingNudgeHandler,
 	customerNudgeHandler *handler.CustomerNudgeHandler,
+	verificationNotificationHandler *handler.VerificationNotificationHandler,
+	appUpdateConfigHandler *handler.AppUpdateConfigHandler,
+	districtNudgeHandler *handler.DistrictNudgeHandler,
 ) {
 
 	auth := api.Group("/auth")
@@ -95,6 +98,9 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		sellerAlerts.GET("", alertHandler.GetSellerAlerts)
 		sellerAlerts.GET("/", alertHandler.GetSellerAlerts)
 		sellerAlerts.POST("/:key/dismiss", alertHandler.DismissAlert)
+		// Records that the alert was displayed, which is what makes a template's
+		// `frequency` (once/daily/weekly) take effect on the next fetch.
+		sellerAlerts.POST("/:key/shown", alertHandler.MarkAlertShown)
 
 		sellerFlows := sellerAlerts.Group("/flows")
 		{
@@ -556,6 +562,25 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			onboardingNudges.POST("/backfill", onboardingNudgeHandler.Backfill)
 		}
 
+		// Verification notifications — the admin-editable title/body/image/route
+		// for the pushes VerifyShop/ApproveShop/RejectShop send to the seller
+		// when an admin saves a document-verification decision.
+		verificationNotifications := api.Group("/verification-notifications", adminHandler.RequirePermission(domain.PermCanSendNotifications))
+		{
+			verificationNotifications.GET("/templates", verificationNotificationHandler.GetTemplates)
+			verificationNotifications.PUT("/templates/:key", middleware.TrimSpaces(), verificationNotificationHandler.UpdateTemplate)
+		}
+
+		// App update config — force-update settings for the seller/customer
+		// apps (config_seller/app, config_customer/app in Firestore), read by
+		// each app at startup. Previously Firebase-console-only; this exposes
+		// the same doc to admin-portal.
+		appUpdateConfig := api.Group("/app-update-config", adminHandler.RequirePermission(domain.PermCanSendNotifications))
+		{
+			appUpdateConfig.GET("/:platform", appUpdateConfigHandler.GetConfig)
+			appUpdateConfig.PUT("/:platform", middleware.TrimSpaces(), appUpdateConfigHandler.UpdateConfig)
+		}
+
 		// Customer onboarding nudges — the same automated, templated sequence
 		// for newly signed-up customers. Sending happens in the in-process ticker.
 		customerNudges := api.Group("/customer-nudges", adminHandler.RequirePermission(domain.PermCanSendNotifications))
@@ -566,6 +591,19 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			customerNudges.PUT("/settings", customerNudgeHandler.UpdateSettings)
 			customerNudges.GET("/stats", customerNudgeHandler.GetStats)
 			customerNudges.POST("/run-sweep", customerNudgeHandler.RunSweep)
+		}
+
+		// District growth nudge — nudges a merchant about a stronger active
+		// peer shop within radius_km (same state, by default Rajasthan).
+		// Automated via the daily in-process ticker in cmd/api/main.go;
+		// run-sweep here is the same sweep, triggerable on demand.
+		districtNudges := api.Group("/district-nudges", adminHandler.RequirePermission(domain.PermCanSendNotifications))
+		{
+			districtNudges.GET("/template", districtNudgeHandler.GetTemplate)
+			districtNudges.PUT("/template", middleware.TrimSpaces(), districtNudgeHandler.UpdateTemplate)
+			districtNudges.GET("/settings", districtNudgeHandler.GetSettings)
+			districtNudges.PUT("/settings", districtNudgeHandler.UpdateSettings)
+			districtNudges.POST("/run-sweep", districtNudgeHandler.RunSweep)
 		}
 
 		// Promotion Categories and Types
@@ -603,6 +641,10 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		{
 			verification.GET("/shop/:shop_id", adminHandler.GetVerificationStatus)
 		}
+
+		// Read-only: who is still using the apps, and the install base.
+		api.GET("/activity", adminHandler.RequirePermission(domain.PermCanManageUsers),
+			adminHandler.GetAppActivity)
 
 		fcm := api.Group("/fcm")
 		{

@@ -11,6 +11,9 @@ import (
 type AlertHandler interface {
 	GetSellerAlerts(ctx *gin.Context)
 	DismissAlert(ctx *gin.Context)
+	// MarkAlertShown records that an alert was displayed, so its configured
+	// frequency (once/daily/weekly) is honoured on the next fetch.
+	MarkAlertShown(ctx *gin.Context)
 }
 
 // AlertUseCase defines the alert business logic interface

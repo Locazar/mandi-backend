@@ -53,6 +53,33 @@ var shopPIIKeys = map[string]bool{
 	"ShopVerificationDocs": true,
 }
 
+// validShopUpdateColumns allowlists the shop_details columns that
+// UpdateShop's fallback case may write to. A caller-supplied key that isn't
+// one of the switch's explicit (fixed, safe) cases above and isn't in this
+// set is rejected rather than used as-is.
+//
+// Every entry here is a column a real caller sends today: seller-app's
+// profile edit form (shop_name, owner_name, address_line1, address_line2,
+// city, state, country, pincode), its "use current location" and
+// phone-visibility actions (latitude, longitude, phone_visible_consent),
+// and admin-portal's per-shop WhatsApp link dialog (whatsapp_share_link).
+// Extend this set — don't reintroduce the open fallback — if a new field is
+// wired to send a snake_case key straight through.
+var validShopUpdateColumns = map[string]bool{
+	"shop_name":             true,
+	"owner_name":            true,
+	"address_line1":         true,
+	"address_line2":         true,
+	"city":                  true,
+	"state":                 true,
+	"country":               true,
+	"pincode":               true,
+	"latitude":              true,
+	"longitude":             true,
+	"phone_visible_consent": true,
+	"whatsapp_share_link":   true,
+}
+
 // encrypt seals a non-empty PII value for storage. Empty values pass through.
 func (c *adminDatabase) encrypt(plain string) (string, error) {
 	if plain == "" {
@@ -1311,8 +1338,6 @@ func (c *adminDatabase) UpdateShop(ctx context.Context, shop map[string]interfac
 	for k, v := range shop {
 		var columnName string
 
-		print("---------------------", k, v)
-
 		switch k {
 		case "AdminID":
 			columnName = "admin_id"
@@ -1360,7 +1385,13 @@ func (c *adminDatabase) UpdateShop(ctx context.Context, shop map[string]interfac
 		case "Document_Value":
 			columnName = "document_value"
 		default:
-			columnName = k // fallback: use as-is
+			// k is caller-controlled and becomes a raw SQL identifier below
+			// (values are parameterized, but column names can't be) — only
+			// ever accept it if it's a known-safe column, never as-is.
+			if !validShopUpdateColumns[k] {
+				continue
+			}
+			columnName = k
 		}
 
 		// Encrypt PII fields at rest before persisting.

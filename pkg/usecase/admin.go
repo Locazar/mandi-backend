@@ -35,33 +35,35 @@ import (
 )
 
 type adminUseCase struct {
-	adminRepo           interfaces.AdminRepository
-	userRepo            interfaces.UserRepository
-	authRepo            interfaces.AuthRepository
-	optAuth             otp.OtpAuth
-	tokenService        token.TokenService
-	otpService          *otp.MobileOTPService
-	smsService          *sms.TwoFactorSMSService
-	skipOTPValidation   bool
-	config              config.Config
-	fcmPush             notificationSvc.PushSender
-	onboardingNudgeRepo interfaces.OnboardingNudgeRepository
+	adminRepo             interfaces.AdminRepository
+	userRepo              interfaces.UserRepository
+	authRepo              interfaces.AuthRepository
+	optAuth               otp.OtpAuth
+	tokenService          token.TokenService
+	otpService            *otp.MobileOTPService
+	smsService            *sms.TwoFactorSMSService
+	skipOTPValidation     bool
+	config                config.Config
+	fcmPush               notificationSvc.PushSender
+	onboardingNudgeRepo   interfaces.OnboardingNudgeRepository
+	verificationNotifRepo interfaces.VerificationNotificationRepository
 }
 
-func NewAdminUseCase(repo interfaces.AdminRepository, userRepo interfaces.UserRepository, authRepo interfaces.AuthRepository, optAuth otp.OtpAuth, tokenService token.TokenService, otpService *otp.MobileOTPService, smsService *sms.TwoFactorSMSService, skipOTPValidation bool, cfg config.Config, onboardingNudgeRepo interfaces.OnboardingNudgeRepository) service.AdminUseCase {
+func NewAdminUseCase(repo interfaces.AdminRepository, userRepo interfaces.UserRepository, authRepo interfaces.AuthRepository, optAuth otp.OtpAuth, tokenService token.TokenService, otpService *otp.MobileOTPService, smsService *sms.TwoFactorSMSService, skipOTPValidation bool, cfg config.Config, onboardingNudgeRepo interfaces.OnboardingNudgeRepository, verificationNotifRepo interfaces.VerificationNotificationRepository) service.AdminUseCase {
 
 	return &adminUseCase{
-		adminRepo:           repo,
-		userRepo:            userRepo,
-		authRepo:            authRepo,
-		optAuth:             optAuth,
-		tokenService:        tokenService,
-		otpService:          otpService,
-		smsService:          smsService,
-		skipOTPValidation:   skipOTPValidation,
-		config:              cfg,
-		fcmPush:             notificationSvc.NewFCMPushService(),
-		onboardingNudgeRepo: onboardingNudgeRepo,
+		adminRepo:             repo,
+		userRepo:              userRepo,
+		authRepo:              authRepo,
+		optAuth:               optAuth,
+		tokenService:          tokenService,
+		otpService:            otpService,
+		smsService:            smsService,
+		skipOTPValidation:     skipOTPValidation,
+		config:                cfg,
+		fcmPush:               notificationSvc.NewFCMPushService(),
+		onboardingNudgeRepo:   onboardingNudgeRepo,
+		verificationNotifRepo: verificationNotifRepo,
 	}
 }
 
@@ -380,78 +382,95 @@ func (c *adminUseCase) VerifyShop(ctx context.Context, verify request.ShopVerifi
 		return fmt.Errorf("failed to update shop verification status \nerror:%v", err.Error())
 	}
 
-	// Notify the seller of the outcome of this verify save. The message reflects
-	// the exact combination of the four checks the admin just saved, so the
-	// seller always learns whether they're live, what's verified, and what's
-	// still pending — including when an admin turns a previously-passing check
-	// off (shop drops back to under_review). Best-effort: notifyShopOwner logs
-	// and swallows delivery errors so a push failure never fails the save.
-	title, body := shopVerificationMessage(verify)
-	// Both mandatory checks passing is what VerifyShop (the repo layer, just
-	// above) uses to flip shop_status to 'active' — same condition here picks
-	// the celebration image only for the "you're now live" messages
-	// (shopVerificationMessage's cases 1 and 2), not the "still under review" one.
-	imageURL := ""
-	if VerificationStatus {
-		imageURL = c.config.PublicBaseURL + "/uploads/icon/verification_approved.png"
-	}
-	c.notifyShopOwner(ctx, verify.ShopId, title, body, imageURL)
+	// Notify the seller of the outcome of this verify save, from the
+	// admin-editable template matching the exact combination of the four
+	// checks the admin just saved — so the seller always learns whether
+	// they're live, what's verified, and what's still pending, including
+	// when an admin turns a previously-passing check off (shop drops back to
+	// under_review). Best-effort throughout: never fails the save.
+	photo := verify.Photo_Shop_Verification
+	addr := verify.Address_Proof_Verification
+	biz := verify.Business_Doc_Verification
+	ident := verify.Identity_Doc_Verification
+
+	templateKey := verificationTemplateKeyFor(photo, addr, biz, ident)
+	shopName := c.shopNameFor(ctx, verify.ShopId)
+	c.sendVerificationNotification(ctx, verify.ShopId, templateKey, shopName, photo, addr, biz, ident, "")
 	return nil
 }
 
-// shopVerificationMessage builds the seller-facing push title/body for a verify
-// save, covering every combination of the four checks. Shop photo + shop
-// address are the two MANDATORY go-live checks (their AND drives shop_status =
-// active in the repository); business document + identity document are trust
-// documents that do not by themselves make a shop live.
-func shopVerificationMessage(v request.ShopVerification) (title, body string) {
-	photo := v.Photo_Shop_Verification
-	addr := v.Address_Proof_Verification
-	biz := v.Business_Doc_Verification
-	ident := v.Identity_Doc_Verification
+// verificationTemplateKeyFor picks which VerifyShop template applies to a
+// given combination of the four checks. Shop photo + shop address are the
+// two MANDATORY go-live checks (their AND drives shop_status = active in the
+// repository); business document + identity document are trust documents
+// that do not by themselves make a shop live.
+func verificationTemplateKeyFor(photo, addr, biz, ident bool) string {
+	switch {
+	// All four verified → full welcome, shop is live.
+	case photo && addr && biz && ident:
+		return domain.VerifKeyFullyVerified
+	// Both mandatory checks pass → shop is live, one or both docs still pending.
+	case photo && addr:
+		return domain.VerifKeyLivePartial
+	// Mandatory not met → shop stays under review (hidden from customers).
+	// Also the path taken when an admin UN-verifies a check that had
+	// previously passed.
+	default:
+		return domain.VerifKeyPendingReview
+	}
+}
 
+// shopNameFor is a best-effort lookup for the {{shop_name}} placeholder — a
+// failed lookup falls back to "" rather than blocking the notification.
+func (c *adminUseCase) shopNameFor(ctx context.Context, shopID string) string {
+	shop, err := c.adminRepo.GetShopByID(ctx, shopID)
+	if err != nil {
+		return ""
+	}
+	return shop.ShopName
+}
+
+// substituteVerificationPlaceholders replaces every {{...}} token a
+// verification-notification template may use. An unused placeholder for a
+// given template (e.g. {{remark}} in an approval template) just resolves to
+// its value regardless — harmless if the admin never references it.
+func substituteVerificationPlaceholders(s, shopName string, photo, addr, biz, ident bool, remark string) string {
 	yn := func(b bool) string {
 		if b {
 			return "verified ✓"
 		}
 		return "pending ✗"
 	}
-
-	switch {
-	// 1. All four verified → full welcome, shop is live.
-	case photo && addr && biz && ident:
-		return "🎉 Welcome to Locazar — your shop is fully verified!",
-			"Congratulations! Your shop photo, shop address, business document and identity document are all verified. Your shop is now LIVE and visible to customers. Welcome aboard — happy selling!"
-
-	// 2. Both mandatory checks pass → shop is live, one or both docs still pending.
-	case photo && addr:
-		b := "Great news! Your shop photo and shop address are verified, so your shop is now LIVE and visible to customers on Locazar (https://locazar.in)."
-		switch {
-		case biz && !ident:
-			b += " Your business document is verified; your identity document is still pending."
-		case !biz && ident:
-			b += " Your identity document is verified; your business document is still pending."
-		default: // neither document verified
-			b += " Tip: verify your business and identity documents to build more trust with customers."
-		}
-		return "✅ Your shop is verified and live!", b + " Welcome aboard!"
-
-	// 3. Mandatory not met → shop stays under review (hidden from customers).
-	// This is also the path taken when an admin UN-verifies a check that had
-	// previously passed. The body lists all four so every combination — and
-	// every doc-only verification — produces its own tailored message.
-	default:
-		lead := "Your shop is currently under review and not visible to customers yet."
-		if biz && ident {
-			lead = "Your business document and identity document are verified. " + lead
-		}
-		return "⚠️ Action needed — shop verification pending",
-			fmt.Sprintf(
-				"%s Status — Shop photo: %s, Shop address: %s, Business document: %s, Identity document: %s. "+
-					"Your shop will go live once both your shop photo and shop address are verified — please make sure they are clear and valid.",
-				lead, yn(photo), yn(addr), yn(biz), yn(ident),
-			)
+	remarkPart := ""
+	if strings.TrimSpace(remark) != "" {
+		remarkPart = strings.TrimSpace(remark) + ". "
 	}
+	r := strings.NewReplacer(
+		"{{shop_name}}", shopName,
+		"{{photo_status}}", yn(photo),
+		"{{address_status}}", yn(addr),
+		"{{business_doc_status}}", yn(biz),
+		"{{identity_doc_status}}", yn(ident),
+		"{{remark}}", remarkPart,
+	)
+	return r.Replace(s)
+}
+
+// sendVerificationNotification loads templateKey, substitutes placeholders,
+// and sends a best-effort push to the shop's seller. Never returns an error —
+// same "never fail the underlying save" contract as notifyShopOwner.
+func (c *adminUseCase) sendVerificationNotification(ctx context.Context, shopID, templateKey, shopName string, photo, addr, biz, ident bool, remark string) {
+	if c.verificationNotifRepo == nil {
+		return
+	}
+	tmpl, err := c.verificationNotifRepo.GetTemplate(ctx, templateKey)
+	if err != nil {
+		log.Printf("WARN [sendVerificationNotification]: load template %s for shop %s: %v", templateKey, shopID, err)
+		return
+	}
+	title := substituteVerificationPlaceholders(tmpl.Title, shopName, photo, addr, biz, ident, remark)
+	body := substituteVerificationPlaceholders(tmpl.Body, shopName, photo, addr, biz, ident, remark)
+	c.notifyShopOwner(ctx, shopID, title, body, tmpl.ImageURL, tmpl.Route)
 }
 
 // SubmitShopForReview is the seller's own "submit for verification" action —
@@ -470,11 +489,7 @@ func (c *adminUseCase) ApproveShop(ctx context.Context, shopID string) error {
 	if err := c.adminRepo.ApproveShop(ctx, shopID); err != nil {
 		return fmt.Errorf("failed to approve shop \nerror:%v", err.Error())
 	}
-	c.notifyShopOwner(ctx, shopID,
-		"🎉 Congratulations, you're live!",
-		"Your shop has been approved and is now visible to customers on Locazar (https://locazar.in).",
-		c.config.PublicBaseURL+"/uploads/icon/verification_approved.png",
-	)
+	c.sendVerificationNotification(ctx, shopID, domain.VerifKeyApproved, c.shopNameFor(ctx, shopID), false, false, false, false, "")
 	// Starts the shop's 7-day onboarding-nudge sequence (add products, update
 	// photo, update address, view shop link). RecordGoLiveOnce is a no-op if
 	// this shop already has an anchor (e.g. suspended then re-approved), so
@@ -493,11 +508,7 @@ func (c *adminUseCase) RejectShop(ctx context.Context, shopID, remark string) er
 	if err := c.adminRepo.RejectShop(ctx, shopID, remark); err != nil {
 		return fmt.Errorf("failed to reject shop \nerror:%v", err.Error())
 	}
-	body := "Your shop verification was declined. Please review the feedback and resubmit."
-	if strings.TrimSpace(remark) != "" {
-		body = "Your shop verification was declined: " + remark + ". Please fix the issue and resubmit."
-	}
-	c.notifyShopOwner(ctx, shopID, "Shop verification declined", body, "")
+	c.sendVerificationNotification(ctx, shopID, domain.VerifKeyRejected, c.shopNameFor(ctx, shopID), false, false, false, false, remark)
 	return nil
 }
 
@@ -505,8 +516,9 @@ func (c *adminUseCase) RejectShop(ctx context.Context, shopID, remark string) er
 // shop_status change. Enquiry/seller Firestore docs key sellers by shop ID
 // (see SaveFcmToken), so ownerID here is the shop ID, not the admin ID.
 // Failure to notify never fails the underlying approve/reject decision.
-// imageURL is optional — pass "" for a plain text notification.
-func (c *adminUseCase) notifyShopOwner(ctx context.Context, shopID, title, body, imageURL string) {
+// imageURL and route are optional — pass "" for either to omit it from the
+// push (a plain text notification, or one that just opens the app on tap).
+func (c *adminUseCase) notifyShopOwner(ctx context.Context, shopID, title, body, imageURL, route string) {
 	if c.fcmPush == nil {
 		return
 	}
@@ -514,9 +526,29 @@ func (c *adminUseCase) notifyShopOwner(ctx context.Context, shopID, title, body,
 	if imageURL != "" {
 		data["image_url"] = imageURL
 	}
+	if route != "" {
+		data["route"] = route
+	}
 	if err := c.fcmPush.SendToOwnerViaFirestore(ctx, "sellers", shopID, title, body, data); err != nil {
 		log.Printf("WARN [notifyShopOwner]: failed to notify shop %s: %v", shopID, err)
 	}
+}
+
+// GetVerificationNotificationTemplates lists the admin-editable copy for the
+// document-verification pushes VerifyShop/ApproveShop/RejectShop send.
+func (c *adminUseCase) GetVerificationNotificationTemplates(ctx context.Context) ([]domain.VerificationNotificationTemplate, error) {
+	if c.verificationNotifRepo == nil {
+		return nil, fmt.Errorf("verification notification templates are not available")
+	}
+	return c.verificationNotifRepo.GetTemplates(ctx)
+}
+
+// SaveVerificationNotificationTemplate edits one template's title/body/image/route.
+func (c *adminUseCase) SaveVerificationNotificationTemplate(ctx context.Context, tmpl domain.VerificationNotificationTemplate) error {
+	if c.verificationNotifRepo == nil {
+		return fmt.Errorf("verification notification templates are not available")
+	}
+	return c.verificationNotifRepo.SaveTemplate(ctx, tmpl)
 }
 
 func (c *adminUseCase) CreateAdvertisement(ctx context.Context, ad domain.Advertisement) (domain.Advertisement, error) {
