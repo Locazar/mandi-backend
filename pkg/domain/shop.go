@@ -102,6 +102,23 @@ type ShopDetails struct {
 	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
 }
 
+// StoreDiscount is the seller-controlled store-wide discount badge: FLAT or
+// UPTO a given percentage/INR amount, or a Clearance label. One row per shop,
+// upserted by the seller from the app. Fetched by the customer-facing APIs to
+// show the badge on the shop listing.
+type StoreDiscount struct {
+	ID        string    `json:"id" gorm:"primaryKey;type:varchar(32)"`
+	ShopID    string    `json:"shop_id" gorm:"type:varchar(32);not null;uniqueIndex"`
+	Kind      string    `json:"kind" gorm:"size:20;not null"` // flat | upto | clearance
+	ValueUnit string    `json:"value_unit" gorm:"size:20;not null"` // percentage | inr
+	Value     float64   `json:"value" gorm:"type:decimal(10,2);not null;default:0"`
+	IsActive  bool      `json:"is_active" gorm:"not null;default:true"`
+	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+}
+
+func (StoreDiscount) TableName() string { return "store_discounts" }
+
 type ShopOffer struct {
 	ID        string    `json:"id" gorm:"primaryKey;type:varchar(32)"`
 	ShopID    string    `json:"shop_id" gorm:"type:varchar(32);not null"`

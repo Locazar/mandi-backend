@@ -2030,3 +2030,40 @@ func (c *adminUseCase) ListShopsForSalesExecutive(ctx context.Context, callerID,
 	}
 	return c.adminRepo.ListShopReferralsByPlatformUser(ctx, platformUserID, pagination)
 }
+
+func (c *adminUseCase) GetStoreDiscount(ctx context.Context, sellerID string) (domain.StoreDiscount, bool, error) {
+	shop, err := c.adminRepo.GetShopByOwnerID(ctx, sellerID)
+	if err != nil || shop.ID == "" {
+		return domain.StoreDiscount{}, false, domain.NotFoundError("shop")
+	}
+	return c.adminRepo.GetStoreDiscount(ctx, shop.ID)
+}
+
+func (c *adminUseCase) SetStoreDiscount(ctx context.Context, sellerID, kind, valueUnit string, value float64) (domain.StoreDiscount, error) {
+	shop, err := c.adminRepo.GetShopByOwnerID(ctx, sellerID)
+	if err != nil || shop.ID == "" {
+		return domain.StoreDiscount{}, domain.NotFoundError("shop")
+	}
+	d := domain.StoreDiscount{
+		ShopID:    shop.ID,
+		Kind:      kind,
+		ValueUnit: valueUnit,
+		Value:     value,
+		IsActive:  true,
+	}
+	existing, found, _ := c.adminRepo.GetStoreDiscount(ctx, shop.ID)
+	if found {
+		d.ID = existing.ID
+	} else {
+		d.ID = domain.NewID(domain.PrefixStoreDiscount)
+	}
+	return c.adminRepo.UpsertStoreDiscount(ctx, d)
+}
+
+func (c *adminUseCase) RemoveStoreDiscount(ctx context.Context, sellerID string) error {
+	shop, err := c.adminRepo.GetShopByOwnerID(ctx, sellerID)
+	if err != nil || shop.ID == "" {
+		return domain.NotFoundError("shop")
+	}
+	return c.adminRepo.DeleteStoreDiscount(ctx, shop.ID)
+}

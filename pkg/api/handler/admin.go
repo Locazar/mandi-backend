@@ -3727,3 +3727,60 @@ func (a *adminHandler) ListShopsForSalesExecutive(ctx *gin.Context) {
 	}
 	response.SuccessResponse(ctx, http.StatusOK, "Attached shops fetched successfully", referrals)
 }
+
+// GetStoreDiscount returns the calling seller's current store discount, or 404 if none is set.
+func (a *adminHandler) GetStoreDiscount(ctx *gin.Context) {
+	sellerID := a.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	if sellerID == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Unauthorized", nil, nil)
+		return
+	}
+	d, found, err := a.adminUseCase.GetStoreDiscount(ctx, sellerID)
+	if err != nil {
+		a.handleAppErr(ctx, "Failed to fetch store discount", err)
+		return
+	}
+	if !found {
+		response.SuccessResponse(ctx, http.StatusOK, "No store discount set", nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Store discount fetched", d)
+}
+
+// SetStoreDiscount creates or replaces the calling seller's store discount.
+func (a *adminHandler) SetStoreDiscount(ctx *gin.Context) {
+	sellerID := a.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	if sellerID == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Unauthorized", nil, nil)
+		return
+	}
+	var body struct {
+		Kind      string  `json:"kind" binding:"required"`
+		ValueUnit string  `json:"value_unit" binding:"required"`
+		Value     float64 `json:"value"`
+	}
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid request body", err, nil)
+		return
+	}
+	d, err := a.adminUseCase.SetStoreDiscount(ctx, sellerID, body.Kind, body.ValueUnit, body.Value)
+	if err != nil {
+		a.handleAppErr(ctx, "Failed to set store discount", err)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Store discount saved", d)
+}
+
+// RemoveStoreDiscount deletes the calling seller's store discount.
+func (a *adminHandler) RemoveStoreDiscount(ctx *gin.Context) {
+	sellerID := a.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	if sellerID == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Unauthorized", nil, nil)
+		return
+	}
+	if err := a.adminUseCase.RemoveStoreDiscount(ctx, sellerID); err != nil {
+		a.handleAppErr(ctx, "Failed to remove store discount", err)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Store discount removed", nil)
+}

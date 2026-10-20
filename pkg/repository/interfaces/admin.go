@@ -157,4 +157,9 @@ type AdminRepository interface {
 	ListCategoryRequestsByAdmin(ctx context.Context, adminID string, pagination request.Pagination) ([]domain.CategoryRequest, error)
 	GetCategoryRequestByID(ctx context.Context, id string) (domain.CategoryRequest, error)
 	UpdateCategoryRequestStatus(ctx context.Context, id string, status domain.CategoryRequestStatus, adminResponse string) error
+
+	// Store discount — seller-controlled per-shop discount badge.
+	GetStoreDiscount(ctx context.Context, shopID string) (domain.StoreDiscount, bool, error)
+	UpsertStoreDiscount(ctx context.Context, d domain.StoreDiscount) (domain.StoreDiscount, error)
+	DeleteStoreDiscount(ctx context.Context, shopID string) error
 }

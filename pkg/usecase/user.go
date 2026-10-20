@@ -333,10 +333,25 @@ func (c *userUserCase) GetProductItemsByShop(ctx context.Context, adminID string
 	return c.productRepo.GetProductItemsByShop(ctx, adminID)
 }
 
-func (c *userUserCase) GetShopByID(ctx context.Context, shopID string) (response.Shop, error) {
+func (c *userUserCase) GetShopByID(ctx context.Context, shopID string, withProducts bool) (response.Shop, error) {
 	shop, err := c.userRepo.FindShopByID(ctx, shopID)
 	if err != nil {
 		return response.Shop{}, fmt.Errorf("failed to find shop by ID: %v", err)
 	}
+
+	// Store discount is a single-row lookup — always included, negligible cost.
+	if d, err := c.userRepo.GetStoreDiscountByShopID(ctx, shopID); err == nil {
+		shop.StoreDiscount = d
+	}
+
+	// Products are opt-in; the query is expensive (offer subqueries per row).
+	// Cap at 50 to avoid unbounded payloads on shops with many products.
+	if withProducts {
+		pagination := &request.Pagination{Limit: 50, Offset: 0}
+		if items, err := c.productRepo.FindAllProductItems(ctx, "", "", nil, nil, nil, "true", "created_at", pagination, shopID, true); err == nil {
+			shop.Products = items
+		}
+	}
+
 	return shop, nil
 }

@@ -718,6 +718,18 @@ func (c *userDatabase) FindShopByID(ctx context.Context, shopID string) (respons
 	return shop, nil
 }
 
+func (c *userDatabase) GetStoreDiscountByShopID(ctx context.Context, shopID string) (*domain.StoreDiscount, error) {
+	var d domain.StoreDiscount
+	err := c.DB.WithContext(ctx).Where("shop_id = ? AND is_active = true", shopID).First(&d).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &d, nil
+}
+
 func (c *userDatabase) UpdateTrialUsed(ctx context.Context, userID string) error {
 	return c.DB.Exec("UPDATE users SET trial_used = true WHERE id = $1", userID).Error
 }

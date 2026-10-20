@@ -885,8 +885,9 @@ func (c *UserHandler) GetShopByID(ctx *gin.Context) {
 	shopIDStr := ctx.Param("shop_id")
 	shopID := shopIDStr
 	userID := utils.GetUserIdFromContext(ctx)
+	withProducts := ctx.Query("with_products") == "true"
 
-	shop, err := c.userUseCase.GetShopByID(ctx, shopID)
+	shop, err := c.userUseCase.GetShopByID(ctx, shopID, withProducts)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get shop by ID", err, nil)
 		return

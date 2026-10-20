@@ -45,6 +45,7 @@ type UserRepository interface {
 	PublicListProducts(ctx context.Context, city, category, shopID string, limit, offset int) (products []response.PublicProduct, err error)
 	DeleteRefreshSessionByUserID(ctx context.Context, adminID string, userType string) error
 	FindShopByID(ctx context.Context, shopID string) (response.Shop, error)
+	GetStoreDiscountByShopID(ctx context.Context, shopID string) (*domain.StoreDiscount, error)
 	GetShopSocialDetails(ctx context.Context, shopID string, userID string) (domain.ShopSocialSummary, error)
 	FollowShop(ctx context.Context, userID string, shopID string) error
 	UnfollowShop(ctx context.Context, userID string, shopID string) error

@@ -34,7 +34,7 @@ type UserUseCase interface {
 	GetProductItemsByCategory(ctx context.Context, categoryID string) ([]response.ProductItems, error)
 	GetProductItemsBySubCategory(ctx context.Context, subCategoryID string) ([]response.ProductItems, error)
 	GetProductItemsByShop(ctx context.Context, adminID string) ([]response.ProductItems, error)
-	GetShopByID(ctx context.Context, shopID string) (response.Shop, error)
+	GetShopByID(ctx context.Context, shopID string, withProducts bool) (response.Shop, error)
 	GetShopSocialDetails(ctx context.Context, shopID string, userID string) (domain.ShopSocialSummary, error)
 	FollowShop(ctx context.Context, userID string, shopID string) error
 	UnfollowShop(ctx context.Context, userID string, shopID string) error

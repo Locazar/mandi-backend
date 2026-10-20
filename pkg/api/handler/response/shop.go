@@ -1,6 +1,10 @@
 package response
 
-import "time"
+import (
+	"time"
+
+	"github.com/rohit221990/mandi-backend/pkg/domain"
+)
 
 type ShopReview struct {
 	UserID    string    `json:"user_id"`
@@ -52,8 +56,10 @@ type Shop struct {
 	UserRating             uint      `json:"user_rating" gorm:"column:user_rating"`
 	UserReview             string    `json:"user_review" gorm:"column:user_review"`
 	DistanceKm             *float64  `json:"distance_km,omitempty" gorm:"column:distance_km"`
-	IsOpen                 bool          `json:"is_open" gorm:"column:is_open"`
-	CreatedAt              time.Time     `json:"created_at" gorm:"column:created_at"`
-	UpdatedAt              time.Time     `json:"updated_at" gorm:"column:updated_at"`
-	Reviews                []ShopReview  `json:"reviews" gorm:"-"`
+	IsOpen                 bool                   `json:"is_open" gorm:"column:is_open"`
+	CreatedAt              time.Time              `json:"created_at" gorm:"column:created_at"`
+	UpdatedAt              time.Time              `json:"updated_at" gorm:"column:updated_at"`
+	Reviews                []ShopReview           `json:"reviews" gorm:"-"`
+	StoreDiscount          *domain.StoreDiscount  `json:"store_discount,omitempty" gorm:"-"`
+	Products               []ProductItems         `json:"products,omitempty" gorm:"-"`
 }

@@ -90,6 +90,15 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 	// both user and admin tokens, so sellers can also read advertisements.
 	api.GET("/advertisements/", middleware.AuthenticateUser(), adminHandler.GetAllAdvertisements)
 
+	// Seller-controlled store discount — FLAT/UPTO/Clearance badge on the shop
+	// listing. Uses AuthenticateUser so seller tokens are accepted.
+	storeDiscount := api.Group("/store-discount", middleware.AuthenticateUser())
+	{
+		storeDiscount.GET("", adminHandler.GetStoreDiscount)
+		storeDiscount.PUT("", adminHandler.SetStoreDiscount)
+		storeDiscount.DELETE("", adminHandler.RemoveStoreDiscount)
+	}
+
 	// Seller-facing alert routes: registered with AuthenticateUser (not
 	// AuthenticateAdmin) so seller tokens can fetch/dismiss their own alerts
 	// and read seller-facing flow/template content.
@@ -109,6 +118,22 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			sellerFlows.POST("/:key/step/:step_number/complete", alertTemplateHandler.CompleteStep)
 		}
 		sellerAlerts.GET("/templates/:key", alertTemplateHandler.GetTemplateForSeller)
+	}
+
+	// Promotion categories and types are read-only for sellers — registered
+	// with AuthenticateUser so seller tokens are accepted. The POST/DELETE
+	// mutations stay inside the AuthenticateAdmin block below.
+	sellerPromotions := api.Group("/promotions", middleware.AuthenticateUser())
+	{
+		sellerPromotions.GET("/categories/", promotionHandler.GetAllPromotionCategories)
+		sellerPromotions.GET("/categories/:category_id", promotionHandler.GetPromotionCategoryByID)
+		sellerPromotions.GET("/types/", promotionHandler.GetAllPromotionTypes)
+		sellerPromotions.GET("/types/category/:category_id", promotionHandler.GetPromotionTypesByCategoryID)
+		sellerPromotions.GET("/types/:type_id", promotionHandler.GetPromotionTypeByID)
+		sellerPromotions.GET("/", promotionHandler.GetAllPromotions)
+		sellerPromotions.GET("/:promotion_id", promotionHandler.GetPromotionByID)
+		sellerPromotions.POST("/", promotionHandler.CreatePromotion)
+		sellerPromotions.DELETE("/:promotion_id", promotionHandler.DeletePromotion)
 	}
 
 	api.Use(middleware.AuthenticateAdmin())
@@ -606,30 +631,9 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			districtNudges.POST("/run-sweep", districtNudgeHandler.RunSweep)
 		}
 
-		// Promotion Categories and Types
-		promotion := api.Group("/promotions")
-		{
-			// Promotion Categories
-			categories := promotion.Group("/categories")
-			{
-				categories.GET("/", promotionHandler.GetAllPromotionCategories)
-				categories.GET("/:category_id", promotionHandler.GetPromotionCategoryByID)
-			}
-
-			// Promotion Types
-			types := promotion.Group("/types")
-			{
-				types.GET("/", promotionHandler.GetAllPromotionTypes)
-				types.GET("/category/:category_id", promotionHandler.GetPromotionTypesByCategoryID)
-				types.GET("/:type_id", promotionHandler.GetPromotionTypeByID)
-			}
-
-			// Promotions (instances)
-			promotion.POST("/", promotionHandler.CreatePromotion)
-			promotion.GET("/", promotionHandler.GetAllPromotions)
-			promotion.GET("/:promotion_id", promotionHandler.GetPromotionByID)
-			promotion.DELETE("/:promotion_id", promotionHandler.DeletePromotion)
-		}
+		// Promotion category/type admin mutations (create/update types & categories)
+		// are reserved for future admin-portal use. The read + seller-create paths
+		// are now registered above under AuthenticateUser so seller tokens work.
 
 		identity := api.Group("/identity-document")
 		{

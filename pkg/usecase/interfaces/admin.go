@@ -177,6 +177,11 @@ type AdminUseCase interface {
 	ListCategoryRequests(ctx context.Context, callerID, status string, pagination request.Pagination) ([]domain.CategoryRequest, error)
 	ListMyCategoryRequests(ctx context.Context, callerID string, pagination request.Pagination) ([]domain.CategoryRequest, error)
 	UpdateCategoryRequestStatus(ctx context.Context, callerID, requestID string, status domain.CategoryRequestStatus, adminResponse string) error
+
+	// Store discount — seller-controlled per-shop discount badge.
+	GetStoreDiscount(ctx context.Context, sellerID string) (domain.StoreDiscount, bool, error)
+	SetStoreDiscount(ctx context.Context, sellerID string, kind, valueUnit string, value float64) (domain.StoreDiscount, error)
+	RemoveStoreDiscount(ctx context.Context, sellerID string) error
 }
 
 // GetCategory(ctx context.Context) (helper.Category, any)

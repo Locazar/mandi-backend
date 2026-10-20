@@ -141,6 +141,21 @@ func (mr *MockUserRepositoryMockRecorder) FindSellersByRadius(ctx, reqData inter
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindSellersByRadius", reflect.TypeOf((*MockUserRepository)(nil).FindSellersByRadius), ctx, reqData)
 }
 
+// GetStoreDiscountByShopID mocks base method.
+func (m *MockUserRepository) GetStoreDiscountByShopID(ctx context.Context, shopID string) (*domain.StoreDiscount, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetStoreDiscountByShopID", ctx, shopID)
+	ret0, _ := ret[0].(*domain.StoreDiscount)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetStoreDiscountByShopID indicates an expected call of GetStoreDiscountByShopID.
+func (mr *MockUserRepositoryMockRecorder) GetStoreDiscountByShopID(ctx, shopID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStoreDiscountByShopID", reflect.TypeOf((*MockUserRepository)(nil).GetStoreDiscountByShopID), ctx, shopID)
+}
+
 // FindShopByID mocks base method.
 func (m *MockUserRepository) FindShopByID(ctx context.Context, shopID string) (response.Shop, error) {
 	m.ctrl.T.Helper()

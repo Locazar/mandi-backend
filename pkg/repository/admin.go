@@ -2127,3 +2127,42 @@ func (c *adminDatabase) attachCategoryRequestNames(ctx context.Context, requests
 		}
 	}
 }
+
+func (c *adminDatabase) GetStoreDiscount(ctx context.Context, shopID string) (domain.StoreDiscount, bool, error) {
+	var d domain.StoreDiscount
+	err := c.DB.WithContext(ctx).Where("shop_id = ?", shopID).First(&d).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return domain.StoreDiscount{}, false, nil
+		}
+		return domain.StoreDiscount{}, false, err
+	}
+	return d, true, nil
+}
+
+func (c *adminDatabase) UpsertStoreDiscount(ctx context.Context, d domain.StoreDiscount) (domain.StoreDiscount, error) {
+	err := c.DB.WithContext(ctx).
+		Where(domain.StoreDiscount{ShopID: d.ShopID}).
+		Assign(domain.StoreDiscount{
+			Kind:      d.Kind,
+			ValueUnit: d.ValueUnit,
+			Value:     d.Value,
+			IsActive:  d.IsActive,
+		}).
+		FirstOrCreate(&d).Error
+	if err != nil {
+		return domain.StoreDiscount{}, err
+	}
+	// If already existed, update the mutable fields.
+	err = c.DB.WithContext(ctx).Model(&d).Where("shop_id = ?", d.ShopID).Updates(map[string]interface{}{
+		"kind":       d.Kind,
+		"value_unit": d.ValueUnit,
+		"value":      d.Value,
+		"is_active":  d.IsActive,
+	}).Error
+	return d, err
+}
+
+func (c *adminDatabase) DeleteStoreDiscount(ctx context.Context, shopID string) error {
+	return c.DB.WithContext(ctx).Where("shop_id = ?", shopID).Delete(&domain.StoreDiscount{}).Error
+}

@@ -167,4 +167,9 @@ type AdminHandler interface {
 	UpdateShopReferral(ctx *gin.Context)
 	DeleteShopReferral(ctx *gin.Context)
 	ListShopsForSalesExecutive(ctx *gin.Context)
+
+	// Store discount
+	GetStoreDiscount(ctx *gin.Context)
+	SetStoreDiscount(ctx *gin.Context)
+	RemoveStoreDiscount(ctx *gin.Context)
 }
