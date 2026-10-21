@@ -162,4 +162,11 @@ type AdminRepository interface {
 	GetStoreDiscount(ctx context.Context, shopID string) (domain.StoreDiscount, bool, error)
 	UpsertStoreDiscount(ctx context.Context, d domain.StoreDiscount) (domain.StoreDiscount, error)
 	DeleteStoreDiscount(ctx context.Context, shopID string) error
+
+	// Promotion–product assignment — seller applies one of their promotions to a product.
+	GetPromotionProductByProductItemID(ctx context.Context, productItemID string) (domain.PromotionProduct, bool, error)
+	ApplyPromotionToProduct(ctx context.Context, pp domain.PromotionProduct) error
+	RemovePromotionFromProduct(ctx context.Context, productItemID string) error
+	VerifyProductBelongsToShop(ctx context.Context, productItemID, shopID string) (bool, error)
+	VerifyPromotionBelongsToShop(ctx context.Context, promotionID, shopID string) (bool, error)
 }

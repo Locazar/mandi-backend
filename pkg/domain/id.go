@@ -70,9 +70,10 @@ const (
 	PrefixAlertAction     IDPrefix = "alta"
 	PrefixAlertTemplate   IDPrefix = "altt"
 	PrefixSellerAlertLog  IDPrefix = "salg"
-	PrefixPromotion       IDPrefix = "prm"
-	PrefixPromotionType   IDPrefix = "prmt"
-	PrefixPromotionCat    IDPrefix = "prmc"
+	PrefixPromotion        IDPrefix = "prm"
+	PrefixPromotionType    IDPrefix = "prmt"
+	PrefixPromotionCat     IDPrefix = "prmc"
+	PrefixPromotionProduct IDPrefix = "prmp"
 	PrefixBanner          IDPrefix = "bnr"
 	PrefixSubscPlan       IDPrefix = "subp"
 	PrefixSubscOrder      IDPrefix = "subo"
@@ -140,6 +141,7 @@ var allPrefixes = []IDPrefix{
 	PrefixRewardAccount, PrefixRewardLedger, PrefixShopPurchase, PrefixRewardAdjust,
 	PrefixLanguage, PrefixQRCode, PrefixQRScanEvent, PrefixFollowerNotifDelivery,
 	PrefixStoreDiscount,
+	PrefixPromotionProduct,
 }
 
 // NewID returns a fresh typed-prefix identifier, e.g. "usr_x7k2q9m4p3...".

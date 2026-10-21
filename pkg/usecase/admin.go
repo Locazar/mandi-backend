@@ -2039,7 +2039,7 @@ func (c *adminUseCase) GetStoreDiscount(ctx context.Context, sellerID string) (d
 	return c.adminRepo.GetStoreDiscount(ctx, shop.ID)
 }
 
-func (c *adminUseCase) SetStoreDiscount(ctx context.Context, sellerID, kind, valueUnit string, value float64) (domain.StoreDiscount, error) {
+func (c *adminUseCase) SetStoreDiscount(ctx context.Context, sellerID, kind, valueUnit string, value float64, startDate, endDate *time.Time) (domain.StoreDiscount, error) {
 	shop, err := c.adminRepo.GetShopByOwnerID(ctx, sellerID)
 	if err != nil || shop.ID == "" {
 		return domain.StoreDiscount{}, domain.NotFoundError("shop")
@@ -2050,9 +2050,20 @@ func (c *adminUseCase) SetStoreDiscount(ctx context.Context, sellerID, kind, val
 		ValueUnit: valueUnit,
 		Value:     value,
 		IsActive:  true,
+		StartDate: startDate,
+		EndDate:   endDate,
 	}
 	existing, found, _ := c.adminRepo.GetStoreDiscount(ctx, shop.ID)
 	if found {
+		// Reject if the existing discount has a date range that overlaps
+		// with the new one (same period — seller must remove the old one first).
+		if startDate != nil && endDate != nil &&
+			existing.StartDate != nil && existing.EndDate != nil {
+			// overlap: existing.start < new.end  AND  new.start < existing.end
+			if existing.StartDate.Before(*endDate) && startDate.Before(*existing.EndDate) {
+				return domain.StoreDiscount{}, domain.ConflictError("store_discount", "A store discount already exists for the overlapping date range; remove it first")
+			}
+		}
 		d.ID = existing.ID
 	} else {
 		d.ID = domain.NewID(domain.PrefixStoreDiscount)
@@ -2066,4 +2077,66 @@ func (c *adminUseCase) RemoveStoreDiscount(ctx context.Context, sellerID string)
 		return domain.NotFoundError("shop")
 	}
 	return c.adminRepo.DeleteStoreDiscount(ctx, shop.ID)
+}
+
+// ---- Promotion–product assignment ----
+
+func (c *adminUseCase) ApplyOfferToProduct(ctx context.Context, sellerID, promotionID, productItemID string) error {
+	shop, err := c.adminRepo.GetShopByOwnerID(ctx, sellerID)
+	if err != nil || shop.ID == "" {
+		return domain.NotFoundError("shop")
+	}
+	// Verify the product belongs to the seller's shop.
+	ok, err := c.adminRepo.VerifyProductBelongsToShop(ctx, productItemID, shop.ID)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return domain.NotFoundError("product_item")
+	}
+	// Verify the promotion belongs to the seller's shop.
+	ok, err = c.adminRepo.VerifyPromotionBelongsToShop(ctx, promotionID, shop.ID)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return domain.NotFoundError("promotion")
+	}
+	// Replace (upsert) the assignment.
+	pp := domain.PromotionProduct{
+		ID:            domain.NewID(domain.PrefixPromotionProduct),
+		PromotionID:   promotionID,
+		ProductItemID: productItemID,
+	}
+	return c.adminRepo.ApplyPromotionToProduct(ctx, pp)
+}
+
+func (c *adminUseCase) RemoveOfferFromProduct(ctx context.Context, sellerID, productItemID string) error {
+	shop, err := c.adminRepo.GetShopByOwnerID(ctx, sellerID)
+	if err != nil || shop.ID == "" {
+		return domain.NotFoundError("shop")
+	}
+	ok, err := c.adminRepo.VerifyProductBelongsToShop(ctx, productItemID, shop.ID)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return domain.NotFoundError("product_item")
+	}
+	return c.adminRepo.RemovePromotionFromProduct(ctx, productItemID)
+}
+
+func (c *adminUseCase) GetProductPromotion(ctx context.Context, sellerID, productItemID string) (domain.PromotionProduct, bool, error) {
+	shop, err := c.adminRepo.GetShopByOwnerID(ctx, sellerID)
+	if err != nil || shop.ID == "" {
+		return domain.PromotionProduct{}, false, domain.NotFoundError("shop")
+	}
+	ok, err := c.adminRepo.VerifyProductBelongsToShop(ctx, productItemID, shop.ID)
+	if err != nil {
+		return domain.PromotionProduct{}, false, err
+	}
+	if !ok {
+		return domain.PromotionProduct{}, false, domain.NotFoundError("product_item")
+	}
+	return c.adminRepo.GetPromotionProductByProductItemID(ctx, productItemID)
 }

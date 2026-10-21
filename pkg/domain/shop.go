@@ -107,14 +107,16 @@ type ShopDetails struct {
 // upserted by the seller from the app. Fetched by the customer-facing APIs to
 // show the badge on the shop listing.
 type StoreDiscount struct {
-	ID        string    `json:"id" gorm:"primaryKey;type:varchar(32)"`
-	ShopID    string    `json:"shop_id" gorm:"type:varchar(32);not null;uniqueIndex"`
-	Kind      string    `json:"kind" gorm:"size:20;not null"` // flat | upto | clearance
-	ValueUnit string    `json:"value_unit" gorm:"size:20;not null"` // percentage | inr
-	Value     float64   `json:"value" gorm:"type:decimal(10,2);not null;default:0"`
-	IsActive  bool      `json:"is_active" gorm:"not null;default:true"`
-	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+	ID        string     `json:"id" gorm:"primaryKey;type:varchar(32)"`
+	ShopID    string     `json:"shop_id" gorm:"type:varchar(32);not null;uniqueIndex"`
+	Kind      string     `json:"kind" gorm:"size:20;not null"` // flat | upto | clearance
+	ValueUnit string     `json:"value_unit" gorm:"size:20;not null"` // percentage | inr
+	Value     float64    `json:"value" gorm:"type:decimal(10,2);not null;default:0"`
+	IsActive  bool       `json:"is_active" gorm:"not null;default:true"`
+	StartDate *time.Time `json:"start_date,omitempty" gorm:"type:timestamptz"`
+	EndDate   *time.Time `json:"end_date,omitempty" gorm:"type:timestamptz"`
+	CreatedAt time.Time  `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt time.Time  `json:"updated_at" gorm:"autoUpdateTime"`
 }
 
 func (StoreDiscount) TableName() string { return "store_discounts" }

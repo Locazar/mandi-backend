@@ -99,6 +99,14 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		storeDiscount.DELETE("", adminHandler.RemoveStoreDiscount)
 	}
 
+	// Promotion–product assignment — seller applies one of their promotions to a product.
+	productOffer := api.Group("/product-offer", middleware.AuthenticateUser())
+	{
+		productOffer.GET("", adminHandler.GetProductPromotion)
+		productOffer.PUT("", adminHandler.ApplyOfferToProduct)
+		productOffer.DELETE("", adminHandler.RemoveOfferFromProduct)
+	}
+
 	// Seller-facing alert routes: registered with AuthenticateUser (not
 	// AuthenticateAdmin) so seller tokens can fetch/dismiss their own alerts
 	// and read seller-facing flow/template content.

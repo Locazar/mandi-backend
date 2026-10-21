@@ -3755,15 +3755,21 @@ func (a *adminHandler) SetStoreDiscount(ctx *gin.Context) {
 		return
 	}
 	var body struct {
-		Kind      string  `json:"kind" binding:"required"`
-		ValueUnit string  `json:"value_unit" binding:"required"`
-		Value     float64 `json:"value"`
+		Kind      string     `json:"kind" binding:"required"`
+		ValueUnit string     `json:"value_unit" binding:"required"`
+		Value     float64    `json:"value"`
+		StartDate *time.Time `json:"start_date"`
+		EndDate   *time.Time `json:"end_date"`
 	}
 	if err := ctx.ShouldBindJSON(&body); err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid request body", err, nil)
 		return
 	}
-	d, err := a.adminUseCase.SetStoreDiscount(ctx, sellerID, body.Kind, body.ValueUnit, body.Value)
+	if body.StartDate != nil && body.EndDate != nil && !body.EndDate.After(*body.StartDate) {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "End date must be after start date", nil, nil)
+		return
+	}
+	d, err := a.adminUseCase.SetStoreDiscount(ctx, sellerID, body.Kind, body.ValueUnit, body.Value, body.StartDate, body.EndDate)
 	if err != nil {
 		a.handleAppErr(ctx, "Failed to set store discount", err)
 		return
@@ -3783,4 +3789,74 @@ func (a *adminHandler) RemoveStoreDiscount(ctx *gin.Context) {
 		return
 	}
 	response.SuccessResponse(ctx, http.StatusOK, "Store discount removed", nil)
+}
+
+// ---- Promotion–product assignment ----
+
+// ApplyOfferToProduct applies one of the seller's promotions to a product item.
+// PUT /api/seller/product-offer  body: { "promotion_id": "...", "product_item_id": "..." }
+func (a *adminHandler) ApplyOfferToProduct(ctx *gin.Context) {
+	sellerID := a.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	if sellerID == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Unauthorized", nil, nil)
+		return
+	}
+	var body struct {
+		PromotionID   string `json:"promotion_id"    binding:"required"`
+		ProductItemID string `json:"product_item_id" binding:"required"`
+	}
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid request body", err, nil)
+		return
+	}
+	if err := a.adminUseCase.ApplyOfferToProduct(ctx, sellerID, body.PromotionID, body.ProductItemID); err != nil {
+		a.handleAppErr(ctx, "Failed to apply offer", err)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Offer applied to product", nil)
+}
+
+// RemoveOfferFromProduct removes any promotion applied to a product item.
+// DELETE /api/seller/product-offer?product_item_id=...
+func (a *adminHandler) RemoveOfferFromProduct(ctx *gin.Context) {
+	sellerID := a.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	if sellerID == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Unauthorized", nil, nil)
+		return
+	}
+	productItemID := ctx.Query("product_item_id")
+	if productItemID == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "product_item_id is required", nil, nil)
+		return
+	}
+	if err := a.adminUseCase.RemoveOfferFromProduct(ctx, sellerID, productItemID); err != nil {
+		a.handleAppErr(ctx, "Failed to remove offer", err)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Offer removed from product", nil)
+}
+
+// GetProductPromotion returns the applied promotion for a product item.
+// GET /api/seller/product-offer?product_item_id=...
+func (a *adminHandler) GetProductPromotion(ctx *gin.Context) {
+	sellerID := a.adminUseCase.DecodeTokenData(ctx.GetHeader("Authorization"))
+	if sellerID == "" {
+		response.ErrorResponse(ctx, http.StatusUnauthorized, "Unauthorized", nil, nil)
+		return
+	}
+	productItemID := ctx.Query("product_item_id")
+	if productItemID == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "product_item_id is required", nil, nil)
+		return
+	}
+	pp, found, err := a.adminUseCase.GetProductPromotion(ctx, sellerID, productItemID)
+	if err != nil {
+		a.handleAppErr(ctx, "Failed to fetch product promotion", err)
+		return
+	}
+	if !found {
+		response.SuccessResponse(ctx, http.StatusOK, "No promotion applied", nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Product promotion fetched", pp)
 }

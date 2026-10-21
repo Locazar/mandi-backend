@@ -263,3 +263,15 @@ type Promotion struct {
 	PromotionCategory PromotionCategory `json:"promotion_category" gorm:"foreignKey:PromotionCategoryID"`
 	PromotionType     PromotionsType    `json:"promotion_type" gorm:"foreignKey:PromotionTypeID"`
 }
+
+// PromotionProduct links a seller-owned promotion to a single product item.
+// One row per product item (UNIQUE on product_item_id).
+type PromotionProduct struct {
+	ID            string    `json:"id"             gorm:"primaryKey;type:varchar(32)"`
+	PromotionID   string    `json:"promotion_id"   gorm:"type:varchar(32);not null"`
+	ProductItemID string    `json:"product_item_id" gorm:"type:varchar(32);not null;uniqueIndex"`
+	CreatedAt     time.Time `json:"created_at"     gorm:"autoCreateTime"`
+	UpdatedAt     time.Time `json:"updated_at"     gorm:"autoUpdateTime"`
+}
+
+func (PromotionProduct) TableName() string { return "promotion_products" }

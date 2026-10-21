@@ -99,6 +99,7 @@ type ProductItems struct {
 	Description         string                 `json:"description"`
 	Highlights          []string               `json:"highlights"`
 	OfferProducts       []OfferProduct         `json:"offer_products"`
+	AppliedPromotion    *AppliedPromotion      `json:"applied_promotion,omitempty"`
 	DiscountRate        *uint                  `json:"discount_rate,omitempty"`
 	ShopID              string                 `json:"shop_id"`
 	ShopName            string                 `json:"shop_name"`
@@ -108,6 +109,18 @@ type ProductItems struct {
 	DistanceKM          *float64               `json:"distance_km,omitempty"`
 	Stock               bool                   `json:"stock"`
 	IsSubscribed        bool                   `json:"is_subscribed"`
+}
+
+// AppliedPromotion is the seller-applied promotion on a single product item.
+type AppliedPromotion struct {
+	ID           string    `json:"id"`
+	PromotionID  string    `json:"promotion_id"`
+	OfferName    string    `json:"offer_name"`
+	Description  string    `json:"description"`
+	DiscountRate float64   `json:"discount_rate"`
+	StartDate    time.Time `json:"start_date"`
+	EndDate      time.Time `json:"end_date"`
+	CreatedAt    time.Time `json:"created_at"`
 }
 
 type ProductVariationValue struct {

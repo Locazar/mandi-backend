@@ -172,4 +172,9 @@ type AdminHandler interface {
 	GetStoreDiscount(ctx *gin.Context)
 	SetStoreDiscount(ctx *gin.Context)
 	RemoveStoreDiscount(ctx *gin.Context)
+
+	// Promotion–product assignment
+	GetProductPromotion(ctx *gin.Context)
+	ApplyOfferToProduct(ctx *gin.Context)
+	RemoveOfferFromProduct(ctx *gin.Context)
 }

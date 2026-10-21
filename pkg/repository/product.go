@@ -2155,6 +2155,37 @@ func (c *productDatabase) GetProductItemByID(ctx context.Context, productItemID 
 		productItem.OfferProducts = offerProducts
 	}
 
+	// Fetch seller-applied promotion from promotion_products.
+	appliedPromoQuery := `SELECT pp.id, pp.promotion_id,
+	                         p.offer_name, p.description, p.discount_rate,
+	                         p.start_date, p.end_date, pp.created_at
+	                      FROM promotion_products pp
+	                      INNER JOIN promotions p ON p.id = pp.promotion_id
+	                      WHERE pp.product_item_id = $1
+	                        AND p.is_active = true`
+	var appliedRow struct {
+		ID           string    `gorm:"column:id"`
+		PromotionID  string    `gorm:"column:promotion_id"`
+		OfferName    string    `gorm:"column:offer_name"`
+		Description  string    `gorm:"column:description"`
+		DiscountRate float64   `gorm:"column:discount_rate"`
+		StartDate    time.Time `gorm:"column:start_date"`
+		EndDate      time.Time `gorm:"column:end_date"`
+		CreatedAt    time.Time `gorm:"column:created_at"`
+	}
+	if apErr := c.DB.Raw(appliedPromoQuery, productItemID).Scan(&appliedRow).Error; apErr == nil && appliedRow.ID != "" {
+		productItem.AppliedPromotion = &response.AppliedPromotion{
+			ID:           appliedRow.ID,
+			PromotionID:  appliedRow.PromotionID,
+			OfferName:    appliedRow.OfferName,
+			Description:  appliedRow.Description,
+			DiscountRate: appliedRow.DiscountRate,
+			StartDate:    appliedRow.StartDate,
+			EndDate:      appliedRow.EndDate,
+			CreatedAt:    appliedRow.CreatedAt,
+		}
+	}
+
 	return
 }
 

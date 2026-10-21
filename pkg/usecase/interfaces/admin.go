@@ -180,8 +180,13 @@ type AdminUseCase interface {
 
 	// Store discount — seller-controlled per-shop discount badge.
 	GetStoreDiscount(ctx context.Context, sellerID string) (domain.StoreDiscount, bool, error)
-	SetStoreDiscount(ctx context.Context, sellerID string, kind, valueUnit string, value float64) (domain.StoreDiscount, error)
+	SetStoreDiscount(ctx context.Context, sellerID string, kind, valueUnit string, value float64, startDate, endDate *time.Time) (domain.StoreDiscount, error)
 	RemoveStoreDiscount(ctx context.Context, sellerID string) error
+
+	// Promotion–product assignment — seller applies one of their promotions to a product.
+	ApplyOfferToProduct(ctx context.Context, sellerID, promotionID, productItemID string) error
+	RemoveOfferFromProduct(ctx context.Context, sellerID, productItemID string) error
+	GetProductPromotion(ctx context.Context, sellerID, productItemID string) (domain.PromotionProduct, bool, error)
 }
 
 // GetCategory(ctx context.Context) (helper.Category, any)

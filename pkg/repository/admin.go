@@ -2166,3 +2166,50 @@ func (c *adminDatabase) UpsertStoreDiscount(ctx context.Context, d domain.StoreD
 func (c *adminDatabase) DeleteStoreDiscount(ctx context.Context, shopID string) error {
 	return c.DB.WithContext(ctx).Where("shop_id = ?", shopID).Delete(&domain.StoreDiscount{}).Error
 }
+
+// ---- Promotion-product assignment ----
+
+func (c *adminDatabase) GetPromotionProductByProductItemID(ctx context.Context, productItemID string) (domain.PromotionProduct, bool, error) {
+	var pp domain.PromotionProduct
+	err := c.DB.WithContext(ctx).Where("product_item_id = ?", productItemID).First(&pp).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return domain.PromotionProduct{}, false, nil
+		}
+		return domain.PromotionProduct{}, false, err
+	}
+	return pp, true, nil
+}
+
+func (c *adminDatabase) ApplyPromotionToProduct(ctx context.Context, pp domain.PromotionProduct) error {
+	// UPSERT: replace any existing assignment for this product item.
+	return c.DB.WithContext(ctx).
+		Where("product_item_id = ?", pp.ProductItemID).
+		Assign(map[string]interface{}{
+			"id":           pp.ID,
+			"promotion_id": pp.PromotionID,
+		}).
+		FirstOrCreate(&pp).Error
+}
+
+func (c *adminDatabase) RemovePromotionFromProduct(ctx context.Context, productItemID string) error {
+	return c.DB.WithContext(ctx).
+		Where("product_item_id = ?", productItemID).
+		Delete(&domain.PromotionProduct{}).Error
+}
+
+func (c *adminDatabase) VerifyProductBelongsToShop(ctx context.Context, productItemID, shopID string) (bool, error) {
+	var count int64
+	err := c.DB.WithContext(ctx).Model(&domain.ProductItem{}).
+		Where("id = ? AND shop_id = ?", productItemID, shopID).
+		Count(&count).Error
+	return count > 0, err
+}
+
+func (c *adminDatabase) VerifyPromotionBelongsToShop(ctx context.Context, promotionID, shopID string) (bool, error) {
+	var count int64
+	err := c.DB.WithContext(ctx).Model(&domain.Promotion{}).
+		Where("id = ? AND shop_id = ?", promotionID, shopID).
+		Count(&count).Error
+	return count > 0, err
+}
