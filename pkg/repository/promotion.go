@@ -210,8 +210,13 @@ func (r *promotionRepository) UpdatePromotion(ctx context.Context, promotionID s
 }
 
 func (r *promotionRepository) DeletePromotion(ctx context.Context, promotionID string) error {
-	if err := r.db.Delete(&domain.Promotion{}, promotionID).Error; err != nil {
-		return fmt.Errorf("failed to delete promotion: %w", err)
+	// promotion_products has ON DELETE CASCADE, so deleting the parent removes children automatically.
+	result := r.db.WithContext(ctx).Exec("DELETE FROM promotions WHERE id = ?", promotionID)
+	if result.Error != nil {
+		return fmt.Errorf("failed to delete promotion: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("promotion not found: %s", promotionID)
 	}
 	return nil
 }
