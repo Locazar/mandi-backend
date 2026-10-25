@@ -336,7 +336,8 @@ func (c *userDatabase) RemoveWishListItem(ctx context.Context, userID, productIt
 
 func (c *userDatabase) FindSellersByRadius(ctx context.Context, reqData request.SellerRadiusRequest) (sellers []response.Shop, err error) {
 	query := `
-		SELECT * FROM (
+		SELECT *, (EXISTS (SELECT 1 FROM promotions p WHERE p.shop_id = subquery.id AND p.is_active = true)) AS has_active_promotion
+		FROM (
 	 SELECT a.id, a.shop_name, a.email, a.phone, a.latitude, a.longitude,
 		a.owner_name, a.shop_image_url, a.address_line1, a.address_line2, a.city, a.country, a.state, a.pincode,
 		a.shop_verification_status, a.created_at, a.updated_at,
@@ -361,7 +362,8 @@ func (c *userDatabase) FindSellersByPincode(ctx context.Context, reqData request
 	query := `
 		SELECT id, shop_name, email, phone, latitude, longitude,
 		owner_name, shop_image_url, address_line1, address_line2, city, country, state, pincode,
-		shop_verification_status, created_at, updated_at
+		shop_verification_status, created_at, updated_at,
+		(EXISTS (SELECT 1 FROM promotions p WHERE p.shop_id = shop_details.id AND p.is_active = true)) AS has_active_promotion
 		FROM shop_details
 		WHERE pincode = $1 AND shop_status = 'active'
 		LIMIT $2 OFFSET $3
@@ -574,7 +576,8 @@ func (c *userDatabase) SearchShopList(ctx context.Context, reqData request.Searc
 			`+IsSubscribedColumn+`,
 			%s,
 			sd.created_at,
-			sd.updated_at
+			sd.updated_at,
+			(EXISTS (SELECT 1 FROM promotions p WHERE p.shop_id = sd.id AND p.is_active = true)) AS has_active_promotion
 		FROM shop_details sd
 		%s
 		%s

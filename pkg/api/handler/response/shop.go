@@ -57,6 +57,7 @@ type Shop struct {
 	UserReview             string    `json:"user_review" gorm:"column:user_review"`
 	DistanceKm             *float64  `json:"distance_km,omitempty" gorm:"column:distance_km"`
 	IsOpen                 bool                   `json:"is_open" gorm:"column:is_open"`
+	HasActivePromotion     bool                   `json:"has_active_promotion" gorm:"column:has_active_promotion"`
 	CreatedAt              time.Time              `json:"created_at" gorm:"column:created_at"`
 	UpdatedAt              time.Time              `json:"updated_at" gorm:"column:updated_at"`
 	Reviews                []ShopReview           `json:"reviews" gorm:"-"`

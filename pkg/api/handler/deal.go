@@ -27,11 +27,15 @@ func NewDealHandler(dealUseCase usecaseInterfaces.DealUseCase) *DealHandler {
 //	@Param       min_discount query number  false "Minimum discount rate (e.g. 10)"
 //	@Param       max_discount query number  false "Maximum discount rate (0 = no cap)"
 //	@Param       category_id  query string  false "Filter by product category"
+//	@Param       department_id query string false "Filter by department"
 //	@Param       shop_id      query string  false "Filter by shop"
+//	@Param       lat          query number  false "Customer latitude (enables nearby-only deals)"
+//	@Param       lng          query number  false "Customer longitude"
+//	@Param       radius_km    query number  false "Radius in km (default 10)"
 //	@Param       sort_by      query string  false "discount_desc|discount_asc|ending_soon|newest"
 //	@Param       page         query int     false "Page number (default 1)"
-//	@Param       limit        query int     false "Page size (default 20)"
-//	@Success     200 {object} response.Response{}
+//	@Param       limit        query int     false "Page size (default 20, max 100)"
+//	@Success     200 {object} response.PagedDeals
 //	@Router      /deals/ [get]
 func (h *DealHandler) GetAllDeals(ctx *gin.Context) {
 	filter := request.ParseDealFilter(ctx)
@@ -45,12 +49,12 @@ func (h *DealHandler) GetAllDeals(ctx *gin.Context) {
 		lim = 20
 	}
 	off := int(filter.Pagination.Offset)
-	response.SuccessResponse(ctx, http.StatusOK, "Deals retrieved successfully", gin.H{
-		"deals":    deals,
-		"total":    total,
-		"page":     off/lim + 1,
-		"limit":    lim,
-		"has_more": int64(off+lim) < total,
+	response.SuccessResponse(ctx, http.StatusOK, "Deals retrieved successfully", response.PagedDeals{
+		Data:    deals,
+		Total:   total,
+		Page:    off/lim + 1,
+		Limit:   lim,
+		HasMore: int64(off+lim) < total,
 	})
 }
 
@@ -60,7 +64,7 @@ func (h *DealHandler) GetAllDeals(ctx *gin.Context) {
 //	@Description Returns deal-type chips, discount range buckets, and categories that currently have deals.
 //	@Tags        Customer Deals
 //	@Produce     json
-//	@Success     200 {object} response.Response{}
+//	@Success     200 {object} response.DealFilters
 //	@Router      /deals/filters [get]
 func (h *DealHandler) GetDealFilters(ctx *gin.Context) {
 	filters, err := h.dealUseCase.GetDealFilters(ctx)
@@ -77,7 +81,7 @@ func (h *DealHandler) GetDealFilters(ctx *gin.Context) {
 //	@Tags        Customer Deals
 //	@Produce     json
 //	@Param       deal_id path string true "Deal ID"
-//	@Success     200 {object} response.Response{}
+//	@Success     200 {object} response.CustomerDeal
 //	@Router      /deals/{deal_id} [get]
 func (h *DealHandler) GetDealByID(ctx *gin.Context) {
 	dealID := ctx.Param("deal_id")
@@ -99,9 +103,9 @@ func (h *DealHandler) GetDealByID(ctx *gin.Context) {
 //	@Tags        Customer Deals
 //	@Produce     json
 //	@Param       deal_id path string true  "Deal ID"
-//	@Param       page    query int   false "Page number"
-//	@Param       limit   query int   false "Page size"
-//	@Success     200 {object} response.Response{}
+//	@Param       page    query int   false "Page number (default 1)"
+//	@Param       limit   query int   false "Page size (default 20)"
+//	@Success     200 {object} response.PagedDealProducts
 //	@Router      /deals/{deal_id}/products [get]
 func (h *DealHandler) GetProductsByDeal(ctx *gin.Context) {
 	dealID := ctx.Param("deal_id")
@@ -115,26 +119,38 @@ func (h *DealHandler) GetProductsByDeal(ctx *gin.Context) {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to retrieve products", err, nil)
 		return
 	}
-	response.SuccessResponse(ctx, http.StatusOK, "Products retrieved", gin.H{
-		"products": products,
-		"total":    total,
+	lim := int(pagination.Limit)
+	if lim == 0 {
+		lim = 20
+	}
+	off := int(pagination.Offset)
+	response.SuccessResponse(ctx, http.StatusOK, "Products retrieved", response.PagedDealProducts{
+		Data:    products,
+		Total:   total,
+		Page:    off/lim + 1,
+		Limit:   lim,
+		HasMore: int64(off+lim) < total,
 	})
 }
 
 // GetProductsWithDeals godoc
 //
 //	@Summary     Browse products that have active deals
-//	@Description Supports filtering by deal type and discount range for the "Products on Sale" screen.
+//	@Description Supports filtering by deal type, discount range, category, department, shop, and location.
 //	@Tags        Customer Deals
 //	@Produce     json
-//	@Param       deal_type    query string false "percentage|fixed|bogo|bundle|flash|free_gift|free_shipping"
-//	@Param       min_discount query number false "Min discount (e.g. 10)"
-//	@Param       max_discount query number false "Max discount (0 = no cap)"
-//	@Param       category_id  query string false "Filter by category"
-//	@Param       shop_id      query string false "Filter by shop"
-//	@Param       page         query int    false "Page"
-//	@Param       limit        query int    false "Limit"
-//	@Success     200 {object} response.Response{}
+//	@Param       deal_type     query string false "percentage|fixed|bogo|bundle|flash|free_gift|free_shipping|loyalty"
+//	@Param       min_discount  query number false "Min discount (e.g. 10)"
+//	@Param       max_discount  query number false "Max discount (0 = no cap)"
+//	@Param       category_id   query string false "Filter by category"
+//	@Param       department_id query string false "Filter by department"
+//	@Param       shop_id       query string false "Filter by shop"
+//	@Param       lat           query number false "Customer latitude"
+//	@Param       lng           query number false "Customer longitude"
+//	@Param       radius_km     query number false "Radius in km (default 10)"
+//	@Param       page          query int    false "Page number (default 1)"
+//	@Param       limit         query int    false "Page size (default 20)"
+//	@Success     200 {object} response.PagedDealProducts
 //	@Router      /deals/products [get]
 func (h *DealHandler) GetProductsWithDeals(ctx *gin.Context) {
 	filter := request.ParseDealFilter(ctx)
@@ -143,9 +159,16 @@ func (h *DealHandler) GetProductsWithDeals(ctx *gin.Context) {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to retrieve products with deals", err, nil)
 		return
 	}
-	response.SuccessResponse(ctx, http.StatusOK, "Products with deals retrieved", gin.H{
-		"products": products,
-		"total":    total,
+	lim := int(filter.Pagination.Limit)
+	if lim == 0 {
+		lim = 20
+	}
+	off := int(filter.Pagination.Offset)
+	response.SuccessResponse(ctx, http.StatusOK, "Products with deals retrieved", response.PagedDealProducts{
+		Data:    products,
+		Total:   total,
+		Page:    off/lim + 1,
+		Limit:   lim,
+		HasMore: int64(off+lim) < total,
 	})
 }
-

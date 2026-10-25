@@ -21,7 +21,7 @@ func NewDealRepository(db *gorm.DB) interfaces.DealRepository {
 	return &dealRepository{db: db}
 }
 
-// ── helpers ──────────────────────────────────────────────────────────────────
+// ── helpers ───────────────────────────────────────────────────────────────────
 
 func discountLabel(dealType string, rate float64) string {
 	switch {
@@ -42,26 +42,27 @@ func daysLeft(end time.Time) int {
 	return int(math.Ceil(time.Until(end).Hours() / 24))
 }
 
-// ── raw DB row shared by promotion queries ────────────────────────────────────
-
+// ── promotionRow: raw DB row shared by all promotion queries ─────────────────
+// Uses gorm:"column:..." tags so GORM's raw-SQL scanner maps correctly even
+// when the struct field names don't snake-case to the SQL alias.
 type promotionRow struct {
-	ID                     string    `db:"id"`
-	OfferName              string    `db:"offer_name"`
-	Description            string    `db:"description"`
-	DiscountRate           float64   `db:"discount_rate"`
-	DealType               string    `db:"deal_type"`
-	StartDate              time.Time `db:"start_date"`
-	EndDate                time.Time `db:"end_date"`
-	ShopID                 string    `db:"shop_id"`
-	ShopName               string    `db:"shop_name"`
-	ShopLogo               string    `db:"shop_logo"`
-	IconPath               string    `db:"icon_path"`
-	ProductCount           int       `db:"product_count"`
-	MinimumPurchaseAmount  *float64  `db:"minimum_purchase_amount"`
-	BogoBuyQuantity        *int      `db:"bogo_buy_quantity"`
-	BogoGetQuantity        *int      `db:"bogo_get_quantity"`
-	BogoCombinationEnabled *bool     `db:"bogo_combination_enabled"`
-	GiftDescription        *string   `db:"gift_description"`
+	ID                     string   `gorm:"column:id"`
+	OfferName              string   `gorm:"column:offer_name"`
+	Description            string   `gorm:"column:description"`
+	DiscountRate           float64  `gorm:"column:discount_rate"`
+	DealType               string   `gorm:"column:deal_type"`
+	StartDate              time.Time `gorm:"column:start_date"`
+	EndDate                time.Time `gorm:"column:end_date"`
+	ShopID                 string   `gorm:"column:shop_id"`
+	ShopName               string   `gorm:"column:shop_name"`
+	ShopLogo               string   `gorm:"column:shop_logo"`
+	IconPath               string   `gorm:"column:icon_path"`
+	ProductCount           int      `gorm:"column:product_count"`
+	MinimumPurchaseAmount  *float64 `gorm:"column:minimum_purchase_amount"`
+	BogoBuyQuantity        *int     `gorm:"column:bogo_buy_quantity"`
+	BogoGetQuantity        *int     `gorm:"column:bogo_get_quantity"`
+	BogoCombinationEnabled *bool    `gorm:"column:bogo_combination_enabled"`
+	GiftDescription        *string  `gorm:"column:gift_description"`
 }
 
 func (r promotionRow) toCustomerDeal() response.CustomerDeal {
@@ -91,9 +92,9 @@ func (r promotionRow) toCustomerDeal() response.CustomerDeal {
 	}
 }
 
-// ── base CTE that joins promotions → promotion_types → shops ─────────────────
-
-// promotionBaseCTE is the reusable part of every promotions query.
+// ── base CTE ──────────────────────────────────────────────────────────────────
+// Joins promotions → promotion_types → shop_details. Uses shop_image_url
+// (the real column name) aliased as shop_logo for the response field.
 // Callers append their own WHERE / ORDER / LIMIT clauses.
 const promotionBaseCTE = `
 WITH promo AS (
@@ -102,13 +103,13 @@ WITH promo AS (
         p.offer_name,
         p.description,
         p.discount_rate,
-        COALESCE(pt.type, 'percentage') AS deal_type,
+        COALESCE(pt.type, 'percentage')    AS deal_type,
         p.start_date,
         p.end_date,
         p.shop_id,
-        COALESCE(sd.shop_name, '')  AS shop_name,
-        COALESCE(sd.shop_logo, '')  AS shop_logo,
-        COALESCE(pt.icon_path, '') AS icon_path,
+        COALESCE(sd.shop_name, '')         AS shop_name,
+        COALESCE(sd.shop_image_url, '')    AS shop_logo,
+        COALESCE(pt.icon_path, '')         AS icon_path,
         COUNT(DISTINCT pp.product_item_id)::int AS product_count,
         p.minimum_purchase_amount,
         p.bogo_buy_quantity,
@@ -116,15 +117,24 @@ WITH promo AS (
         p.bogo_combination_enabled,
         p.gift_description
     FROM promotions p
-    LEFT JOIN promotions_types pt   ON pt.id  = p.promotion_type_id
-    LEFT JOIN shop_details     sd   ON sd.id  = p.shop_id
+    LEFT JOIN promotions_types   pt ON pt.id = p.promotion_type_id
+    LEFT JOIN shop_details       sd ON sd.id = p.shop_id
     LEFT JOIN promotion_products pp ON pp.promotion_id = p.id
     WHERE p.is_active = TRUE
       AND p.start_date IS NOT NULL
       AND p.end_date   IS NOT NULL
       AND p.end_date   > NOW()
-    GROUP BY p.id, pt.type, pt.icon_path, sd.shop_name, sd.shop_logo
+    GROUP BY p.id, pt.type, pt.icon_path, sd.shop_name, sd.shop_image_url
 )`
+
+// selectFromPromo is the fixed column list used after the CTE.
+const selectFromPromo = `
+SELECT id, offer_name, description, discount_rate, deal_type,
+       start_date, end_date, shop_id, shop_name, shop_logo,
+       icon_path, product_count,
+       minimum_purchase_amount, bogo_buy_quantity, bogo_get_quantity,
+       bogo_combination_enabled, gift_description
+FROM promo`
 
 // ── GetAllDeals ───────────────────────────────────────────────────────────────
 
@@ -149,28 +159,53 @@ func (r *dealRepository) GetAllDeals(ctx context.Context, filter request.DealFil
 		args = append(args, filter.ShopID)
 	}
 
+	// Category filter: only deals that have at least one product in this category.
+	if filter.CategoryID != "" {
+		conditions = append(conditions, `id IN (
+			SELECT DISTINCT pp.promotion_id
+			FROM promotion_products pp
+			JOIN product_items pi ON pi.id = pp.product_item_id
+			WHERE pi.category_id = ?)`)
+		args = append(args, filter.CategoryID)
+	}
+
+	// Department filter: only deals touching products in this department.
+	if filter.DepartmentID != "" {
+		conditions = append(conditions, `id IN (
+			SELECT DISTINCT pp.promotion_id
+			FROM promotion_products pp
+			JOIN product_items pi ON pi.id = pp.product_item_id
+			WHERE pi.department_id = ?)`)
+		args = append(args, filter.DepartmentID)
+	}
+
+	// Location filter: only deals from shops within the given radius.
+	if filter.Lat != 0 && filter.Lng != 0 && filter.RadiusKM > 0 {
+		conditions = append(conditions, `shop_id IN (
+			SELECT id FROM shop_details
+			WHERE latitude IS NOT NULL AND longitude IS NOT NULL
+			  AND (6371 * acos(LEAST(1, GREATEST(-1,
+			        cos(radians(?)) * cos(radians(latitude::double precision)) *
+			        cos(radians(longitude::double precision) - radians(?)) +
+			        sin(radians(?)) * sin(radians(latitude::double precision))
+			      )))) <= ?)`)
+		args = append(args, filter.Lat, filter.Lng, filter.Lat, filter.RadiusKM)
+	}
+
 	where := ""
 	if len(conditions) > 0 {
 		where = "WHERE " + strings.Join(conditions, " AND ")
 	}
 
-	orderSQL := r.orderClause(filter.SortBy)
-	offset := filter.Pagination.Offset
-	limit := filter.Pagination.Limit
-	if limit == 0 {
-		limit = 20
+	orderSQL := dealOrderClause(filter.SortBy)
+	lim := int(filter.Pagination.Limit)
+	if lim == 0 {
+		lim = 20
 	}
+	off := int(filter.Pagination.Offset)
 
-	query := fmt.Sprintf(`
-%s
-SELECT id, offer_name, description, discount_rate, deal_type,
-       start_date, end_date, shop_id, shop_name, shop_logo,
-       icon_path, product_count,
-       minimum_purchase_amount, bogo_buy_quantity, bogo_get_quantity,
-       bogo_combination_enabled, gift_description
-FROM promo %s %s LIMIT %d OFFSET %d`,
-		promotionBaseCTE, where, orderSQL, limit, offset)
-
+	query := fmt.Sprintf(`%s %s %s %s LIMIT %d OFFSET %d`,
+		promotionBaseCTE, selectFromPromo, where, orderSQL, lim, off)
 	countQuery := fmt.Sprintf(`%s SELECT COUNT(*) FROM promo %s`, promotionBaseCTE, where)
 
 	var rows []promotionRow
@@ -192,7 +227,7 @@ FROM promo %s %s LIMIT %d OFFSET %d`,
 	return deals, total, nil
 }
 
-func (r *dealRepository) orderClause(sortBy string) string {
+func dealOrderClause(sortBy string) string {
 	switch sortBy {
 	case "discount_asc":
 		return "ORDER BY discount_rate ASC"
@@ -210,16 +245,15 @@ func (r *dealRepository) orderClause(sortBy string) string {
 func (r *dealRepository) GetDealFilters(ctx context.Context) (response.DealFilters, error) {
 	var filters response.DealFilters
 
-	// Deal-type counts
-	typeQuery := fmt.Sprintf(`
-%s
+	// Deal-type counts + icon
+	typeQuery := fmt.Sprintf(`%s
 SELECT deal_type, COUNT(*) AS count, MAX(icon_path) AS icon_path
 FROM promo GROUP BY deal_type ORDER BY count DESC`, promotionBaseCTE)
 
 	type typeRow struct {
-		DealType string `db:"deal_type"`
-		Count    int    `db:"count"`
-		IconPath string `db:"icon_path"`
+		DealType string `gorm:"column:deal_type"`
+		Count    int    `gorm:"column:count"`
+		IconPath string `gorm:"column:icon_path"`
 	}
 	var typeRows []typeRow
 	if err := r.db.WithContext(ctx).Raw(typeQuery).Scan(&typeRows).Error; err != nil {
@@ -228,14 +262,14 @@ FROM promo GROUP BY deal_type ORDER BY count DESC`, promotionBaseCTE)
 
 	dealTypeLabels := map[string]string{
 		"percentage":    "% Off",
-		"fixed":        "Flat Off",
-		"bogo":         "Buy 1 Get 1",
-		"bundle":       "Bundle Deal",
-		"flash":        "Flash Sale",
-		"free_gift":    "Free Gift",
+		"fixed":         "Flat Off",
+		"bogo":          "Buy 1 Get 1",
+		"bundle":        "Bundle Deal",
+		"flash":         "Flash Sale",
+		"free_gift":     "Free Gift",
 		"free_shipping": "Free Shipping",
-		"loyalty":      "Loyalty Deal",
-		"seasonal":     "Seasonal",
+		"loyalty":       "Loyalty Deal",
+		"seasonal":      "Seasonal",
 	}
 	var totalDeals int
 	for _, tr := range typeRows {
@@ -254,20 +288,19 @@ FROM promo GROUP BY deal_type ORDER BY count DESC`, promotionBaseCTE)
 	filters.TotalDeals = totalDeals
 
 	// Discount range counts (percentage + fixed only)
-	rangeQuery := fmt.Sprintf(`
-%s
+	rangeQuery := fmt.Sprintf(`%s
 SELECT
-    COUNT(*) FILTER (WHERE discount_rate > 0  AND discount_rate < 10)  AS under10,
-    COUNT(*) FILTER (WHERE discount_rate >= 10 AND discount_rate < 30) AS r10_30,
-    COUNT(*) FILTER (WHERE discount_rate >= 30 AND discount_rate < 50) AS r30_50,
-    COUNT(*) FILTER (WHERE discount_rate >= 50)                        AS above50
+    COUNT(*) FILTER (WHERE discount_rate >  0  AND discount_rate < 10)  AS under10,
+    COUNT(*) FILTER (WHERE discount_rate >= 10 AND discount_rate < 30)  AS r10_30,
+    COUNT(*) FILTER (WHERE discount_rate >= 30 AND discount_rate < 50)  AS r30_50,
+    COUNT(*) FILTER (WHERE discount_rate >= 50)                         AS above50
 FROM promo WHERE deal_type IN ('percentage','fixed')`, promotionBaseCTE)
 
 	type rangeRow struct {
-		Under10 int `db:"under10"`
-		R10_30  int `db:"r10_30"`
-		R30_50  int `db:"r30_50"`
-		Above50 int `db:"above50"`
+		Under10 int `gorm:"column:under10"`
+		R10_30  int `gorm:"column:r10_30"`
+		R30_50  int `gorm:"column:r30_50"`
+		Above50 int `gorm:"column:above50"`
 	}
 	var rr rangeRow
 	if err := r.db.WithContext(ctx).Raw(rangeQuery).Scan(&rr).Error; err != nil {
@@ -280,7 +313,7 @@ FROM promo WHERE deal_type IN ('percentage','fixed')`, promotionBaseCTE)
 		{Label: "50% +", Min: 50, Max: 0, Count: rr.Above50},
 	}
 
-	// Category breakdown — how many active promotions touch each category
+	// Category breakdown — categories that have at least one active deal
 	catQuery := `
 SELECT c.id AS category_id, c.name AS category_name, COUNT(DISTINCT p.id) AS count
 FROM promotions p
@@ -291,9 +324,9 @@ WHERE p.is_active = TRUE AND p.end_date > NOW()
 GROUP BY c.id, c.name ORDER BY count DESC LIMIT 20`
 
 	type catRow struct {
-		CategoryID   string `db:"category_id"`
-		CategoryName string `db:"category_name"`
-		Count        int    `db:"count"`
+		CategoryID   string `gorm:"column:category_id"`
+		CategoryName string `gorm:"column:category_name"`
+		Count        int    `gorm:"column:count"`
 	}
 	var catRows []catRow
 	if err := r.db.WithContext(ctx).Raw(catQuery).Scan(&catRows).Error; err != nil {
@@ -313,15 +346,7 @@ GROUP BY c.id, c.name ORDER BY count DESC LIMIT 20`
 // ── GetDealByID ───────────────────────────────────────────────────────────────
 
 func (r *dealRepository) GetDealByID(ctx context.Context, dealID string) (response.CustomerDeal, error) {
-	query := fmt.Sprintf(`
-%s
-SELECT id, offer_name, description, discount_rate, deal_type,
-       start_date, end_date, shop_id, shop_name, shop_logo,
-       icon_path, product_count,
-       minimum_purchase_amount, bogo_buy_quantity, bogo_get_quantity,
-       bogo_combination_enabled, gift_description
-FROM promo WHERE id = ?`, promotionBaseCTE)
-
+	query := fmt.Sprintf(`%s %s WHERE id = ?`, promotionBaseCTE, selectFromPromo)
 	var row promotionRow
 	if err := r.db.WithContext(ctx).Raw(query, dealID).First(&row).Error; err != nil {
 		return response.CustomerDeal{}, fmt.Errorf("deal %s not found: %w", dealID, err)
@@ -332,54 +357,39 @@ FROM promo WHERE id = ?`, promotionBaseCTE)
 // ── GetProductsByDeal ─────────────────────────────────────────────────────────
 
 func (r *dealRepository) GetProductsByDeal(ctx context.Context, dealID string, pagination request.Pagination) ([]response.CustomerDealProduct, int64, error) {
-	limit := pagination.Limit
-	if limit == 0 {
-		limit = 20
+	lim := int(pagination.Limit)
+	if lim == 0 {
+		lim = 20
 	}
-	offset := pagination.Offset
+	off := int(pagination.Offset)
 
-	query := `
+	query := fmt.Sprintf(`
 SELECT
-    pi.id              AS product_item_id,
-    COALESCE(pi.name, pi.sub_category_name) AS product_name,
+    pi.id                                     AS product_item_id,
+    COALESCE(pi.name, pi.sub_category_name)   AS product_name,
     pi.sub_category_name,
     pi.shop_id,
-    COALESCE(sd.shop_name, '') AS shop_name,
-    COALESCE(sd.shop_logo, '') AS shop_logo,
-    COALESCE(pi.product_item_images, '{}') AS images,
-    pi.stock            AS in_stock,
-    p.id               AS deal_id,
-    COALESCE(pt.type, 'percentage') AS deal_type,
+    COALESCE(sd.shop_name, '')                AS shop_name,
+    COALESCE(sd.shop_image_url, '')           AS shop_logo,
+    COALESCE(pi.product_item_images[1], '')   AS image_url,
+    pi.stock                                  AS in_stock,
+    p.id                                      AS deal_id,
+    COALESCE(pt.type, 'percentage')           AS deal_type,
     p.discount_rate,
-    p.end_date         AS deal_ends_at
+    p.end_date                                AS deal_ends_at
 FROM promotion_products pp
-JOIN product_items  pi ON pi.id  = pp.product_item_id
-JOIN promotions     p  ON p.id   = pp.promotion_id
+JOIN product_items    pi ON pi.id  = pp.product_item_id
+JOIN promotions       p  ON p.id   = pp.promotion_id
 LEFT JOIN promotions_types pt ON pt.id = p.promotion_type_id
 LEFT JOIN shop_details     sd ON sd.id = pi.shop_id
 WHERE pp.promotion_id = ?
   AND p.is_active = TRUE
   AND p.end_date > NOW()
 ORDER BY pi.created_at DESC
-LIMIT ? OFFSET ?`
+LIMIT %d OFFSET %d`, lim, off)
 
-	type productRow struct {
-		ProductItemID   string    `db:"product_item_id"`
-		ProductName     string    `db:"product_name"`
-		SubCategoryName string    `db:"sub_category_name"`
-		ShopID          string    `db:"shop_id"`
-		ShopName        string    `db:"shop_name"`
-		ShopLogo        string    `db:"shop_logo"`
-		Images          []string  `db:"images"`
-		InStock         bool      `db:"in_stock"`
-		DealID          string    `db:"deal_id"`
-		DealType        string    `db:"deal_type"`
-		DiscountRate    float64   `db:"discount_rate"`
-		DealEndsAt      time.Time `db:"deal_ends_at"`
-	}
-
-	var rows []productRow
-	if err := r.db.WithContext(ctx).Raw(query, dealID, limit, offset).Scan(&rows).Error; err != nil {
+	var rows []productScanRow
+	if err := r.db.WithContext(ctx).Raw(query, dealID).Scan(&rows).Error; err != nil {
 		return nil, 0, fmt.Errorf("GetProductsByDeal: %w", err)
 	}
 
@@ -389,35 +399,17 @@ SELECT COUNT(*) FROM promotion_products pp
 JOIN promotions p ON p.id = pp.promotion_id
 WHERE pp.promotion_id = ? AND p.is_active = TRUE AND p.end_date > NOW()`, dealID).Scan(&total)
 
-	products := make([]response.CustomerDealProduct, len(rows))
-	for i, row := range rows {
-		products[i] = response.CustomerDealProduct{
-			ProductItemID:   row.ProductItemID,
-			ProductName:     row.ProductName,
-			SubCategoryName: row.SubCategoryName,
-			ShopID:          row.ShopID,
-			ShopName:        row.ShopName,
-			ShopLogo:        row.ShopLogo,
-			Images:          row.Images,
-			InStock:         row.InStock,
-			DealID:          row.DealID,
-			DealType:        row.DealType,
-			DiscountRate:    row.DiscountRate,
-			DiscountLabel:   discountLabel(row.DealType, row.DiscountRate),
-			DealEndsAt:      row.DealEndsAt,
-		}
-	}
-	return products, total, nil
+	return productScanRowsToResponse(rows), total, nil
 }
 
 // ── GetProductsWithDeals ──────────────────────────────────────────────────────
 
 func (r *dealRepository) GetProductsWithDeals(ctx context.Context, filter request.DealFilter, pagination request.Pagination) ([]response.CustomerDealProduct, int64, error) {
-	limit := pagination.Limit
-	if limit == 0 {
-		limit = 20
+	lim := int(pagination.Limit)
+	if lim == 0 {
+		lim = 20
 	}
-	offset := pagination.Offset
+	off := int(pagination.Offset)
 
 	conditions := []string{
 		"p.is_active = TRUE",
@@ -441,6 +433,10 @@ func (r *dealRepository) GetProductsWithDeals(ctx context.Context, filter reques
 		conditions = append(conditions, "pi.category_id = ?")
 		args = append(args, filter.CategoryID)
 	}
+	if filter.DepartmentID != "" {
+		conditions = append(conditions, "pi.department_id = ?")
+		args = append(args, filter.DepartmentID)
+	}
 	if filter.ShopID != "" {
 		conditions = append(conditions, "pi.shop_id = ?")
 		args = append(args, filter.ShopID)
@@ -450,26 +446,26 @@ func (r *dealRepository) GetProductsWithDeals(ctx context.Context, filter reques
 
 	query := fmt.Sprintf(`
 SELECT
-    pi.id              AS product_item_id,
-    COALESCE(pi.name, pi.sub_category_name) AS product_name,
+    pi.id                                     AS product_item_id,
+    COALESCE(pi.name, pi.sub_category_name)   AS product_name,
     pi.sub_category_name,
     pi.shop_id,
-    COALESCE(sd.shop_name, '') AS shop_name,
-    COALESCE(sd.shop_logo, '') AS shop_logo,
-    COALESCE(pi.product_item_images, '{}') AS images,
-    pi.stock            AS in_stock,
-    p.id               AS deal_id,
-    COALESCE(pt.type, 'percentage') AS deal_type,
+    COALESCE(sd.shop_name, '')                AS shop_name,
+    COALESCE(sd.shop_image_url, '')           AS shop_logo,
+    COALESCE(pi.product_item_images[1], '')   AS image_url,
+    pi.stock                                  AS in_stock,
+    p.id                                      AS deal_id,
+    COALESCE(pt.type, 'percentage')           AS deal_type,
     p.discount_rate,
-    p.end_date         AS deal_ends_at
+    p.end_date                                AS deal_ends_at
 FROM promotion_products pp
-JOIN product_items  pi ON pi.id  = pp.product_item_id
-JOIN promotions     p  ON p.id   = pp.promotion_id
+JOIN product_items    pi ON pi.id  = pp.product_item_id
+JOIN promotions       p  ON p.id   = pp.promotion_id
 LEFT JOIN promotions_types pt ON pt.id = p.promotion_type_id
 LEFT JOIN shop_details     sd ON sd.id = pi.shop_id
 %s
 ORDER BY p.discount_rate DESC, p.end_date ASC
-LIMIT %d OFFSET %d`, where, limit, offset)
+LIMIT %d OFFSET %d`, where, lim, off)
 
 	countQuery := fmt.Sprintf(`
 SELECT COUNT(*) FROM promotion_products pp
@@ -478,22 +474,7 @@ JOIN promotions     p  ON p.id   = pp.promotion_id
 LEFT JOIN promotions_types pt ON pt.id = p.promotion_type_id
 %s`, where)
 
-	type productRow struct {
-		ProductItemID   string    `db:"product_item_id"`
-		ProductName     string    `db:"product_name"`
-		SubCategoryName string    `db:"sub_category_name"`
-		ShopID          string    `db:"shop_id"`
-		ShopName        string    `db:"shop_name"`
-		ShopLogo        string    `db:"shop_logo"`
-		Images          []string  `db:"images"`
-		InStock         bool      `db:"in_stock"`
-		DealID          string    `db:"deal_id"`
-		DealType        string    `db:"deal_type"`
-		DiscountRate    float64   `db:"discount_rate"`
-		DealEndsAt      time.Time `db:"deal_ends_at"`
-	}
-
-	var rows []productRow
+	var rows []productScanRow
 	if err := r.db.WithContext(ctx).Raw(query, args...).Scan(&rows).Error; err != nil {
 		return nil, 0, fmt.Errorf("GetProductsWithDeals: %w", err)
 	}
@@ -503,16 +484,40 @@ LEFT JOIN promotions_types pt ON pt.id = p.promotion_type_id
 	copy(countArgs, args)
 	r.db.WithContext(ctx).Raw(countQuery, countArgs...).Scan(&total)
 
-	products := make([]response.CustomerDealProduct, len(rows))
+	return productScanRowsToResponse(rows), total, nil
+}
+
+// ── shared product scan helpers ───────────────────────────────────────────────
+
+// productScanRow holds a flat, GORM-scannable representation of a deal product.
+// Uses pi.product_item_images[1] (PostgreSQL 1-based array index) so the first
+// image comes back as a plain string rather than a text[] that GORM can't parse.
+type productScanRow struct {
+	ProductItemID   string    `gorm:"column:product_item_id"`
+	ProductName     string    `gorm:"column:product_name"`
+	SubCategoryName string    `gorm:"column:sub_category_name"`
+	ShopID          string    `gorm:"column:shop_id"`
+	ShopName        string    `gorm:"column:shop_name"`
+	ShopLogo        string    `gorm:"column:shop_logo"`
+	ImageURL        string    `gorm:"column:image_url"`
+	InStock         bool      `gorm:"column:in_stock"`
+	DealID          string    `gorm:"column:deal_id"`
+	DealType        string    `gorm:"column:deal_type"`
+	DiscountRate    float64   `gorm:"column:discount_rate"`
+	DealEndsAt      time.Time `gorm:"column:deal_ends_at"`
+}
+
+func productScanRowsToResponse(rows []productScanRow) []response.CustomerDealProduct {
+	out := make([]response.CustomerDealProduct, len(rows))
 	for i, row := range rows {
-		products[i] = response.CustomerDealProduct{
+		out[i] = response.CustomerDealProduct{
 			ProductItemID:   row.ProductItemID,
 			ProductName:     row.ProductName,
 			SubCategoryName: row.SubCategoryName,
 			ShopID:          row.ShopID,
 			ShopName:        row.ShopName,
 			ShopLogo:        row.ShopLogo,
-			Images:          row.Images,
+			ImageURL:        row.ImageURL,
 			InStock:         row.InStock,
 			DealID:          row.DealID,
 			DealType:        row.DealType,
@@ -521,5 +526,5 @@ LEFT JOIN promotions_types pt ON pt.id = p.promotion_type_id
 			DealEndsAt:      row.DealEndsAt,
 		}
 	}
-	return products, total, nil
+	return out
 }
