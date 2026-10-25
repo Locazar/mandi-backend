@@ -291,6 +291,7 @@ type Promotion struct {
 	GiftDescription        *string           `json:"gift_description,omitempty"`
 	ShopID                 string            `json:"shop_id"`
 	IsActive               bool              `json:"is_active"`
+	IsApplied              bool              `json:"is_applied"`
 	CreatedAt              time.Time         `json:"created_at"`
 	UpdatedAt              time.Time         `json:"updated_at"`
 	PromotionCategory      PromotionCategory `json:"promotion_category" gorm:"foreignKey:PromotionCategoryID"`

@@ -154,8 +154,14 @@ func (r *promotionRepository) GetAllPromotions(ctx context.Context, shopID strin
 		Offset(int(offset))
 
 	if shopID != "" {
-		// Seller fetching their own shop — show all their promotions regardless of is_active.
-		query = query.Where("shop_id = ?", shopID)
+		// Auto-expire any promotions whose end_date has passed — run before the SELECT.
+		r.db.WithContext(ctx).Model(&domain.Promotion{}).
+			Where("shop_id = ? AND end_date < NOW() AND is_active = true", shopID).
+			Updates(map[string]interface{}{"is_active": false, "is_applied": false})
+
+		// Seller view: their own promotions where end_date >= NOW().
+		query = query.Where("shop_id = ?", shopID).
+			Where("end_date::timestamp >= CURRENT_TIMESTAMP")
 	} else {
 		// No shop filter (admin/public context) — only show active, non-expired promotions.
 		query = query.Where("is_active = true").Where("(end_date)::timestamp >= CURRENT_TIMESTAMP")

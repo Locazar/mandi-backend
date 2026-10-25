@@ -256,6 +256,7 @@ type Promotion struct {
 	GiftDescription        *string   `json:"gift_description,omitempty"`
 	ShopID                 string    `json:"shop_id" gorm:"type:varchar(32)"`
 	IsActive               bool      `json:"is_active" gorm:"not null;default:true"`
+	IsApplied              bool      `json:"is_applied" gorm:"not null;default:false"`
 	CreatedAt              time.Time `json:"created_at" gorm:"not null;autoCreateTime"`
 	UpdatedAt              time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 
