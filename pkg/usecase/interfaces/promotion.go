@@ -17,7 +17,8 @@ type PromotionUseCase interface {
 	FindPromotionTypeByID(ctx context.Context, typeID string) (response.PromotionsType, error)
 
 	CreatePromotion(ctx context.Context, promotionCategoryID, promotionTypeID string, offerDetails domain.PromotionOfferDetails, shopID string, isActive bool) (response.Promotion, error)
-	GetAllPromotions(ctx context.Context, pagination request.Pagination) ([]response.Promotion, error)
+	GetAllPromotions(ctx context.Context, shopID string, pagination request.Pagination) ([]response.Promotion, error)
 	GetPromotionByID(ctx context.Context, promotionID string) (response.Promotion, error)
+	UpdatePromotion(ctx context.Context, promotionID string, shopID string, req request.UpdatePromotionRequest) (response.Promotion, error)
 	DeletePromotion(ctx context.Context, promotionID string) error
 }

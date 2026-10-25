@@ -2102,11 +2102,13 @@ func (c *adminUseCase) ApplyOfferToProduct(ctx context.Context, sellerID, promot
 	if !ok {
 		return domain.NotFoundError("promotion")
 	}
-	// Replace (upsert) the assignment.
+	// Replace (upsert) the assignment; record shop and seller for reporting.
 	pp := domain.PromotionProduct{
 		ID:            domain.NewID(domain.PrefixPromotionProduct),
 		PromotionID:   promotionID,
 		ProductItemID: productItemID,
+		ShopID:        shop.ID,
+		SellerID:      sellerID,
 	}
 	return c.adminRepo.ApplyPromotionToProduct(ctx, pp)
 }

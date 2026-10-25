@@ -126,6 +126,7 @@ type ShopOffer struct {
 	ShopID    string    `json:"shop_id" gorm:"type:varchar(32);not null"`
 	OfferID   string    `json:"offer_id" gorm:"type:varchar(32);not null"`
 	AdminID   string    `json:"admin_id" gorm:"type:varchar(32);not null"`
+	SellerID  string    `json:"seller_id" gorm:"type:varchar(32)"`
 	StartDate time.Time `json:"start_date" gorm:"not null"`
 	EndDate   time.Time `json:"end_date" gorm:"not null"`
 	CreatedAt time.Time `json:"created_at" gorm:"not null;autoCreateTime"`

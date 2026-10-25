@@ -13,5 +13,6 @@ type PromotionHandler interface {
 	CreatePromotion(ctx *gin.Context)
 	GetAllPromotions(ctx *gin.Context)
 	GetPromotionByID(ctx *gin.Context)
+	UpdatePromotion(ctx *gin.Context)
 	DeletePromotion(ctx *gin.Context)
 }

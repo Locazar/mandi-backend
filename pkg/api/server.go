@@ -69,6 +69,7 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 	verificationNotificationHandler *handler.VerificationNotificationHandler,
 	appUpdateConfigHandler *handler.AppUpdateConfigHandler,
 	districtNudgeHandler *handler.DistrictNudgeHandler,
+	dealHandler *handler.DealHandler,
 ) *ServerHTTP {
 
 	engine := gin.New()
@@ -140,6 +141,7 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 	// set up routes
 	routes.UserRoutes(engine.Group("/api"), authHandler, middleware, userHandler, cartHandler,
 		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler, notificationHandler, promotionHandler, subscriptionPaymentHandler, subscriptionHandler, searchHandler, invoiceHandler)
+	routes.DealRoutes(engine.Group("/api"), dealHandler)
 	routes.UserBannerRoutes(engine.Group("/api"), bannerUserHandler)
 	routes.ShopUpdateRoutes(engine.Group("/api"), middleware, adminHandler, shopUpdateHandler)
 	// QR redirects: public /r/:code on the root engine + admin CRUD under /api.

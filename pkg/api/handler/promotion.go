@@ -262,8 +262,9 @@ func (h *PromotionHandler) CreatePromotion(ctx *gin.Context) {
 //	@Failure		500	{object}	response.Response{}	"Internal server error"
 func (h *PromotionHandler) GetAllPromotions(ctx *gin.Context) {
 	pagination := request.GetPagination(ctx)
+	shopID := ctx.Query("shop_id")
 
-	promotions, err := h.promotionUseCase.GetAllPromotions(ctx, pagination)
+	promotions, err := h.promotionUseCase.GetAllPromotions(ctx, shopID, pagination)
 	if err != nil {
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to retrieve promotions", err, nil)
 		return
@@ -312,6 +313,38 @@ func (h *PromotionHandler) GetPromotionByID(ctx *gin.Context) {
 //	@Success		200	{object}	response.Response{}	"Promotion deleted"
 //	@Failure		400	{object}	response.Response{}	"Invalid promotion ID"
 //	@Failure		500	{object}	response.Response{}	"Internal server error"
+// UpdatePromotion allows a seller to edit an existing promotion they own.
+// PUT /api/admin/promotions/:promotion_id
+// Body: UpdatePromotionRequest (all fields optional except shop_id)
+func (h *PromotionHandler) UpdatePromotion(ctx *gin.Context) {
+	promotionID := ctx.Param("promotion_id")
+	if promotionID == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "promotion_id is required", nil, nil)
+		return
+	}
+
+	shopID := ctx.Query("shop_id")
+
+	var reqBody request.UpdatePromotionRequest
+	if err := ctx.ShouldBindJSON(&reqBody); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Invalid request body", err, nil)
+		return
+	}
+
+	promotion, err := h.promotionUseCase.UpdatePromotion(ctx, promotionID, shopID, reqBody)
+	if err != nil {
+		msg := err.Error()
+		status := http.StatusInternalServerError
+		if strings.Contains(msg, "not found") || strings.Contains(msg, "not owned") {
+			status = http.StatusNotFound
+		}
+		response.ErrorResponse(ctx, status, "Failed to update promotion", err, nil)
+		return
+	}
+
+	response.SuccessResponse(ctx, http.StatusOK, "Promotion updated successfully", promotion)
+}
+
 func (h *PromotionHandler) DeletePromotion(ctx *gin.Context) {
 	promotionID := ctx.Param("promotion_id")
 	if promotionID == "" {

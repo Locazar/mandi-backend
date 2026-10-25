@@ -113,6 +113,9 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	promotionRepository := repository.NewPromotionRepository(gormDB)
 	promotionUseCase := usecase.NewPromotionUseCase(promotionRepository)
 	promotionHandler := handler.NewPromotionHandler(promotionUseCase)
+	dealRepository := repository.NewDealRepository(gormDB)
+	dealUseCase := usecase.NewDealUseCase(dealRepository)
+	dealHandler := handler.NewDealHandler(dealUseCase)
 	fcmTokenRepository := repository.NewFcmTokenRepository(gormDB)
 	fcmTokenUseCase := usecase.NewFcmTokenUseCase(fcmTokenRepository, tokenService)
 	fcmTokenHandler := handler.NewFcmTokenHandler(fcmTokenUseCase)
@@ -165,7 +168,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	rewardRepository := repository.NewRewardRepository(gormDB)
 	rewardUseCase := usecase.NewRewardUseCase(rewardRepository, notificationUseCase)
 	rewardHandler := handler.NewRewardHandler(rewardUseCase)
-	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler, jobHandler, jobCategoryHandler, platformUserHandler, handlerHandler, aiHandler, invoiceHandler, shopUpdateHandler, languageHandler, qrCodeHandler, onboardingNudgeHandler, customerNudgeHandler, rewardHandler, verificationNotificationHandler, appUpdateConfigHandler, districtNudgeHandler)
+	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler, jobHandler, jobCategoryHandler, platformUserHandler, handlerHandler, aiHandler, invoiceHandler, shopUpdateHandler, languageHandler, qrCodeHandler, onboardingNudgeHandler, customerNudgeHandler, rewardHandler, verificationNotificationHandler, appUpdateConfigHandler, districtNudgeHandler, dealHandler)
 	return serverHTTP, nil
 }
 

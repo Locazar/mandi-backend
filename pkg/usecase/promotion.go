@@ -67,11 +67,57 @@ func (u *promotionUseCase) CreatePromotion(ctx context.Context, promotionCategor
 	return u.promotionRepo.CreatePromotion(ctx, promotion)
 }
 
-func (u *promotionUseCase) GetAllPromotions(ctx context.Context, pagination request.Pagination) ([]response.Promotion, error) {
-	return u.promotionRepo.GetAllPromotions(ctx, pagination)
+func (u *promotionUseCase) GetAllPromotions(ctx context.Context, shopID string, pagination request.Pagination) ([]response.Promotion, error) {
+	return u.promotionRepo.GetAllPromotions(ctx, shopID, pagination)
 }
 
 func (u *promotionUseCase) GetPromotionByID(ctx context.Context, promotionID string) (response.Promotion, error) {
+	return u.promotionRepo.GetPromotionByID(ctx, promotionID)
+}
+
+func (u *promotionUseCase) UpdatePromotion(ctx context.Context, promotionID string, shopID string, req request.UpdatePromotionRequest) (response.Promotion, error) {
+	updates := map[string]interface{}{
+		"updated_at": time.Now().UTC(),
+	}
+	if req.OfferName != "" {
+		updates["offer_name"] = req.OfferName
+	}
+	if req.Description != "" {
+		updates["description"] = req.Description
+	}
+	if req.DiscountRate != nil {
+		updates["discount_rate"] = *req.DiscountRate
+	}
+	if req.StartDate != nil {
+		updates["start_date"] = *req.StartDate
+	}
+	if req.EndDate != nil {
+		updates["end_date"] = *req.EndDate
+	}
+	if req.IsActive != nil {
+		updates["is_active"] = *req.IsActive
+	}
+	if req.MinimumPurchaseAmount != nil {
+		updates["minimum_purchase_amount"] = *req.MinimumPurchaseAmount
+	}
+	if req.TierQuantity != nil {
+		updates["tier_quantity"] = *req.TierQuantity
+	}
+	if req.BogoGetQuantity != nil {
+		updates["bogo_get_quantity"] = *req.BogoGetQuantity
+	}
+	if req.BogoBuyQuantity != nil {
+		updates["bogo_buy_quantity"] = *req.BogoBuyQuantity
+	}
+	if req.BogoCombinationEnabled != nil {
+		updates["bogo_combination_enabled"] = *req.BogoCombinationEnabled
+	}
+	if req.GiftDescription != nil {
+		updates["gift_description"] = *req.GiftDescription
+	}
+	if err := u.promotionRepo.UpdatePromotion(ctx, promotionID, shopID, updates); err != nil {
+		return response.Promotion{}, err
+	}
 	return u.promotionRepo.GetPromotionByID(ctx, promotionID)
 }
 

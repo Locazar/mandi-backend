@@ -270,6 +270,8 @@ type PromotionProduct struct {
 	ID            string    `json:"id"             gorm:"primaryKey;type:varchar(32)"`
 	PromotionID   string    `json:"promotion_id"   gorm:"type:varchar(32);not null"`
 	ProductItemID string    `json:"product_item_id" gorm:"type:varchar(32);not null;uniqueIndex"`
+	ShopID        string    `json:"shop_id"        gorm:"type:varchar(32)"`
+	SellerID      string    `json:"seller_id"      gorm:"type:varchar(32)"`
 	CreatedAt     time.Time `json:"created_at"     gorm:"autoCreateTime"`
 	UpdatedAt     time.Time `json:"updated_at"     gorm:"autoUpdateTime"`
 }

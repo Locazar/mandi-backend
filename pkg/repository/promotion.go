@@ -138,7 +138,7 @@ func (r *promotionRepository) CreatePromotion(ctx context.Context, promotion dom
 	return createdPromotion, nil
 }
 
-func (r *promotionRepository) GetAllPromotions(ctx context.Context, pagination request.Pagination) ([]response.Promotion, error) {
+func (r *promotionRepository) GetAllPromotions(ctx context.Context, shopID string, pagination request.Pagination) ([]response.Promotion, error) {
 	var promotions []response.Promotion
 
 	offset := pagination.Offset
@@ -147,13 +147,19 @@ func (r *promotionRepository) GetAllPromotions(ctx context.Context, pagination r
 	query := r.db.
 		Preload("PromotionCategory").
 		Preload("PromotionType").
-		Where("is_active = true").
 		Where("start_date IS NOT NULL").
 		Where("end_date IS NOT NULL").
-		Where("(end_date)::timestamp >= CURRENT_TIMESTAMP").
 		Order("created_at DESC").
 		Limit(int(limit)).
 		Offset(int(offset))
+
+	if shopID != "" {
+		// Seller fetching their own shop — show all their promotions regardless of is_active.
+		query = query.Where("shop_id = ?", shopID)
+	} else {
+		// No shop filter (admin/public context) — only show active, non-expired promotions.
+		query = query.Where("is_active = true").Where("(end_date)::timestamp >= CURRENT_TIMESTAMP")
+	}
 
 	if err := query.Find(&promotions).Error; err != nil {
 		return nil, fmt.Errorf("failed to find promotions: %w", err)
@@ -187,6 +193,20 @@ func (r *promotionRepository) GetPromotionByID(ctx context.Context, promotionID 
 	}
 
 	return promotion, nil
+}
+
+func (r *promotionRepository) UpdatePromotion(ctx context.Context, promotionID string, shopID string, updates map[string]interface{}) error {
+	result := r.db.WithContext(ctx).
+		Model(&domain.Promotion{}).
+		Where("id = ? AND shop_id = ?", promotionID, shopID).
+		Updates(updates)
+	if result.Error != nil {
+		return fmt.Errorf("failed to update promotion: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("promotion not found or not owned by shop")
+	}
+	return nil
 }
 
 func (r *promotionRepository) DeletePromotion(ctx context.Context, promotionID string) error {

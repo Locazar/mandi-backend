@@ -2188,6 +2188,8 @@ func (c *adminDatabase) ApplyPromotionToProduct(ctx context.Context, pp domain.P
 		Assign(map[string]interface{}{
 			"id":           pp.ID,
 			"promotion_id": pp.PromotionID,
+			"shop_id":      pp.ShopID,
+			"seller_id":    pp.SellerID,
 		}).
 		FirstOrCreate(&pp).Error
 }

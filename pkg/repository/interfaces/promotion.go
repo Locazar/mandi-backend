@@ -22,7 +22,8 @@ type PromotionRepository interface {
 
 	// promotions
 	CreatePromotion(ctx context.Context, promotion domain.Promotion) (response.Promotion, error)
-	GetAllPromotions(ctx context.Context, pagination request.Pagination) ([]response.Promotion, error)
+	GetAllPromotions(ctx context.Context, shopID string, pagination request.Pagination) ([]response.Promotion, error)
 	GetPromotionByID(ctx context.Context, promotionID string) (response.Promotion, error)
+	UpdatePromotion(ctx context.Context, promotionID string, shopID string, updates map[string]interface{}) error
 	DeletePromotion(ctx context.Context, promotionID string) error
 }

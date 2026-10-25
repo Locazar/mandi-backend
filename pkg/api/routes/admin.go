@@ -141,6 +141,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		sellerPromotions.GET("/", promotionHandler.GetAllPromotions)
 		sellerPromotions.GET("/:promotion_id", promotionHandler.GetPromotionByID)
 		sellerPromotions.POST("/", promotionHandler.CreatePromotion)
+		sellerPromotions.PUT("/:promotion_id", promotionHandler.UpdatePromotion)
 		sellerPromotions.DELETE("/:promotion_id", promotionHandler.DeletePromotion)
 	}
 
