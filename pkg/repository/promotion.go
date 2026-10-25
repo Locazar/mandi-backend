@@ -117,8 +117,10 @@ func (r *promotionRepository) CreatePromotion(ctx context.Context, promotion dom
 	// 	return response.Promotion{}, fmt.Errorf("promotion with this promotion_type_id already exists")
 	// }
 
-	if err := r.db.Create(&promotion).Error; err != nil {
-		fmt.Printf("Error creating promotion: %v\n", err) // Log the error for debugging
+	// Omit IsApplied so the DB column default (false) applies.
+	// This keeps CREATE working both before and after the is_applied migration.
+	if err := r.db.Omit("IsApplied").Create(&promotion).Error; err != nil {
+		fmt.Printf("Error creating promotion: %v\n", err)
 		return response.Promotion{}, fmt.Errorf("failed to create promotion: %w", err)
 	}
 
@@ -202,6 +204,15 @@ func (r *promotionRepository) GetPromotionByID(ctx context.Context, promotionID 
 }
 
 func (r *promotionRepository) UpdatePromotion(ctx context.Context, promotionID string, shopID string, updates map[string]interface{}) error {
+	// Sync is_applied = is_active in a separate, best-effort statement so that if
+	// the is_applied migration hasn't been run yet the main update still succeeds.
+	if isActive, ok := updates["is_active"]; ok {
+		r.db.WithContext(ctx).Exec(
+			`UPDATE promotions SET is_applied = ? WHERE id = ? AND shop_id = ?`,
+			isActive, promotionID, shopID,
+		)
+	}
+
 	result := r.db.WithContext(ctx).
 		Model(&domain.Promotion{}).
 		Where("id = ? AND shop_id = ?", promotionID, shopID).

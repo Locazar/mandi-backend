@@ -96,6 +96,8 @@ func (u *promotionUseCase) UpdatePromotion(ctx context.Context, promotionID stri
 	}
 	if req.IsActive != nil {
 		updates["is_active"] = *req.IsActive
+		// is_applied is synced in the repo layer so it degrades gracefully
+		// if the migration has not yet been run.
 	}
 	if req.MinimumPurchaseAmount != nil {
 		updates["minimum_purchase_amount"] = *req.MinimumPurchaseAmount
