@@ -84,6 +84,11 @@ type ShopDetails struct {
 	// on any query that doesn't join it in.
 	ProductCount int `json:"product_count" gorm:"column:product_count"`
 
+	// ProductViewCount is the total number of views across all product items
+	// for this shop (SUM of product_item_views.view_count). Joined in by
+	// SearchShops when the caller requests it; zero/absent otherwise.
+	ProductViewCount int `json:"product_view_count" gorm:"column:product_view_count"`
+
 	// ProductLimit is the owning seller's admins.product_limit, joined in for
 	// admin-panel display/edit; not a real shop_details column.
 	ProductLimit int `json:"product_limit" gorm:"column:product_limit"`

@@ -1235,10 +1235,18 @@ func (c *adminDatabase) GetAllShops(ctx context.Context, pagination request.Pagi
 	return shops, err
 }
 
-// SearchShops filters shops by phone, pincode, city, and/or radius (km) around a point.
-// Empty filters are ignored; all provided filters are ANDed together.
+// SearchShops filters shops by phone, pincode, city, radius, and/or minimum
+// product view count. Empty filters are ignored; all provided filters are ANDed.
 func (c *adminDatabase) SearchShops(ctx context.Context, filter request.ShopSearch) (shops []domain.ShopDetails, err error) {
-	query := `SELECT sd.*, (EXISTS (SELECT 1 FROM shop_offers so WHERE so.shop_id = sd.id)) as has_offers, a.product_limit
+	// The view-count subquery is inlined so the same expression can be used in
+	// both SELECT (to populate ProductViewCount) and WHERE (for the min filter)
+	// without a wrapping CTE that would complicate the dynamic WHERE building.
+	const viewCountExpr = `COALESCE((SELECT SUM(piv.view_count) FROM product_item_views piv
+		JOIN product_items pi2 ON pi2.id = piv.product_item_id
+		WHERE pi2.shop_id = sd.id), 0)`
+
+	query := `SELECT sd.*, (EXISTS (SELECT 1 FROM shop_offers so WHERE so.shop_id = sd.id)) as has_offers,
+		a.product_limit, ` + viewCountExpr + ` as product_view_count
 		FROM shop_details sd LEFT JOIN admins a ON a.id = sd.admin_id WHERE 1=1`
 	args := []interface{}{}
 	i := 1
@@ -1274,6 +1282,11 @@ func (c *adminDatabase) SearchShops(ctx context.Context, filter request.ShopSear
 		) <= $%d`, i, i+1, i+2, i+3)
 		args = append(args, filter.Latitude, filter.Longitude, filter.Latitude, filter.RadiusKm)
 		i += 4
+	}
+	if filter.MinProductViews > 0 {
+		query += fmt.Sprintf(" AND "+viewCountExpr+" >= $%d", i)
+		args = append(args, filter.MinProductViews)
+		i++
 	}
 
 	query += fmt.Sprintf(" ORDER BY sd.created_at DESC LIMIT $%d", i)
