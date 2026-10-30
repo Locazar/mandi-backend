@@ -56,8 +56,8 @@ func (h *platformUserHandler) ListAdmins(ctx *gin.Context) {
 type createPlatformUserRequest struct {
 	FullName         string `json:"full_name" binding:"required"`
 	Mobile           string `json:"mobile" binding:"required"`
-	Email            string `json:"email" binding:"required,email"`
-	Password         string `json:"password" binding:"required"`
+	Email            string `json:"email" binding:"omitempty,email"`
+	Password         string `json:"password"`
 	Role             string `json:"role"`
 	ReferralCouponID string `json:"referral_coupon_id"`
 }
