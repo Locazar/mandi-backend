@@ -338,6 +338,8 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 			notification.POST("/register-token", notificationHandler.RegisterDeviceToken)
 			notification.DELETE("/unregister-token", notificationHandler.UnregisterDeviceToken)
 			notification.POST("/generateFCMToken", notificationHandler.GenerateFCMToken) // backward compat
+			// Seller sends a one-time push reminder to the customer on an enquiry.
+			notification.POST("/enquiry-reminder", notificationHandler.SendEnquiryReminder)
 		}
 
 		feedback := api.Group("/feedback")

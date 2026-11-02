@@ -73,6 +73,17 @@ type SendPushRequest struct {
 	EventType string `json:"event_type" binding:"omitempty"`
 }
 
+// EnquiryReminderRequest is sent by the seller app to push a one-time reminder
+// to the customer who initiated an enquiry.
+type EnquiryReminderRequest struct {
+	// CustomerUserID is the user ID of the customer who created the enquiry.
+	CustomerUserID string `json:"customer_user_id" binding:"required"`
+	// EnquiryID is the Firestore document ID of the enquiry.
+	EnquiryID string `json:"enquiry_id" binding:"required"`
+	// ProductName is shown in the notification body.
+	ProductName string `json:"product_name" binding:"omitempty"`
+}
+
 // SendBroadcastRequest triggers a topic broadcast to a whole audience (e.g. all
 // customer-app devices) in a single FCM call — no per-user token lookup.
 type SendBroadcastRequest struct {

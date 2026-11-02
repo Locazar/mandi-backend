@@ -107,6 +107,43 @@ func (h *NotificationHandler) SendPushNotification(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Push notification sent successfully", gin.H{"delivered": delivered})
 }
 
+// SendEnquiryReminder sends a one-time push reminder from a seller to the
+// customer who created an enquiry. The seller app calls this after showing the
+// customer inquiry page; the backend looks up the customer's FCM tokens and
+// fires the push.
+func (h *NotificationHandler) SendEnquiryReminder(ctx *gin.Context) {
+	var req request.EnquiryReminderRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Validation failed", err, nil)
+		return
+	}
+
+	body := "The seller is waiting for your response on the enquiry."
+	if req.ProductName != "" {
+		body = "The seller is waiting for your response on your enquiry for " + req.ProductName + "."
+	}
+
+	pushReq := request.SendPushRequest{
+		OwnerID:   req.CustomerUserID,
+		OwnerType: "user",
+		Title:     "Reminder: Your enquiry is waiting",
+		Body:      body,
+		EventType: "enquiry_reminder",
+		Data: map[string]string{
+			"enquiry_id": req.EnquiryID,
+			"action_url": "/inquiry?id=" + req.EnquiryID,
+			"route":      "/inquiry?id=" + req.EnquiryID,
+		},
+	}
+
+	delivered, err := h.notificationUsecase.SendPushNotification(context.Background(), pushReq)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to send reminder", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Reminder sent", gin.H{"delivered": delivered})
+}
+
 // SendBroadcastNotification godoc
 //
 //	@Summary		Broadcast a push notification to a whole audience (topic)
