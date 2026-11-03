@@ -687,6 +687,13 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			jobCategories.GET("/", jobCategoryHandler.GetAllJobCategories())
 		}
 
+		// Seller job postings — admin review and visibility control
+		sellerJobs := api.Group("/seller-jobs")
+		{
+			sellerJobs.GET("/", jobHandler.AdminGetSellerJobPostings())
+			sellerJobs.PUT("/:id/active", jobHandler.AdminSetSellerJobPostingActive())
+		}
+
 		// Guide video management
 		guideVideos := api.Group("/guide-videos")
 		{

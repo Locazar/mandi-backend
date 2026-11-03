@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS seller_job_postings (
     id             VARCHAR(32)  PRIMARY KEY,
     shop_id        VARCHAR(32)  REFERENCES shop_details (id) ON DELETE SET NULL,
     shop_name      VARCHAR(255) NOT NULL,
+    shop_type      VARCHAR(255) NOT NULL DEFAULT '',
     department     VARCHAR(255) NOT NULL,
     persons_needed INTEGER      NOT NULL DEFAULT 1 CHECK (persons_needed >= 1),
     age_min        INTEGER      CHECK (age_min >= 14),
@@ -16,7 +17,7 @@ CREATE TABLE IF NOT EXISTS seller_job_postings (
     state          VARCHAR(255) NOT NULL DEFAULT '',
     show_phone     BOOLEAN      NOT NULL DEFAULT TRUE,
     phone          VARCHAR(50),
-    is_active      BOOLEAN      NOT NULL DEFAULT TRUE,
+    is_active      BOOLEAN      NOT NULL DEFAULT FALSE,
     created_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     updated_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );

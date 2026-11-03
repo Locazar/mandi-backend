@@ -68,12 +68,26 @@ func (s *JobService) GetJobSearchFilters(c *gin.Context) (any, any) {
 
 // CreateSellerJobPosting persists a new job requirement posted by a seller.
 func (s *JobService) CreateSellerJobPosting(ctx context.Context, req CreateSellerJobPostingRequest) (*domain.SellerJobPosting, error) {
+	// Resolve the correct shop_details.id.
+	// The client sends its locally-cached shop_id when available.
+	// If not, we look it up via the JWT admin_id (admins.id → shop_details.admin_id).
+	shopID := req.ShopID
+	if (shopID == nil || strings.TrimSpace(*shopID) == "") && req.AdminID != "" {
+		var shopRow struct{ ID string }
+		if err := s.DB.WithContext(ctx).Table("shop_details").Select("id").
+			Where("admin_id = ? AND deleted_at IS NULL", req.AdminID).
+			First(&shopRow).Error; err == nil && shopRow.ID != "" {
+			shopID = &shopRow.ID
+		}
+	}
+
 	now := time.Now()
 	id := strings.ReplaceAll(uuid.New().String(), "-", "")
 	posting := &domain.SellerJobPosting{
 		ID:            id,
-		ShopID:        req.ShopID,
+		ShopID:        shopID,
 		ShopName:      strings.TrimSpace(req.ShopName),
+		ShopType:      strings.TrimSpace(req.ShopType),
 		Department:    strings.TrimSpace(req.Department),
 		PersonsNeeded: req.PersonsNeeded,
 		AgeMin:        req.AgeMin,
@@ -82,7 +96,7 @@ func (s *JobService) CreateSellerJobPosting(ctx context.Context, req CreateSelle
 		State:         strings.TrimSpace(req.State),
 		ShowPhone:     req.ShowPhone,
 		Phone:         req.Phone,
-		IsActive:      true,
+		IsActive:      false,
 		CreatedAt:     now,
 		UpdatedAt:     now,
 	}
@@ -95,20 +109,63 @@ func (s *JobService) CreateSellerJobPosting(ctx context.Context, req CreateSelle
 	return posting, nil
 }
 
-// GetSellerJobPostings returns all active job postings for a shop, newest first.
-func (s *JobService) GetSellerJobPostings(ctx context.Context, shopID string) ([]domain.SellerJobPosting, error) {
+// GetSellerJobPostings returns job postings, newest first.
+// shopID filters to a specific seller's posts (pass "" for all).
+// onlyActive when true restricts results to is_active = true (customer-app view).
+func (s *JobService) GetSellerJobPostings(ctx context.Context, shopID string, onlyActive bool) ([]domain.SellerJobPosting, error) {
 	var postings []domain.SellerJobPosting
-	q := s.DB.WithContext(ctx).Where("is_active = true").Order("created_at DESC")
+	q := s.DB.WithContext(ctx).Order("created_at DESC")
+	if onlyActive {
+		q = q.Where("is_active = true")
+	}
 	if shopID != "" {
 		q = q.Where("shop_id = ?", shopID)
 	}
 	return postings, q.Find(&postings).Error
 }
 
+// GetSellerJobPostingsByAdmin returns a seller's own postings looked up via their
+// admin_id (JWT userId). It resolves shop_details.id first so the filter is correct.
+func (s *JobService) GetSellerJobPostingsByAdmin(ctx context.Context, adminID string, onlyActive bool) ([]domain.SellerJobPosting, error) {
+	shopID := ""
+	if adminID != "" {
+		var shopRow struct{ ID string }
+		if err := s.DB.WithContext(ctx).Table("shop_details").Select("id").
+			Where("admin_id = ? AND deleted_at IS NULL", adminID).
+			First(&shopRow).Error; err == nil {
+			shopID = shopRow.ID
+		}
+	}
+	return s.GetSellerJobPostings(ctx, shopID, onlyActive)
+}
+
+// GetAllSellerJobPostings returns all seller job postings for admin review, newest first.
+func (s *JobService) GetAllSellerJobPostings(ctx context.Context) ([]domain.SellerJobPosting, error) {
+	var postings []domain.SellerJobPosting
+	return postings, s.DB.WithContext(ctx).Order("created_at DESC").Find(&postings).Error
+}
+
+// SetSellerJobPostingActive enables or disables a seller job posting's visibility
+// on the customer app. Returns the updated record.
+func (s *JobService) SetSellerJobPostingActive(ctx context.Context, id string, active bool) (*domain.SellerJobPosting, error) {
+	var posting domain.SellerJobPosting
+	if err := s.DB.WithContext(ctx).First(&posting, "id = ?", id).Error; err != nil {
+		return nil, fmt.Errorf("seller job posting not found: %w", err)
+	}
+	posting.IsActive = active
+	posting.UpdatedAt = time.Now()
+	if err := s.DB.WithContext(ctx).Save(&posting).Error; err != nil {
+		return nil, fmt.Errorf("update seller job posting: %w", err)
+	}
+	return &posting, nil
+}
+
 // CreateSellerJobPostingRequest holds the validated fields from the POST body.
 type CreateSellerJobPostingRequest struct {
-	ShopID        *string
+	AdminID       string  // JWT user_id (admins.id) — used to look up shop_details.id when ShopID is blank
+	ShopID        *string // shop_details.id sent by client (preferred over AdminID lookup)
 	ShopName      string
+	ShopType      string
 	Department    string
 	PersonsNeeded int
 	AgeMin        *int
