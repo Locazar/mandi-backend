@@ -226,8 +226,5 @@ func provideSkipOTPValidationVariadic(cfg config.Config) []bool {
 }
 
 func provideAlertRuleRegistry() *alert_engine.RuleRegistry {
-	registry := alert_engine.NewRuleRegistry()
-
-	registry.RegisterMultiple(alert_engine.MissingShopPhotoRule{}, alert_engine.NoProductsRule{}, alert_engine.ShopNotVerifiedRule{})
-	return registry
+	return alert_engine.NewRuleRegistry()
 }

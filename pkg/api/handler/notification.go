@@ -144,6 +144,43 @@ func (h *NotificationHandler) SendEnquiryReminder(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Reminder sent", gin.H{"delivered": delivered})
 }
 
+// SendDealPickupReminder sends a one-time push to the customer of an accepted
+// enquiry, letting them know the deal is ready and they should visit the shop.
+// The one-shot guard (pickupReminderSent flag) is managed in Firestore by the
+// seller app; the backend simply fires the push.
+func (h *NotificationHandler) SendDealPickupReminder(ctx *gin.Context) {
+	var req request.DealPickupReminderRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "Validation failed", err, nil)
+		return
+	}
+
+	body := "Your deal has been confirmed — the seller is ready. Come to the shop and collect your item!"
+	if req.ProductName != "" {
+		body = "Your deal for " + req.ProductName + " is confirmed! The seller is ready — come to the shop and collect it."
+	}
+
+	pushReq := request.SendPushRequest{
+		OwnerID:   req.CustomerUserID,
+		OwnerType: "user",
+		Title:     "Deal Ready — Come Collect It! 🎉",
+		Body:      body,
+		EventType: "deal_pickup_reminder",
+		Data: map[string]string{
+			"enquiry_id": req.EnquiryID,
+			"action_url": "/inquiry?id=" + req.EnquiryID,
+			"route":      "/inquiry?id=" + req.EnquiryID,
+		},
+	}
+
+	delivered, err := h.notificationUsecase.SendPushNotification(context.Background(), pushReq)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to send pickup reminder", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Pickup reminder sent", gin.H{"delivered": delivered})
+}
+
 // SendBroadcastNotification godoc
 //
 //	@Summary		Broadcast a push notification to a whole audience (topic)

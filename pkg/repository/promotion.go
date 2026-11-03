@@ -157,9 +157,15 @@ func (r *promotionRepository) GetAllPromotions(ctx context.Context, shopID strin
 
 	if shopID != "" {
 		// Auto-expire any promotions whose end_date has passed — run before the SELECT.
+		// is_active is always updated; is_applied is a best-effort companion that only
+		// takes effect after the migration adds the column.
 		r.db.WithContext(ctx).Model(&domain.Promotion{}).
 			Where("shop_id = ? AND end_date < NOW() AND is_active = true", shopID).
-			Updates(map[string]interface{}{"is_active": false, "is_applied": false})
+			Update("is_active", false)
+		r.db.WithContext(ctx).Exec(
+			`UPDATE promotions SET is_applied = false WHERE shop_id = ? AND end_date < NOW()`,
+			shopID,
+		)
 
 		// Seller view: their own promotions where end_date >= NOW().
 		query = query.Where("shop_id = ?", shopID).

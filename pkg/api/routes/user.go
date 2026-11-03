@@ -340,6 +340,8 @@ func UserRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler, 
 			notification.POST("/generateFCMToken", notificationHandler.GenerateFCMToken) // backward compat
 			// Seller sends a one-time push reminder to the customer on an enquiry.
 			notification.POST("/enquiry-reminder", notificationHandler.SendEnquiryReminder)
+			// Seller sends a one-time "deal ready, come pick it up" push after a deal is accepted.
+			notification.POST("/deal-pickup-reminder", notificationHandler.SendDealPickupReminder)
 		}
 
 		feedback := api.Group("/feedback")

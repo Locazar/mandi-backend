@@ -203,6 +203,7 @@ func (uc *alertTemplateUseCase) SeedDefaults(ctx context.Context) error {
 		contentSchema   string
 		actions         string
 		frequencyConfig string
+		conditions      string
 	}{
 		{
 			key:          "promo_welcome",
@@ -256,12 +257,68 @@ func (uc *alertTemplateUseCase) SeedDefaults(ctx context.Context) error {
 			actions:       `[{"label":"Start Free Trial","action_type":"primary"},{"label":"Maybe Later","action_type":"dismiss"}]`,
 			frequencyConfig: `{"type":"once","dismiss_behavior":"permanent"}`,
 		},
+		// ── Seller health alerts (previously hardcoded rules; now admin-portal driven) ──
+		{
+			key:          "shop_not_verified",
+			title:        "Complete Shop Verification",
+			description:  "Shown to sellers whose shop is not yet verified.",
+			templateType: "warning_banner",
+			displayType:  "bottom_sheet",
+			alertType:    "warning",
+			priority:     8,
+			contentSchema: `{"badge_text":"Action Required","background_color":"#FFF7ED","text_color":"#92400E","actions":[{"label":"Start Verification","action_type":"navigate","link":"/kyc"},{"label":"Maybe Later","action_type":"dismiss"}]}`,
+			actions:         `[{"label":"Start Verification","action_type":"navigate","link":"/kyc"},{"label":"Maybe Later","action_type":"dismiss"}]`,
+			frequencyConfig: `{"type":"weekly"}`,
+			conditions:      `{"conditions":[{"field":"is_verified","operator":"=","value":false}],"logic":"AND"}`,
+		},
+		{
+			key:          "missing_shop_photo",
+			title:        "Add Shop Photo",
+			description:  "Shown to sellers who have not uploaded a shop photo.",
+			templateType: "warning_banner",
+			displayType:  "bottom_sheet",
+			alertType:    "warning",
+			priority:     6,
+			contentSchema: `{"badge_text":"Tip","background_color":"#EFF6FF","text_color":"#1E40AF","actions":[{"label":"Upload Photo","action_type":"navigate","link":"/home"},{"label":"Later","action_type":"dismiss"}]}`,
+			actions:         `[{"label":"Upload Photo","action_type":"navigate","link":"/home"},{"label":"Later","action_type":"dismiss"}]`,
+			frequencyConfig: `{"type":"weekly"}`,
+			conditions:      `{"conditions":[{"field":"has_shop_photo","operator":"=","value":false}],"logic":"AND"}`,
+		},
+		{
+			key:          "no_products_added",
+			title:        "Start Selling",
+			description:  "Shown to sellers who have not added any products yet.",
+			templateType: "warning_banner",
+			displayType:  "bottom_sheet",
+			alertType:    "action_required",
+			priority:     9,
+			contentSchema: `{"badge_text":"Get Started","background_color":"#F0FDF4","text_color":"#14532D","actions":[{"label":"Add Product","action_type":"navigate","link":"/home"},{"label":"Later","action_type":"dismiss"}]}`,
+			actions:         `[{"label":"Add Product","action_type":"navigate","link":"/home"},{"label":"Later","action_type":"dismiss"}]`,
+			frequencyConfig: `{"type":"weekly"}`,
+			conditions:      `{"conditions":[{"field":"product_count","operator":"=","value":0}],"logic":"AND"}`,
+		},
 	}
 
 	for _, s := range seeds {
-		_, err := uc.repo.GetAlertTemplateByKey(ctx, s.key)
+		existing, err := uc.repo.GetAlertTemplateByKey(ctx, s.key)
 		if err == nil {
-			// Already exists — skip
+			// Template already exists. Patch frequency_config and conditions if
+			// they are absent — these fields were added after the initial seed ran
+			// and existing rows need backfilling without overwriting admin edits.
+			needsUpdate := false
+			if len(existing.FrequencyConfig) == 0 && s.frequencyConfig != "" {
+				existing.FrequencyConfig = json.RawMessage(s.frequencyConfig)
+				needsUpdate = true
+			}
+			if len(existing.Conditions) == 0 && s.conditions != "" {
+				existing.Conditions = json.RawMessage(s.conditions)
+				needsUpdate = true
+			}
+			if needsUpdate {
+				if err := uc.repo.UpdateAlertTemplate(ctx, existing); err != nil {
+					return fmt.Errorf("failed to patch template %q: %w", s.key, err)
+				}
+			}
 			continue
 		}
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -285,6 +342,9 @@ func (uc *alertTemplateUseCase) SeedDefaults(ctx context.Context) error {
 		}
 		if s.frequencyConfig != "" {
 			t.FrequencyConfig = json.RawMessage(s.frequencyConfig)
+		}
+		if s.conditions != "" {
+			t.Conditions = json.RawMessage(s.conditions)
 		}
 		if err := uc.repo.SaveAlertTemplate(ctx, t); err != nil {
 			return fmt.Errorf("failed to seed template %q: %w", s.key, err)
@@ -317,18 +377,26 @@ func (uc *alertTemplateUseCase) GetTemplateForSeller(ctx context.Context, seller
 		}
 	}
 
+	var frequencyConfig interface{}
+	if len(t.FrequencyConfig) > 0 {
+		if err := json.Unmarshal(t.FrequencyConfig, &frequencyConfig); err != nil {
+			return nil, fmt.Errorf("invalid frequency_config: %w", err)
+		}
+	}
+
 	return map[string]interface{}{
-		"id":            t.ID,
-		"key":           t.Key,
-		"title":         t.Title,
-		"description":   t.Description,
-		"type":          t.Type,
-		"template_type": t.TemplateType,
-		"display_type":  t.DisplayType,
-		"flow_key":      t.FlowKey,
-		"priority":      t.Priority,
-		"content":       content,
-		"actions":       actions,
+		"id":               t.ID,
+		"key":              t.Key,
+		"title":            t.Title,
+		"description":      t.Description,
+		"type":             t.Type,
+		"template_type":    t.TemplateType,
+		"display_type":     t.DisplayType,
+		"flow_key":         t.FlowKey,
+		"priority":         t.Priority,
+		"content":          content,
+		"actions":          actions,
+		"frequency_config": frequencyConfig,
 	}, nil
 }
 

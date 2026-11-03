@@ -84,6 +84,19 @@ type EnquiryReminderRequest struct {
 	ProductName string `json:"product_name" binding:"omitempty"`
 }
 
+// DealPickupReminderRequest is sent by the seller (or admin) to notify the
+// customer that an accepted deal is ready for pickup. Can only be sent once
+// per enquiry; the caller is responsible for enforcing the one-shot guard in
+// Firestore (field: pickupReminderSent).
+type DealPickupReminderRequest struct {
+	// CustomerUserID is the user ID of the customer who accepted the deal.
+	CustomerUserID string `json:"customer_user_id" binding:"required"`
+	// EnquiryID is the Firestore document ID of the enquiry.
+	EnquiryID string `json:"enquiry_id" binding:"required"`
+	// ProductName is shown in the notification body.
+	ProductName string `json:"product_name" binding:"omitempty"`
+}
+
 // SendBroadcastRequest triggers a topic broadcast to a whole audience (e.g. all
 // customer-app devices) in a single FCM call — no per-user token lookup.
 type SendBroadcastRequest struct {

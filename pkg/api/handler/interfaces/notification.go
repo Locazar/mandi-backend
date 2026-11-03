@@ -16,6 +16,7 @@ type NotificationHandler interface {
 	SendPushNotification(ctx *gin.Context)
 	SendBroadcastNotification(ctx *gin.Context)
 	SendEnquiryReminder(ctx *gin.Context)
+	SendDealPickupReminder(ctx *gin.Context)
 
 	// Radius-targeted announcements
 	SendRadiusAnnouncement(ctx *gin.Context)

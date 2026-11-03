@@ -83,14 +83,12 @@ func provideSkipOTPValidationVariadic(cfg config.Config) []bool {
 }
 
 func provideAlertRuleRegistry() *alert_engine.RuleRegistry {
-	registry := alert_engine.NewRuleRegistry()
-	// Register default rules
-	registry.RegisterMultiple(
-		alert_engine.MissingShopPhotoRule{},
-		alert_engine.NoProductsRule{},
-		alert_engine.ShopNotVerifiedRule{},
-	)
-	return registry
+	// All seller-facing alerts are now driven entirely by Alert Templates managed
+	// in the admin portal. The three hardcoded rules (MissingShopPhotoRule,
+	// NoProductsRule, ShopNotVerifiedRule) have been replaced by seeded DB
+	// templates (keys: missing_shop_photo, no_products_added, shop_not_verified)
+	// so that content, frequency, and on/off can be controlled without a deploy.
+	return alert_engine.NewRuleRegistry()
 }
 
 func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
