@@ -3,6 +3,8 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -62,4 +64,57 @@ func (s *JobService) GetJobSearchSuggestions(c *gin.Context, query string) (any,
 
 func (s *JobService) GetJobSearchFilters(c *gin.Context) (any, any) {
 	return nil, nil
+}
+
+// CreateSellerJobPosting persists a new job requirement posted by a seller.
+func (s *JobService) CreateSellerJobPosting(ctx context.Context, req CreateSellerJobPostingRequest) (*domain.SellerJobPosting, error) {
+	now := time.Now()
+	id := strings.ReplaceAll(uuid.New().String(), "-", "")
+	posting := &domain.SellerJobPosting{
+		ID:            id,
+		ShopID:        req.ShopID,
+		ShopName:      strings.TrimSpace(req.ShopName),
+		Department:    strings.TrimSpace(req.Department),
+		PersonsNeeded: req.PersonsNeeded,
+		AgeMin:        req.AgeMin,
+		AgeMax:        req.AgeMax,
+		City:          strings.TrimSpace(req.City),
+		State:         strings.TrimSpace(req.State),
+		ShowPhone:     req.ShowPhone,
+		Phone:         req.Phone,
+		IsActive:      true,
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+	if posting.PersonsNeeded < 1 {
+		posting.PersonsNeeded = 1
+	}
+	if err := s.DB.WithContext(ctx).Create(posting).Error; err != nil {
+		return nil, fmt.Errorf("create seller job posting: %w", err)
+	}
+	return posting, nil
+}
+
+// GetSellerJobPostings returns all active job postings for a shop, newest first.
+func (s *JobService) GetSellerJobPostings(ctx context.Context, shopID string) ([]domain.SellerJobPosting, error) {
+	var postings []domain.SellerJobPosting
+	q := s.DB.WithContext(ctx).Where("is_active = true").Order("created_at DESC")
+	if shopID != "" {
+		q = q.Where("shop_id = ?", shopID)
+	}
+	return postings, q.Find(&postings).Error
+}
+
+// CreateSellerJobPostingRequest holds the validated fields from the POST body.
+type CreateSellerJobPostingRequest struct {
+	ShopID        *string
+	ShopName      string
+	Department    string
+	PersonsNeeded int
+	AgeMin        *int
+	AgeMax        *int
+	City          string
+	State         string
+	ShowPhone     bool
+	Phone         *string
 }

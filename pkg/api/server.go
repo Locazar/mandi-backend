@@ -150,6 +150,7 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 	routes.RewardRoutes(engine.Group("/api"), middleware, adminHandler, rewardHandler)
 	routes.LanguageRoutes(engine.Group("/api"), middleware, languageHandler)
 	routes.SellerGuideRoutes(engine.Group("/api"), sellerGuideHandler)
+	routes.SellerRoutes(engine.Group("/api"), middleware, jobHandler)
 	routes.AdminRoutes(engine.Group("/api/admin"), authHandler, middleware, adminHandler,
 		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler, promotionHandler, fcmTokenHandler, notificationHandler, alertHandler, uiHandler, alertTemplateHandler,
 		jobHandler, jobCategoryHandler, platformUserHandler, mobileAuthHandler, sellerGuideHandler, invoiceHandler, onboardingNudgeHandler, customerNudgeHandler, verificationNotificationHandler, appUpdateConfigHandler, districtNudgeHandler, notifyCustomerRequestHandler)
