@@ -70,6 +70,7 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 	appUpdateConfigHandler *handler.AppUpdateConfigHandler,
 	districtNudgeHandler *handler.DistrictNudgeHandler,
 	dealHandler *handler.DealHandler,
+	notifyCustomerRequestHandler *handler.NotifyCustomerRequestHandler,
 ) *ServerHTTP {
 
 	engine := gin.New()
@@ -151,7 +152,7 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 	routes.SellerGuideRoutes(engine.Group("/api"), sellerGuideHandler)
 	routes.AdminRoutes(engine.Group("/api/admin"), authHandler, middleware, adminHandler,
 		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler, promotionHandler, fcmTokenHandler, notificationHandler, alertHandler, uiHandler, alertTemplateHandler,
-		jobHandler, jobCategoryHandler, platformUserHandler, mobileAuthHandler, sellerGuideHandler, invoiceHandler, onboardingNudgeHandler, customerNudgeHandler, verificationNotificationHandler, appUpdateConfigHandler, districtNudgeHandler)
+		jobHandler, jobCategoryHandler, platformUserHandler, mobileAuthHandler, sellerGuideHandler, invoiceHandler, onboardingNudgeHandler, customerNudgeHandler, verificationNotificationHandler, appUpdateConfigHandler, districtNudgeHandler, notifyCustomerRequestHandler)
 	routes.UIRoutes(engine.Group("/api/web"), middleware, uiHandler)
 	routes.AIRoutes(engine.Group("/api"), aiHandler)
 

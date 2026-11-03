@@ -46,18 +46,33 @@ func (uc *AlertUseCaseImpl) GetSellerAlerts(ctx context.Context, sellerID string
 		return nil, err
 	}
 
-	// Evaluate all code-based rules
-	alerts, err := uc.evaluator.EvaluateAll(ctx, sellerID, *aggregatedData)
-	if err != nil {
-		return nil, err
-	}
-
-	// Fetch and evaluate database-driven rules
+	// Fetch and evaluate database-driven rules first so they take precedence
+	// over same-key code-based rules.
 	dbAlerts, err := uc.evaluateDBDrivenRules(ctx, sellerID, *aggregatedData)
 	if err != nil {
 		// Log error but continue - DB rules are optional
 	}
+
+	// Build a set of keys already covered by DB-driven templates so code-based
+	// rules for the same key don't double-fire (and don't clobber the admin's
+	// configured content with the hardcoded fallback).
+	dbKeys := make(map[string]struct{}, len(dbAlerts))
+	for _, a := range dbAlerts {
+		dbKeys[a.Key] = struct{}{}
+	}
+
+	// Evaluate code-based rules, skipping any whose key the DB already covers.
+	codeAlerts, err := uc.evaluator.EvaluateAll(ctx, sellerID, *aggregatedData)
+	if err != nil {
+		return nil, err
+	}
+	alerts := make([]*domain.Alert, 0, len(dbAlerts)+len(codeAlerts))
 	alerts = append(alerts, dbAlerts...)
+	for _, a := range codeAlerts {
+		if _, covered := dbKeys[a.Key]; !covered {
+			alerts = append(alerts, a)
+		}
+	}
 
 	// Collect all alert keys first so we can fetch show-times in one query
 	keys := make([]string, 0, len(alerts))

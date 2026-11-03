@@ -168,7 +168,10 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	rewardRepository := repository.NewRewardRepository(gormDB)
 	rewardUseCase := usecase.NewRewardUseCase(rewardRepository, notificationUseCase)
 	rewardHandler := handler.NewRewardHandler(rewardUseCase)
-	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler, jobHandler, jobCategoryHandler, platformUserHandler, handlerHandler, aiHandler, invoiceHandler, shopUpdateHandler, languageHandler, qrCodeHandler, onboardingNudgeHandler, customerNudgeHandler, rewardHandler, verificationNotificationHandler, appUpdateConfigHandler, districtNudgeHandler, dealHandler)
+	notifyCustomerRequestRepository := repository.NewNotifyCustomerRequestRepository(gormDB)
+	notifyCustomerRequestUseCase := usecase.NewNotifyCustomerRequestUseCase(notifyCustomerRequestRepository)
+	notifyCustomerRequestHandler := handler.NewNotifyCustomerRequestHandler(notifyCustomerRequestUseCase)
+	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler, jobHandler, jobCategoryHandler, platformUserHandler, handlerHandler, aiHandler, invoiceHandler, shopUpdateHandler, languageHandler, qrCodeHandler, onboardingNudgeHandler, customerNudgeHandler, rewardHandler, verificationNotificationHandler, appUpdateConfigHandler, districtNudgeHandler, dealHandler, notifyCustomerRequestHandler)
 	return serverHTTP, nil
 }
 

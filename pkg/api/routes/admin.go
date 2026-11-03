@@ -27,6 +27,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 	verificationNotificationHandler *handler.VerificationNotificationHandler,
 	appUpdateConfigHandler *handler.AppUpdateConfigHandler,
 	districtNudgeHandler *handler.DistrictNudgeHandler,
+	notifyCustomerRequestHandler *handler.NotifyCustomerRequestHandler,
 ) {
 
 	auth := api.Group("/auth")
@@ -713,5 +714,15 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			productUploadGuideVideos.PUT("", sellerGuideHandler.ReplaceProductUploadGuideVideo)
 			productUploadGuideVideos.DELETE("", sellerGuideHandler.DeleteProductUploadGuideVideo)
 		}
+	}
+
+	// Notify-customer requests: sellers submit on completed/rejected deals;
+	// admin portal lists and actions them.
+	// POST is behind AuthenticateUser (sellers submit); GET/PATCH are admin-only.
+	notifyReqs := api.Group("/notify-customer-requests")
+	{
+		notifyReqs.POST("", middleware.AuthenticateUser(), notifyCustomerRequestHandler.Submit)
+		notifyReqs.GET("", middleware.AuthenticateAdmin(), notifyCustomerRequestHandler.List)
+		notifyReqs.PATCH("/:id/action", middleware.AuthenticateAdmin(), notifyCustomerRequestHandler.MarkActioned)
 	}
 }
