@@ -170,7 +170,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	rewardHandler := handler.NewRewardHandler(rewardUseCase)
 	notifyCustomerRequestRepository := repository.NewNotifyCustomerRequestRepository(gormDB)
 	notifyCustomerRequestUseCase := usecase.NewNotifyCustomerRequestUseCase(notifyCustomerRequestRepository)
-	notifyCustomerRequestHandler := handler.NewNotifyCustomerRequestHandler(notifyCustomerRequestUseCase)
+	notifyCustomerRequestHandler := handler.NewNotifyCustomerRequestHandler(notifyCustomerRequestUseCase, notificationUseCase)
 	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler, jobHandler, jobCategoryHandler, platformUserHandler, handlerHandler, aiHandler, invoiceHandler, shopUpdateHandler, languageHandler, qrCodeHandler, onboardingNudgeHandler, customerNudgeHandler, rewardHandler, verificationNotificationHandler, appUpdateConfigHandler, districtNudgeHandler, dealHandler, notifyCustomerRequestHandler)
 	return serverHTTP, nil
 }
