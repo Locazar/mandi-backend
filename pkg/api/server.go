@@ -71,6 +71,7 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 	districtNudgeHandler *handler.DistrictNudgeHandler,
 	dealHandler *handler.DealHandler,
 	notifyCustomerRequestHandler *handler.NotifyCustomerRequestHandler,
+	shopProductEnquiryHandler *handler.ShopProductEnquiryHandler,
 ) *ServerHTTP {
 
 	engine := gin.New()
@@ -153,8 +154,11 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 	routes.SellerRoutes(engine.Group("/api"), middleware, jobHandler)
 	routes.AdminRoutes(engine.Group("/api/admin"), authHandler, middleware, adminHandler,
 		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler, promotionHandler, fcmTokenHandler, notificationHandler, alertHandler, uiHandler, alertTemplateHandler,
-		jobHandler, jobCategoryHandler, platformUserHandler, mobileAuthHandler, sellerGuideHandler, invoiceHandler, onboardingNudgeHandler, customerNudgeHandler, verificationNotificationHandler, appUpdateConfigHandler, districtNudgeHandler, notifyCustomerRequestHandler)
+		jobHandler, jobCategoryHandler, platformUserHandler, mobileAuthHandler, sellerGuideHandler, invoiceHandler, onboardingNudgeHandler, customerNudgeHandler, verificationNotificationHandler, appUpdateConfigHandler, districtNudgeHandler, notifyCustomerRequestHandler, shopProductEnquiryHandler)
 	routes.UIRoutes(engine.Group("/api/web"), middleware, uiHandler)
+
+	// Public shop-product enquiry — no auth (website visitors submit from shop profile pages)
+	engine.POST("/api/public/shop-product-enquiries", shopProductEnquiryHandler.Submit)
 	routes.AIRoutes(engine.Group("/api"), aiHandler)
 
 	// Public advertisement endpoints — no auth required (used by mobile app)

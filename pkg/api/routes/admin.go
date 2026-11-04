@@ -28,6 +28,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 	appUpdateConfigHandler *handler.AppUpdateConfigHandler,
 	districtNudgeHandler *handler.DistrictNudgeHandler,
 	notifyCustomerRequestHandler *handler.NotifyCustomerRequestHandler,
+	shopProductEnquiryHandler *handler.ShopProductEnquiryHandler,
 ) {
 
 	auth := api.Group("/auth")
@@ -731,5 +732,13 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		notifyReqs.POST("", middleware.AuthenticateUser(), notifyCustomerRequestHandler.Submit)
 		notifyReqs.GET("", middleware.AuthenticateAdmin(), notifyCustomerRequestHandler.List)
 		notifyReqs.PATCH("/:id/action", middleware.AuthenticateAdmin(), notifyCustomerRequestHandler.MarkActioned)
+	}
+
+	// Shop product enquiries: submitted publicly by website visitors on shop profile pages;
+	// admin portal lists them and can action (notify seller to add products).
+	shopEnquiries := api.Group("/shop-product-enquiries")
+	{
+		shopEnquiries.GET("", middleware.AuthenticateAdmin(), shopProductEnquiryHandler.List)
+		shopEnquiries.PATCH("/:id/action", middleware.AuthenticateAdmin(), shopProductEnquiryHandler.MarkActioned)
 	}
 }
