@@ -13,7 +13,7 @@ type NotifyCustomerRequest struct {
 	ProductName  string    `json:"product_name" gorm:"type:varchar(255)"`
 	ImageURL     string    `json:"image_url" gorm:"type:text"`
 	DealAmount   float64   `json:"deal_amount" gorm:"type:decimal(12,2)"`
-	CustomerID   string    `json:"customer_id" gorm:"type:varchar(100);not null"`
+	CustomerID   string    `json:"customer_id" gorm:"type:varchar(100)"`
 	CustomerName string    `json:"customer_name" gorm:"type:varchar(255)"`
 	SellerID     string    `json:"seller_id" gorm:"type:varchar(100);not null"`
 	ShopID       string    `json:"shop_id" gorm:"type:varchar(100)"`

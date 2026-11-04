@@ -32,7 +32,7 @@ func (h *NotifyCustomerRequestHandler) Submit(ctx *gin.Context) {
 		ProductName  string  `json:"product_name"`
 		ImageURL     string  `json:"image_url"`
 		DealAmount   float64 `json:"deal_amount"`
-		CustomerID   string  `json:"customer_id" binding:"required"`
+		CustomerID   string  `json:"customer_id"`
 		CustomerName string  `json:"customer_name"`
 		SellerID     string  `json:"seller_id"`
 		ShopID       string  `json:"shop_id"`
