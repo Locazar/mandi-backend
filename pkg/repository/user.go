@@ -714,8 +714,15 @@ func (c *userDatabase) FindShopByID(ctx context.Context, shopID string) (respons
 			ORDER BY shop_id, updated_at DESC
 		) st ON st.shop_id = sd.id
 		WHERE sd.id = $1 AND sd.shop_status = 'active'`
-	if c.DB.Raw(query, shopID).Scan(&shop).Error != nil {
-		return shop, errors.New("failed to find shop by ID")
+	result := c.DB.Raw(query, shopID).Scan(&shop)
+	if result.Error != nil {
+		return shop, fmt.Errorf("failed to find shop by ID: %w", result.Error)
+	}
+	// Raw().Scan() does not return an error when no row matches, so an unknown
+	// shop ID or a shop that is not 'active' (under_review, rejected, suspended,
+	// inactive, or never backfilled) would otherwise come back as an empty struct.
+	if result.RowsAffected == 0 {
+		return shop, gorm.ErrRecordNotFound
 	}
 
 	return shop, nil

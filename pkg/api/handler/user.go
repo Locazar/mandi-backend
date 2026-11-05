@@ -16,6 +16,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 	"github.com/rohit221990/mandi-backend/pkg/service/cloud"
+	"github.com/rohit221990/mandi-backend/pkg/usecase"
 	usecaseInterface "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/utils"
 )
@@ -889,6 +890,10 @@ func (c *UserHandler) GetShopByID(ctx *gin.Context) {
 
 	shop, err := c.userUseCase.GetShopByID(ctx, shopID, withProducts)
 	if err != nil {
+		if errors.Is(err, usecase.ErrShopNotAvailable) {
+			response.ErrorResponse(ctx, http.StatusNotFound, "Shop not found", err, nil)
+			return
+		}
 		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to get shop by ID", err, nil)
 		return
 	}

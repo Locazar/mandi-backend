@@ -18,6 +18,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/utils"
 	"golang.org/x/crypto/bcrypt"
 	"googlemaps.github.io/maps"
+	"gorm.io/gorm"
 )
 
 type userUserCase struct {
@@ -336,6 +337,9 @@ func (c *userUserCase) GetProductItemsByShop(ctx context.Context, adminID string
 func (c *userUserCase) GetShopByID(ctx context.Context, shopID string, withProducts bool) (response.Shop, error) {
 	shop, err := c.userRepo.FindShopByID(ctx, shopID)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return response.Shop{}, ErrShopNotAvailable
+		}
 		return response.Shop{}, fmt.Errorf("failed to find shop by ID: %v", err)
 	}
 
