@@ -26,6 +26,7 @@ import (
 	"github.com/rohit221990/mandi-backend/pkg/service/otp"
 	"github.com/rohit221990/mandi-backend/pkg/service/sms"
 	"github.com/rohit221990/mandi-backend/pkg/service/token"
+	"github.com/rohit221990/mandi-backend/pkg/service/whatsapp"
 	"github.com/rohit221990/mandi-backend/pkg/usecase"
 	"gorm.io/gorm"
 )
@@ -174,7 +175,11 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	shopProductEnquiryRepository := repository.NewShopProductEnquiryRepository(gormDB)
 	shopProductEnquiryUseCase := usecase.NewShopProductEnquiryUseCase(shopProductEnquiryRepository, notificationUseCase)
 	shopProductEnquiryHandler := handler.NewShopProductEnquiryHandler(shopProductEnquiryUseCase)
-	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler, jobHandler, jobCategoryHandler, platformUserHandler, handlerHandler, aiHandler, invoiceHandler, shopUpdateHandler, languageHandler, qrCodeHandler, onboardingNudgeHandler, customerNudgeHandler, rewardHandler, verificationNotificationHandler, appUpdateConfigHandler, districtNudgeHandler, dealHandler, notifyCustomerRequestHandler, shopProductEnquiryHandler)
+	waChatRepository := repository.NewWAChatRepository(gormDB)
+	waClient := provideWAClient(cfg)
+	waChatUseCase := usecase.NewWAChatUseCase(waChatRepository, adminRepository, notificationUseCase, waClient)
+	waRelayHandler := handler.NewWARelayHandler(waChatUseCase, cfg.WAWebhookVerifyToken)
+	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler, jobHandler, jobCategoryHandler, platformUserHandler, handlerHandler, aiHandler, invoiceHandler, shopUpdateHandler, languageHandler, qrCodeHandler, onboardingNudgeHandler, customerNudgeHandler, rewardHandler, verificationNotificationHandler, appUpdateConfigHandler, districtNudgeHandler, dealHandler, notifyCustomerRequestHandler, shopProductEnquiryHandler, waRelayHandler)
 	return serverHTTP, nil
 }
 
@@ -233,4 +238,8 @@ func provideSkipOTPValidationVariadic(cfg config.Config) []bool {
 
 func provideAlertRuleRegistry() *alert_engine.RuleRegistry {
 	return alert_engine.NewRuleRegistry()
+}
+
+func provideWAClient(cfg config.Config) *whatsapp.Client {
+	return whatsapp.NewClient(cfg.WAPhoneNumberID, cfg.WAAccessToken)
 }

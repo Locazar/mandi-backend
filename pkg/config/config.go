@@ -136,6 +136,16 @@ type Config struct {
 	PIIEncryptionKeys      string `mapstructure:"PII_ENCRYPTION_KEYS"`
 	PIIEncryptionActiveKey string `mapstructure:"PII_ENCRYPTION_ACTIVE_KEY"`
 
+	// WhatsApp Business (Meta Cloud API) — relay between customers and sellers.
+	// WAPhoneNumberID is the numeric phone number ID from the Meta developer console.
+	// WAAccessToken is the permanent (system-user) access token.
+	// WAWebhookVerifyToken is a secret string used to verify the Meta webhook subscription.
+	// WABizPhone is the Locazar WhatsApp number in E.164 format without '+' (e.g. 919XXXXXXXXX).
+	WAPhoneNumberID      string `mapstructure:"WA_PHONE_NUMBER_ID"`
+	WAAccessToken        string `mapstructure:"WA_ACCESS_TOKEN"`
+	WAWebhookVerifyToken string `mapstructure:"WA_WEBHOOK_VERIFY_TOKEN"`
+	WABizPhone           string `mapstructure:"WA_BIZ_PHONE"`
+
 	Security SecurityConfig `mapstructure:"security"`
 }
 

@@ -29,6 +29,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 	districtNudgeHandler *handler.DistrictNudgeHandler,
 	notifyCustomerRequestHandler *handler.NotifyCustomerRequestHandler,
 	shopProductEnquiryHandler *handler.ShopProductEnquiryHandler,
+	waRelayHandler *handler.WARelayHandler,
 ) {
 
 	auth := api.Group("/auth")
@@ -741,5 +742,12 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 		shopEnquiries.GET("", middleware.AuthenticateAdmin(), shopProductEnquiryHandler.List)
 		shopEnquiries.PATCH("/:id/action", middleware.AuthenticateAdmin(), shopProductEnquiryHandler.MarkActioned)
 		shopEnquiries.POST("/:id/notify", middleware.AuthenticateAdmin(), shopProductEnquiryHandler.NotifyShop)
+	}
+
+	// WhatsApp relay chats — admin view of customer↔seller relay conversations.
+	waChats := api.Group("/wa-chats")
+	{
+		waChats.GET("", middleware.AuthenticateAdmin(), waRelayHandler.ListChats)
+		waChats.GET("/:id", middleware.AuthenticateAdmin(), waRelayHandler.GetChat)
 	}
 }

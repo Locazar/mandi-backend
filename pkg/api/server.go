@@ -72,6 +72,7 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 	dealHandler *handler.DealHandler,
 	notifyCustomerRequestHandler *handler.NotifyCustomerRequestHandler,
 	shopProductEnquiryHandler *handler.ShopProductEnquiryHandler,
+	waRelayHandler *handler.WARelayHandler,
 ) *ServerHTTP {
 
 	engine := gin.New()
@@ -154,11 +155,16 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 	routes.SellerRoutes(engine.Group("/api"), middleware, jobHandler)
 	routes.AdminRoutes(engine.Group("/api/admin"), authHandler, middleware, adminHandler,
 		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler, promotionHandler, fcmTokenHandler, notificationHandler, alertHandler, uiHandler, alertTemplateHandler,
-		jobHandler, jobCategoryHandler, platformUserHandler, mobileAuthHandler, sellerGuideHandler, invoiceHandler, onboardingNudgeHandler, customerNudgeHandler, verificationNotificationHandler, appUpdateConfigHandler, districtNudgeHandler, notifyCustomerRequestHandler, shopProductEnquiryHandler)
+		jobHandler, jobCategoryHandler, platformUserHandler, mobileAuthHandler, sellerGuideHandler, invoiceHandler, onboardingNudgeHandler, customerNudgeHandler, verificationNotificationHandler, appUpdateConfigHandler, districtNudgeHandler, notifyCustomerRequestHandler, shopProductEnquiryHandler, waRelayHandler)
 	routes.UIRoutes(engine.Group("/api/web"), middleware, uiHandler)
 
 	// Public shop-product enquiry — no auth (website visitors submit from shop profile pages)
 	engine.POST("/api/public/shop-product-enquiries", shopProductEnquiryHandler.Submit)
+
+	// WhatsApp Business webhook — Meta sends GET for verification and POST for messages.
+	// No auth: Meta verifies using the hub.verify_token challenge.
+	engine.GET("/api/webhook/whatsapp", waRelayHandler.VerifyWebhook)
+	engine.POST("/api/webhook/whatsapp", waRelayHandler.ReceiveWebhook)
 	routes.AIRoutes(engine.Group("/api"), aiHandler)
 
 	// Public advertisement endpoints — no auth required (used by mobile app)

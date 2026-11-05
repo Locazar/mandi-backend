@@ -207,6 +207,9 @@ func (r *onboardingNudgeRepository) SentSlotsByShop(ctx context.Context, shopIDs
 	if len(shopIDs) == 0 {
 		return result, nil
 	}
+	if err := r.ensureTables(ctx); err != nil {
+		return nil, err
+	}
 	var rows []domain.ShopOnboardingNudgeSent
 	if err := r.db.WithContext(ctx).Where("shop_id IN ?", shopIDs).Find(&rows).Error; err != nil {
 		return nil, err
@@ -228,6 +231,9 @@ func (r *onboardingNudgeRepository) MarkSent(ctx context.Context, shopID string,
 }
 
 func (r *onboardingNudgeRepository) Stats(ctx context.Context, todayStart time.Time) (domain.OnboardingNudgeStats, error) {
+	if err := r.ensureTables(ctx); err != nil {
+		return domain.OnboardingNudgeStats{}, err
+	}
 	db := r.db.WithContext(ctx).Model(&domain.ShopOnboardingNudgeSent{})
 	var stats domain.OnboardingNudgeStats
 
