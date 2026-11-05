@@ -740,5 +740,6 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 	{
 		shopEnquiries.GET("", middleware.AuthenticateAdmin(), shopProductEnquiryHandler.List)
 		shopEnquiries.PATCH("/:id/action", middleware.AuthenticateAdmin(), shopProductEnquiryHandler.MarkActioned)
+		shopEnquiries.POST("/:id/notify", middleware.AuthenticateAdmin(), shopProductEnquiryHandler.NotifyShop)
 	}
 }

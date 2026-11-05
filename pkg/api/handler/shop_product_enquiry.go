@@ -78,6 +78,22 @@ func (h *ShopProductEnquiryHandler) List(ctx *gin.Context) {
 	response.SuccessResponse(ctx, http.StatusOK, "Enquiries fetched", items)
 }
 
+// NotifyShop sends a push notification to the shopkeeper about a customer enquiry.
+// POST /api/admin/shop-product-enquiries/:id/notify
+func (h *ShopProductEnquiryHandler) NotifyShop(ctx *gin.Context) {
+	id := ctx.Param("id")
+	delivered, err := h.uc.NotifyShop(ctx.Request.Context(), id)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to send notification", err, nil)
+		return
+	}
+	msg := "Notification sent to shopkeeper"
+	if !delivered {
+		msg = "Notification queued — shopkeeper has no active device right now"
+	}
+	response.SuccessResponse(ctx, http.StatusOK, msg, gin.H{"delivered": delivered})
+}
+
 // MarkActioned marks an enquiry as handled by admin.
 // PATCH /api/admin/shop-product-enquiries/:id/action
 func (h *ShopProductEnquiryHandler) MarkActioned(ctx *gin.Context) {

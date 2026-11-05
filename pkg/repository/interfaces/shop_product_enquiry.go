@@ -8,6 +8,7 @@ import (
 
 type ShopProductEnquiryRepository interface {
 	Create(ctx context.Context, e domain.ShopProductEnquiry) error
+	GetByID(ctx context.Context, id string) (domain.ShopProductEnquiry, error)
 	List(ctx context.Context, shopID string, actioned *bool, enquiryType string) ([]domain.ShopProductEnquiry, error)
 	MarkActioned(ctx context.Context, id string, note string) error
 }

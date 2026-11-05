@@ -24,6 +24,14 @@ func (r *shopProductEnquiryRepository) Create(ctx context.Context, e domain.Shop
 	return nil
 }
 
+func (r *shopProductEnquiryRepository) GetByID(ctx context.Context, id string) (domain.ShopProductEnquiry, error) {
+	var e domain.ShopProductEnquiry
+	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&e).Error; err != nil {
+		return e, fmt.Errorf("shop product enquiry not found: %w", err)
+	}
+	return e, nil
+}
+
 func (r *shopProductEnquiryRepository) List(ctx context.Context, shopID string, actioned *bool, enquiryType string) ([]domain.ShopProductEnquiry, error) {
 	var results []domain.ShopProductEnquiry
 	q := r.db.WithContext(ctx).Order("created_at DESC")
