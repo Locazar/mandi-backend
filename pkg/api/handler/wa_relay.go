@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
@@ -42,8 +43,10 @@ func (h *WARelayHandler) ReceiveWebhook(ctx *gin.Context) {
 		return
 	}
 	// Meta expects 200 quickly; process asynchronously.
+	// Use context.Background() — the request context is cancelled once the
+	// response is sent, which would kill every DB query in the goroutine.
 	go func() {
-		if err := h.uc.HandleIncoming(ctx.Request.Context(), payload); err != nil {
+		if err := h.uc.HandleIncoming(context.Background(), payload); err != nil {
 			_ = err // already logged inside HandleIncoming
 		}
 	}()
