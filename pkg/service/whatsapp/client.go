@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-const apiBase = "https://graph.facebook.com/v18.0"
+const apiBase = "https://graph.facebook.com/v21.0"
 
 // Client sends messages via the Meta WhatsApp Business Cloud API.
 type Client struct {
