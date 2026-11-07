@@ -132,7 +132,7 @@ func (uc *waChatUseCase) relayCustomerToSeller(ctx context.Context, customerPhon
 	_ = uc.repo.UpdateLastMessage(ctx, chat.ID, domain.WADirCustomerToSeller)
 
 	forwardBody := fmt.Sprintf("💬 Customer message:\n\n%s\n\n_(Reply to this chat to respond)_", body)
-	return uc.wa.SendText(chat.SellerPhone, forwardBody)
+	return uc.wa.SendText(toE164IN(chat.SellerPhone), forwardBody)
 }
 
 // relaySellerToCustomer forwards a seller reply to the customer of the most
@@ -196,6 +196,23 @@ func (uc *waChatUseCase) GetChat(ctx context.Context, chatID string) (domain.WAC
 	}
 	msgs, err := uc.repo.GetMessages(ctx, chatID)
 	return chat, msgs, err
+}
+
+// toE164IN converts an Indian phone number stored in the DB (10 digits, no
+// country code) to the E.164 format required by the WhatsApp Cloud API
+// (country code + number, no leading +). Numbers already starting with 91 or
+// containing non-digit characters beyond a leading + are passed through.
+func toE164IN(phone string) string {
+	digits := strings.Map(func(r rune) rune {
+		if r >= '0' && r <= '9' {
+			return r
+		}
+		return -1
+	}, phone)
+	if len(digits) == 10 {
+		return "91" + digits
+	}
+	return digits
 }
 
 // extractShopID looks for "SHOP:{id}" anywhere in a message body.
