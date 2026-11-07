@@ -75,13 +75,14 @@ type SellerAlertLog struct {
 
 // AggregatedData contains pre-fetched data for rule evaluation
 type AggregatedData struct {
-	Shop         ShopDetails
-	ProductCount int
-	IsVerified   bool
-	HasShopPhoto bool
-	AdminID      string
-	ShopID       string
-	FetchedAt    time.Time
+	Shop                ShopDetails
+	ProductCount        int
+	IsVerified          bool
+	HasShopPhoto        bool
+	HasActiveSubscription bool
+	AdminID             string
+	ShopID              string
+	FetchedAt           time.Time
 }
 
 // AlertResponse is the API response structure for a single alert

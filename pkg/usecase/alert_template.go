@@ -246,16 +246,17 @@ func (uc *alertTemplateUseCase) SeedDefaults(ctx context.Context) error {
 			contentSchema: `{"title":"Help Center","url":"https://locazar.com/help","show_close_icon":true}`,
 		},
 		{
-			key:           "subscription_trial",
-			title:         "Start Your Free Trial",
-			description:   "Unlock all premium features free for 90 days — no payment required.",
-			templateType:  "subscription",
-			displayType:   "bottom_sheet",
-			alertType:     "subscription",
-			priority:      20,
-			contentSchema: `{"title":"Start Your Free Trial","description":"Unlock all premium features free for 90 days — no payment required.","badge_text":"Free Trial"}`,
-			actions:       `[{"label":"Start Free Trial","action_type":"primary"},{"label":"Maybe Later","action_type":"dismiss"}]`,
+			key:             "subscription_trial",
+			title:           "Start Your Free Trial",
+			description:     "Unlock all premium features free for 90 days — no payment required.",
+			templateType:    "subscription",
+			displayType:     "bottom_sheet",
+			alertType:       "subscription",
+			priority:        20,
+			contentSchema:   `{"title":"Start Your Free Trial","description":"Unlock all premium features free for 90 days — no payment required.","badge_text":"Free Trial"}`,
+			actions:         `[{"label":"Start Free Trial","action_type":"primary"},{"label":"Maybe Later","action_type":"dismiss"}]`,
 			frequencyConfig: `{"type":"once","dismiss_behavior":"permanent"}`,
+			conditions:      `{"conditions":[{"field":"has_active_subscription","operator":"=","value":false}],"logic":"AND"}`,
 		},
 		// ── Seller health alerts (previously hardcoded rules; now admin-portal driven) ──
 		{
@@ -305,14 +306,30 @@ func (uc *alertTemplateUseCase) SeedDefaults(ctx context.Context) error {
 			// Template already exists. Patch frequency_config and conditions if
 			// they are absent — these fields were added after the initial seed ran
 			// and existing rows need backfilling without overwriting admin edits.
+			// Exception: subscription_trial is always forced to "once" + its
+			// new_seller condition, because showing the trial popup more than once
+			// was a regression that needs correcting regardless of what the DB holds.
 			needsUpdate := false
-			if len(existing.FrequencyConfig) == 0 && s.frequencyConfig != "" {
-				existing.FrequencyConfig = json.RawMessage(s.frequencyConfig)
-				needsUpdate = true
-			}
-			if len(existing.Conditions) == 0 && s.conditions != "" {
-				existing.Conditions = json.RawMessage(s.conditions)
-				needsUpdate = true
+			if s.key == "subscription_trial" {
+				targetFreq := json.RawMessage(s.frequencyConfig)
+				targetCond := json.RawMessage(s.conditions)
+				if string(existing.FrequencyConfig) != string(targetFreq) {
+					existing.FrequencyConfig = targetFreq
+					needsUpdate = true
+				}
+				if string(existing.Conditions) != string(targetCond) {
+					existing.Conditions = targetCond
+					needsUpdate = true
+				}
+			} else {
+				if len(existing.FrequencyConfig) == 0 && s.frequencyConfig != "" {
+					existing.FrequencyConfig = json.RawMessage(s.frequencyConfig)
+					needsUpdate = true
+				}
+				if len(existing.Conditions) == 0 && s.conditions != "" {
+					existing.Conditions = json.RawMessage(s.conditions)
+					needsUpdate = true
+				}
 			}
 			if needsUpdate {
 				if err := uc.repo.UpdateAlertTemplate(ctx, existing); err != nil {

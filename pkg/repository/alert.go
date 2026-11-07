@@ -257,14 +257,23 @@ func (r *AlertRepositoryImpl) GetAggregatedDataForSeller(ctx context.Context, ad
 	// Check if shop has a photo
 	hasShopPhoto := shop.Shop_Image_URL != ""
 
+	// Check if seller has an active subscription
+	var activeSubs int64
+	r.db.WithContext(ctx).
+		Table("user_subscriptions").
+		Where("user_id = ? AND is_active = true AND end_date > NOW()", adminID).
+		Count(&activeSubs)
+	hasActiveSubscription := activeSubs > 0
+
 	aggregatedData := &domain.AggregatedData{
-		Shop:         shop,
-		ProductCount: int(productCount),
-		IsVerified:   isVerified,
-		HasShopPhoto: hasShopPhoto,
-		AdminID:      adminID,
-		ShopID:       shop.ID,
-		FetchedAt:    time.Now(),
+		Shop:                  shop,
+		ProductCount:          int(productCount),
+		IsVerified:            isVerified,
+		HasShopPhoto:          hasShopPhoto,
+		HasActiveSubscription: hasActiveSubscription,
+		AdminID:               adminID,
+		ShopID:                shop.ID,
+		FetchedAt:             time.Now(),
 	}
 
 	return aggregatedData, nil

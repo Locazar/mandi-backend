@@ -122,6 +122,8 @@ func (e *ConditionEvaluator) evaluateCondition(data domain.AggregatedData, cond 
 		fieldValue = data.AdminID
 	case "shop_id":
 		fieldValue = data.ShopID
+	case "has_active_subscription":
+		fieldValue = data.HasActiveSubscription
 	default:
 		return false, fmt.Errorf("unknown field: %s", cond.Field)
 	}
