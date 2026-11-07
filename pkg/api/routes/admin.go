@@ -515,6 +515,10 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			sellers.PUT("/:admin_id/product-limit", middleware.TrimSpaces(), adminHandler.UpdateSellerProductLimit)
 		}
 
+		// Shop subscription list + grant — must be declared before the /shops
+		// group so the /shop-subscriptions path is not ambiguous.
+		api.GET("/shop-subscriptions", adminHandler.GetShopSubscriptions)
+
 		shop := api.Group("/shops")
 		{
 			shop.POST("/", adminHandler.CreateShop)
@@ -529,6 +533,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			shop.POST("/submit-for-review", adminHandler.SubmitShopForReview)
 			shop.POST("/:shop_id/approve", adminHandler.ApproveShop)
 			shop.POST("/:shop_id/reject", adminHandler.RejectShop)
+			shop.POST("/:shop_id/subscription", adminHandler.AdminGrantSubscription)
 			shop.GET("/verify-status", adminHandler.GetVerificationStatus)
 
 			shop.POST("/upload-profile-image", middleware.AuthenticateAdmin(), adminHandler.UploadAdminProfileImage)

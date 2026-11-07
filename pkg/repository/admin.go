@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/request"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
@@ -2227,4 +2228,134 @@ func (c *adminDatabase) VerifyPromotionBelongsToShop(ctx context.Context, promot
 		Where("id = ? AND shop_id = ?", promotionID, shopID).
 		Count(&count).Error
 	return count > 0, err
+}
+
+func (c *adminDatabase) GetShopSubscriptions(ctx context.Context, status string, limit, offset int) ([]domain.ShopSubscriptionSummary, int64, error) {
+	type row struct {
+		ShopID             string     `gorm:"column:shop_id"`
+		ShopName           string     `gorm:"column:shop_name"`
+		OwnerName          string     `gorm:"column:owner_name"`
+		City               string     `gorm:"column:city"`
+		Phone              string     `gorm:"column:phone"`
+		SubscriptionID     *string    `gorm:"column:subscription_id"`
+		IsActive           *bool      `gorm:"column:is_active"`
+		StartDate          *time.Time `gorm:"column:start_date"`
+		EndDate            *time.Time `gorm:"column:end_date"`
+		SubscriptionStatus string     `gorm:"column:subscription_status"`
+		TotalCount         int64      `gorm:"column:total_count"`
+	}
+
+	const baseSQL = `
+		SELECT sub.*, COUNT(*) OVER() AS total_count
+		FROM (
+			SELECT
+				sd.id AS shop_id,
+				sd.shop_name,
+				sd.owner_name,
+				sd.city,
+				sd.phone,
+				us.id AS subscription_id,
+				us.is_active,
+				us.start_date,
+				us.end_date,
+				CASE
+					WHEN us.id IS NULL THEN 'none'
+					WHEN us.is_active = true AND us.end_date > NOW() THEN 'active'
+					ELSE 'expired'
+				END AS subscription_status
+			FROM shop_details sd
+			LEFT JOIN LATERAL (
+				SELECT id, is_active, start_date, end_date
+				FROM user_subscriptions
+				WHERE user_id = sd.admin_id
+				ORDER BY end_date DESC NULLS LAST
+				LIMIT 1
+			) us ON true
+		) sub
+	`
+
+	var rows []row
+	var err error
+	if status == "" || status == "all" {
+		err = c.DB.WithContext(ctx).Raw(baseSQL+`
+			ORDER BY
+				CASE sub.subscription_status WHEN 'expired' THEN 0 WHEN 'none' THEN 1 WHEN 'active' THEN 2 END,
+				sub.end_date ASC NULLS LAST,
+				sub.shop_id ASC
+			LIMIT ? OFFSET ?`, limit, offset).Scan(&rows).Error
+	} else {
+		err = c.DB.WithContext(ctx).Raw(baseSQL+`
+			WHERE sub.subscription_status = ?
+			ORDER BY
+				CASE sub.subscription_status WHEN 'expired' THEN 0 WHEN 'none' THEN 1 WHEN 'active' THEN 2 END,
+				sub.end_date ASC NULLS LAST,
+				sub.shop_id ASC
+			LIMIT ? OFFSET ?`, status, limit, offset).Scan(&rows).Error
+	}
+	if err != nil {
+		return nil, 0, err
+	}
+
+	summaries := make([]domain.ShopSubscriptionSummary, len(rows))
+	var total int64
+	if len(rows) > 0 {
+		total = rows[0].TotalCount
+	}
+	for i, r := range rows {
+		summaries[i] = domain.ShopSubscriptionSummary{
+			ShopID:             r.ShopID,
+			ShopName:           r.ShopName,
+			OwnerName:          r.OwnerName,
+			City:               r.City,
+			Phone:              r.Phone,
+			SubscriptionID:     r.SubscriptionID,
+			IsActive:           r.IsActive,
+			StartDate:          r.StartDate,
+			EndDate:            r.EndDate,
+			SubscriptionStatus: r.SubscriptionStatus,
+		}
+	}
+	return summaries, total, nil
+}
+
+func (c *adminDatabase) GrantShopSubscription(ctx context.Context, shopID, planID string, days int) (domain.UserSubscription, error) {
+	var shop domain.ShopDetails
+	if err := c.DB.WithContext(ctx).Where("id = ?", shopID).First(&shop).Error; err != nil {
+		return domain.UserSubscription{}, fmt.Errorf("shop not found: %w", err)
+	}
+
+	var plan domain.SubscriptionPlan
+	if planID != "" {
+		if err := c.DB.WithContext(ctx).Where("id = ?", planID).First(&plan).Error; err != nil {
+			return domain.UserSubscription{}, fmt.Errorf("plan not found: %w", err)
+		}
+	} else {
+		if err := c.DB.WithContext(ctx).Where("name = ?", "Free Trial").First(&plan).Error; err != nil {
+			return domain.UserSubscription{}, fmt.Errorf("Free Trial plan not found — create it first or pass a plan_id")
+		}
+	}
+
+	if days <= 0 {
+		days = int(plan.DurationDays)
+	}
+
+	// Deactivate any existing active subscriptions for this user.
+	c.DB.WithContext(ctx).Model(&domain.UserSubscription{}).
+		Where("user_id = ? AND is_active = true", shop.AdminID).
+		Update("is_active", false)
+
+	now := time.Now()
+	sub := domain.UserSubscription{
+		ID:        strings.ReplaceAll(uuid.New().String(), "-", ""),
+		UserID:    shop.AdminID,
+		PlanID:    plan.ID,
+		IsTrial:   plan.Name == "Free Trial",
+		StartDate: now,
+		EndDate:   now.AddDate(0, 0, days),
+		IsActive:  true,
+	}
+	if err := c.DB.WithContext(ctx).Create(&sub).Error; err != nil {
+		return domain.UserSubscription{}, err
+	}
+	return sub, nil
 }

@@ -187,6 +187,14 @@ type AdminUseCase interface {
 	ApplyOfferToProduct(ctx context.Context, sellerID, promotionID, productItemID string) error
 	RemoveOfferFromProduct(ctx context.Context, sellerID, productItemID string) error
 	GetProductPromotion(ctx context.Context, sellerID, productItemID string) (domain.PromotionProduct, bool, error)
+
+	// Shop subscription management (admin panel).
+	// GetShopSubscriptions returns all shops with their real subscription state
+	// from user_subscriptions. status: "active" | "expired" | "none" | "" (all).
+	GetShopSubscriptions(ctx context.Context, status string, limit, offset int) ([]domain.ShopSubscriptionSummary, int64, error)
+	// AdminGrantSubscription grants or renews a subscription for the shop.
+	// planID and days are optional — defaults to Free Trial plan and its duration.
+	AdminGrantSubscription(ctx context.Context, shopID, planID string, days int) (domain.UserSubscription, error)
 }
 
 // GetCategory(ctx context.Context) (helper.Category, any)

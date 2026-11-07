@@ -177,4 +177,8 @@ type AdminHandler interface {
 	GetProductPromotion(ctx *gin.Context)
 	ApplyOfferToProduct(ctx *gin.Context)
 	RemoveOfferFromProduct(ctx *gin.Context)
+
+	// Shop subscription management (admin panel)
+	GetShopSubscriptions(ctx *gin.Context)
+	AdminGrantSubscription(ctx *gin.Context)
 }

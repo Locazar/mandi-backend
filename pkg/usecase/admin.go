@@ -2142,3 +2142,11 @@ func (c *adminUseCase) GetProductPromotion(ctx context.Context, sellerID, produc
 	}
 	return c.adminRepo.GetPromotionProductByProductItemID(ctx, productItemID)
 }
+
+func (c *adminUseCase) GetShopSubscriptions(ctx context.Context, status string, limit, offset int) ([]domain.ShopSubscriptionSummary, int64, error) {
+	return c.adminRepo.GetShopSubscriptions(ctx, status, limit, offset)
+}
+
+func (c *adminUseCase) AdminGrantSubscription(ctx context.Context, shopID, planID string, days int) (domain.UserSubscription, error) {
+	return c.adminRepo.GrantShopSubscription(ctx, shopID, planID, days)
+}

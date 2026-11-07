@@ -82,3 +82,19 @@ type UserSubscription struct {
 	EndDate             time.Time `json:"end_date" gorm:"not null"`
 	IsActive            bool      `json:"is_active" gorm:"not null;default:true"`
 }
+
+// ShopSubscriptionSummary is a read-only view of a shop paired with its most
+// recent subscription row (if any). Returned by GET /api/admin/shop-subscriptions.
+type ShopSubscriptionSummary struct {
+	ShopID             string     `json:"shop_id"`
+	ShopName           string     `json:"shop_name"`
+	OwnerName          string     `json:"owner_name"`
+	City               string     `json:"city"`
+	Phone              string     `json:"phone"`
+	SubscriptionID     *string    `json:"subscription_id,omitempty"`
+	IsActive           *bool      `json:"is_active,omitempty"`
+	StartDate          *time.Time `json:"start_date,omitempty"`
+	EndDate            *time.Time `json:"end_date,omitempty"`
+	// SubscriptionStatus is "active", "expired", or "none".
+	SubscriptionStatus string `json:"subscription_status"`
+}

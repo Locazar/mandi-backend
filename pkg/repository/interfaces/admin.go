@@ -169,4 +169,13 @@ type AdminRepository interface {
 	RemovePromotionFromProduct(ctx context.Context, productItemID string) error
 	VerifyProductBelongsToShop(ctx context.Context, productItemID, shopID string) (bool, error)
 	VerifyPromotionBelongsToShop(ctx context.Context, promotionID, shopID string) (bool, error)
+
+	// Shop subscriptions (admin panel view + grant).
+	// GetShopSubscriptions returns every shop joined with its most recent
+	// subscription row. status filters to "active", "expired", "none" or "" for all.
+	GetShopSubscriptions(ctx context.Context, status string, limit, offset int) ([]domain.ShopSubscriptionSummary, int64, error)
+	// GrantShopSubscription deactivates any existing active subscription for
+	// the shop's owner and creates a new one. If planID is empty the Free Trial
+	// plan is used. If days is 0 the plan's default duration is used.
+	GrantShopSubscription(ctx context.Context, shopID, planID string, days int) (domain.UserSubscription, error)
 }

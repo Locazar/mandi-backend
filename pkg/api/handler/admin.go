@@ -3860,3 +3860,77 @@ func (a *adminHandler) GetProductPromotion(ctx *gin.Context) {
 	}
 	response.SuccessResponse(ctx, http.StatusOK, "Product promotion fetched", pp)
 }
+
+// GetShopSubscriptions godoc
+//
+//	@Summary		List shop subscriptions (admin)
+//	@Security		BearerAuth
+//	@Description	Returns all shops with their real subscription state from user_subscriptions.
+//	@Tags			Admin Subscriptions
+//	@Param			status	query	string	false	"Filter: active | expired | none (default all)"
+//	@Param			limit	query	int		false	"Page size (default 50)"
+//	@Param			offset	query	int		false	"Page offset (default 0)"
+//	@Router			/admin/shop-subscriptions [get]
+func (a *adminHandler) GetShopSubscriptions(ctx *gin.Context) {
+	status := ctx.DefaultQuery("status", "")
+	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "50"))
+	offset, _ := strconv.Atoi(ctx.DefaultQuery("offset", "0"))
+	if limit <= 0 || limit > 500 {
+		limit = 50
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	summaries, total, err := a.adminUseCase.GetShopSubscriptions(ctx, status, limit, offset)
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to load shop subscriptions", err, nil)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Shop subscriptions", gin.H{
+		"data":   summaries,
+		"total":  total,
+		"limit":  limit,
+		"offset": offset,
+	})
+}
+
+// AdminGrantSubscription godoc
+//
+//	@Summary		Grant or renew a shop subscription (admin)
+//	@Security		BearerAuth
+//	@Description	Deactivates any active subscription and creates a new one for the shop's owner.
+//	@Tags			Admin Subscriptions
+//	@Param			shop_id	path	string	true	"Shop ID"
+//	@Router			/admin/shops/{shop_id}/subscription [post]
+func (a *adminHandler) AdminGrantSubscription(ctx *gin.Context) {
+	shopID := ctx.Param("shop_id")
+	if shopID == "" {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "shop_id is required", nil, nil)
+		return
+	}
+
+	var body struct {
+		PlanID *string `json:"plan_id"`
+		Days   *int    `json:"days"`
+	}
+	_ = ctx.ShouldBindJSON(&body)
+
+	planID := ""
+	if body.PlanID != nil {
+		planID = *body.PlanID
+	}
+	days := 0
+	if body.Days != nil {
+		days = *body.Days
+	}
+
+	sub, err := a.adminUseCase.AdminGrantSubscription(ctx, shopID, planID, days)
+	if err != nil {
+		a.handleAppErr(ctx, "Failed to grant subscription", err)
+		return
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "Subscription granted", gin.H{
+		"end_date": sub.EndDate,
+	})
+}
