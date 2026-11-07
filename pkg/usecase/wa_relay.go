@@ -67,8 +67,11 @@ func (uc *waChatUseCase) routeMessage(ctx context.Context, msg domain.WAWHMessag
 		body = fmt.Sprintf("[%s message]", msg.Type)
 	}
 
-	// Check if the sender is a known seller (their phone matches a shop).
-	shop, err := uc.repo.FindShopByPhone(ctx, msg.From)
+	// Meta delivers msg.From in E.164 without '+' (e.g. 919876543210).
+	// DB stores phones as 10-digit Indian numbers, so strip the country code
+	// before the lookup — otherwise no seller is ever recognised.
+	lookupPhone := strip91(msg.From)
+	shop, err := uc.repo.FindShopByPhone(ctx, lookupPhone)
 	if err == nil && shop.ID != "" {
 		return uc.relaySellerToCustomer(ctx, msg.From, shop, body, msg.ID)
 	}
@@ -100,8 +103,10 @@ func (uc *waChatUseCase) relayCustomerToSeller(ctx context.Context, customerPhon
 				CustomerPhone: customerPhone,
 				ShopID:        shopID,
 				ShopName:      shop.ShopName,
-				SellerPhone:   shop.Phone,
-				Status:        domain.WAChatStatusActive,
+				// Store in E.164 so FindActiveChatBySellerPhone matches
+				// msg.From (which Meta also sends as E.164).
+				SellerPhone: toE164IN(shop.Phone),
+				Status:      domain.WAChatStatusActive,
 			}
 			if createErr := uc.repo.CreateChat(ctx, chat); createErr != nil {
 				return fmt.Errorf("create chat: %w", createErr)
@@ -131,8 +136,11 @@ func (uc *waChatUseCase) relayCustomerToSeller(ctx context.Context, customerPhon
 	}
 	_ = uc.repo.UpdateLastMessage(ctx, chat.ID, domain.WADirCustomerToSeller)
 
-	forwardBody := fmt.Sprintf("💬 Customer message:\n\n%s\n\n_(Reply to this chat to respond)_", body)
-	return uc.wa.SendText(toE164IN(chat.SellerPhone), forwardBody)
+	// Strip the routing token before forwarding — the seller shouldn't see it.
+	cleanBody := stripShopToken(body)
+	forwardBody := fmt.Sprintf("💬 Customer message:\n\n%s\n\n_(Reply to this chat to respond)_", cleanBody)
+	// SellerPhone is stored as E.164 (set at chat creation), so no conversion needed.
+	return uc.wa.SendText(chat.SellerPhone, forwardBody)
 }
 
 // relaySellerToCustomer forwards a seller reply to the customer of the most
@@ -198,10 +206,10 @@ func (uc *waChatUseCase) GetChat(ctx context.Context, chatID string) (domain.WAC
 	return chat, msgs, err
 }
 
-// toE164IN converts an Indian phone number stored in the DB (10 digits, no
-// country code) to the E.164 format required by the WhatsApp Cloud API
-// (country code + number, no leading +). Numbers already starting with 91 or
-// containing non-digit characters beyond a leading + are passed through.
+// toE164IN converts an Indian phone stored in the DB (10 digits) to the E.164
+// format required by the WhatsApp Cloud API (country code + number, no +).
+// Numbers that are already 12 digits starting with 91, or that contain a +
+// prefix, pass through cleanly.
 func toE164IN(phone string) string {
 	digits := strings.Map(func(r rune) rune {
 		if r >= '0' && r <= '9' {
@@ -213,6 +221,45 @@ func toE164IN(phone string) string {
 		return "91" + digits
 	}
 	return digits
+}
+
+// strip91 is the inverse of toE164IN: it strips the Indian country code from a
+// 12-digit E.164 number (91XXXXXXXXXX → XXXXXXXXXX) so it matches the 10-digit
+// format phones are stored as in the DB.
+func strip91(phone string) string {
+	digits := strings.Map(func(r rune) rune {
+		if r >= '0' && r <= '9' {
+			return r
+		}
+		return -1
+	}, phone)
+	if len(digits) == 12 && strings.HasPrefix(digits, "91") {
+		return digits[2:]
+	}
+	return digits
+}
+
+// stripShopToken removes the "SHOP:{id}" routing token (and its leading blank
+// line) from a message body before forwarding it to the seller. The token is
+// added by the web app to identify the shop but is an implementation detail
+// the seller should never see.
+func stripShopToken(body string) string {
+	upper := strings.ToUpper(body)
+	const prefix = "SHOP:"
+	idx := strings.Index(upper, prefix)
+	if idx == -1 {
+		return body
+	}
+	// Find the end of the token (next whitespace or end of string).
+	rest := body[idx+len(prefix):]
+	end := strings.IndexAny(rest, " \n\t\r")
+	var after string
+	if end == -1 {
+		after = ""
+	} else {
+		after = rest[end:]
+	}
+	return strings.TrimRight(body[:idx]+after, "\n\r \t")
 }
 
 // extractShopID looks for "SHOP:{id}" anywhere in a message body.
