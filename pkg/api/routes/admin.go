@@ -27,6 +27,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 	verificationNotificationHandler *handler.VerificationNotificationHandler,
 	appUpdateConfigHandler *handler.AppUpdateConfigHandler,
 	districtNudgeHandler *handler.DistrictNudgeHandler,
+	subscriptionExpiryNudgeHandler *handler.SubscriptionExpiryNudgeHandler,
 	notifyCustomerRequestHandler *handler.NotifyCustomerRequestHandler,
 	shopProductEnquiryHandler *handler.ShopProductEnquiryHandler,
 	waRelayHandler *handler.WARelayHandler,
@@ -646,6 +647,19 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			districtNudges.GET("/settings", districtNudgeHandler.GetSettings)
 			districtNudges.PUT("/settings", districtNudgeHandler.UpdateSettings)
 			districtNudges.POST("/run-sweep", districtNudgeHandler.RunSweep)
+		}
+
+		// Subscription expiry nudge — daily automated push to sellers whose
+		// subscription is expiring within the configured window. Automated via
+		// the daily in-process ticker in cmd/api/main.go; run-sweep here is the
+		// same sweep, triggerable on demand from admin-portal.
+		expiryNudges := api.Group("/subscription-expiry-nudges", adminHandler.RequirePermission(domain.PermCanSendNotifications))
+		{
+			expiryNudges.GET("/settings", subscriptionExpiryNudgeHandler.GetSettings)
+			expiryNudges.PUT("/settings", subscriptionExpiryNudgeHandler.UpdateSettings)
+			expiryNudges.GET("/template", subscriptionExpiryNudgeHandler.GetTemplate)
+			expiryNudges.PUT("/template", subscriptionExpiryNudgeHandler.UpdateTemplate)
+			expiryNudges.POST("/run-sweep", subscriptionExpiryNudgeHandler.RunSweep)
 		}
 
 		// Promotion category/type admin mutations (create/update types & categories)

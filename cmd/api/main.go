@@ -144,6 +144,14 @@ func main() {
 		go runDistrictNudgeTicker(nudgeCtx, districtNudgeUC)
 	}
 
+	// Subscription expiry nudge: once a day, notify sellers whose subscription
+	// is expiring within the configured window. No-ops while Enabled is false.
+	if expiryNudgeUC, expiryNudgeErr := di.InitializeSubscriptionExpiryNudgeUseCase(cfg); expiryNudgeErr != nil {
+		log.Printf("Warning: Could not initialize subscription-expiry-nudge use-case for the sweep ticker: %v", expiryNudgeErr)
+	} else {
+		go runSubscriptionExpiryNudgeTicker(nudgeCtx, expiryNudgeUC)
+	}
+
 	// Graceful shutdown: stop watcher when OS signal is received
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
@@ -276,6 +284,34 @@ func runDistrictNudgeTicker(ctx context.Context, uc usecaseinterfaces.DistrictNu
 		}
 		if !result.Disabled && (result.Sent > 0 || result.Errors > 0) {
 			log.Printf("[district-nudge ticker]: sent=%d errors=%d", result.Sent, result.Errors)
+		}
+	}
+	sweep()
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			sweep()
+		}
+	}
+}
+
+// runSubscriptionExpiryNudgeTicker calls RunSweep once a day until ctx is
+// cancelled. Fires once immediately on startup. The sweep is idempotent
+// and respects the Enabled toggle, so no-ops while the feature is off.
+func runSubscriptionExpiryNudgeTicker(ctx context.Context, uc usecaseinterfaces.SubscriptionExpiryNudgeUseCase) {
+	const interval = 24 * time.Hour
+	sweep := func() {
+		result, err := uc.RunSweep(ctx)
+		if err != nil {
+			log.Printf("WARN [subscription-expiry-nudge ticker]: sweep failed: %v", err)
+			return
+		}
+		if !result.Disabled && (result.Sent > 0 || result.Errors > 0) {
+			log.Printf("[subscription-expiry-nudge ticker]: sent=%d errors=%d", result.Sent, result.Errors)
 		}
 	}
 	sweep()

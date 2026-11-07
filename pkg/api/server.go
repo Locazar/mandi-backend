@@ -69,6 +69,7 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 	verificationNotificationHandler *handler.VerificationNotificationHandler,
 	appUpdateConfigHandler *handler.AppUpdateConfigHandler,
 	districtNudgeHandler *handler.DistrictNudgeHandler,
+	subscriptionExpiryNudgeHandler *handler.SubscriptionExpiryNudgeHandler,
 	dealHandler *handler.DealHandler,
 	notifyCustomerRequestHandler *handler.NotifyCustomerRequestHandler,
 	shopProductEnquiryHandler *handler.ShopProductEnquiryHandler,
@@ -155,7 +156,7 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 	routes.SellerRoutes(engine.Group("/api"), middleware, jobHandler)
 	routes.AdminRoutes(engine.Group("/api/admin"), authHandler, middleware, adminHandler,
 		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler, promotionHandler, fcmTokenHandler, notificationHandler, alertHandler, uiHandler, alertTemplateHandler,
-		jobHandler, jobCategoryHandler, platformUserHandler, mobileAuthHandler, sellerGuideHandler, invoiceHandler, onboardingNudgeHandler, customerNudgeHandler, verificationNotificationHandler, appUpdateConfigHandler, districtNudgeHandler, notifyCustomerRequestHandler, shopProductEnquiryHandler, waRelayHandler)
+		jobHandler, jobCategoryHandler, platformUserHandler, mobileAuthHandler, sellerGuideHandler, invoiceHandler, onboardingNudgeHandler, customerNudgeHandler, verificationNotificationHandler, appUpdateConfigHandler, districtNudgeHandler, subscriptionExpiryNudgeHandler, notifyCustomerRequestHandler, shopProductEnquiryHandler, waRelayHandler)
 	routes.UIRoutes(engine.Group("/api/web"), middleware, uiHandler)
 
 	// Public shop-product enquiry — no auth (website visitors submit from shop profile pages)

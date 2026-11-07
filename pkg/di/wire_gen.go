@@ -111,6 +111,9 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	districtNudgeRepository := repository.NewDistrictNudgeRepository(gormDB)
 	districtNudgeUseCase := usecase.NewDistrictNudgeUseCase(districtNudgeRepository, notificationUseCase)
 	districtNudgeHandler := handler.NewDistrictNudgeHandler(districtNudgeUseCase)
+	subscriptionExpiryNudgeRepository := repository.NewSubscriptionExpiryNudgeRepository(gormDB)
+	subscriptionExpiryNudgeUseCase := usecase.NewSubscriptionExpiryNudgeUseCase(subscriptionExpiryNudgeRepository, notificationUseCase)
+	subscriptionExpiryNudgeHandler := handler.NewSubscriptionExpiryNudgeHandler(subscriptionExpiryNudgeUseCase)
 	promotionRepository := repository.NewPromotionRepository(gormDB)
 	promotionUseCase := usecase.NewPromotionUseCase(promotionRepository)
 	promotionHandler := handler.NewPromotionHandler(promotionUseCase)
@@ -179,7 +182,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	waClient := provideWAClient(cfg)
 	waChatUseCase := usecase.NewWAChatUseCase(waChatRepository, adminRepository, notificationUseCase, waClient)
 	waRelayHandler := handler.NewWARelayHandler(waChatUseCase, cfg.WAWebhookVerifyToken)
-	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler, jobHandler, jobCategoryHandler, platformUserHandler, handlerHandler, aiHandler, invoiceHandler, shopUpdateHandler, languageHandler, qrCodeHandler, onboardingNudgeHandler, customerNudgeHandler, rewardHandler, verificationNotificationHandler, appUpdateConfigHandler, districtNudgeHandler, dealHandler, notifyCustomerRequestHandler, shopProductEnquiryHandler, waRelayHandler)
+	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler, jobHandler, jobCategoryHandler, platformUserHandler, handlerHandler, aiHandler, invoiceHandler, shopUpdateHandler, languageHandler, qrCodeHandler, onboardingNudgeHandler, customerNudgeHandler, rewardHandler, verificationNotificationHandler, appUpdateConfigHandler, districtNudgeHandler, subscriptionExpiryNudgeHandler, dealHandler, notifyCustomerRequestHandler, shopProductEnquiryHandler, waRelayHandler)
 	return serverHTTP, nil
 }
 
