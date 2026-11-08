@@ -31,6 +31,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 	notifyCustomerRequestHandler *handler.NotifyCustomerRequestHandler,
 	shopProductEnquiryHandler *handler.ShopProductEnquiryHandler,
 	waRelayHandler *handler.WARelayHandler,
+	leadRequestHandler *handler.LeadRequestHandler,
 ) {
 
 	auth := api.Group("/auth")
@@ -768,5 +769,13 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 	{
 		waChats.GET("", middleware.AuthenticateAdmin(), waRelayHandler.ListChats)
 		waChats.GET("/:id", middleware.AuthenticateAdmin(), waRelayHandler.GetChat)
+	}
+
+	// Lead requests — submitted by customers from the SEO landing page;
+	// admin portal lists and updates status.
+	leadRequests := api.Group("/lead-requests")
+	{
+		leadRequests.GET("", middleware.AuthenticateAdmin(), leadRequestHandler.List)
+		leadRequests.PATCH("/:id/status", middleware.AuthenticateAdmin(), leadRequestHandler.UpdateStatus)
 	}
 }

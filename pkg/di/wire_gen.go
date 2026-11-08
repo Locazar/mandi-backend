@@ -182,7 +182,10 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	waClient := provideWAClient(cfg)
 	waChatUseCase := usecase.NewWAChatUseCase(waChatRepository, adminRepository, notificationUseCase, waClient)
 	waRelayHandler := handler.NewWARelayHandler(waChatUseCase, cfg.WAWebhookVerifyToken)
-	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler, jobHandler, jobCategoryHandler, platformUserHandler, handlerHandler, aiHandler, invoiceHandler, shopUpdateHandler, languageHandler, qrCodeHandler, onboardingNudgeHandler, customerNudgeHandler, rewardHandler, verificationNotificationHandler, appUpdateConfigHandler, districtNudgeHandler, subscriptionExpiryNudgeHandler, dealHandler, notifyCustomerRequestHandler, shopProductEnquiryHandler, waRelayHandler)
+	leadRequestRepository := repository.NewLeadRequestRepository(gormDB)
+	leadRequestUseCase := usecase.NewLeadRequestUseCase(leadRequestRepository)
+	leadRequestHandler := handler.NewLeadRequestHandler(leadRequestUseCase)
+	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler, jobHandler, jobCategoryHandler, platformUserHandler, handlerHandler, aiHandler, invoiceHandler, shopUpdateHandler, languageHandler, qrCodeHandler, onboardingNudgeHandler, customerNudgeHandler, rewardHandler, verificationNotificationHandler, appUpdateConfigHandler, districtNudgeHandler, subscriptionExpiryNudgeHandler, dealHandler, notifyCustomerRequestHandler, shopProductEnquiryHandler, waRelayHandler, leadRequestHandler)
 	return serverHTTP, nil
 }
 

@@ -156,6 +156,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		repository.NewRewardRepository,
 		repository.NewDistrictNudgeRepository,
 		repository.NewSubscriptionExpiryNudgeRepository,
+		repository.NewLeadRequestRepository,
 
 		//usecase — constructors that return interface directly need no Bind;
 		//          constructors that return *concrete need Bind
@@ -190,6 +191,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		usecase.NewCustomerNudgeUseCase,
 		usecase.NewRewardUseCase,
 		usecase.NewSubscriptionExpiryNudgeUseCase,
+		usecase.NewLeadRequestUseCase,
 		// handler
 		handler.NewAdminHandler,
 		handler.NewUserHandler,
@@ -246,6 +248,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 		handler.NewAIHandler,
 
 		handler.NewInvoiceHandler,
+		handler.NewLeadRequestHandler,
 
 		http.NewServerHTTP,
 	)
