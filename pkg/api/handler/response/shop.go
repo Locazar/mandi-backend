@@ -41,6 +41,7 @@ type Shop struct {
 	Pincode                string    `json:"pincode" gorm:"column:pincode"`
 	ShopType               string    `json:"shop_type" gorm:"column:shop_type"`
 	ShopVerificationStatus string    `json:"shop_verification_status" gorm:"column:shop_verification_status"`
+	ShopStatus             string    `json:"shop_status,omitempty" gorm:"column:shop_status"`
 	ShopImageURL           string    `json:"shop_image_url" gorm:"column:shop_image_url"`
 	Latitude               float64   `json:"latitude" gorm:"column:latitude"`
 	Longitude              float64   `json:"longitude" gorm:"column:longitude"`

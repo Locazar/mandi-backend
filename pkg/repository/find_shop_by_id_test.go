@@ -3,6 +3,8 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -11,9 +13,18 @@ import (
 	"gorm.io/gorm"
 )
 
+// findShopByIDMatcher matches the FindShopByID query and fails if it gates on
+// shop_status: a direct lookup by ID must return the shop in any state.
+var findShopByIDMatcher = sqlmock.QueryMatcherFunc(func(expectedSQL, actualSQL string) error {
+	if strings.Contains(actualSQL, ShopActivePredicate) {
+		return fmt.Errorf("FindShopByID must not filter on %q, got query: %s", ShopActivePredicate, actualSQL)
+	}
+	return sqlmock.QueryMatcherRegexp.Match(expectedSQL, actualSQL)
+})
+
 func newFindShopByIDRepo(t *testing.T) (*userDatabase, sqlmock.Sqlmock, func()) {
 	t.Helper()
-	db, mock, err := sqlmock.New()
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(findShopByIDMatcher))
 	assert.NoError(t, err)
 	gormDB, err := gorm.Open(postgres.New(postgres.Config{Conn: db}), &gorm.Config{})
 	assert.NoError(t, err)
@@ -23,27 +34,29 @@ func newFindShopByIDRepo(t *testing.T) (*userDatabase, sqlmock.Sqlmock, func()) 
 func TestFindShopByID(t *testing.T) {
 	const shopID = "shp_test"
 
-	t.Run("ActiveShopIsReturned", func(t *testing.T) {
+	for _, status := range []string{"active", "under_review", "rejected", "suspended", "inactive", ""} {
+		status := status
+		t.Run(fmt.Sprintf("ShopIsReturnedWithStatus_%q", status), func(t *testing.T) {
+			repo, mock, closeDB := newFindShopByIDRepo(t)
+			defer closeDB()
+
+			rows := sqlmock.NewRows([]string{"id", "shop_name", "city", "shop_status"}).
+				AddRow(shopID, "Test Shop", "Jaipur", status)
+			mock.ExpectQuery(`FROM shop_details sd`).WithArgs(shopID).WillReturnRows(rows)
+
+			shop, err := repo.FindShopByID(context.Background(), shopID)
+			assert.NoError(t, err)
+			assert.Equal(t, shopID, shop.ID)
+			assert.Equal(t, "Test Shop", shop.ShopName)
+			assert.Equal(t, status, shop.ShopStatus)
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+
+	t.Run("UnknownShopReturnsRecordNotFound", func(t *testing.T) {
 		repo, mock, closeDB := newFindShopByIDRepo(t)
 		defer closeDB()
 
-		rows := sqlmock.NewRows([]string{"id", "shop_name", "city"}).
-			AddRow(shopID, "Test Shop", "Jaipur")
-		mock.ExpectQuery(`FROM shop_details sd`).WithArgs(shopID).WillReturnRows(rows)
-
-		shop, err := repo.FindShopByID(context.Background(), shopID)
-		assert.NoError(t, err)
-		assert.Equal(t, shopID, shop.ID)
-		assert.Equal(t, "Test Shop", shop.ShopName)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("MissingOrInactiveShopReturnsRecordNotFound", func(t *testing.T) {
-		repo, mock, closeDB := newFindShopByIDRepo(t)
-		defer closeDB()
-
-		// The query filters on shop_status = 'active', so a shop that exists but
-		// is under_review/rejected/suspended yields zero rows, same as an unknown ID.
 		mock.ExpectQuery(`FROM shop_details sd`).WithArgs(shopID).
 			WillReturnRows(sqlmock.NewRows([]string{"id", "shop_name"}))
 

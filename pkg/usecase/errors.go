@@ -109,8 +109,8 @@ var (
 	// alert
 	ErrShopNotFound = errors.New("seller has no shop registered")
 
-	// customer shop lookup: the shop does not exist or is not 'active'
-	ErrShopNotAvailable = errors.New("shop not found or not active")
+	// customer shop lookup by ID: no shop with that ID exists
+	ErrShopNotAvailable = errors.New("shop not found")
 
 	// invoice
 	ErrInvoiceNotFound = errors.New("invoice not found")

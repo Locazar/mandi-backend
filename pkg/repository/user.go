@@ -699,7 +699,7 @@ func (c *userDatabase) FindShopByID(ctx context.Context, shopID string) (respons
 		SELECT
 			sd.id, sd.shop_name, sd.email, sd.phone,
 			sd.address_line1, sd.address_line2, sd.city, sd.state, sd.country, sd.pincode,
-			sd.shop_type, sd.shop_verification_status, sd.shop_image_url,
+			sd.shop_type, sd.shop_verification_status, sd.shop_status, sd.shop_image_url,
 			sd.latitude, sd.longitude,
 			sd.created_at, sd.updated_at,
 			` + IsSubscribedColumn + `,
@@ -713,14 +713,18 @@ func (c *userDatabase) FindShopByID(ctx context.Context, shopID string) (respons
 			FROM shop_times
 			ORDER BY shop_id, updated_at DESC
 		) st ON st.shop_id = sd.id
-		WHERE sd.id = $1 AND sd.shop_status = 'active'`
+		WHERE sd.id = $1`
+	// Deliberately NOT gated on shop_status = 'active' (ShopActivePredicate):
+	// a direct lookup by ID returns the shop in any state, with shop_status in
+	// the response so the client can show it as under review / not live.
+	// Discovery paths (search, nearby, pincode, product listings) keep the
+	// active-only gate, so non-active shops still never surface there.
 	result := c.DB.Raw(query, shopID).Scan(&shop)
 	if result.Error != nil {
 		return shop, fmt.Errorf("failed to find shop by ID: %w", result.Error)
 	}
 	// Raw().Scan() does not return an error when no row matches, so an unknown
-	// shop ID or a shop that is not 'active' (under_review, rejected, suspended,
-	// inactive, or never backfilled) would otherwise come back as an empty struct.
+	// shop ID would otherwise come back as an empty struct.
 	if result.RowsAffected == 0 {
 		return shop, gorm.ErrRecordNotFound
 	}

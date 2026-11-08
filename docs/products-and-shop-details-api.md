@@ -103,10 +103,12 @@ Handler: `GetShopByID` — [pkg/api/handler/user.go:817](../pkg/api/handler/user
 |---|---|---|---|
 | `shop_id` | string (path) | yes | Shop to fetch |
 
+Returns the shop in any `shop_status` (`active`, `under_review`, `rejected`, `suspended`, `inactive`); only `active` shops are live for customers, so clients should check `shop_status` before treating the shop as open for business. Unknown `shop_id` returns 404. Search, nearby, pincode and product listings still return only `active` shops.
+
 No query params. Personalized fields (`is_following`, `user_rating`, etc.) are derived from the caller's auth token, not a query param.
 
 Response shape (`pkg/api/handler/response/shop.go:13-45`):
-`shop_id, shop_name, email, phone, address_line1, address_line2, city, state, country, pincode, shop_type, shop_verification_status, shop_image_url, latitude, longitude, follower_count, following_count, like_count, rating_count, review_count, average_rating, is_following, is_liked, is_subscribed, user_rating, user_review, distance_km, is_open, created_at, updated_at, reviews`
+`shop_id, shop_name, email, phone, address_line1, address_line2, city, state, country, pincode, shop_type, shop_verification_status, shop_status, shop_image_url, latitude, longitude, follower_count, following_count, like_count, rating_count, review_count, average_rating, is_following, is_liked, is_subscribed, user_rating, user_review, distance_km, is_open, created_at, updated_at, reviews`
 
 ### curl example
 ```bash
