@@ -42,12 +42,11 @@ func (r *leadRequestRepository) List(ctx context.Context, city, status string, l
 }
 
 func (r *leadRequestRepository) UpdateStatus(ctx context.Context, id uint, status, adminNote string) error {
-	updates := map[string]interface{}{}
+	updates := map[string]interface{}{
+		"admin_note": adminNote, // always written — empty string clears an existing note
+	}
 	if status != "" {
 		updates["status"] = status
-	}
-	if adminNote != "" {
-		updates["admin_note"] = adminNote
 	}
 	return r.db.WithContext(ctx).Model(&domain.LeadRequest{}).Where("id = ?", id).Updates(updates).Error
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -72,7 +73,10 @@ func (uc *subscriptionExpiryNudgeUseCase) RunSweep(ctx context.Context) (usecase
 
 	result := usecaseInterfaces.SubscriptionExpiryNudgeSweepResult{}
 	for _, c := range candidates {
-		daysLeft := int(time.Until(c.EndDate).Hours()/24) + 1
+		// Round up: a subscription expiring later today is "1 day", one
+		// expiring in 25 hours is "2 days", etc.
+		hoursLeft := time.Until(c.EndDate).Hours()
+		daysLeft := int(math.Ceil(hoursLeft / 24))
 		if daysLeft < 1 {
 			daysLeft = 1
 		}

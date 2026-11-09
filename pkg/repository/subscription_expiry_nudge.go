@@ -116,8 +116,13 @@ func (r *subscriptionExpiryNudgeRepository) FindExpiringSoon(ctx context.Context
 		return nil, err
 	}
 	var candidates []domain.SubscriptionExpiryNudgeCandidate
+	// DISTINCT ON (us.user_id) prevents a seller with multiple active
+	// subscriptions, or multiple shop_details rows, from appearing more than
+	// once and receiving duplicate notifications. ORDER BY end_date ASC picks
+	// the soonest-expiring subscription when there are several.
 	err := r.db.WithContext(ctx).Raw(`
-		SELECT us.user_id,
+		SELECT DISTINCT ON (us.user_id)
+		       us.user_id,
 		       COALESCE(sd.shop_name, '')  AS shop_name,
 		       COALESCE(sd.owner_name, '') AS owner_name,
 		       us.end_date
@@ -131,6 +136,7 @@ func (r *subscriptionExpiryNudgeRepository) FindExpiringSoon(ctx context.Context
 		      WHERE s.user_id = us.user_id
 		        AND s.sent_date = TO_CHAR(CURRENT_DATE, 'YYYY-MM-DD')
 		  )
+		ORDER BY us.user_id, us.end_date ASC
 	`, daysBeforeExpiry).Scan(&candidates).Error
 	return candidates, err
 }
