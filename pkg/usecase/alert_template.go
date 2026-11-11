@@ -255,8 +255,8 @@ func (uc *alertTemplateUseCase) SeedDefaults(ctx context.Context) error {
 			priority:        20,
 			contentSchema:   `{"title":"Start Your Free Trial","description":"Unlock all premium features free for 90 days — no payment required.","badge_text":"Free Trial"}`,
 			actions:         `[{"label":"Start Free Trial","action_type":"primary"},{"label":"Maybe Later","action_type":"dismiss"}]`,
-			frequencyConfig: `{"type":"once","dismiss_behavior":"permanent"}`,
-			conditions:      `{"conditions":[{"field":"has_active_subscription","operator":"=","value":false}],"logic":"AND"}`,
+			frequencyConfig: `{}`,
+			conditions:      `{"conditions":[{"field":"has_active_subscription","operator":"=","value":false},{"field":"is_new_seller","operator":"=","value":true}],"logic":"AND"}`,
 		},
 		// ── Seller health alerts (previously hardcoded rules; now admin-portal driven) ──
 		{

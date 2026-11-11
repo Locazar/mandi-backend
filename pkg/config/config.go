@@ -245,7 +245,7 @@ var envsNames = []string{
 
 // DefaultOTPExpirySeconds is the OTP validity used when OTP_EXPIRY_SECONDS is
 // unset or non-positive.
-const DefaultOTPExpirySeconds = 30
+const DefaultOTPExpirySeconds = 300
 
 func LoadConfig() (config Config, err error) {
 

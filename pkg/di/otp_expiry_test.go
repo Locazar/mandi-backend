@@ -17,7 +17,8 @@ func TestProvideMobileOTPServiceUsesConfiguredExpiry(t *testing.T) {
 		seconds int
 		want    time.Duration
 	}{
-		{"configured 30s", 30, 30 * time.Second},
+		{"configured 30s", 30, 30 * time.Second},   // explicit override still respected
+
 		{"configured 120s", 120, 2 * time.Minute},
 		{"unset config falls back to the default", 0, domain.OTPValidityDuration},
 		{"negative config falls back", -10, domain.OTPValidityDuration},
@@ -32,14 +33,14 @@ func TestProvideMobileOTPServiceUsesConfiguredExpiry(t *testing.T) {
 	}
 }
 
-// An unset OTP_EXPIRY_SECONDS must still yield 30s, so deployments that never
+// An unset OTP_EXPIRY_SECONDS must still yield 300s, so deployments that never
 // set the variable get the intended default rather than a zero-length window.
-func TestUnsetConfigYields30Seconds(t *testing.T) {
+func TestUnsetConfigYields300Seconds(t *testing.T) {
 	svc := provideMobileOTPService(config.Config{}) // zero value: nothing set
-	if got := svc.ValidityDuration(); got != 30*time.Second {
-		t.Fatalf("unset config gives %v, want 30s", got)
+	if got := svc.ValidityDuration(); got != 300*time.Second {
+		t.Fatalf("unset config gives %v, want 300s", got)
 	}
-	if config.DefaultOTPExpirySeconds != 30 {
-		t.Fatalf("config.DefaultOTPExpirySeconds = %d, want 30", config.DefaultOTPExpirySeconds)
+	if config.DefaultOTPExpirySeconds != 300 {
+		t.Fatalf("config.DefaultOTPExpirySeconds = %d, want 300", config.DefaultOTPExpirySeconds)
 	}
 }

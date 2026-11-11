@@ -98,24 +98,17 @@ func (m *mobileAuthUseCase) SendOTP(ctx context.Context, phone, ipAddress, userA
 		return nil, fmt.Errorf("failed to create OTP request: %v", err)
 	}
 
-	// Send OTP via Twilio SMS (DLT-approved template), skipped when SKIP_OTP_VALIDATION=true
+	// Send OTP via SMS asynchronously so the API returns immediately with the
+	// session ID rather than blocking for the HTTP round-trip to 2factor.in.
+	// A send failure is logged but does not invalidate the session — the seller
+	// can request a new OTP if the SMS never arrives.
 	if !m.skipOTPValidation {
-		err = m.smsService.SendOTPSMS(phone, generatedOTP)
-		if err != nil {
-			// Mark OTP as failed and log audit event
-			otpRequest.Status = domain.OTPStatusExpired
-			m.mobileAuthRepo.UpdateOTPRequest(ctx, otpRequest)
-
-			auditLog := &domain.LoginAuditLog{
-				Phone:     phone,
-				Event:     domain.AuditEventOTPRequested,
-				IPAddress: ipAddress,
-				UserAgent: userAgent,
-				Details:   fmt.Sprintf(`{"status":"failed","reason":"sms_send_failed","error":"%s"}`, err.Error()),
+		requestID := otpRequest.ID
+		go func() {
+			if err := m.smsService.SendOTPSMS(phone, generatedOTP); err != nil {
+				log.Printf("[SendOTP mobile] SMS send failed for phone=%s requestID=%s: %v", phone, requestID, err)
 			}
-			m.mobileAuthRepo.CreateAuditLog(ctx, auditLog)
-			return nil, fmt.Errorf("failed to send OTP: %v", err)
-		}
+		}()
 	} else {
 		log.Printf("[SendOTP mobile] skipOTPValidation=true, not sending SMS, otp=%s phone=%s", generatedOTP, phone)
 	}

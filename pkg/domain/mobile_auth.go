@@ -47,7 +47,7 @@ const (
 	// OTPValidityDuration is the fallback OTP lifetime used when
 	// OTP_EXPIRY_SECONDS is unset or non-positive. Keep in step with
 	// config.DefaultOTPExpirySeconds.
-	OTPValidityDuration   = 30 * time.Second
+	OTPValidityDuration   = 300 * time.Second
 	OTPMaxRequestsPerHour = 3
 	OTPCooldownSeconds    = 60
 	OTPLength             = 6

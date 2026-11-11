@@ -62,7 +62,7 @@ func (m *MobileOTPService) GenerateOTP() (string, error) {
 }
 
 func (m *MobileOTPService) HashOTP(otp string) (string, error) {
-	b, err := bcrypt.GenerateFromPassword([]byte(otp), bcrypt.DefaultCost)
+	b, err := bcrypt.GenerateFromPassword([]byte(otp), bcrypt.MinCost)
 	return string(b), err
 }
 

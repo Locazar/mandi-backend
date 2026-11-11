@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"time"
 
 	"github.com/rohit221990/mandi-backend/pkg/domain"
@@ -265,12 +266,27 @@ func (r *AlertRepositoryImpl) GetAggregatedDataForSeller(ctx context.Context, ad
 		Count(&activeSubs)
 	hasActiveSubscription := activeSubs > 0
 
+	// IsNewSeller: true when the shop has an onboarding anchor (written once
+	// at first approval via RecordGoLiveOnce). Shops approved before that
+	// feature existed have no anchor and are treated as existing sellers.
+	var anchorCount int64
+	if err := r.db.WithContext(ctx).
+		Table("shop_onboarding_nudge_anchors").
+		Where("shop_id = ?", shop.ID).
+		Count(&anchorCount).Error; err != nil {
+		// Safe default: treat as existing seller so the alert is withheld
+		// rather than wrongly shown. The error is non-fatal for the caller.
+		log.Printf("[GetAggregatedDataForSeller] anchor count query failed for shop_id=%v: %v", shop.ID, err)
+	}
+	isNewSeller := anchorCount > 0
+
 	aggregatedData := &domain.AggregatedData{
 		Shop:                  shop,
 		ProductCount:          int(productCount),
 		IsVerified:            isVerified,
 		HasShopPhoto:          hasShopPhoto,
 		HasActiveSubscription: hasActiveSubscription,
+		IsNewSeller:           isNewSeller,
 		AdminID:               adminID,
 		ShopID:                shop.ID,
 		FetchedAt:             time.Now(),

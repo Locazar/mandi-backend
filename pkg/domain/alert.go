@@ -75,14 +75,18 @@ type SellerAlertLog struct {
 
 // AggregatedData contains pre-fetched data for rule evaluation
 type AggregatedData struct {
-	Shop                ShopDetails
-	ProductCount        int
-	IsVerified          bool
-	HasShopPhoto        bool
+	Shop                  ShopDetails
+	ProductCount          int
+	IsVerified            bool
+	HasShopPhoto          bool
 	HasActiveSubscription bool
-	AdminID             string
-	ShopID              string
-	FetchedAt           time.Time
+	// IsNewSeller is true when the shop has an onboarding-nudge anchor.
+	// Anchors are written once at first approval; shops approved before that
+	// feature existed have no anchor and are treated as existing sellers.
+	IsNewSeller bool
+	AdminID     string
+	ShopID      string
+	FetchedAt   time.Time
 }
 
 // AlertResponse is the API response structure for a single alert

@@ -93,6 +93,19 @@ func (uc *AlertUseCaseImpl) GetSellerAlerts(ctx context.Context, sellerID string
 		validAlerts = append(validAlerts, alert)
 	}
 
+	// For "once" alerts, record them as shown server-side the moment we return
+	// them. The client view-log endpoint is best-effort; without this, a client
+	// that never calls it would see the alert on every app open.
+	for _, alert := range validAlerts {
+		if alert.Frequency == "once" {
+			_ = uc.alertRepo.LogAlertAction(ctx, &domain.SellerAlertLog{
+				SellerID: sellerID,
+				AlertKey: alert.Key,
+				Action:   "shown",
+			})
+		}
+	}
+
 	return validAlerts, nil
 }
 
