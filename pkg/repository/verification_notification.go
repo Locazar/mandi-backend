@@ -31,7 +31,7 @@ func defaultVerificationTemplates() []domain.VerificationNotificationTemplate {
 			Title: "🎉 Welcome to Locazar — your shop is fully verified!",
 			Body: "Congratulations! Your shop photo, shop address, business document and identity document are all " +
 				"verified. Your shop is now LIVE and visible to customers. Welcome aboard — happy selling!",
-			Route: "/kyc",
+			Route: "/home?tab=4",
 		},
 		{
 			Key:   domain.VerifKeyLivePartial,
@@ -39,7 +39,7 @@ func defaultVerificationTemplates() []domain.VerificationNotificationTemplate {
 			Body: "Great news! Your shop photo and shop address are verified, so your shop is now LIVE and visible " +
 				"to customers on Locazar. Business document: {{business_doc_status}}. Identity document: " +
 				"{{identity_doc_status}}. Welcome aboard!",
-			Route: "/kyc",
+			Route: "/home?tab=4",
 		},
 		{
 			Key:   domain.VerifKeyPendingReview,
@@ -48,7 +48,7 @@ func defaultVerificationTemplates() []domain.VerificationNotificationTemplate {
 				"{{photo_status}}, Shop address: {{address_status}}, Business document: {{business_doc_status}}, " +
 				"Identity document: {{identity_doc_status}}. Your shop will go live once both your shop photo and " +
 				"shop address are verified — please make sure they are clear and valid.",
-			Route: "/kyc",
+			Route: "/home?tab=4",
 		},
 		{
 			Key:   domain.VerifKeyApproved,
@@ -83,7 +83,23 @@ func (r *verificationNotificationRepository) ensureTables(ctx context.Context) e
 		if err := r.db.WithContext(ctx).Create(defaultVerificationTemplates()).Error; err != nil {
 			return err
 		}
+		return nil
 	}
+
+	// Migrate existing "save document status" templates whose route is still the
+	// old /kyc default to the new Profile route (/home?tab=4). Only templates
+	// that still carry the old default are touched — anything the admin already
+	// customised to a different value is left alone.
+	saveKeys := []string{
+		string(domain.VerifKeyFullyVerified),
+		string(domain.VerifKeyLivePartial),
+		string(domain.VerifKeyPendingReview),
+	}
+	r.db.WithContext(ctx).
+		Model(&domain.VerificationNotificationTemplate{}).
+		Where("key IN ? AND route = ?", saveKeys, "/kyc").
+		Update("route", "/home?tab=4")
+
 	return nil
 }
 

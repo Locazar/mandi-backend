@@ -193,17 +193,18 @@ func (uc *alertTemplateUseCase) ToggleTemplate(ctx context.Context, key string, 
 // SeedDefaults creates the four built-in templates if they don't already exist
 func (uc *alertTemplateUseCase) SeedDefaults(ctx context.Context) error {
 	seeds := []struct {
-		key             string
-		title           string
-		description     string
-		templateType    string
-		displayType     string
-		alertType       string
-		priority        int
-		contentSchema   string
-		actions         string
-		frequencyConfig string
-		conditions      string
+		key              string
+		title            string
+		description      string
+		templateType     string
+		displayType      string
+		alertType        string
+		priority         int
+		contentSchema    string
+		actions          string
+		frequencyConfig  string
+		conditions       string
+		disabledByDefault bool // when true, seeds with enabled=false; admin must turn on
 	}{
 		{
 			key:          "promo_welcome",
@@ -298,6 +299,23 @@ func (uc *alertTemplateUseCase) SeedDefaults(ctx context.Context) error {
 			frequencyConfig: `{"type":"weekly"}`,
 			conditions:      `{"conditions":[{"field":"product_count","operator":"=","value":0}],"logic":"AND"}`,
 		},
+		// pending_verification: shown as an inline banner on the seller home screen
+		// after onboarding is complete, until admin approves the shop.
+		// disabledByDefault=true — admin must explicitly enable it via the portal.
+		// Content (title, description, badge_text) is fully editable from the portal.
+		{
+			key:          "pending_verification",
+			title:        "Your shop is under review",
+			description:  "Our team is verifying your shop details. We'll notify you once your shop goes live. This usually takes 24–48 hours.",
+			templateType: "warning_banner",
+			displayType:  "banner",
+			alertType:    "announcement",
+			priority:     15,
+			contentSchema:     `{"title":"Your shop is under review","description":"Our team is verifying your shop details. We'll notify you once your shop goes live. This usually takes 24–48 hours.","badge_text":"Under Review","background_color":"#FFFBEB","text_color":"#92400E","icon":"schedule"}`,
+			frequencyConfig:   `{}`,
+			conditions:        `{"conditions":[{"field":"is_new_seller","operator":"=","value":true},{"field":"is_verified","operator":"=","value":false}],"logic":"AND"}`,
+			disabledByDefault: true,
+		},
 	}
 
 	for _, s := range seeds {
@@ -350,7 +368,7 @@ func (uc *alertTemplateUseCase) SeedDefaults(ctx context.Context) error {
 			DisplayType:   domain.AlertDisplayType(s.displayType),
 			Type:          s.alertType,
 			Priority:      s.priority,
-			Enabled:       true,
+			Enabled:       !s.disabledByDefault,
 			IsActive:      true,
 			ContentSchema: json.RawMessage(s.contentSchema),
 		}

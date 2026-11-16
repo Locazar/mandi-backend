@@ -99,6 +99,31 @@ func (r *onboardingNudgeRepository) ensureTables(ctx context.Context) error {
 		}
 	}
 
+	// Add week_gap_days column if it doesn't exist yet (pre-round-schedule rows).
+	// Also migrate the existing settings row from the original defaults
+	// (gap_hours=2, duration_days=7) to the new round-based defaults so the
+	// schedule works without a manual admin save step.
+	if !migrator.HasColumn(&domain.OnboardingNudgeSettings{}, "WeekGapDays") {
+		if err := migrator.AddColumn(&domain.OnboardingNudgeSettings{}, "WeekGapDays"); err != nil {
+			return err
+		}
+		r.db.WithContext(ctx).
+			Model(&domain.OnboardingNudgeSettings{}).
+			Where("id = ? AND gap_hours = ? AND duration_days = ?", domain.OnboardingNudgeSettingsID, 2, 7).
+			Updates(map[string]interface{}{"gap_hours": 48, "duration_days": 90, "week_gap_days": 7})
+	}
+
+	// Add send_hour column if it doesn't exist yet — defaults to 10 AM IST.
+	if !migrator.HasColumn(&domain.OnboardingNudgeSettings{}, "SendHour") {
+		if err := migrator.AddColumn(&domain.OnboardingNudgeSettings{}, "SendHour"); err != nil {
+			return err
+		}
+		r.db.WithContext(ctx).
+			Model(&domain.OnboardingNudgeSettings{}).
+			Where("id = ? AND send_hour = ?", domain.OnboardingNudgeSettingsID, 0).
+			Update("send_hour", 10)
+	}
+
 	// Seed the single settings row once.
 	var settingsCount int64
 	if err := r.db.WithContext(ctx).Model(&domain.OnboardingNudgeSettings{}).Count(&settingsCount).Error; err != nil {
@@ -108,8 +133,10 @@ func (r *onboardingNudgeRepository) ensureTables(ctx context.Context) error {
 		defaults := domain.OnboardingNudgeSettings{
 			ID:           domain.OnboardingNudgeSettingsID,
 			Enabled:      true,
-			GapHours:     2,
-			DurationDays: 7,
+			GapHours:     48,
+			WeekGapDays:  7,
+			DurationDays: 90,
+			SendHour:     10,
 		}
 		if err := r.db.WithContext(ctx).Create(&defaults).Error; err != nil {
 			return err
@@ -162,7 +189,9 @@ func (r *onboardingNudgeRepository) SaveSettings(ctx context.Context, settings d
 		Updates(map[string]interface{}{
 			"enabled":       settings.Enabled,
 			"gap_hours":     settings.GapHours,
+			"week_gap_days": settings.WeekGapDays,
 			"duration_days": settings.DurationDays,
+			"send_hour":     settings.SendHour,
 		}).Error
 }
 

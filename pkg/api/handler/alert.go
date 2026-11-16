@@ -98,6 +98,17 @@ func (h *AlertHandler) GetSellerAlerts(ctx *gin.Context) {
 		alerts = filtered
 	}
 
+	// Filter by display_type query param if provided (e.g. "banner" vs "bottom_sheet")
+	if displayType := ctx.Query("display_type"); displayType != "" {
+		filtered := alerts[:0]
+		for _, a := range alerts {
+			if string(a.DisplayType) == displayType {
+				filtered = append(filtered, a)
+			}
+		}
+		alerts = filtered
+	}
+
 	// Convert to response format
 	alertResponses := make([]map[string]interface{}, 0)
 	for _, alert := range alerts {

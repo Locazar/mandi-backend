@@ -274,6 +274,7 @@ func (r *DBDrivenAlertRule) Evaluate(ctx context.Context, sellerID string, data 
 		Title:       r.Template.Title,
 		Description: r.Template.Description,
 		Type:        domain.AlertType(r.Template.Type),
+		DisplayType: r.Template.DisplayType,
 		Priority:    r.Template.Priority,
 		IsActive:    r.Template.IsActive,
 		Frequency:   frequencyFromConfig(r.Template.FrequencyConfig),

@@ -2233,6 +2233,7 @@ func (c *adminDatabase) VerifyPromotionBelongsToShop(ctx context.Context, promot
 func (c *adminDatabase) GetShopSubscriptions(ctx context.Context, status string, limit, offset int) ([]domain.ShopSubscriptionSummary, int64, error) {
 	type row struct {
 		ShopID             string     `gorm:"column:shop_id"`
+		AdminID            string     `gorm:"column:admin_id"`
 		ShopName           string     `gorm:"column:shop_name"`
 		OwnerName          string     `gorm:"column:owner_name"`
 		City               string     `gorm:"column:city"`
@@ -2250,6 +2251,7 @@ func (c *adminDatabase) GetShopSubscriptions(ctx context.Context, status string,
 		FROM (
 			SELECT
 				sd.id AS shop_id,
+				sd.admin_id,
 				sd.shop_name,
 				sd.owner_name,
 				sd.city,
@@ -2304,6 +2306,7 @@ func (c *adminDatabase) GetShopSubscriptions(ctx context.Context, status string,
 	for i, r := range rows {
 		summaries[i] = domain.ShopSubscriptionSummary{
 			ShopID:             r.ShopID,
+			AdminID:            r.AdminID,
 			ShopName:           r.ShopName,
 			OwnerName:          r.OwnerName,
 			City:               r.City,

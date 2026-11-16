@@ -396,6 +396,18 @@ func (c *adminUseCase) VerifyShop(ctx context.Context, verify request.ShopVerifi
 	templateKey := verificationTemplateKeyFor(photo, addr, biz, ident)
 	shopName := c.shopNameFor(ctx, verify.ShopId)
 	c.sendVerificationNotification(ctx, verify.ShopId, templateKey, shopName, photo, addr, biz, ident, "")
+
+	// When both mandatory checks pass the shop goes live (shop_status = active).
+	// Record the go-live anchor so the onboarding-nudge sweep picks this shop
+	// up and starts its sequence (add products → update photo → update address
+	// → view shop link). RecordGoLiveOnce is idempotent — a re-verification
+	// that re-passes (or the separate ApproveShop action) leaves the original
+	// anchor untouched so the sequence never restarts.
+	if VerificationStatus && c.onboardingNudgeRepo != nil {
+		if _, err := c.onboardingNudgeRepo.RecordGoLiveOnce(ctx, verify.ShopId, time.Now()); err != nil {
+			log.Printf("WARN [VerifyShop]: failed to record onboarding-nudge anchor for %s: %v", verify.ShopId, err)
+		}
+	}
 	return nil
 }
 

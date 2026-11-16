@@ -14,5 +14,7 @@ type UpdateOnboardingNudgeTemplate struct {
 type UpdateOnboardingNudgeSettings struct {
 	Enabled      bool `json:"enabled"`
 	GapHours     int  `json:"gap_hours" binding:"required,min=1"`
+	WeekGapDays  int  `json:"week_gap_days" binding:"min=0"`
 	DurationDays int  `json:"duration_days" binding:"required,min=1"`
+	SendHour     int  `json:"send_hour" binding:"min=0,max=23"`
 }

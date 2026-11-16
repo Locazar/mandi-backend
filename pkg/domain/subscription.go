@@ -87,6 +87,7 @@ type UserSubscription struct {
 // recent subscription row (if any). Returned by GET /api/admin/shop-subscriptions.
 type ShopSubscriptionSummary struct {
 	ShopID             string     `json:"shop_id"`
+	AdminID            string     `json:"admin_id"`
 	ShopName           string     `json:"shop_name"`
 	OwnerName          string     `json:"owner_name"`
 	City               string     `json:"city"`

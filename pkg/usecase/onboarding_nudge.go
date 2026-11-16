@@ -23,6 +23,25 @@ func NewOnboardingNudgeUseCase(repo repoInterfaces.OnboardingNudgeRepository, no
 	return &onboardingNudgeUseCase{repo: repo, notificationUC: notificationUC}
 }
 
+// istLocation is loaded once at startup. Falls back to a fixed offset if the
+// timezone database is unavailable (e.g. a minimal Docker image without tzdata).
+var istLocation = func() *time.Location {
+	loc, err := time.LoadLocation("Asia/Kolkata")
+	if err != nil {
+		loc = time.FixedZone("IST", 5*60*60+30*60)
+	}
+	return loc
+}()
+
+// nudgeDueAt shifts a nominal due instant to the configured send-hour in IST.
+// This keeps the DUE DATE (IST calendar date of the nominal time) but replaces
+// the time-of-day with sendHour:00:00 IST, so every nudge fires at a consistent
+// hour regardless of when the shop went live.
+func nudgeDueAt(nominal time.Time, sendHour int) time.Time {
+	t := nominal.In(istLocation)
+	return time.Date(t.Year(), t.Month(), t.Day(), sendHour, 0, 0, 0, istLocation)
+}
+
 var validTemplateKeys = map[string]bool{
 	domain.NudgeAddProducts:   true,
 	domain.NudgeUpdatePhoto:   true,
@@ -55,6 +74,12 @@ func (uc *onboardingNudgeUseCase) SaveSettings(ctx context.Context, settings dom
 	if settings.DurationDays < 1 {
 		return fmt.Errorf("duration_days must be at least 1")
 	}
+	if settings.WeekGapDays < 0 {
+		return fmt.Errorf("week_gap_days must be 0 or greater")
+	}
+	if settings.SendHour < 0 || settings.SendHour > 23 {
+		return fmt.Errorf("send_hour must be between 0 and 23")
+	}
 	return uc.repo.SaveSettings(ctx, settings)
 }
 
@@ -78,7 +103,18 @@ func (uc *onboardingNudgeUseCase) BackfillActiveShops(ctx context.Context) (int,
 	if err != nil {
 		return 0, fmt.Errorf("load recently live shops: %w", err)
 	}
-	gap := time.Duration(settings.GapHours) * time.Hour
+
+	numSlots := len(domain.NudgeTemplateOrder)
+	slotGap := time.Duration(settings.GapHours) * time.Hour
+	weekGap := time.Duration(settings.WeekGapDays) * 24 * time.Hour
+	// Round duration = gap from one round's START to the next. Using (numSlots-1)
+	// means the break between the LAST slot of round N and the FIRST slot of
+	// round N+1 equals exactly weekGap — matching the user expectation of "1 week
+	// gap after all 4 fire". Using numSlots would add one extra slotGap to that
+	// break, giving 9 days instead of 7 for the default 2-day/7-day settings.
+	roundDur := time.Duration(numSlots-1)*slotGap + weekGap
+	totalDur := time.Duration(settings.DurationDays) * 24 * time.Hour
+
 	anchored := 0
 	for _, shop := range shops {
 		inserted, err := uc.repo.RecordGoLiveOnce(ctx, shop.ShopID, shop.GoLiveAt)
@@ -90,13 +126,20 @@ func (uc *onboardingNudgeUseCase) BackfillActiveShops(ctx context.Context) (int,
 			continue
 		}
 		anchored++
-		for day := 1; day <= settings.DurationDays; day++ {
-			dayOffset := time.Duration(day-1) * 24 * time.Hour
-			for slot := range domain.NudgeTemplateOrder {
-				due := shop.GoLiveAt.Add(dayOffset).Add(time.Duration(slot) * gap)
-				if due.After(now) {
+		deadline := shop.GoLiveAt.Add(totalDur)
+		maxRounds := settings.DurationDays + 1
+		for round := 0; round <= maxRounds; round++ {
+			roundStart := shop.GoLiveAt.Add(time.Duration(round) * roundDur)
+			if roundStart.After(deadline) {
+				break
+			}
+			for slot := 0; slot < numSlots; slot++ {
+				nominal := roundStart.Add(time.Duration(slot) * slotGap)
+				due := nudgeDueAt(nominal, settings.SendHour)
+				if due.After(now) || nominal.After(deadline) {
 					continue
 				}
+				day := round*numSlots + slot + 1
 				if err := uc.repo.MarkSent(ctx, shop.ShopID, day, slot); err != nil {
 					log.Printf("WARN [OnboardingNudge backfill]: pre-mark failed shop=%s day=%d slot=%d: %v", shop.ShopID, day, slot, err)
 				}
@@ -147,18 +190,30 @@ func (uc *onboardingNudgeUseCase) RunSweep(ctx context.Context) (usecaseInterfac
 		return usecaseInterfaces.SweepResult{}, fmt.Errorf("load sent ledger: %w", err)
 	}
 
-	gap := time.Duration(settings.GapHours) * time.Hour
+	numSlots := len(domain.NudgeTemplateOrder)
+	slotGap := time.Duration(settings.GapHours) * time.Hour
+	weekGap := time.Duration(settings.WeekGapDays) * 24 * time.Hour
+	roundDur := time.Duration(numSlots-1)*slotGap + weekGap
+	totalDur := time.Duration(settings.DurationDays) * 24 * time.Hour
+	maxRounds := settings.DurationDays + 1
+
 	result := usecaseInterfaces.SweepResult{}
 
 	for _, candidate := range candidates {
 		alreadySent := sentSlots[candidate.ShopID]
-		for day := 1; day <= settings.DurationDays; day++ {
-			dayOffset := time.Duration(day-1) * 24 * time.Hour
+		deadline := candidate.GoLiveAt.Add(totalDur)
+		for round := 0; round <= maxRounds; round++ {
+			roundStart := candidate.GoLiveAt.Add(time.Duration(round) * roundDur)
+			if roundStart.After(deadline) {
+				break
+			}
 			for slot, key := range domain.NudgeTemplateOrder {
-				due := candidate.GoLiveAt.Add(dayOffset).Add(time.Duration(slot) * gap)
-				if due.After(now) {
+				nominal := roundStart.Add(time.Duration(slot) * slotGap)
+				due := nudgeDueAt(nominal, settings.SendHour)
+				if due.After(now) || nominal.After(deadline) {
 					continue
 				}
+				day := round*numSlots + slot + 1
 				if alreadySent[[2]int{day, slot}] {
 					continue
 				}
@@ -168,7 +223,7 @@ func (uc *onboardingNudgeUseCase) RunSweep(ctx context.Context) (usecaseInterfac
 					continue
 				}
 				if err := uc.send(ctx, candidate, tmpl); err != nil {
-					log.Printf("WARN [OnboardingNudge sweep]: send %s day=%d slot=%d shop=%s failed: %v", key, day, slot, candidate.ShopID, err)
+					log.Printf("WARN [OnboardingNudge sweep]: send %s round=%d slot=%d shop=%s failed: %v", key, round, slot, candidate.ShopID, err)
 					result.Errors++
 					continue
 				}

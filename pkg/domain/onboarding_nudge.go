@@ -33,13 +33,19 @@ type OnboardingNudgeTemplate struct {
 }
 
 // OnboardingNudgeSettings is a single-row schedule config, edited from
-// admin-portal. GapHours spaces the 4 daily sends; DurationDays is how many
-// days after go-live the sequence runs before stopping.
+// admin-portal. GapHours is the gap between consecutive notification slots;
+// WeekGapDays is the break inserted after all 4 slots fire (one full round)
+// before the round repeats; DurationDays is the total window after go-live;
+// SendHour (IST, 0–23) is the hour-of-day at which each nudge fires — the
+// sweep aligns every due date to this hour so sellers receive notifications at
+// a consistent, sensible time regardless of when they went live.
 type OnboardingNudgeSettings struct {
 	ID           string    `json:"-" gorm:"primaryKey;type:varchar(16)"`
 	Enabled      bool      `json:"enabled" gorm:"not null;default:true"`
-	GapHours     int       `json:"gap_hours" gorm:"not null;default:2"`
-	DurationDays int       `json:"duration_days" gorm:"not null;default:7"`
+	GapHours     int       `json:"gap_hours" gorm:"not null;default:48"`
+	WeekGapDays  int       `json:"week_gap_days" gorm:"not null;default:7"`
+	DurationDays int       `json:"duration_days" gorm:"not null;default:90"`
+	SendHour     int       `json:"send_hour" gorm:"not null;default:10"`
 	UpdatedAt    time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }
 

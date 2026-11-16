@@ -21,6 +21,7 @@ type Alert struct {
 	ValidUntil  *time.Time             `json:"valid_until" gorm:"index"`
 	Metadata    map[string]interface{} `json:"metadata" gorm:"type:jsonb;default:'{}'"` // Store custom data
 	Frequency   string                 `json:"frequency" gorm:"size:50"`                // once, daily, weekly, etc.
+	DisplayType AlertDisplayType       `json:"display_type" gorm:"-"`                   // derived from template; not persisted
 	LastShownAt *time.Time             `json:"last_shown_at"`
 	CreatedAt   time.Time              `json:"created_at" gorm:"autoCreateTime;index"`
 	UpdatedAt   time.Time              `json:"updated_at" gorm:"autoUpdateTime"`
