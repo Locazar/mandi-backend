@@ -91,7 +91,7 @@ func (noopObjectStorage) PublicURL(objectKey string) string {
 	return objectKey
 }
 
-func (noopObjectStorage) PresignedURL(ctx context.Context, objectKey string, ttl time.Duration) (string, error) {
+func (noopObjectStorage) PresignedURL(ctx context.Context, objectKey string, ttl time.Duration, downloadFilename ...string) (string, error) {
 	return "", fmt.Errorf("object storage unavailable: S3 configuration is missing")
 }
 
@@ -160,14 +160,18 @@ func (s *objectStorage) PublicURL(objectKey string) string {
 	return s.publicBaseURL + "/" + strings.TrimLeft(objectKey, "/")
 }
 
-func (s *objectStorage) PresignedURL(ctx context.Context, objectKey string, ttl time.Duration) (string, error) {
+func (s *objectStorage) PresignedURL(ctx context.Context, objectKey string, ttl time.Duration, downloadFilename ...string) (string, error) {
 	if ttl <= 0 {
 		ttl = 12 * time.Hour
 	}
-	req, err := s.presignClient.PresignGetObject(ctx, &s3.GetObjectInput{
+	input := &s3.GetObjectInput{
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String(objectKey),
-	}, s3.WithPresignExpires(ttl))
+	}
+	if len(downloadFilename) > 0 && downloadFilename[0] != "" {
+		input.ResponseContentDisposition = aws.String(`attachment; filename="` + downloadFilename[0] + `"`)
+	}
+	req, err := s.presignClient.PresignGetObject(ctx, input, s3.WithPresignExpires(ttl))
 	if err != nil {
 		return "", err
 	}

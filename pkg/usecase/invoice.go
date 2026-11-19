@@ -149,7 +149,7 @@ func (uc *invoiceUseCase) GetInvoiceDownload(ctx context.Context, invoiceID, req
 		objectKey = key
 	}
 
-	url, err := uc.cloud.PresignedURL(ctx, objectKey, invoiceURLTTL)
+	url, err := uc.cloud.PresignedURL(ctx, objectKey, invoiceURLTTL, inv.FileName())
 	if err != nil {
 		return response.InvoiceDownloadResponse{}, fmt.Errorf("presign invoice url: %w", err)
 	}
