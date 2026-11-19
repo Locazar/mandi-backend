@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-
 	"github.com/go-pdf/fpdf"
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 )
@@ -44,7 +43,44 @@ type pdfRenderer struct{}
 
 func NewPDFRenderer() Renderer { return &pdfRenderer{} }
 
+// bmpSafe removes any rune that lies outside the Basic Multilingual Plane
+// (code points > U+FFFF). fpdf's UTF-8 font engine is built on go-pdf/fpdf's
+// internal character map, which only covers BMP code points; a supplementary
+// character (emoji, rare CJK, etc.) causes "character outside the supported
+// range" and aborts the render. Stripping them is safer than failing the
+// download — the invoice text is still fully legible without emoji.
+func bmpSafe(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		if r <= 0xFFFF {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+// sanitizeInvoice rewrites every free-text field in-place so that no
+// supplementary-plane character can reach fpdf.
+func sanitizeInvoice(inv *domain.Invoice) {
+	inv.InvoiceNumber = bmpSafe(inv.InvoiceNumber)
+	inv.PlanName = bmpSafe(inv.PlanName)
+	inv.PlanDescription = bmpSafe(inv.PlanDescription)
+	inv.SellerLegalName = bmpSafe(inv.SellerLegalName)
+	inv.SellerAddress = bmpSafe(inv.SellerAddress)
+	inv.SellerGSTIN = bmpSafe(inv.SellerGSTIN)
+	inv.SellerFooterNote = bmpSafe(inv.SellerFooterNote)
+	inv.SellerJurisdiction = bmpSafe(inv.SellerJurisdiction)
+	inv.BuyerName = bmpSafe(inv.BuyerName)
+	inv.BuyerContactName = bmpSafe(inv.BuyerContactName)
+	inv.BuyerAddress = bmpSafe(inv.BuyerAddress)
+	inv.BuyerGSTIN = bmpSafe(inv.BuyerGSTIN)
+	inv.PlaceOfSupply = bmpSafe(inv.PlaceOfSupply)
+	inv.PaymentMethod = bmpSafe(inv.PaymentMethod)
+	inv.RazorpayPaymentID = bmpSafe(inv.RazorpayPaymentID)
+}
+
 func (r *pdfRenderer) Render(_ context.Context, inv domain.Invoice, logoPNG []byte) ([]byte, error) {
+	sanitizeInvoice(&inv)
 	pdf := fpdf.New("P", "mm", "A4", "")
 	pdf.SetMargins(marginLeft, marginTop, marginRight)
 	pdf.SetAutoPageBreak(true, 15)
