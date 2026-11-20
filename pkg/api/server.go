@@ -76,6 +76,7 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 	shopProductEnquiryHandler *handler.ShopProductEnquiryHandler,
 	waRelayHandler *handler.WARelayHandler,
 	leadRequestHandler *handler.LeadRequestHandler,
+	shopActionLogHandler *handler.ShopActionLogHandler,
 ) *ServerHTTP {
 
 	engine := gin.New()
@@ -158,7 +159,7 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 	routes.SellerRoutes(engine.Group("/api"), middleware, jobHandler)
 	routes.AdminRoutes(engine.Group("/api/admin"), authHandler, middleware, adminHandler,
 		productHandler, paymentHandler, orderHandler, couponHandler, offerHandler, stockHandler, branHandler, promotionHandler, fcmTokenHandler, notificationHandler, alertHandler, uiHandler, alertTemplateHandler,
-		jobHandler, jobCategoryHandler, platformUserHandler, mobileAuthHandler, sellerGuideHandler, invoiceHandler, onboardingNudgeHandler, customerNudgeHandler, verificationNotificationHandler, appUpdateConfigHandler, districtNudgeHandler, subscriptionExpiryNudgeHandler, subscriptionExpiredNudgeHandler, notifyCustomerRequestHandler, shopProductEnquiryHandler, waRelayHandler, leadRequestHandler)
+		jobHandler, jobCategoryHandler, platformUserHandler, mobileAuthHandler, sellerGuideHandler, invoiceHandler, onboardingNudgeHandler, customerNudgeHandler, verificationNotificationHandler, appUpdateConfigHandler, districtNudgeHandler, subscriptionExpiryNudgeHandler, subscriptionExpiredNudgeHandler, notifyCustomerRequestHandler, shopProductEnquiryHandler, waRelayHandler, leadRequestHandler, shopActionLogHandler)
 	routes.UIRoutes(engine.Group("/api/web"), middleware, uiHandler)
 
 	// Public shop-product enquiry — no auth (website visitors submit from shop profile pages)
@@ -166,6 +167,9 @@ func NewServerHTTP(authHandler handlerInterface.AuthHandler, middleware mw.Middl
 
 	// Public lead requests — no auth (SEO landing page captures customer interest)
 	engine.POST("/api/public/lead-requests", leadRequestHandler.Submit)
+
+	// Public shop interaction log — no auth (customer web app fires these on directions/call/whatsapp/copy)
+	engine.POST("/api/public/shop/action-log", shopActionLogHandler.Record)
 
 	// WhatsApp Business webhook — Meta sends GET for verification and POST for messages.
 	// No auth: Meta verifies using the hub.verify_token challenge.

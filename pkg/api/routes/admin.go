@@ -33,6 +33,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 	shopProductEnquiryHandler *handler.ShopProductEnquiryHandler,
 	waRelayHandler *handler.WARelayHandler,
 	leadRequestHandler *handler.LeadRequestHandler,
+	shopActionLogHandler *handler.ShopActionLogHandler,
 ) {
 
 	auth := api.Group("/auth")
@@ -790,5 +791,10 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 	{
 		leadRequests.GET("", middleware.AuthenticateAdmin(), leadRequestHandler.List)
 		leadRequests.PATCH("/:id/status", middleware.AuthenticateAdmin(), leadRequestHandler.UpdateStatus)
+	}
+
+	shopActionLogs := api.Group("/shop/action-logs")
+	{
+		shopActionLogs.GET("", middleware.AuthenticateAdmin(), shopActionLogHandler.List)
 	}
 }
