@@ -70,6 +70,19 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Callback requests submitted by customers via the "Request a Call" form.
+    // Written unauthenticated (customer web app), read by admin portal.
+    match /call_requests/{docId} {
+      allow create: if
+        request.resource.data.keys().hasAll(['shop_id', 'customer_name', 'customer_phone', 'preferred_time']) &&
+        request.resource.data.shop_id is string &&
+        request.resource.data.customer_name is string &&
+        request.resource.data.customer_phone is string &&
+        request.resource.data.preferred_time in ['now', 'later_today', 'tomorrow'];
+      allow read: if true;
+      allow update, delete: if false;
+    }
+
     // Shop interaction logs written by customer web app (unauthenticated),
     // read by admin portal (also unauthenticated). Append-only: no updates or deletes.
     match /shop_action_logs/{docId} {
