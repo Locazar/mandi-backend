@@ -25,13 +25,16 @@ func defaultExpiredNudgeTemplate() domain.SubscriptionExpiredNudgeTemplate {
 }
 
 func (r *subscriptionExpiredNudgeRepository) ensureTables(ctx context.Context) error {
+	migrator := r.db.Migrator()
 	for _, model := range []interface{}{
 		&domain.SubscriptionExpiredNudgeSettings{},
 		&domain.SubscriptionExpiredNudgeTemplate{},
 		&domain.SubscriptionExpiredNudgeSent{},
 	} {
-		if err := r.db.AutoMigrate(model); err != nil {
-			return err
+		if !migrator.HasTable(model) {
+			if err := r.db.AutoMigrate(model); err != nil {
+				return err
+			}
 		}
 	}
 
