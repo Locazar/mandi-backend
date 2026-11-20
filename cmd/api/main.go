@@ -307,58 +307,63 @@ func runDistrictNudgeTicker(ctx context.Context, uc usecaseinterfaces.DistrictNu
 	}
 }
 
-// runSubscriptionExpiryNudgeTicker calls RunSweep once a day until ctx is
-// cancelled. Fires once immediately on startup. The sweep is idempotent
-// and respects the Enabled toggle, so no-ops while the feature is off.
+// nudgeFireTime is the wall-clock time (IST = UTC+5:30) at which the daily
+// subscription nudge sweeps fire. 9:00 AM IST = 03:30 UTC.
+const nudgeFireHourUTC = 3
+const nudgeFireMinuteUTC = 30
+
+// durationUntilNextUTC returns how long to sleep until the next occurrence of
+// hour:minute UTC. If that time has already passed today it returns the
+// duration to tomorrow's occurrence.
+func durationUntilNextUTC(hour, minute int) time.Duration {
+	now := time.Now().UTC()
+	next := time.Date(now.Year(), now.Month(), now.Day(), hour, minute, 0, 0, time.UTC)
+	if !next.After(now) {
+		next = next.Add(24 * time.Hour)
+	}
+	return next.Sub(now)
+}
+
+// runSubscriptionExpiryNudgeTicker fires RunSweep every day at 9:00 AM IST
+// (03:30 UTC). The sweep is idempotent and respects the Enabled toggle.
 func runSubscriptionExpiryNudgeTicker(ctx context.Context, uc usecaseinterfaces.SubscriptionExpiryNudgeUseCase) {
-	const interval = 24 * time.Hour
-	sweep := func() {
+	for {
+		delay := durationUntilNextUTC(nudgeFireHourUTC, nudgeFireMinuteUTC)
+		log.Printf("[subscription-expiry-nudge ticker]: next sweep in %s (09:00 IST)", delay.Round(time.Minute))
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(delay):
+		}
 		result, err := uc.RunSweep(ctx)
 		if err != nil {
 			log.Printf("WARN [subscription-expiry-nudge ticker]: sweep failed: %v", err)
-			return
+			continue
 		}
 		if !result.Disabled && (result.Sent > 0 || result.Errors > 0) {
 			log.Printf("[subscription-expiry-nudge ticker]: sent=%d errors=%d", result.Sent, result.Errors)
 		}
 	}
-	sweep()
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
+}
+
+// runSubscriptionExpiredNudgeTicker fires RunSweep every day at 9:00 AM IST
+// (03:30 UTC). The sweep is idempotent and respects the Enabled toggle.
+func runSubscriptionExpiredNudgeTicker(ctx context.Context, uc usecaseinterfaces.SubscriptionExpiredNudgeUseCase) {
 	for {
+		delay := durationUntilNextUTC(nudgeFireHourUTC, nudgeFireMinuteUTC)
+		log.Printf("[subscription-expired-nudge ticker]: next sweep in %s (09:00 IST)", delay.Round(time.Minute))
 		select {
 		case <-ctx.Done():
 			return
-		case <-ticker.C:
-			sweep()
+		case <-time.After(delay):
 		}
-	}
-}
-
-// runSubscriptionExpiredNudgeTicker calls RunSweep once a day until ctx is
-// cancelled. Fires once immediately on startup. The sweep is idempotent
-// and respects the Enabled toggle, so no-ops while the feature is off.
-func runSubscriptionExpiredNudgeTicker(ctx context.Context, uc usecaseinterfaces.SubscriptionExpiredNudgeUseCase) {
-	const interval = 24 * time.Hour
-	sweep := func() {
 		result, err := uc.RunSweep(ctx)
 		if err != nil {
 			log.Printf("WARN [subscription-expired-nudge ticker]: sweep failed: %v", err)
-			return
+			continue
 		}
 		if !result.Disabled && (result.Sent > 0 || result.Errors > 0) {
 			log.Printf("[subscription-expired-nudge ticker]: sent=%d errors=%d", result.Sent, result.Errors)
-		}
-	}
-	sweep()
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			sweep()
 		}
 	}
 }
