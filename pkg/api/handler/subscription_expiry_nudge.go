@@ -53,6 +53,8 @@ func (h *SubscriptionExpiryNudgeHandler) UpdateSettings(ctx *gin.Context) {
 	settings := domain.SubscriptionExpiryNudgeSettings{
 		Enabled:          req.Enabled,
 		DaysBeforeExpiry: req.DaysBeforeExpiry,
+		FireHourIST:      req.FireHourIST,
+		FireMinuteIST:    req.FireMinuteIST,
 	}
 	if err := h.uc.SaveSettings(ctx.Request.Context(), settings); err != nil {
 		response.ErrorResponse(ctx, http.StatusBadRequest, "Failed to update settings", err, nil)

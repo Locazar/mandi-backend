@@ -25,16 +25,13 @@ func defaultExpiryNudgeTemplate() domain.SubscriptionExpiryNudgeTemplate {
 }
 
 func (r *subscriptionExpiryNudgeRepository) ensureTables(ctx context.Context) error {
-	migrator := r.db.Migrator()
 	for _, model := range []interface{}{
 		&domain.SubscriptionExpiryNudgeSettings{},
 		&domain.SubscriptionExpiryNudgeTemplate{},
 		&domain.SubscriptionExpiryNudgeSent{},
 	} {
-		if !migrator.HasTable(model) {
-			if err := r.db.AutoMigrate(model); err != nil {
-				return err
-			}
+		if err := r.db.AutoMigrate(model); err != nil {
+			return err
 		}
 	}
 
@@ -45,6 +42,7 @@ func (r *subscriptionExpiryNudgeRepository) ensureTables(ctx context.Context) er
 	if settingsCount == 0 {
 		defaults := domain.SubscriptionExpiryNudgeSettings{
 			ID: domain.SubscriptionExpiryNudgeSettingsID, Enabled: false, DaysBeforeExpiry: 5,
+			FireHourIST: 9, FireMinuteIST: 0,
 		}
 		if err := r.db.WithContext(ctx).Create(&defaults).Error; err != nil {
 			return err
@@ -82,6 +80,8 @@ func (r *subscriptionExpiryNudgeRepository) SaveSettings(ctx context.Context, se
 		Updates(map[string]interface{}{
 			"enabled":            settings.Enabled,
 			"days_before_expiry": settings.DaysBeforeExpiry,
+			"fire_hour_ist":      settings.FireHourIST,
+			"fire_minute_ist":    settings.FireMinuteIST,
 		}).Error
 }
 

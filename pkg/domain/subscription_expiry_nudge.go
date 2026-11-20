@@ -6,6 +6,8 @@ type SubscriptionExpiryNudgeSettings struct {
 	ID               string    `json:"-" gorm:"primaryKey;type:varchar(16)"`
 	Enabled          bool      `json:"enabled" gorm:"not null;default:false"`
 	DaysBeforeExpiry int       `json:"days_before_expiry" gorm:"not null;default:5"`
+	FireHourIST      int       `json:"fire_hour_ist" gorm:"not null;default:9"`
+	FireMinuteIST    int       `json:"fire_minute_ist" gorm:"not null;default:0"`
 	UpdatedAt        time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }
 

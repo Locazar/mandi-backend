@@ -307,13 +307,18 @@ func runDistrictNudgeTicker(ctx context.Context, uc usecaseinterfaces.DistrictNu
 	}
 }
 
-// nudgeFireTime is the wall-clock time (IST = UTC+5:30) at which the daily
-// subscription nudge sweeps fire. 9:00 AM IST = 03:30 UTC.
-const nudgeFireHourUTC = 3
-const nudgeFireMinuteUTC = 30
+// istToUTC converts an IST hour:minute to UTC hour:minute (IST = UTC+5:30).
+func istToUTC(hourIST, minIST int) (int, int) {
+	total := hourIST*60 + minIST - 5*60 - 30
+	if total < 0 {
+		total += 24 * 60
+	}
+	total %= 24 * 60
+	return total / 60, total % 60
+}
 
 // durationUntilNextUTC returns how long to sleep until the next occurrence of
-// hour:minute UTC. If that time has already passed today it returns the
+// hour:minute UTC. If that moment has already passed today, it returns the
 // duration to tomorrow's occurrence.
 func durationUntilNextUTC(hour, minute int) time.Duration {
 	now := time.Now().UTC()
@@ -324,20 +329,27 @@ func durationUntilNextUTC(hour, minute int) time.Duration {
 	return next.Sub(now)
 }
 
-// runSubscriptionExpiryNudgeTicker fires RunSweep every day at 9:00 AM IST
-// (03:30 UTC). The sweep is idempotent and respects the Enabled toggle.
+// runSubscriptionExpiryNudgeTicker fires RunSweep once a day at the time
+// configured in the admin portal (default 09:00 IST). Re-reads settings on
+// each iteration so a time change takes effect without a restart.
 func runSubscriptionExpiryNudgeTicker(ctx context.Context, uc usecaseinterfaces.SubscriptionExpiryNudgeUseCase) {
 	for {
-		delay := durationUntilNextUTC(nudgeFireHourUTC, nudgeFireMinuteUTC)
-		log.Printf("[subscription-expiry-nudge ticker]: next sweep in %s (09:00 IST)", delay.Round(time.Minute))
+		settings, err := uc.GetSettings(ctx)
+		hourIST, minIST := 9, 0
+		if err == nil && (settings.FireHourIST != 0 || settings.FireMinuteIST != 0) {
+			hourIST, minIST = settings.FireHourIST, settings.FireMinuteIST
+		}
+		hourUTC, minUTC := istToUTC(hourIST, minIST)
+		delay := durationUntilNextUTC(hourUTC, minUTC)
+		log.Printf("[subscription-expiry-nudge ticker]: next sweep in %s (%02d:%02d IST)", delay.Round(time.Minute), hourIST, minIST)
 		select {
 		case <-ctx.Done():
 			return
 		case <-time.After(delay):
 		}
-		result, err := uc.RunSweep(ctx)
-		if err != nil {
-			log.Printf("WARN [subscription-expiry-nudge ticker]: sweep failed: %v", err)
+		result, runErr := uc.RunSweep(ctx)
+		if runErr != nil {
+			log.Printf("WARN [subscription-expiry-nudge ticker]: sweep failed: %v", runErr)
 			continue
 		}
 		if !result.Disabled && (result.Sent > 0 || result.Errors > 0) {
@@ -346,20 +358,27 @@ func runSubscriptionExpiryNudgeTicker(ctx context.Context, uc usecaseinterfaces.
 	}
 }
 
-// runSubscriptionExpiredNudgeTicker fires RunSweep every day at 9:00 AM IST
-// (03:30 UTC). The sweep is idempotent and respects the Enabled toggle.
+// runSubscriptionExpiredNudgeTicker fires RunSweep once a day at the time
+// configured in the admin portal (default 09:00 IST). Re-reads settings on
+// each iteration so a time change takes effect without a restart.
 func runSubscriptionExpiredNudgeTicker(ctx context.Context, uc usecaseinterfaces.SubscriptionExpiredNudgeUseCase) {
 	for {
-		delay := durationUntilNextUTC(nudgeFireHourUTC, nudgeFireMinuteUTC)
-		log.Printf("[subscription-expired-nudge ticker]: next sweep in %s (09:00 IST)", delay.Round(time.Minute))
+		settings, err := uc.GetSettings(ctx)
+		hourIST, minIST := 9, 0
+		if err == nil && (settings.FireHourIST != 0 || settings.FireMinuteIST != 0) {
+			hourIST, minIST = settings.FireHourIST, settings.FireMinuteIST
+		}
+		hourUTC, minUTC := istToUTC(hourIST, minIST)
+		delay := durationUntilNextUTC(hourUTC, minUTC)
+		log.Printf("[subscription-expired-nudge ticker]: next sweep in %s (%02d:%02d IST)", delay.Round(time.Minute), hourIST, minIST)
 		select {
 		case <-ctx.Done():
 			return
 		case <-time.After(delay):
 		}
-		result, err := uc.RunSweep(ctx)
-		if err != nil {
-			log.Printf("WARN [subscription-expired-nudge ticker]: sweep failed: %v", err)
+		result, runErr := uc.RunSweep(ctx)
+		if runErr != nil {
+			log.Printf("WARN [subscription-expired-nudge ticker]: sweep failed: %v", runErr)
 			continue
 		}
 		if !result.Disabled && (result.Sent > 0 || result.Errors > 0) {

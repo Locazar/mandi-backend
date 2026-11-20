@@ -4,6 +4,8 @@ package request
 type UpdateSubscriptionExpiryNudgeSettings struct {
 	Enabled          bool `json:"enabled"`
 	DaysBeforeExpiry int  `json:"days_before_expiry"`
+	FireHourIST      int  `json:"fire_hour_ist"`
+	FireMinuteIST    int  `json:"fire_minute_ist"`
 }
 
 // UpdateSubscriptionExpiryNudgeTemplate edits the push notification content.
