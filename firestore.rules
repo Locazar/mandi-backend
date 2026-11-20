@@ -70,6 +70,17 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Shop interaction logs written by customer web app (unauthenticated),
+    // read by admin portal (also unauthenticated). Append-only: no updates or deletes.
+    match /shop_action_logs/{docId} {
+      allow create: if
+        request.resource.data.keys().hasAll(['action', 'shop_id']) &&
+        request.resource.data.action is string &&
+        request.resource.data.shop_id is string;
+      allow read: if true;
+      allow update, delete: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
