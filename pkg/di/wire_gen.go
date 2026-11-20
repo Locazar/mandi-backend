@@ -114,6 +114,9 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	subscriptionExpiryNudgeRepository := repository.NewSubscriptionExpiryNudgeRepository(gormDB)
 	subscriptionExpiryNudgeUseCase := usecase.NewSubscriptionExpiryNudgeUseCase(subscriptionExpiryNudgeRepository, notificationUseCase)
 	subscriptionExpiryNudgeHandler := handler.NewSubscriptionExpiryNudgeHandler(subscriptionExpiryNudgeUseCase)
+	subscriptionExpiredNudgeRepository := repository.NewSubscriptionExpiredNudgeRepository(gormDB)
+	subscriptionExpiredNudgeUseCase := usecase.NewSubscriptionExpiredNudgeUseCase(subscriptionExpiredNudgeRepository, notificationUseCase)
+	subscriptionExpiredNudgeHandler := handler.NewSubscriptionExpiredNudgeHandler(subscriptionExpiredNudgeUseCase)
 	promotionRepository := repository.NewPromotionRepository(gormDB)
 	promotionUseCase := usecase.NewPromotionUseCase(promotionRepository)
 	promotionHandler := handler.NewPromotionHandler(promotionUseCase)
@@ -185,7 +188,7 @@ func InitializeApi(cfg config.Config) (*http.ServerHTTP, error) {
 	leadRequestRepository := repository.NewLeadRequestRepository(gormDB)
 	leadRequestUseCase := usecase.NewLeadRequestUseCase(leadRequestRepository)
 	leadRequestHandler := handler.NewLeadRequestHandler(leadRequestUseCase)
-	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler, jobHandler, jobCategoryHandler, platformUserHandler, handlerHandler, aiHandler, invoiceHandler, shopUpdateHandler, languageHandler, qrCodeHandler, onboardingNudgeHandler, customerNudgeHandler, rewardHandler, verificationNotificationHandler, appUpdateConfigHandler, districtNudgeHandler, subscriptionExpiryNudgeHandler, dealHandler, notifyCustomerRequestHandler, shopProductEnquiryHandler, waRelayHandler, leadRequestHandler)
+	serverHTTP := http.NewServerHTTP(authHandler, middlewareMiddleware, adminHandler, userHandler, cartHandler, paymentHandler, productHandler, orderHandler, couponHandler, offerHandler, stockHandler, brandHandler, notificationHandler, promotionHandler, fcmTokenHandler, searchHandler, alertHandler, uiHandler, alertTemplateHandler, bannerUserHandler, subscriptionPaymentHandler, subscriptionHandler, sellerGuideHandler, jobHandler, jobCategoryHandler, platformUserHandler, handlerHandler, aiHandler, invoiceHandler, shopUpdateHandler, languageHandler, qrCodeHandler, onboardingNudgeHandler, customerNudgeHandler, rewardHandler, verificationNotificationHandler, appUpdateConfigHandler, districtNudgeHandler, subscriptionExpiryNudgeHandler, subscriptionExpiredNudgeHandler, dealHandler, notifyCustomerRequestHandler, shopProductEnquiryHandler, waRelayHandler, leadRequestHandler)
 	return serverHTTP, nil
 }
 

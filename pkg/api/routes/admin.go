@@ -28,6 +28,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 	appUpdateConfigHandler *handler.AppUpdateConfigHandler,
 	districtNudgeHandler *handler.DistrictNudgeHandler,
 	subscriptionExpiryNudgeHandler *handler.SubscriptionExpiryNudgeHandler,
+	subscriptionExpiredNudgeHandler *handler.SubscriptionExpiredNudgeHandler,
 	notifyCustomerRequestHandler *handler.NotifyCustomerRequestHandler,
 	shopProductEnquiryHandler *handler.ShopProductEnquiryHandler,
 	waRelayHandler *handler.WARelayHandler,
@@ -661,6 +662,18 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 			expiryNudges.GET("/template", subscriptionExpiryNudgeHandler.GetTemplate)
 			expiryNudges.PUT("/template", subscriptionExpiryNudgeHandler.UpdateTemplate)
 			expiryNudges.POST("/run-sweep", subscriptionExpiryNudgeHandler.RunSweep)
+		}
+
+		// Subscription expired nudge — daily automated push to sellers whose
+		// subscription has ALREADY expired and who haven't renewed. Automated
+		// via the daily in-process ticker; run-sweep is triggerable on demand.
+		expiredNudges := api.Group("/subscription-expired-nudges", adminHandler.RequirePermission(domain.PermCanSendNotifications))
+		{
+			expiredNudges.GET("/settings", subscriptionExpiredNudgeHandler.GetSettings)
+			expiredNudges.PUT("/settings", subscriptionExpiredNudgeHandler.UpdateSettings)
+			expiredNudges.GET("/template", subscriptionExpiredNudgeHandler.GetTemplate)
+			expiredNudges.PUT("/template", subscriptionExpiredNudgeHandler.UpdateTemplate)
+			expiredNudges.POST("/run-sweep", subscriptionExpiredNudgeHandler.RunSweep)
 		}
 
 		// Promotion category/type admin mutations (create/update types & categories)
