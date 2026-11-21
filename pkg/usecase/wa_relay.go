@@ -68,6 +68,12 @@ type waChatUseCase struct {
 	// relayed messages. Off by default: customers and sellers may share
 	// numbers. Set WA_RELAY_MASK_CONTACTS=true to switch masking back on.
 	maskContacts bool
+
+	// abuseFilter blocks messages with abusive language (on unless
+	// WA_RELAY_ABUSE_FILTER=false); extraBlocked adds words from
+	// WA_RELAY_EXTRA_BLOCKED_WORDS (comma separated).
+	abuseFilter  bool
+	extraBlocked []string
 }
 
 func NewWAChatUseCase(
@@ -88,6 +94,8 @@ func NewWAChatUseCase(
 		sellerTemplate:     waSetting("WA_SELLER_ENQUIRY_TEMPLATE"),
 		sellerTemplateLang: lang,
 		maskContacts:       strings.EqualFold(waSetting("WA_RELAY_MASK_CONTACTS"), "true"),
+		abuseFilter:        !strings.EqualFold(waSetting("WA_RELAY_ABUSE_FILTER"), "false"),
+		extraBlocked:       splitList(waSetting("WA_RELAY_EXTRA_BLOCKED_WORDS")),
 	}
 }
 
@@ -136,6 +144,12 @@ func (uc *waChatUseCase) routeMessage(ctx context.Context, msg domain.WAWHMessag
 	if body == "" && msg.Type != "text" {
 		body = fmt.Sprintf("[%s message — media is not forwarded, please describe it in text]", msg.Type)
 	}
+	if uc.abuseFilter && containsAbuse(body, uc.extraBlocked) {
+		log.Printf("[wa_relay] blocked abusive message msg=%s from=…%s", msg.ID, last4(msg.From))
+		uc.sendSafe(msg.From, waMsgAbuseWarning)
+		return nil
+	}
+
 	quotedID := ""
 	if msg.Context != nil {
 		quotedID = msg.Context.ID
@@ -374,6 +388,17 @@ func chatRef(chatID string) string {
 		id = id[:4]
 	}
 	return "#" + strings.ToUpper(id)
+}
+
+// splitList splits a comma-separated setting into trimmed, non-empty items.
+func splitList(s string) []string {
+	var out []string
+	for _, p := range strings.Split(s, ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 // relayText applies contact masking only when WA_RELAY_MASK_CONTACTS=true.
