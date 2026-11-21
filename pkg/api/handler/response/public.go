@@ -2,9 +2,8 @@ package response
 
 // PublicShop is the SEO-safe subset of a shop exposed on public directory pages
 // (e.g. locazar.com/{city}/{category}). It deliberately excludes owner PII
-// (owner name, email), full address lines, and all financial/KYC fields. Phone
-// is included only when the seller opted in to public visibility
-// (phone_visible_consent).
+// (owner name, email), full address lines, all financial/KYC fields and the
+// seller's phone number (customers reach sellers via the WhatsApp relay).
 type PublicShop struct {
 	ID          string  `json:"id"`
 	ShopName    string  `json:"shop_name"`
@@ -15,7 +14,8 @@ type PublicShop struct {
 	ImageURL    string  `json:"image_url,omitempty"`
 	Latitude    float64 `json:"latitude,omitempty"`
 	Longitude   float64 `json:"longitude,omitempty"`
-	Phone       string  `json:"phone,omitempty"`
+	// Phone is never serialised — seller numbers are not exposed publicly.
+	Phone       string  `json:"-"`
 }
 
 // PublicProduct is the SEO-safe subset of a product for public directory pages.

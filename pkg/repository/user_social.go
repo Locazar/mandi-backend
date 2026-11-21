@@ -128,7 +128,7 @@ func (c *userDatabase) GetFollowers(ctx context.Context, shopID string) ([]respo
 func (c *userDatabase) GetFollowedShops(ctx context.Context, userID string) ([]response.Shop, error) {
 	var shops []response.Shop
 	query := `
-		SELECT sd.id, sd.shop_name, sd.email, sd.phone, sd.address_line1, sd.address_line2,
+		SELECT sd.id, sd.shop_name, sd.email, '' AS phone, sd.address_line1, sd.address_line2,
 			sd.city, sd.state, sd.country, sd.pincode, sd.shop_type, sd.shop_verification_status,
 			sd.shop_image_url, sd.latitude, sd.longitude, sd.created_at, sd.updated_at,
 			CASE
@@ -171,7 +171,7 @@ func (c *userDatabase) IsLikedShop(ctx context.Context, userID string, shopID st
 func (c *userDatabase) GetLikedShops(ctx context.Context, userID string) ([]response.Shop, error) {
 	var shops []response.Shop
 	query := `
-		SELECT sd.id, sd.shop_name, sd.email, sd.phone, sd.address_line1, sd.address_line2,
+		SELECT sd.id, sd.shop_name, sd.email, '' AS phone, sd.address_line1, sd.address_line2,
 			sd.city, sd.state, sd.country, sd.pincode, sd.shop_type, sd.shop_verification_status,
 			sd.shop_image_url, sd.latitude, sd.longitude, sd.created_at, sd.updated_at,
 			CASE

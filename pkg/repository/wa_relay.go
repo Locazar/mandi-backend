@@ -58,6 +58,31 @@ func (r *waChatRepository) FindActiveChatBySellerPhone(ctx context.Context, sell
 	return chat, err
 }
 
+func (r *waChatRepository) FindChatByOutboundMsgID(ctx context.Context, outboundWaMsgID string) (domain.WAChat, error) {
+	var chat domain.WAChat
+	err := r.db.WithContext(ctx).
+		Table("wa_chats").
+		Select("wa_chats.*").
+		Joins("JOIN wa_messages m ON m.chat_id = wa_chats.id").
+		Where("m.outbound_wa_msg_id = ?", outboundWaMsgID).
+		Order("m.created_at DESC").
+		Limit(1).
+		Scan(&chat).Error
+	if err == nil && chat.ID == "" {
+		err = gorm.ErrRecordNotFound
+	}
+	return chat, err
+}
+
+func (r *waChatRepository) CountRecentChatsForSeller(ctx context.Context, sellerPhone string, since time.Time) (int64, error) {
+	var n int64
+	err := r.db.WithContext(ctx).Model(&domain.WAChat{}).
+		Where("seller_phone = ? AND status = ? AND last_customer_msg_at > ?",
+			sellerPhone, domain.WAChatStatusActive, since).
+		Count(&n).Error
+	return n, err
+}
+
 func (r *waChatRepository) CreateChat(ctx context.Context, chat domain.WAChat) error {
 	return r.db.WithContext(ctx).Create(&chat).Error
 }

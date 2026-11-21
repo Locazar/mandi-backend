@@ -2,6 +2,7 @@ package interfaces
 
 import (
 	"context"
+	"time"
 
 	"github.com/rohit221990/mandi-backend/pkg/domain"
 )
@@ -23,6 +24,15 @@ type WAChatRepository interface {
 	// FindActiveChatBySellerPhone returns the most recently active chat where the
 	// seller's phone matches — used to route a seller reply back to the right customer.
 	FindActiveChatBySellerPhone(ctx context.Context, sellerPhone string) (domain.WAChat, error)
+
+	// FindChatByOutboundMsgID returns the chat whose relayed message has the
+	// given Meta message ID — used to route a swipe-reply (context.id).
+	FindChatByOutboundMsgID(ctx context.Context, outboundWaMsgID string) (domain.WAChat, error)
+
+	// CountRecentChatsForSeller counts the seller's active chats in which the
+	// customer wrote after `since` — used to decide whether an un-quoted
+	// seller reply is ambiguous.
+	CountRecentChatsForSeller(ctx context.Context, sellerPhone string, since time.Time) (int64, error)
 
 	CreateChat(ctx context.Context, chat domain.WAChat) error
 	GetChatByID(ctx context.Context, id string) (domain.WAChat, error)

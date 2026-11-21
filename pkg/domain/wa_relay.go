@@ -14,37 +14,43 @@ const (
 // Locazar's WhatsApp Business number. Each unique (customer_phone, shop_id)
 // pair gets one active chat at a time.
 type WAChat struct {
-	ID               string     `json:"id" gorm:"primaryKey;type:varchar(36)"`
-	CustomerPhone    string     `json:"customer_phone" gorm:"type:varchar(20);not null;index"`
-	ShopID           string     `json:"shop_id" gorm:"type:varchar(32);not null;index"`
-	ShopName         string     `json:"shop_name" gorm:"type:varchar(255)"`
-	SellerPhone      string     `json:"seller_phone" gorm:"type:varchar(20)"`
-	Status           string     `json:"status" gorm:"type:varchar(20);default:'active'"`
-	AdminNotified    bool       `json:"admin_notified" gorm:"default:false"`
+	ID            string `json:"id" gorm:"primaryKey;type:varchar(36)"`
+	CustomerPhone string `json:"customer_phone" gorm:"type:varchar(20);not null;index"`
+	ShopID        string `json:"shop_id" gorm:"type:varchar(32);not null;index"`
+	ShopName      string `json:"shop_name" gorm:"type:varchar(255)"`
+	// SellerPhone is used only server-side to deliver relayed messages. It is
+	// never serialised, so no API response can leak a seller's number.
+	SellerPhone       string     `json:"-" gorm:"type:varchar(20);index"`
+	Status            string     `json:"status" gorm:"type:varchar(20);default:'active'"`
+	AdminNotified     bool       `json:"admin_notified" gorm:"default:false"`
 	LastCustomerMsgAt *time.Time `json:"last_customer_msg_at,omitempty"`
-	LastSellerMsgAt  *time.Time `json:"last_seller_msg_at,omitempty"`
-	LastMessageAt    *time.Time `json:"last_message_at,omitempty"`
-	CreatedAt        time.Time  `json:"created_at"`
-	UpdatedAt        time.Time  `json:"updated_at"`
+	LastSellerMsgAt   *time.Time `json:"last_seller_msg_at,omitempty"`
+	LastMessageAt     *time.Time `json:"last_message_at,omitempty"`
+	CreatedAt         time.Time  `json:"created_at"`
+	UpdatedAt         time.Time  `json:"updated_at"`
 }
 
 func (WAChat) TableName() string { return "wa_chats" }
 
 // WAMessage is one relayed message in a WAChat.
 type WAMessage struct {
-	ID        string    `json:"id" gorm:"primaryKey;type:varchar(36)"`
-	ChatID    string    `json:"chat_id" gorm:"type:varchar(36);not null;index"`
-	WaMsgID   string    `json:"wa_msg_id" gorm:"type:varchar(255)"` // Meta's message ID
-	Direction string    `json:"direction" gorm:"type:varchar(30)"`  // WADirCustomerToSeller | WADirSellerToCustomer
-	Body      string    `json:"body" gorm:"type:text"`
-	CreatedAt time.Time `json:"created_at"`
+	ID      string `json:"id" gorm:"primaryKey;type:varchar(36)"`
+	ChatID  string `json:"chat_id" gorm:"type:varchar(36);not null;index"`
+	WaMsgID string `json:"wa_msg_id" gorm:"type:varchar(255)"` // Meta's ID of the inbound message
+	// OutboundWaMsgID is Meta's ID of the copy the bot sent to the other
+	// party. When that party swipe-replies, Meta puts this ID in
+	// context.id, which is how a reply is routed to the right chat.
+	OutboundWaMsgID string    `json:"-" gorm:"type:varchar(255);index"`
+	Direction       string    `json:"direction" gorm:"type:varchar(30)"` // WADirCustomerToSeller | WADirSellerToCustomer
+	Body            string    `json:"body" gorm:"type:text"`
+	CreatedAt       time.Time `json:"created_at"`
 }
 
 func (WAMessage) TableName() string { return "wa_messages" }
 
 // WAWebhookPayload is the top-level envelope Meta sends to our webhook URL.
 type WAWebhookPayload struct {
-	Object string         `json:"object"`
+	Object string           `json:"object"`
 	Entry  []WAWebhookEntry `json:"entry"`
 }
 
@@ -58,9 +64,9 @@ type WAWebhookChange struct {
 }
 
 type WAWebhookValue struct {
-	MessagingProduct string         `json:"messaging_product"`
-	Contacts         []WAWHContact  `json:"contacts"`
-	Messages         []WAWHMessage  `json:"messages"`
+	MessagingProduct string        `json:"messaging_product"`
+	Contacts         []WAWHContact `json:"contacts"`
+	Messages         []WAWHMessage `json:"messages"`
 }
 
 type WAWHContact struct {
@@ -73,10 +79,18 @@ type WAWHProfile struct {
 }
 
 type WAWHMessage struct {
-	From string    `json:"from"` // sender's phone (E.164 without +)
-	ID   string    `json:"id"`
-	Text *WAWHText `json:"text,omitempty"`
-	Type string    `json:"type"` // "text", "image", etc.
+	From    string       `json:"from"` // sender's phone (E.164 without +)
+	ID      string       `json:"id"`
+	Text    *WAWHText    `json:"text,omitempty"`
+	Type    string       `json:"type"` // "text", "image", etc.
+	Context *WAWHContext `json:"context,omitempty"`
+}
+
+// WAWHContext is present when the sender used WhatsApp's "Reply" (swipe) on
+// an earlier message. ID is the Meta message ID of the quoted message.
+type WAWHContext struct {
+	From string `json:"from"`
+	ID   string `json:"id"`
 }
 
 type WAWHText struct {

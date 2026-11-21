@@ -338,7 +338,7 @@ func (c *userDatabase) FindSellersByRadius(ctx context.Context, reqData request.
 	query := `
 		SELECT *, (EXISTS (SELECT 1 FROM promotions p WHERE p.shop_id = subquery.id AND p.is_active = true)) AS has_active_promotion
 		FROM (
-	 SELECT a.id, a.shop_name, a.email, a.phone, a.latitude, a.longitude,
+	 SELECT a.id, a.shop_name, a.email, '' AS phone, a.latitude, a.longitude,
 		a.owner_name, a.shop_image_url, a.address_line1, a.address_line2, a.city, a.country, a.state, a.pincode,
 		a.shop_verification_status, a.created_at, a.updated_at,
 			(6371 * acos(
@@ -383,7 +383,7 @@ func (c *userDatabase) PublicListShops(ctx context.Context, city, category strin
 	q := `SELECT sd.id, sd.shop_name, sd.city, sd.state, sd.pincode,
 		sd.shop_description AS description, sd.shop_image_url AS image_url,
 		sd.latitude, sd.longitude,
-		CASE WHEN sd.phone_visible_consent THEN sd.phone ELSE '' END AS phone
+		'' AS phone -- seller numbers are never exposed publicly
 	FROM shop_details sd
 	WHERE sd.shop_status = 'active'`
 
@@ -561,7 +561,7 @@ func (c *userDatabase) SearchShopList(ctx context.Context, reqData request.Searc
 			sd.id,
 			sd.shop_name,
 			sd.email,
-			sd.phone,
+			'' AS phone,
 			sd.latitude,
 			sd.longitude,
 			sd.owner_name,
@@ -697,7 +697,7 @@ func (c *userDatabase) FindShopByID(ctx context.Context, shopID string) (respons
 	var shop response.Shop
 	query := `
 		SELECT
-			sd.id, sd.shop_name, sd.email, sd.phone,
+			sd.id, sd.shop_name, sd.email, '' AS phone,
 			sd.address_line1, sd.address_line2, sd.city, sd.state, sd.country, sd.pincode,
 			sd.shop_type, sd.shop_verification_status, sd.shop_status, sd.shop_image_url,
 			sd.latitude, sd.longitude,

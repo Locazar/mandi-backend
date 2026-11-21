@@ -32,7 +32,9 @@ type Shop struct {
 	ID                     string    `json:"shop_id" gorm:"column:id"`
 	ShopName               string    `json:"shop_name" gorm:"column:shop_name"`
 	Email                  string    `json:"email" gorm:"column:email"`
-	Phone                  string    `json:"phone,omitempty" gorm:"column:phone"`
+	// Phone is never serialised: seller numbers must not reach customer
+	// clients. Customers contact sellers through the Locazar WhatsApp relay.
+	Phone                  string    `json:"-" gorm:"column:phone"`
 	AddressLine1           string    `json:"address_line1" gorm:"column:address_line1"`
 	AddressLine2           string    `json:"address_line2" gorm:"column:address_line2"`
 	City                   string    `json:"city" gorm:"column:city"`

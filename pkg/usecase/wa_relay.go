@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -19,11 +21,47 @@ import (
 
 const waPageSize = 50
 
+// Customer-facing and seller-facing copy for the WhatsApp relay.
+const (
+	waMsgCustomerAck = "Thanks for your enquiry! The seller will respond in a few minutes. – Team Locazar"
+
+	waMsgCustomerNoChat = "Hi! To message a shop, open it on Locazar and tap *Chat on WhatsApp*. " +
+		"Your number stays private and the shop's number stays private too. – Team Locazar"
+
+	waMsgSellerAmbiguous = "You have open enquiries from more than one customer. " +
+		"Please *swipe right on the customer's message* and reply, so we know who to send your answer to."
+
+	waMsgSellerNoChat = "There is no open customer enquiry to reply to right now. " +
+		"New enquiries will appear here as they arrive."
+
+	waMsgSellerCustomerGone = "We couldn't deliver your reply: the customer hasn't messaged in the last 24 hours, " +
+		"so WhatsApp won't let us send it. Please follow up in the Locazar seller app."
+)
+
+// waAmbiguityWindow is how far back a customer message counts as "open" when
+// deciding whether an un-quoted seller reply is ambiguous.
+const waAmbiguityWindow = 24 * time.Hour
+
+var (
+	// 8+ digits, optionally separated by spaces, dashes, dots or brackets,
+	// with an optional leading + — covers 98765 43210, +91-98765-43210 etc.
+	waPhonePattern = regexp.MustCompile(`\+?\d(?:[\s\-.()]*\d){7,}`)
+	waEmailPattern = regexp.MustCompile(`[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}`)
+	waLinkPattern  = regexp.MustCompile(`(?i)\b(?:https?://)?(?:wa\.me|api\.whatsapp\.com|chat\.whatsapp\.com)/\S*`)
+)
+
 type waChatUseCase struct {
 	repo         repoi.WAChatRepository
 	adminRepo    repoi.AdminRepository // GetShopByID for new chat creation
 	notification uci.NotificationUseCase
 	wa           *whatsapp.Client
+
+	// sellerTemplate is an approved WhatsApp template used to reach a seller
+	// who has not messaged the Locazar number in the last 24 hours (Meta
+	// rejects free-form messages then). Body: {{1}} = shop name,
+	// {{2}} = customer reference, {{3}} = customer message.
+	sellerTemplate     string
+	sellerTemplateLang string
 }
 
 func NewWAChatUseCase(
@@ -32,11 +70,17 @@ func NewWAChatUseCase(
 	notification uci.NotificationUseCase,
 	wa *whatsapp.Client,
 ) uci.WAChatUseCase {
+	lang := os.Getenv("WA_SELLER_ENQUIRY_TEMPLATE_LANG")
+	if lang == "" {
+		lang = "en"
+	}
 	return &waChatUseCase{
-		repo:         repo,
-		adminRepo:    adminRepo,
-		notification: notification,
-		wa:           wa,
+		repo:               repo,
+		adminRepo:          adminRepo,
+		notification:       notification,
+		wa:                 wa,
+		sellerTemplate:     os.Getenv("WA_SELLER_ENQUIRY_TEMPLATE"),
+		sellerTemplateLang: lang,
 	}
 }
 
@@ -47,9 +91,13 @@ func (uc *waChatUseCase) HandleIncoming(ctx context.Context, payload domain.WAWe
 
 	for _, entry := range payload.Entry {
 		for _, change := range entry.Changes {
+			names := make(map[string]string, len(change.Value.Contacts))
+			for _, c := range change.Value.Contacts {
+				names[c.WaID] = c.Profile.Name
+			}
 			for _, msg := range change.Value.Messages {
-				if err := uc.routeMessage(ctx, msg); err != nil {
-					log.Printf("[wa_relay] route error from=%s: %v", msg.From, err)
+				if err := uc.routeMessage(ctx, msg, names[msg.From]); err != nil {
+					log.Printf("[wa_relay] route error msg=%s: %v", msg.ID, err)
 				}
 			}
 		}
@@ -58,114 +106,236 @@ func (uc *waChatUseCase) HandleIncoming(ctx context.Context, payload domain.WAWe
 }
 
 // routeMessage decides if the sender is a customer or a seller and relays.
-func (uc *waChatUseCase) routeMessage(ctx context.Context, msg domain.WAWHMessage) error {
+// Both parties only ever talk to the Locazar number: neither side's phone
+// number is forwarded, and numbers typed inside messages are masked.
+func (uc *waChatUseCase) routeMessage(ctx context.Context, msg domain.WAWHMessage, profileName string) error {
 	body := ""
 	if msg.Text != nil {
 		body = msg.Text.Body
 	}
 	if body == "" && msg.Type != "text" {
-		body = fmt.Sprintf("[%s message]", msg.Type)
+		body = fmt.Sprintf("[%s message — media is not forwarded, please describe it in text]", msg.Type)
+	}
+	quotedID := ""
+	if msg.Context != nil {
+		quotedID = msg.Context.ID
 	}
 
-	// Meta delivers msg.From in E.164 without '+' (e.g. 919876543210).
-	// DB stores phones as 10-digit Indian numbers, so strip the country code
-	// before the lookup — otherwise no seller is ever recognised.
-	lookupPhone := strip91(msg.From)
-	shop, err := uc.repo.FindShopByPhone(ctx, lookupPhone)
-	if err == nil && shop.ID != "" {
-		return uc.relaySellerToCustomer(ctx, msg.From, shop, body, msg.ID)
+	// A message carrying a SHOP: token is always a customer enquiry, even if
+	// the sender is also a registered seller (sellers shop too).
+	if extractShopID(body) == "" {
+		// Meta delivers msg.From in E.164 without '+' (e.g. 919876543210).
+		// DB stores phones as 10-digit Indian numbers, so strip the country
+		// code before the lookup.
+		shop, err := uc.repo.FindShopByPhone(ctx, strip91(msg.From))
+		if err == nil && shop.ID != "" {
+			return uc.relaySellerToCustomer(ctx, msg.From, shop, body, msg.ID, quotedID)
+		}
 	}
-
-	// Otherwise treat as customer.
-	return uc.relayCustomerToSeller(ctx, msg.From, body, msg.ID)
+	return uc.relayCustomerToSeller(ctx, msg.From, profileName, body, msg.ID, quotedID)
 }
 
 // relayCustomerToSeller forwards a customer message to the right seller.
-// It parses a "SHOP:{id}" token from the message body to identify the shop on
-// first contact; on subsequent messages it reuses the most recent active chat.
-func (uc *waChatUseCase) relayCustomerToSeller(ctx context.Context, customerPhone, body, waMsgID string) error {
-	shopID := extractShopID(body)
-	var chat domain.WAChat
-	var err error
+// Routing order: (1) the seller message the customer swipe-replied to,
+// (2) a SHOP:{id} token from the shop page, (3) the customer's most recent
+// active chat.
+func (uc *waChatUseCase) relayCustomerToSeller(ctx context.Context, customerPhone, customerName, body, waMsgID, quotedID string) error {
+	var (
+		chat    domain.WAChat
+		err     error
+		found   bool
+		isFirst bool
+	)
 
-	if shopID != "" {
-		// New chat initiated from shop page.
-		shop, shopErr := uc.adminRepo.GetShopByID(ctx, shopID)
-		if shopErr != nil {
-			return fmt.Errorf("shop not found %s: %w", shopID, shopErr)
+	if quotedID != "" {
+		if c, qErr := uc.repo.FindChatByOutboundMsgID(ctx, quotedID); qErr == nil && c.CustomerPhone == customerPhone {
+			chat, found = c, true
 		}
+	}
 
-		// Reuse existing active chat for this pair, or create a new one.
-		chat, err = uc.repo.FindActiveChat(ctx, customerPhone, shopID)
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			chat = domain.WAChat{
-				ID:            uuid.New().String(),
-				CustomerPhone: customerPhone,
-				ShopID:        shopID,
-				ShopName:      shop.ShopName,
-				// Store in E.164 so FindActiveChatBySellerPhone matches
-				// msg.From (which Meta also sends as E.164).
-				SellerPhone: toE164IN(shop.Phone),
-				Status:      domain.WAChatStatusActive,
+	if !found {
+		if shopID := extractShopID(body); shopID != "" {
+			shop, shopErr := uc.adminRepo.GetShopByID(ctx, shopID)
+			if shopErr != nil {
+				uc.sendSafe(customerPhone, waMsgCustomerNoChat)
+				return fmt.Errorf("shop not found %s: %w", shopID, shopErr)
 			}
-			if createErr := uc.repo.CreateChat(ctx, chat); createErr != nil {
-				return fmt.Errorf("create chat: %w", createErr)
+			chat, err = uc.repo.FindActiveChat(ctx, customerPhone, shopID)
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				chat = domain.WAChat{
+					ID:            uuid.New().String(),
+					CustomerPhone: customerPhone,
+					ShopID:        shopID,
+					ShopName:      shop.ShopName,
+					// E.164 so FindActiveChatBySellerPhone matches msg.From.
+					SellerPhone: toE164IN(shop.Phone),
+					Status:      domain.WAChatStatusActive,
+				}
+				if createErr := uc.repo.CreateChat(ctx, chat); createErr != nil {
+					return fmt.Errorf("create chat: %w", createErr)
+				}
+				isFirst = true
+				uc.notifyAdmin(chat)
+			} else if err != nil {
+				return fmt.Errorf("find chat: %w", err)
 			}
-			uc.notifyAdmin(chat)
-		} else if err != nil {
-			return fmt.Errorf("find chat: %w", err)
+			found = true
 		}
-	} else {
-		// No SHOP: token — route to the customer's most recent active chat.
+	}
+
+	if !found {
 		chat, err = uc.repo.FindActiveChatByCustomerPhone(ctx, customerPhone)
 		if err != nil {
-			return fmt.Errorf("no active chat for customer %s: %w", customerPhone, err)
+			uc.sendSafe(customerPhone, waMsgCustomerNoChat)
+			return fmt.Errorf("no active chat for customer: %w", err)
 		}
 	}
 
-	waMsg := domain.WAMessage{
-		ID:        uuid.New().String(),
-		ChatID:    chat.ID,
-		WaMsgID:   waMsgID,
-		Direction: domain.WADirCustomerToSeller,
-		Body:      body,
-		CreatedAt: time.Now(),
+	cleanBody := maskContactDetails(stripShopToken(body))
+	ref := chatRef(chat.ID)
+	who := "Customer " + ref
+	if n := strings.TrimSpace(customerName); n != "" {
+		who = fmt.Sprintf("%s (%s)", n, ref)
 	}
-	if saveErr := uc.repo.SaveMessage(ctx, waMsg); saveErr != nil {
-		log.Printf("[wa_relay] save message: %v", saveErr)
-	}
-	_ = uc.repo.UpdateLastMessage(ctx, chat.ID, domain.WADirCustomerToSeller)
 
-	// Strip the routing token before forwarding — the seller shouldn't see it.
-	cleanBody := stripShopToken(body)
-	forwardBody := fmt.Sprintf("💬 Customer message:\n\n%s\n\n_(Reply to this chat to respond)_", cleanBody)
-	// SellerPhone is stored as E.164 (set at chat creation), so no conversion needed.
-	return uc.wa.SendText(chat.SellerPhone, forwardBody)
+	var forwardBody string
+	if isFirst {
+		forwardBody = fmt.Sprintf("💬 *New enquiry for %s via Locazar*\nFrom: %s\n\n%s\n\n↩️ To reply, swipe right on this message and type your answer.",
+			chat.ShopName, who, cleanBody)
+	} else {
+		forwardBody = fmt.Sprintf("💬 *%s:*\n\n%s\n\n↩️ Swipe right on this message to reply.", who, cleanBody)
+	}
+
+	outID, sendErr := uc.wa.SendTextWithID(chat.SellerPhone, forwardBody)
+	if whatsapp.IsOutsideWindow(sendErr) && uc.sellerTemplate != "" {
+		// The seller hasn't messaged the Locazar number in 24h, so only a
+		// template can reach them. Swipe-replies on it still route back.
+		outID, sendErr = uc.wa.SendTemplate(chat.SellerPhone, uc.sellerTemplate, uc.sellerTemplateLang,
+			chat.ShopName, who, cleanBody)
+	}
+
+	uc.saveMessage(ctx, chat.ID, waMsgID, outID, domain.WADirCustomerToSeller, body)
+
+	if sendErr != nil {
+		log.Printf("[wa_relay] forward to seller failed chat=%s: %v", chat.ID, sendErr)
+		uc.notifyAdminUndelivered(chat)
+	}
+	if isFirst {
+		uc.sendSafe(customerPhone, waMsgCustomerAck)
+	}
+	return sendErr
 }
 
-// relaySellerToCustomer forwards a seller reply to the customer of the most
-// recently active chat for that seller.
-func (uc *waChatUseCase) relaySellerToCustomer(ctx context.Context, sellerPhone string, shop domain.ShopDetails, body, waMsgID string) error {
-	chat, err := uc.repo.FindActiveChatBySellerPhone(ctx, sellerPhone)
-	if err != nil {
-		return fmt.Errorf("no active chat for seller %s: %w", sellerPhone, err)
+// relaySellerToCustomer forwards a seller reply to the right customer.
+// Routing order: (1) the customer message the seller swipe-replied to,
+// (2) the seller's only open chat. With several open chats and no quote the
+// reply is NOT guessed — the seller is asked to swipe-reply instead.
+func (uc *waChatUseCase) relaySellerToCustomer(ctx context.Context, sellerPhone string, shop domain.ShopDetails, body, waMsgID, quotedID string) error {
+	var (
+		chat  domain.WAChat
+		found bool
+	)
+
+	if quotedID != "" {
+		if c, err := uc.repo.FindChatByOutboundMsgID(ctx, quotedID); err == nil && c.SellerPhone == sellerPhone {
+			chat, found = c, true
+		}
 	}
 
+	if !found {
+		open, err := uc.repo.CountRecentChatsForSeller(ctx, sellerPhone, time.Now().Add(-waAmbiguityWindow))
+		if err != nil {
+			return fmt.Errorf("count seller chats: %w", err)
+		}
+		if open > 1 {
+			uc.sendSafe(sellerPhone, waMsgSellerAmbiguous)
+			return nil
+		}
+		chat, err = uc.repo.FindActiveChatBySellerPhone(ctx, sellerPhone)
+		if err != nil {
+			uc.sendSafe(sellerPhone, waMsgSellerNoChat)
+			return fmt.Errorf("no active chat for seller: %w", err)
+		}
+	}
+
+	shopName := chat.ShopName
+	if shopName == "" {
+		shopName = shop.ShopName
+	}
+	forwardBody := fmt.Sprintf("🏪 *%s* replied:\n\n%s\n\n↩️ Swipe right on this message to reply.",
+		shopName, maskContactDetails(body))
+
+	outID, sendErr := uc.wa.SendTextWithID(chat.CustomerPhone, forwardBody)
+	uc.saveMessage(ctx, chat.ID, waMsgID, outID, domain.WADirSellerToCustomer, body)
+
+	if sendErr != nil {
+		log.Printf("[wa_relay] forward to customer failed chat=%s: %v", chat.ID, sendErr)
+		if whatsapp.IsOutsideWindow(sendErr) {
+			uc.sendSafe(sellerPhone, waMsgSellerCustomerGone)
+		}
+	}
+	return sendErr
+}
+
+// saveMessage stores the original (unmasked) text for the admin audit trail
+// plus the ID of the relayed copy, then bumps the chat's activity times.
+func (uc *waChatUseCase) saveMessage(ctx context.Context, chatID, waMsgID, outboundID, direction, body string) {
 	waMsg := domain.WAMessage{
-		ID:        uuid.New().String(),
-		ChatID:    chat.ID,
-		WaMsgID:   waMsgID,
-		Direction: domain.WADirSellerToCustomer,
-		Body:      body,
-		CreatedAt: time.Now(),
+		ID:              uuid.New().String(),
+		ChatID:          chatID,
+		WaMsgID:         waMsgID,
+		OutboundWaMsgID: outboundID,
+		Direction:       direction,
+		Body:            body,
+		CreatedAt:       time.Now(),
 	}
-	if saveErr := uc.repo.SaveMessage(ctx, waMsg); saveErr != nil {
-		log.Printf("[wa_relay] save message: %v", saveErr)
+	if err := uc.repo.SaveMessage(ctx, waMsg); err != nil {
+		log.Printf("[wa_relay] save message: %v", err)
 	}
-	_ = uc.repo.UpdateLastMessage(ctx, chat.ID, domain.WADirSellerToCustomer)
+	_ = uc.repo.UpdateLastMessage(ctx, chatID, direction)
+}
 
-	forwardBody := fmt.Sprintf("Reply from *%s*:\n\n%s", shop.ShopName, body)
-	return uc.wa.SendText(chat.CustomerPhone, forwardBody)
+// sendSafe sends a system message from the bot, logging instead of failing.
+func (uc *waChatUseCase) sendSafe(to, text string) {
+	if err := uc.wa.SendText(to, text); err != nil {
+		log.Printf("[wa_relay] system message failed: %v", err)
+	}
+}
+
+func (uc *waChatUseCase) notifyAdminUndelivered(chat domain.WAChat) {
+	req := request.SendPushRequest{
+		OwnerID:   "admin",
+		OwnerType: "admin",
+		Title:     "⚠️ WhatsApp enquiry not delivered",
+		Body:      fmt.Sprintf("A customer enquiry for %s could not be delivered to the seller on WhatsApp", chat.ShopName),
+		EventType: "wa_chat_undelivered",
+		Data: map[string]string{
+			"chat_id": chat.ID,
+			"shop_id": chat.ShopID,
+		},
+	}
+	if _, err := uc.notification.SendPushNotification(context.Background(), req); err != nil {
+		log.Printf("[wa_relay] admin notify: %v", err)
+	}
+}
+
+// chatRef is a short, stable label for a chat (e.g. "#3F2A") so a seller can
+// tell customers apart without seeing their numbers.
+func chatRef(chatID string) string {
+	id := strings.ReplaceAll(chatID, "-", "")
+	if len(id) > 4 {
+		id = id[:4]
+	}
+	return "#" + strings.ToUpper(id)
+}
+
+// maskContactDetails hides phone numbers, email addresses and WhatsApp links
+// typed inside a relayed message, so neither side can swap direct contacts.
+func maskContactDetails(s string) string {
+	s = waLinkPattern.ReplaceAllString(s, "[link hidden]")
+	s = waEmailPattern.ReplaceAllString(s, "[email hidden]")
+	s = waPhonePattern.ReplaceAllString(s, "[number hidden]")
+	return s
 }
 
 func (uc *waChatUseCase) notifyAdmin(chat domain.WAChat) {
@@ -205,7 +375,6 @@ func (uc *waChatUseCase) GetChat(ctx context.Context, chatID string) (domain.WAC
 	msgs, err := uc.repo.GetMessages(ctx, chatID)
 	return chat, msgs, err
 }
-
 
 // toE164IN converts an Indian phone stored in the DB (10 digits) to the E.164
 // format required by the WhatsApp Cloud API (country code + number, no +).
