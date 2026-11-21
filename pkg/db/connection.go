@@ -52,10 +52,12 @@ func ConnectDatabase(cfg config.Config) (*gorm.DB, error) {
 	// configure underlying sql.DB for connection pooling
 	sqlDB, err := db.DB()
 	if err == nil {
-		// use ~80% of Postgres max_connections as safe pool size
-		sqlDB.SetMaxOpenConns(240)
-		// keep a fraction of connections idle for quick bursts
-		sqlDB.SetMaxIdleConns(60)
+		// The managed DigitalOcean Postgres allows only a few dozen
+		// connections, shared with ai-service and other jobs. 240 exhausted
+		// it ("remaining connection slots are reserved", SQLSTATE 53300).
+		sqlDB.SetMaxOpenConns(20)
+		// keep a few connections idle for quick bursts
+		sqlDB.SetMaxIdleConns(10)
 		// recycle connections periodically (avoid stale network state)
 		sqlDB.SetConnMaxLifetime(30 * time.Minute)
 		sqlDB.SetConnMaxIdleTime(5 * time.Minute)
