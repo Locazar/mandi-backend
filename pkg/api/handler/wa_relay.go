@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -47,7 +48,7 @@ func (h *WARelayHandler) ReceiveWebhook(ctx *gin.Context) {
 	// response is sent, which would kill every DB query in the goroutine.
 	go func() {
 		if err := h.uc.HandleIncoming(context.Background(), payload); err != nil {
-			_ = err // already logged inside HandleIncoming
+			log.Printf("[wa_relay] webhook handling failed: %v", err)
 		}
 	}()
 	ctx.Status(http.StatusOK)

@@ -3,6 +3,7 @@ package whatsapp
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -144,9 +145,14 @@ func (c *Client) SendTemplate(to, name, lang string, bodyParams ...string) (stri
 	})
 }
 
+// ErrNotConfigured is returned when WA_PHONE_NUMBER_ID or WA_ACCESS_TOKEN is
+// missing, so a misconfigured server shows up in the logs instead of
+// silently sending nothing.
+var ErrNotConfigured = errors.New("whatsapp client not configured: set WA_PHONE_NUMBER_ID and WA_ACCESS_TOKEN")
+
 func (c *Client) post(payload any) (string, error) {
 	if !c.Enabled() {
-		return "", nil
+		return "", ErrNotConfigured
 	}
 	b, err := json.Marshal(payload)
 	if err != nil {

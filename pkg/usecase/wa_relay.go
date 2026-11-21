@@ -16,6 +16,7 @@ import (
 	repoi "github.com/rohit221990/mandi-backend/pkg/repository/interfaces"
 	"github.com/rohit221990/mandi-backend/pkg/service/whatsapp"
 	uci "github.com/rohit221990/mandi-backend/pkg/usecase/interfaces"
+	"github.com/spf13/viper"
 	"gorm.io/gorm"
 )
 
@@ -70,7 +71,7 @@ func NewWAChatUseCase(
 	notification uci.NotificationUseCase,
 	wa *whatsapp.Client,
 ) uci.WAChatUseCase {
-	lang := os.Getenv("WA_SELLER_ENQUIRY_TEMPLATE_LANG")
+	lang := waSetting("WA_SELLER_ENQUIRY_TEMPLATE_LANG")
 	if lang == "" {
 		lang = "en"
 	}
@@ -79,9 +80,18 @@ func NewWAChatUseCase(
 		adminRepo:          adminRepo,
 		notification:       notification,
 		wa:                 wa,
-		sellerTemplate:     os.Getenv("WA_SELLER_ENQUIRY_TEMPLATE"),
+		sellerTemplate:     waSetting("WA_SELLER_ENQUIRY_TEMPLATE"),
 		sellerTemplateLang: lang,
 	}
+}
+
+// waSetting reads a relay setting from the .env file (loaded by viper in
+// config.LoadConfig) or, failing that, from the process environment.
+func waSetting(key string) string {
+	if v := strings.TrimSpace(viper.GetString(key)); v != "" {
+		return v
+	}
+	return strings.TrimSpace(os.Getenv(key))
 }
 
 func (uc *waChatUseCase) HandleIncoming(ctx context.Context, payload domain.WAWebhookPayload) error {
@@ -119,6 +129,11 @@ func (uc *waChatUseCase) routeMessage(ctx context.Context, msg domain.WAWHMessag
 	quotedID := ""
 	if msg.Context != nil {
 		quotedID = msg.Context.ID
+	}
+	log.Printf("[wa_relay] inbound msg=%s from=…%s type=%s shop=%q quoted=%t",
+		msg.ID, last4(msg.From), msg.Type, extractShopID(body), quotedID != "")
+	if !uc.wa.Enabled() {
+		log.Printf("[wa_relay] %v — cannot reply or relay", whatsapp.ErrNotConfigured)
 	}
 
 	// A message carrying a SHOP: token is always a customer enquiry, even if
@@ -191,6 +206,11 @@ func (uc *waChatUseCase) relayCustomerToSeller(ctx context.Context, customerPhon
 		}
 	}
 
+	// Acknowledge the customer when a chat starts, and again whenever they
+	// come back after a quiet day, so they always know the message landed.
+	sendAck := isFirst || chat.LastCustomerMsgAt == nil ||
+		time.Since(*chat.LastCustomerMsgAt) > waAmbiguityWindow
+
 	cleanBody := maskContactDetails(stripShopToken(body))
 	ref := chatRef(chat.ID)
 	who := "Customer " + ref
@@ -217,10 +237,15 @@ func (uc *waChatUseCase) relayCustomerToSeller(ctx context.Context, customerPhon
 	uc.saveMessage(ctx, chat.ID, waMsgID, outID, domain.WADirCustomerToSeller, body)
 
 	if sendErr != nil {
-		log.Printf("[wa_relay] forward to seller failed chat=%s: %v", chat.ID, sendErr)
+		log.Printf("[wa_relay] forward to seller failed chat=%s shop=%s: %v", chat.ID, chat.ShopID, sendErr)
+		if whatsapp.IsOutsideWindow(sendErr) && uc.sellerTemplate == "" {
+			log.Printf("[wa_relay] seller is outside the 24h window and WA_SELLER_ENQUIRY_TEMPLATE is not set")
+		}
 		uc.notifyAdminUndelivered(chat)
+	} else {
+		log.Printf("[wa_relay] relayed customer→seller chat=%s shop=%s", chat.ID, chat.ShopID)
 	}
-	if isFirst {
+	if sendAck {
 		uc.sendSafe(customerPhone, waMsgCustomerAck)
 	}
 	return sendErr
@@ -268,6 +293,9 @@ func (uc *waChatUseCase) relaySellerToCustomer(ctx context.Context, sellerPhone 
 	outID, sendErr := uc.wa.SendTextWithID(chat.CustomerPhone, forwardBody)
 	uc.saveMessage(ctx, chat.ID, waMsgID, outID, domain.WADirSellerToCustomer, body)
 
+	if sendErr == nil {
+		log.Printf("[wa_relay] relayed seller→customer chat=%s", chat.ID)
+	}
 	if sendErr != nil {
 		log.Printf("[wa_relay] forward to customer failed chat=%s: %v", chat.ID, sendErr)
 		if whatsapp.IsOutsideWindow(sendErr) {
@@ -317,6 +345,15 @@ func (uc *waChatUseCase) notifyAdminUndelivered(chat domain.WAChat) {
 	if _, err := uc.notification.SendPushNotification(context.Background(), req); err != nil {
 		log.Printf("[wa_relay] admin notify: %v", err)
 	}
+}
+
+// last4 returns the last four digits of a phone number for logs, so full
+// numbers never end up in log files.
+func last4(phone string) string {
+	if len(phone) <= 4 {
+		return phone
+	}
+	return phone[len(phone)-4:]
 }
 
 // chatRef is a short, stable label for a chat (e.g. "#3F2A") so a seller can
