@@ -1,6 +1,10 @@
 package usecase
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/rohit221990/mandi-backend/pkg/domain"
+)
 
 func TestMaskContactDetails(t *testing.T) {
 	cases := map[string]string{
@@ -39,5 +43,27 @@ func TestRoutingTokens(t *testing.T) {
 	}
 	if got := toE164IN("98765 43210"); got != "919876543210" {
 		t.Errorf("toE164IN = %q", got)
+	}
+}
+
+func TestRelayTextMasking(t *testing.T) {
+	open := &waChatUseCase{maskContacts: false}
+	if got := open.relayText("call 98765 43210"); got != "call 98765 43210" {
+		t.Errorf("unmasked relayText = %q", got)
+	}
+	masked := &waChatUseCase{maskContacts: true}
+	if got := masked.relayText("call 98765 43210"); got != "call [number hidden]" {
+		t.Errorf("masked relayText = %q", got)
+	}
+}
+
+func TestContactCardsText(t *testing.T) {
+	var c domain.WAWHContactCard
+	c.Name.FormattedName = "Ramesh"
+	c.Phones = append(c.Phones, struct {
+		Phone string `json:"phone"`
+	}{Phone: "+91 98765 43210"})
+	if got := contactCardsText([]domain.WAWHContactCard{c}); got != "📇 Ramesh: +91 98765 43210" {
+		t.Errorf("contactCardsText = %q", got)
 	}
 }

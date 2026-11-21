@@ -84,6 +84,18 @@ type WAWHMessage struct {
 	Text    *WAWHText    `json:"text,omitempty"`
 	Type    string       `json:"type"` // "text", "image", etc.
 	Context *WAWHContext `json:"context,omitempty"`
+	// Contacts is set when the sender shares a WhatsApp contact card.
+	Contacts []WAWHContactCard `json:"contacts,omitempty"`
+}
+
+// WAWHContactCard is a contact card shared in a WhatsApp message.
+type WAWHContactCard struct {
+	Name struct {
+		FormattedName string `json:"formatted_name"`
+	} `json:"name"`
+	Phones []struct {
+		Phone string `json:"phone"`
+	} `json:"phones"`
 }
 
 // WAWHContext is present when the sender used WhatsApp's "Reply" (swipe) on

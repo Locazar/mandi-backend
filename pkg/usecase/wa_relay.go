@@ -63,6 +63,11 @@ type waChatUseCase struct {
 	// {{2}} = customer reference, {{3}} = customer message.
 	sellerTemplate     string
 	sellerTemplateLang string
+
+	// maskContacts hides phone numbers, emails and WhatsApp links typed in
+	// relayed messages. Off by default: customers and sellers may share
+	// numbers. Set WA_RELAY_MASK_CONTACTS=true to switch masking back on.
+	maskContacts bool
 }
 
 func NewWAChatUseCase(
@@ -82,6 +87,7 @@ func NewWAChatUseCase(
 		wa:                 wa,
 		sellerTemplate:     waSetting("WA_SELLER_ENQUIRY_TEMPLATE"),
 		sellerTemplateLang: lang,
+		maskContacts:       strings.EqualFold(waSetting("WA_RELAY_MASK_CONTACTS"), "true"),
 	}
 }
 
@@ -116,12 +122,16 @@ func (uc *waChatUseCase) HandleIncoming(ctx context.Context, payload domain.WAWe
 }
 
 // routeMessage decides if the sender is a customer or a seller and relays.
-// Both parties only ever talk to the Locazar number: neither side's phone
-// number is forwarded, and numbers typed inside messages are masked.
+// Both parties only ever talk to the Locazar number, so neither side's
+// WhatsApp number is revealed automatically. Numbers they choose to type, or
+// contact cards they share, are relayed as-is unless WA_RELAY_MASK_CONTACTS=true.
 func (uc *waChatUseCase) routeMessage(ctx context.Context, msg domain.WAWHMessage, profileName string) error {
 	body := ""
 	if msg.Text != nil {
 		body = msg.Text.Body
+	}
+	if body == "" && msg.Type == "contacts" && len(msg.Contacts) > 0 {
+		body = contactCardsText(msg.Contacts)
 	}
 	if body == "" && msg.Type != "text" {
 		body = fmt.Sprintf("[%s message — media is not forwarded, please describe it in text]", msg.Type)
@@ -211,7 +221,7 @@ func (uc *waChatUseCase) relayCustomerToSeller(ctx context.Context, customerPhon
 	sendAck := isFirst || chat.LastCustomerMsgAt == nil ||
 		time.Since(*chat.LastCustomerMsgAt) > waAmbiguityWindow
 
-	cleanBody := maskContactDetails(stripShopToken(body))
+	cleanBody := uc.relayText(stripShopToken(body))
 	ref := chatRef(chat.ID)
 	who := "Customer " + ref
 	if n := strings.TrimSpace(customerName); n != "" {
@@ -288,7 +298,7 @@ func (uc *waChatUseCase) relaySellerToCustomer(ctx context.Context, sellerPhone 
 		shopName = shop.ShopName
 	}
 	forwardBody := fmt.Sprintf("🏪 *%s* replied:\n\n%s\n\n↩️ Swipe right on this message to reply.",
-		shopName, maskContactDetails(body))
+		shopName, uc.relayText(body))
 
 	outID, sendErr := uc.wa.SendTextWithID(chat.CustomerPhone, forwardBody)
 	uc.saveMessage(ctx, chat.ID, waMsgID, outID, domain.WADirSellerToCustomer, body)
@@ -364,6 +374,34 @@ func chatRef(chatID string) string {
 		id = id[:4]
 	}
 	return "#" + strings.ToUpper(id)
+}
+
+// relayText applies contact masking only when WA_RELAY_MASK_CONTACTS=true.
+func (uc *waChatUseCase) relayText(s string) string {
+	if uc.maskContacts {
+		return maskContactDetails(s)
+	}
+	return s
+}
+
+// contactCardsText turns shared contact cards into plain text so they can be
+// relayed from the Locazar number, e.g. "📇 Ramesh: +91 98765 43210".
+func contactCardsText(cards []domain.WAWHContactCard) string {
+	var lines []string
+	for _, c := range cards {
+		var phones []string
+		for _, p := range c.Phones {
+			if p.Phone != "" {
+				phones = append(phones, p.Phone)
+			}
+		}
+		name := strings.TrimSpace(c.Name.FormattedName)
+		if name == "" {
+			name = "Contact"
+		}
+		lines = append(lines, fmt.Sprintf("📇 %s: %s", name, strings.Join(phones, ", ")))
+	}
+	return strings.Join(lines, "\n")
 }
 
 // maskContactDetails hides phone numbers, email addresses and WhatsApp links
