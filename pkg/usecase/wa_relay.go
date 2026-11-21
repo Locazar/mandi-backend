@@ -516,31 +516,52 @@ func strip91(phone string) string {
 	return digits
 }
 
-// stripShopToken removes the "SHOP:{id}" routing token (and its leading blank
-// line) from a message body before forwarding it to the seller. The token is
-// added by the web app to identify the shop but is an implementation detail
-// the seller should never see.
+// stripShopToken removes routing tokens from a message body before forwarding
+// to the seller. Handles the "By Locazar · <base64>" footer and the legacy SHOP: token.
 func stripShopToken(body string) string {
-	upper := strings.ToUpper(body)
-	const prefix = "SHOP:"
-	idx := strings.Index(upper, prefix)
-	if idx == -1 {
-		return body
+	lines := strings.Split(body, "\n")
+	out := make([]string, 0, len(lines))
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		// New format: "By Locazar · <base64>" — also strip the preceding "Thank You" line
+		if strings.HasPrefix(trimmed, "By Locazar") {
+			// Remove a trailing "Thank You" line if present
+			if len(out) > 0 && strings.TrimSpace(out[len(out)-1]) == "Thank You" {
+				out = out[:len(out)-1]
+			}
+			continue
+		}
+		// Legacy format: SHOP:{id}
+		if strings.HasPrefix(strings.ToUpper(trimmed), "SHOP:") {
+			continue
+		}
+		out = append(out, line)
 	}
-	// Find the end of the token (next whitespace or end of string).
-	rest := body[idx+len(prefix):]
-	end := strings.IndexAny(rest, " \n\t\r")
-	var after string
-	if end == -1 {
-		after = ""
-	} else {
-		after = rest[end:]
-	}
-	return strings.TrimRight(body[:idx]+after, "\n\r \t")
+	return strings.TrimRight(strings.Join(out, "\n"), "\n\r \t")
 }
 
-// extractShopID looks for "SHOP:{id}" anywhere in a message body.
+// extractShopID extracts the shop ID from a message body.
+// New format: "By Locazar · #KLIC-B2H8-..." (formatted booking reference).
+// Legacy format: "SHOP:{id}".
 func extractShopID(body string) string {
+	// New format: "By Locazar · #<CORE-IN-GROUPS>"
+	const byLocazar = "By Locazar · #"
+	if idx := strings.Index(body, byLocazar); idx != -1 {
+		rest := strings.TrimSpace(body[idx+len(byLocazar):])
+		end := strings.IndexAny(rest, " \n\t\r")
+		var ref string
+		if end == -1 {
+			ref = rest
+		} else {
+			ref = rest[:end]
+		}
+		// Strip dashes, lowercase, prepend "shp_" to reconstruct original ID.
+		core := strings.ToLower(strings.ReplaceAll(ref, "-", ""))
+		if core != "" {
+			return "shp_" + core
+		}
+	}
+	// Legacy format: SHOP:{id}
 	upper := strings.ToUpper(body)
 	const prefix = "SHOP:"
 	idx := strings.Index(upper, prefix)
