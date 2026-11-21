@@ -782,6 +782,7 @@ func AdminRoutes(api *gin.RouterGroup, authHandler handlerInterface.AuthHandler,
 	waChats := api.Group("/wa-chats")
 	{
 		waChats.GET("", middleware.AuthenticateAdmin(), waRelayHandler.ListChats)
+		waChats.GET("/stats", middleware.AuthenticateAdmin(), waRelayHandler.Stats)
 		waChats.GET("/:id", middleware.AuthenticateAdmin(), waRelayHandler.GetChat)
 	}
 

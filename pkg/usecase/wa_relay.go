@@ -467,6 +467,13 @@ func (uc *waChatUseCase) ListChats(ctx context.Context, status string, page int)
 	return uc.repo.ListChats(ctx, status, waPageSize, offset)
 }
 
+func (uc *waChatUseCase) ShopStats(ctx context.Context, from, to time.Time) ([]domain.WAShopStat, error) {
+	if err := uc.repo.EnsureTables(ctx); err != nil {
+		return nil, err
+	}
+	return uc.repo.ShopStats(ctx, from, to)
+}
+
 func (uc *waChatUseCase) GetChat(ctx context.Context, chatID string) (domain.WAChat, []domain.WAMessage, error) {
 	chat, err := uc.repo.GetChatByID(ctx, chatID)
 	if err != nil {

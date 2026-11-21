@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rohit221990/mandi-backend/pkg/api/handler/response"
@@ -72,6 +73,52 @@ func (h *WARelayHandler) ListChats(ctx *gin.Context) {
 		return
 	}
 	response.SuccessResponse(ctx, http.StatusOK, "WA chats", chats)
+}
+
+// Stats returns, per shop, how many customers reached the seller through the
+// WhatsApp relay — the numbers to show a seller before asking for payment.
+// GET /api/admin/wa-chats/stats?from=2026-11-01&to=2026-11-30 (IST dates,
+// both inclusive; default: the last 30 days including today).
+func (h *WARelayHandler) Stats(ctx *gin.Context) {
+	ist := time.FixedZone("IST", 5*60*60+30*60)
+	now := time.Now().In(ist)
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, ist)
+	from, to := today.AddDate(0, 0, -29), today
+
+	if v := ctx.Query("from"); v != "" {
+		d, err := time.ParseInLocation("2006-01-02", v, ist)
+		if err != nil {
+			response.ErrorResponse(ctx, http.StatusBadRequest, "from must be YYYY-MM-DD", err, nil)
+			return
+		}
+		from = d
+	}
+	if v := ctx.Query("to"); v != "" {
+		d, err := time.ParseInLocation("2006-01-02", v, ist)
+		if err != nil {
+			response.ErrorResponse(ctx, http.StatusBadRequest, "to must be YYYY-MM-DD", err, nil)
+			return
+		}
+		to = d
+	}
+	if to.Before(from) {
+		response.ErrorResponse(ctx, http.StatusBadRequest, "to must not be before from", nil, nil)
+		return
+	}
+
+	stats, err := h.uc.ShopStats(ctx.Request.Context(), from, to.AddDate(0, 0, 1))
+	if err != nil {
+		response.ErrorResponse(ctx, http.StatusInternalServerError, "Failed to load WhatsApp stats", err, nil)
+		return
+	}
+	if stats == nil {
+		stats = []domain.WAShopStat{}
+	}
+	response.SuccessResponse(ctx, http.StatusOK, "WhatsApp relay stats", gin.H{
+		"from":  from.Format("2006-01-02"),
+		"to":    to.Format("2006-01-02"),
+		"shops": stats,
+	})
 }
 
 // GetChat returns a single chat with its messages.

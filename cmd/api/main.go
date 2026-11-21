@@ -163,6 +163,14 @@ func main() {
 	// Graceful shutdown: stop watcher when OS signal is received
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	// Nightly shop-visit digest: at 23:50 IST each seller gets a push with
+	// how many customers opened their shop profile that day.
+	if visitDigest, visitDigestErr := di.InitializeShopVisitDigest(cfg); visitDigestErr != nil {
+		log.Printf("Warning: Could not initialize shop-visit digest: %v", visitDigestErr)
+	} else {
+		go runShopVisitDigestScheduler(nudgeCtx, visitDigest)
+	}
+
 	go func() {
 		<-quit
 		log.Println("Shutdown signal received — stopping Firestore watcher")
@@ -266,7 +274,7 @@ func runRewardSweepTicker(ctx context.Context, uc *usecase.RewardUseCase) {
 	}
 	sweep()
 	ticker := time.NewTicker(time.Hour)
-		defer ticker.Stop()
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
@@ -276,6 +284,7 @@ func runRewardSweepTicker(ctx context.Context, uc *usecase.RewardUseCase) {
 		}
 	}
 }
+
 // runDistrictNudgeTicker calls RunSweep once a day until ctx is cancelled.
 // Fires once immediately on startup too, same reasoning as the onboarding
 // ticker. Product counts change slowly and this is a social-pressure
@@ -461,4 +470,35 @@ func parseCipherSuites(names []string) []uint16 {
 		}
 	}
 	return result
+}
+
+// runShopVisitDigestScheduler sends the shop-visit digest every day at
+// 23:50 IST. If the server starts between 23:50 and midnight it runs right
+// away; RunForDay records each day so a day is never sent twice.
+func runShopVisitDigestScheduler(ctx context.Context, d *usecase.ShopVisitDigest) {
+	run := func() {
+		res, err := d.RunForDay(ctx, time.Now())
+		if err != nil {
+			log.Printf("WARN [shop-visit-digest]: %v", err)
+			return
+		}
+		if !res.AlreadySent {
+			log.Printf("[shop-visit-digest] day=%s shops=%d sent=%d skipped=%d errors=%d",
+				res.Day, res.Shops, res.Sent, res.Skipped, res.Errors)
+		}
+	}
+
+	if usecase.ShouldRunShopVisitDigestNow(time.Now()) {
+		run()
+	}
+	for {
+		timer := time.NewTimer(time.Until(usecase.NextShopVisitDigestRun(time.Now())))
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return
+		case <-timer.C:
+			run()
+		}
+	}
 }

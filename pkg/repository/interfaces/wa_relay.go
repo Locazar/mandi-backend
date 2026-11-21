@@ -34,6 +34,9 @@ type WAChatRepository interface {
 	// seller reply is ambiguous.
 	CountRecentChatsForSeller(ctx context.Context, sellerPhone string, since time.Time) (int64, error)
 
+	// ShopStats returns per-shop relay counts for messages in [from, to).
+	ShopStats(ctx context.Context, from, to time.Time) ([]domain.WAShopStat, error)
+
 	CreateChat(ctx context.Context, chat domain.WAChat) error
 	GetChatByID(ctx context.Context, id string) (domain.WAChat, error)
 	ListChats(ctx context.Context, status string, limit, offset int) ([]domain.WAChat, error)

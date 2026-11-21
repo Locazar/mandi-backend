@@ -48,6 +48,17 @@ type WAMessage struct {
 
 func (WAMessage) TableName() string { return "wa_messages" }
 
+// WAShopStat summarises WhatsApp relay activity for one shop over a period —
+// used to show sellers (and the sales team) how many customers Locazar sent.
+type WAShopStat struct {
+	ShopID           string `json:"shop_id" gorm:"column:shop_id"`
+	ShopName         string `json:"shop_name" gorm:"column:shop_name"`
+	Customers        int64  `json:"customers" gorm:"column:customers"`                 // unique customers who messaged
+	NewChats         int64  `json:"new_chats" gorm:"column:new_chats"`                 // conversations started in the period
+	CustomerMessages int64  `json:"customer_messages" gorm:"column:customer_messages"` // messages customers sent
+	SellerReplies    int64  `json:"seller_replies" gorm:"column:seller_replies"`       // messages the seller sent back
+}
+
 // WAWebhookPayload is the top-level envelope Meta sends to our webhook URL.
 type WAWebhookPayload struct {
 	Object string           `json:"object"`

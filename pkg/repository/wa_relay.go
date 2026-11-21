@@ -134,6 +134,26 @@ func (r *waChatRepository) CountRecentChatsForSeller(ctx context.Context, seller
 	return n, err
 }
 
+func (r *waChatRepository) ShopStats(ctx context.Context, from, to time.Time) ([]domain.WAShopStat, error) {
+	var out []domain.WAShopStat
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT c.shop_id,
+		       MAX(c.shop_name) AS shop_name,
+		       COUNT(DISTINCT c.customer_phone) FILTER (WHERE m.direction = ?) AS customers,
+		       COUNT(DISTINCT c.id) FILTER (WHERE c.created_at >= ? AND c.created_at < ?) AS new_chats,
+		       COUNT(*) FILTER (WHERE m.direction = ?) AS customer_messages,
+		       COUNT(*) FILTER (WHERE m.direction = ?) AS seller_replies
+		FROM wa_messages m
+		JOIN wa_chats c ON c.id = m.chat_id
+		WHERE m.created_at >= ? AND m.created_at < ?
+		GROUP BY c.shop_id
+		ORDER BY customers DESC, customer_messages DESC`,
+		domain.WADirCustomerToSeller, from, to,
+		domain.WADirCustomerToSeller, domain.WADirSellerToCustomer,
+		from, to).Scan(&out).Error
+	return out, err
+}
+
 func (r *waChatRepository) CreateChat(ctx context.Context, chat domain.WAChat) error {
 	return r.db.WithContext(ctx).Create(&chat).Error
 }
