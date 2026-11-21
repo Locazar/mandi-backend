@@ -206,6 +206,7 @@ func (uc *waChatUseCase) GetChat(ctx context.Context, chatID string) (domain.WAC
 	return chat, msgs, err
 }
 
+
 // toE164IN converts an Indian phone stored in the DB (10 digits) to the E.164
 // format required by the WhatsApp Cloud API (country code + number, no +).
 // Numbers that are already 12 digits starting with 91, or that contain a +

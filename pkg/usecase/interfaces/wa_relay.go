@@ -16,4 +16,5 @@ type WAChatUseCase interface {
 
 	// GetChat returns a single chat with its messages.
 	GetChat(ctx context.Context, chatID string) (domain.WAChat, []domain.WAMessage, error)
+
 }
