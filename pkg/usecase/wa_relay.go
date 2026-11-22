@@ -303,7 +303,9 @@ func (uc *waChatUseCase) relayCustomerToSeller(ctx context.Context, customerPhon
 
 	// Acknowledge the customer when a chat starts, and again whenever they
 	// come back after a quiet day, so they always know the message landed.
-	sendAck := isFirst || chat.LastCustomerMsgAt == nil ||
+	// Also acknowledge every enquiry sent from the website's WhatsApp button
+	// (it carries the shop reference), even if they messaged this shop today.
+	sendAck := isFirst || extractShopID(body) != "" || chat.LastCustomerMsgAt == nil ||
 		time.Since(*chat.LastCustomerMsgAt) > waAmbiguityWindow
 
 	cleanBody := uc.relayText(stripShopToken(body))
