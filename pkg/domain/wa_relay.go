@@ -78,6 +78,23 @@ type WAWebhookValue struct {
 	MessagingProduct string        `json:"messaging_product"`
 	Contacts         []WAWHContact `json:"contacts"`
 	Messages         []WAWHMessage `json:"messages"`
+	// Statuses report what happened to messages the bot sent (sent,
+	// delivered, read, failed). A message WhatsApp accepted can still fail
+	// later — e.g. error 131047 when the recipient is outside the 24h window.
+	Statuses []WAWHStatus `json:"statuses"`
+}
+
+type WAWHStatus struct {
+	ID          string      `json:"id"`     // Meta message ID of the bot's outbound message
+	Status      string      `json:"status"` // sent | delivered | read | failed
+	RecipientID string      `json:"recipient_id"`
+	Errors      []WAWHError `json:"errors,omitempty"`
+}
+
+type WAWHError struct {
+	Code    int    `json:"code"`
+	Title   string `json:"title"`
+	Message string `json:"message"`
 }
 
 type WAWHContact struct {

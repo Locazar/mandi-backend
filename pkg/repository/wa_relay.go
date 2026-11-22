@@ -86,7 +86,7 @@ func (r *waChatRepository) FindActiveChatByCustomerPhone(ctx context.Context, cu
 	var chat domain.WAChat
 	err := r.db.WithContext(ctx).
 		Where("customer_phone = ? AND status = ?", customerPhone, domain.WAChatStatusActive).
-		Order("last_message_at DESC, created_at DESC").
+		Order("last_message_at DESC NULLS LAST, created_at DESC").
 		First(&chat).Error
 	return chat, err
 }
@@ -104,7 +104,7 @@ func (r *waChatRepository) FindActiveChatBySellerPhone(ctx context.Context, sell
 	var chat domain.WAChat
 	err := r.db.WithContext(ctx).
 		Where("seller_phone = ? AND status = ?", sellerPhone, domain.WAChatStatusActive).
-		Order("last_message_at DESC").
+		Order("last_message_at DESC NULLS LAST").
 		First(&chat).Error
 	return chat, err
 }
@@ -178,6 +178,18 @@ func (r *waChatRepository) ListChats(ctx context.Context, status string, limit, 
 
 func (r *waChatRepository) SaveMessage(ctx context.Context, msg domain.WAMessage) error {
 	return r.db.WithContext(ctx).Create(&msg).Error
+}
+
+func (r *waChatRepository) FindMessageByOutboundID(ctx context.Context, outboundWaMsgID string) (domain.WAMessage, error) {
+	var msg domain.WAMessage
+	err := r.db.WithContext(ctx).Where("outbound_wa_msg_id = ?", outboundWaMsgID).First(&msg).Error
+	return msg, err
+}
+
+func (r *waChatRepository) SetOutboundID(ctx context.Context, messageID, outboundWaMsgID string) error {
+	return r.db.WithContext(ctx).Model(&domain.WAMessage{}).
+		Where("id = ?", messageID).
+		Update("outbound_wa_msg_id", outboundWaMsgID).Error
 }
 
 func (r *waChatRepository) GetMessages(ctx context.Context, chatID string) ([]domain.WAMessage, error) {

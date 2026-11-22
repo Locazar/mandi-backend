@@ -32,6 +32,9 @@ const (
 	waMsgSellerAmbiguous = "You have open enquiries from more than one customer. " +
 		"Please *swipe right on the customer's message* and reply, so we know who to send your answer to."
 
+	waMsgDualRoleAmbiguous = "You have open chats on Locazar both as a *seller* and as a *customer*. " +
+		"Please *swipe right on the message you are replying to*, so we send your answer to the right person."
+
 	waMsgSellerNoChat = "There is no open customer enquiry to reply to right now. " +
 		"New enquiries will appear here as they arrive."
 
@@ -124,6 +127,9 @@ func (uc *waChatUseCase) HandleIncoming(ctx context.Context, payload domain.WAWe
 					log.Printf("[wa_relay] route error msg=%s: %v", msg.ID, err)
 				}
 			}
+			for _, st := range change.Value.Statuses {
+				uc.handleStatus(ctx, st)
+			}
 		}
 	}
 	return nil
@@ -160,18 +166,83 @@ func (uc *waChatUseCase) routeMessage(ctx context.Context, msg domain.WAWHMessag
 		log.Printf("[wa_relay] %v — cannot reply or relay", whatsapp.ErrNotConfigured)
 	}
 
-	// A message carrying a SHOP: token is always a customer enquiry, even if
-	// the sender is also a registered seller (sellers shop too).
-	if extractShopID(body) == "" {
-		// Meta delivers msg.From in E.164 without '+' (e.g. 919876543210).
-		// DB stores phones as 10-digit Indian numbers, so strip the country
-		// code before the lookup.
-		shop, err := uc.repo.FindShopByPhone(ctx, strip91(msg.From))
-		if err == nil && shop.ID != "" {
-			return uc.relaySellerToCustomer(ctx, msg.From, shop, body, msg.ID, quotedID)
-		}
+	// The same person can be a seller (for their own shop) and a customer
+	// (of other shops). Decide which role this message is in.
+	asSeller, shop, ambiguous := uc.senderRole(ctx, msg.From, body, quotedID)
+	if ambiguous {
+		uc.sendSafe(msg.From, waMsgDualRoleAmbiguous)
+		return nil
+	}
+	if asSeller {
+		return uc.relaySellerToCustomer(ctx, msg.From, shop, body, msg.ID, quotedID)
 	}
 	return uc.relayCustomerToSeller(ctx, msg.From, profileName, body, msg.ID, quotedID)
+}
+
+// senderRole decides whether an inbound message is a seller reply or a
+// customer message. Anyone can be both, so the order is:
+//  1. a SHOP: token → customer enquiry (sellers shop too);
+//  2. a swipe-reply → the role the quoted message was sent to them in;
+//  3. not a registered seller → customer;
+//  4. a seller with no open customer chat → seller;
+//  5. open chats in both roles → whichever had activity most recently; if
+//     both were active within the last 24h, ambiguous (ask them to swipe).
+func (uc *waChatUseCase) senderRole(ctx context.Context, from, body, quotedID string) (asSeller bool, shop domain.ShopDetails, ambiguous bool) {
+	if extractShopID(body) != "" {
+		return false, shop, false
+	}
+
+	// Meta delivers msg.From in E.164 without '+' (e.g. 919876543210).
+	// DB stores phones as 10-digit Indian numbers, so strip the country
+	// code before the lookup.
+	s, err := uc.repo.FindShopByPhone(ctx, strip91(from))
+	isSeller := err == nil && s.ID != ""
+
+	if quotedID != "" {
+		if c, qErr := uc.repo.FindChatByOutboundMsgID(ctx, quotedID); qErr == nil {
+			switch {
+			case c.SellerPhone == from && isSeller:
+				return true, s, false
+			case c.CustomerPhone == from:
+				return false, shop, false
+			}
+		}
+	}
+	if !isSeller {
+		return false, shop, false
+	}
+
+	custChat, cErr := uc.repo.FindActiveChatByCustomerPhone(ctx, from)
+	if cErr != nil {
+		return true, s, false // no chat as a customer
+	}
+	sellChat, sErr := uc.repo.FindActiveChatBySellerPhone(ctx, from)
+	if sErr != nil {
+		return false, shop, false // no chat as a seller
+	}
+
+	custAt := latest(custChat.LastCustomerMsgAt, custChat.LastSellerMsgAt)
+	sellAt := latest(sellChat.LastCustomerMsgAt, sellChat.LastSellerMsgAt)
+	since := time.Now().Add(-waAmbiguityWindow)
+	if custAt.After(since) && sellAt.After(since) {
+		return false, shop, true
+	}
+	if sellAt.After(custAt) {
+		return true, s, false
+	}
+	return false, shop, false
+}
+
+// latest returns the later of two optional times (zero time if both nil).
+func latest(a, b *time.Time) time.Time {
+	var t time.Time
+	if a != nil && a.After(t) {
+		t = *a
+	}
+	if b != nil && b.After(t) {
+		t = *b
+	}
+	return t
 }
 
 // relayCustomerToSeller forwards a customer message to the right seller.
@@ -327,6 +398,57 @@ func (uc *waChatUseCase) relaySellerToCustomer(ctx context.Context, sellerPhone 
 		}
 	}
 	return sendErr
+}
+
+// waErrOutsideWindow is Meta's "re-engagement message" error: free text sent
+// to someone who hasn't messaged the bot in 24 hours. WhatsApp accepts such a
+// message and reports this failure later, in a status webhook.
+const waErrOutsideWindow = 131047
+
+// handleStatus reacts to delivery statuses of messages the bot relayed. A
+// message to a seller that failed because they are outside the 24h window is
+// re-sent with the approved template, so the enquiry still reaches them.
+func (uc *waChatUseCase) handleStatus(ctx context.Context, st domain.WAWHStatus) {
+	if st.Status != "failed" {
+		return
+	}
+	code, reason := 0, ""
+	if len(st.Errors) > 0 {
+		code, reason = st.Errors[0].Code, st.Errors[0].Title
+	}
+	log.Printf("[wa_relay] delivery failed out=%s to=…%s code=%d %s", st.ID, last4(st.RecipientID), code, reason)
+
+	m, err := uc.repo.FindMessageByOutboundID(ctx, st.ID)
+	if err != nil {
+		return // not a relayed message (e.g. an ack or a template already retried)
+	}
+	chat, err := uc.repo.GetChatByID(ctx, m.ChatID)
+	if err != nil {
+		return
+	}
+
+	switch m.Direction {
+	case domain.WADirCustomerToSeller:
+		if code == waErrOutsideWindow && uc.sellerTemplate != "" {
+			who := "Customer " + chatRef(chat.ID)
+			body := uc.relayText(stripShopToken(m.Body))
+			outID, sendErr := uc.wa.SendTemplate(chat.SellerPhone, uc.sellerTemplate, uc.sellerTemplateLang,
+				chat.ShopName, who, body)
+			if sendErr == nil {
+				_ = uc.repo.SetOutboundID(ctx, m.ID, outID)
+				log.Printf("[wa_relay] re-sent as template chat=%s shop=%s", chat.ID, chat.ShopID)
+				return
+			}
+			log.Printf("[wa_relay] template re-send failed chat=%s: %v", chat.ID, sendErr)
+		} else if code == waErrOutsideWindow {
+			log.Printf("[wa_relay] seller outside 24h window and WA_SELLER_ENQUIRY_TEMPLATE is not set chat=%s", chat.ID)
+		}
+		uc.notifyAdminUndelivered(chat)
+	case domain.WADirSellerToCustomer:
+		if code == waErrOutsideWindow {
+			uc.sendSafe(chat.SellerPhone, waMsgSellerCustomerGone)
+		}
+	}
 }
 
 // saveMessage stores the original (unmasked) text for the admin audit trail

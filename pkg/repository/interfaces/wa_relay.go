@@ -42,6 +42,13 @@ type WAChatRepository interface {
 	ListChats(ctx context.Context, status string, limit, offset int) ([]domain.WAChat, error)
 
 	SaveMessage(ctx context.Context, msg domain.WAMessage) error
+
+	// FindMessageByOutboundID returns the relayed message whose copy has the
+	// given Meta message ID — used to react to delivery-failure statuses.
+	FindMessageByOutboundID(ctx context.Context, outboundWaMsgID string) (domain.WAMessage, error)
+	// SetOutboundID records a new outbound copy (e.g. a template resend) so
+	// swipe-replies to it still route to the chat.
+	SetOutboundID(ctx context.Context, messageID, outboundWaMsgID string) error
 	GetMessages(ctx context.Context, chatID string) ([]domain.WAMessage, error)
 
 	MarkAdminNotified(ctx context.Context, chatID string) error
